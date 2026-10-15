@@ -1,0 +1,18 @@
+CREATE TABLE s_members(email TEXT PRIMARY KEY, name TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('lawyer','assistant')), active INTEGER NOT NULL DEFAULT 1);
+CREATE TABLE s_guard(id TEXT PRIMARY KEY, ok INTEGER NOT NULL CHECK(ok=1));
+CREATE TABLE s_meta(id INTEGER PRIMARY KEY CHECK(id=1), party_revision INTEGER NOT NULL DEFAULT 0);
+INSERT INTO s_meta(id) VALUES(1);
+CREATE TABLE s_parties(id TEXT PRIMARY KEY, name TEXT NOT NULL, aliases TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '', source TEXT NOT NULL DEFAULT 'native', revision TEXT NOT NULL);
+CREATE TRIGGER s_party_insert AFTER INSERT ON s_parties BEGIN UPDATE s_meta SET party_revision=party_revision+1 WHERE id=1; END;
+CREATE TRIGGER s_party_update AFTER UPDATE ON s_parties BEGIN UPDATE s_meta SET party_revision=party_revision+1 WHERE id=1; END;
+CREATE TRIGGER s_party_delete AFTER DELETE ON s_parties BEGIN UPDATE s_meta SET party_revision=party_revision+1 WHERE id=1; END;
+CREATE TABLE s_conflicts(id TEXT PRIMARY KEY, client TEXT NOT NULL, adverse TEXT NOT NULL, queries TEXT NOT NULL, matches TEXT NOT NULL, party_revision INTEGER NOT NULL, actor TEXT NOT NULL, at TEXT NOT NULL);
+CREATE TABLE s_matters(id TEXT PRIMARY KEY, title TEXT NOT NULL, client TEXT NOT NULL, adverse TEXT NOT NULL, conflict_id TEXT NOT NULL UNIQUE REFERENCES s_conflicts(id), review_note TEXT NOT NULL, opened_by TEXT NOT NULL, opened_at TEXT NOT NULL);
+CREATE TRIGGER s_matter_conflict BEFORE INSERT ON s_matters WHEN NOT EXISTS(SELECT 1 FROM s_conflicts c,s_meta m WHERE c.id=NEW.conflict_id AND c.party_revision=m.party_revision AND c.actor=NEW.opened_by AND c.client=NEW.client AND c.adverse=NEW.adverse) BEGIN SELECT RAISE(ABORT,'stale conflict search'); END;
+CREATE TABLE s_matter_access(matter_id TEXT NOT NULL REFERENCES s_matters(id) ON DELETE CASCADE, email TEXT NOT NULL, PRIMARY KEY(matter_id,email));
+CREATE TABLE s_matter_parties(matter_id TEXT NOT NULL REFERENCES s_matters(id) ON DELETE CASCADE, party_id TEXT NOT NULL REFERENCES s_parties(id), relation TEXT NOT NULL, PRIMARY KEY(matter_id,party_id));
+CREATE TABLE s_audit(id TEXT PRIMARY KEY, actor TEXT NOT NULL, action TEXT NOT NULL, object_id TEXT NOT NULL, detail TEXT NOT NULL, at TEXT NOT NULL);
+CREATE TABLE s_agent_keys(id TEXT PRIMARY KEY, label TEXT NOT NULL, digest TEXT NOT NULL UNIQUE, owner_id TEXT NOT NULL, revoked INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL);
+CREATE TABLE s_proposals(id TEXT PRIMARY KEY, kind TEXT NOT NULL, payload TEXT NOT NULL, for_email TEXT NOT NULL, agent_label TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN('pending','approved','declined')), result_id TEXT, decided_by TEXT, decided_at TEXT, created_at TEXT NOT NULL);
+CREATE TRIGGER s_party_link_insert AFTER INSERT ON s_matter_parties BEGIN UPDATE s_meta SET party_revision=party_revision+1 WHERE id=1; END;
+CREATE TRIGGER s_party_link_delete AFTER DELETE ON s_matter_parties BEGIN UPDATE s_meta SET party_revision=party_revision+1 WHERE id=1; END;

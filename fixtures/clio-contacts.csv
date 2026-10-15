@@ -1,0 +1,4 @@
+first_name,last_name,company,email_address,id,aliases,primary_phone
+Amelia,Chen,,amelia.chen@example.test,clio-contact-101,A. Chen,+61 7 5550 0101
+,,Riverbend Holdings Pty Ltd,office@riverbend.example.test,clio-contact-102,Riverbend,+61 7 5550 0102
+Jonah,Reed,Reed Engineering,jonah.reed@example.test,clio-contact-103,J. Reed,+61 7 5550 0103

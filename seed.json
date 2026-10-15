@@ -1,0 +1,105 @@
+{
+  "id": "satchel",
+  "name": "Satchel",
+  "version": "0.1.0",
+  "maturity": "first-release-seed",
+  "category": "practice-management",
+  "spine": {
+    "id": "matter",
+    "record": "Conflict-reviewed legal matter"
+  },
+  "description": "Small-law-firm matters, time, original documents, confirmed deadlines and reviewed USD bill packages.",
+  "capabilities": [
+    {
+      "id": "conflicts",
+      "clauses": []
+    },
+    {
+      "id": "billing",
+      "clauses": []
+    },
+    {
+      "id": "documents",
+      "clauses": []
+    },
+    {
+      "id": "deadlines",
+      "clauses": []
+    },
+    {
+      "id": "agent-preparations",
+      "clauses": []
+    },
+    {
+      "id": "clio-import",
+      "clauses": []
+    },
+    {
+      "id": "portability",
+      "clauses": []
+    }
+  ],
+  "nonGoals": [
+    "Trust accounting and fund movement",
+    "Legal advice and e-filing",
+    "Guaranteed conflict clearance"
+  ],
+  "externals": [
+    {
+      "id": "cloudflare",
+      "required": true,
+      "why": "Worker hosting",
+      "data": [
+        "HTTP requests"
+      ],
+      "adapters": []
+    }
+  ],
+  "env": [],
+  "deploy": {
+    "healthPath": "/health",
+    "publicPaths": [
+      "/",
+      "/health",
+      "/signin"
+    ],
+    "notes": "Native owner sessions guard /app; unknown paths return real 404s; the development outbox is local-only."
+  },
+  "extensionPoints": {
+    "contributions": [],
+    "policies": [],
+    "events": [],
+    "slots": [],
+    "adapters": []
+  },
+  "limits": {
+    "status": "unmeasured"
+  },
+  "accessibility": {
+    "level": "WCAG 2.2 AA",
+    "status": "target; unaudited"
+  },
+  "operatingCost": {
+    "status": "unmeasured"
+  },
+  "composition": {
+    "base": "base",
+    "family": "legal",
+    "edition": "satchel",
+    "modules": [
+      "job-queue",
+      "release",
+      "deploy-kit",
+      "container",
+      "demo-host",
+      "integrations",
+      "mail",
+      "ai",
+      "portability",
+      "erasure",
+      "dependencies",
+      "operator-auth",
+      "owner-claim"
+    ]
+  }
+}

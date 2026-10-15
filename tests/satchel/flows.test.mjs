@@ -1,0 +1,126 @@
+import {test,before,after} from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {harness,open} from './harness.mjs';
+let h,m,assistant,lawyer,privateDoc,sourceDoc,bill,originalCsv,oldArchive,newArchive;
+before(async()=>{h=await harness();m=await open(h);});
+after(async()=>{await h?.close();});
+test('native authentication, role denial, CSRF, matter membership and revocation',async()=>{
+ await h.json('/state',undefined,'',401);await h.json('/matters',{},'',401);
+ await h.json('/team',{email:'assistant@example.test',name:'Case assistant',role:'assistant'},h.owner);
+ await h.json('/team/invite',{email:'assistant@example.test'},h.owner);
+ assistant=await h.login('assistant@example.test');
+ await h.json('/team',{email:'lawyer@example.test',name:'Associate',role:'lawyer'},h.owner);
+ await h.json('/team/invite',{email:'lawyer@example.test'},h.owner);lawyer=await h.login('lawyer@example.test');
+ assert.equal((await h.json('/state',undefined,assistant)).matters.length,0);
+ await h.json('/matters/'+m.id,undefined,assistant,404);
+ await h.json('/conflicts',{client:'A',adverse:'B'},assistant,403);
+ await h.json('/team',{},lawyer,403);
+ await h.json('/matters/'+m.id+'/access',{email:'assistant@example.test'},h.owner);
+ assert.equal((await h.json('/state',undefined,assistant)).matters.length,1);
+ await h.json('/matters/'+m.id+'/entries',{kind:'time',date:'2026-10-15',description:'Denied origin',minutes:1,rateCents:100},h.owner,403,{origin:'https://outside.example.test'});
+ await h.json('/team',{email:'assistant@example.test',name:'Case assistant',role:'assistant',active:false},h.owner);
+ await h.json('/state',undefined,assistant,403);
+ await h.json('/team',{email:'assistant@example.test',name:'Case assistant',role:'assistant'},h.owner);
+});
+test('matter opening requires a recorded fresh human conflict review',async()=>{
+ await h.json('/matters',{title:'No clearance'},h.owner,400);
+ const search=await h.json('/conflicts',{client:'Barton Workshop',adverse:'Other company'},h.owner);assert.ok(search.matches.some(p=>p.name==='Barton Workshop LLC'));
+ await open(h,'Another matter','Pine Studio','Cedar Property');
+ await h.json('/matters',{title:'Stale',conflictId:search.id,confirmed:true,reviewNote:'Reviewed'},h.owner,409);
+ const latest=await h.json('/conflicts',{client:'Barton Workshop',adverse:'Other company'},h.owner);
+ await h.json('/matters',{title:'Not confirmed',conflictId:latest.id,reviewNote:'Reviewed'},h.owner,400);
+});
+test('time and disbursements form a reviewed immutable bill, with unique reservations',async()=>{
+ const time=await h.json('/matters/'+m.id+'/entries',{kind:'time',date:'2026-10-15',description:'Review draft lease',minutes:90,rateCents:25000},assistant);
+ const expense=await h.json('/matters/'+m.id+'/entries',{kind:'disbursement',date:'2026-10-15',description:'Public registry copy',amountCents:2500},h.owner);
+ assert.equal(time.amountCents,37500);
+ await h.json('/matters/'+m.id+'/entries',{kind:'disbursement',date:'2026-99-99',description:'Invalid date',amountCents:1},h.owner,400);
+ bill=await h.json('/matters/'+m.id+'/bills',{title:'October services',date:'2026-10-15',entryIds:[time.id,expense.id]},h.owner);
+ assert.equal(bill.snapshot.totalCents,40000);
+ await h.json('/matters/'+m.id+'/bills',{title:'Duplicate',date:'2026-10-15',entryIds:[time.id]},h.owner,409);
+ await h.json('/bills/'+bill.id+'/export',undefined,h.owner,409);
+ await h.json('/bills/'+bill.id+'/approve',{revision:bill.revision,reviewNote:'Checked'},assistant,403);
+ bill=await h.json('/bills/'+bill.id+'/approve',{revision:bill.revision,reviewNote:'Services and disbursement checked against matter record.'},h.owner);
+ const result=await h.request('/api/satchel/bills/'+bill.id+'/export',undefined,h.owner);assert.equal(result.status,200);originalCsv=await result.text();assert.ok(originalCsv.includes('40000'));assert.ok(originalCsv.includes('owner@example.test'));
+ bill=(await h.json('/matters/'+m.id+'/billing',undefined,h.owner)).bills.find(b=>b.id===bill.id);
+ await h.json('/bills/'+bill.id+'/void',{revision:bill.revision,reason:'Change'},h.owner,409);
+});
+test('corrections add a separately reviewed delta and preserve original exports',async()=>{
+ const corrected=await h.json('/bills/'+bill.id+'/correct',{revision:bill.revision,sourceId:bill.snapshot.lines.find(l=>l.kind==='time').sourceId,correctedAmountCents:35000,reason:'Courtesy reduction',date:'2026-10-15'},h.owner);
+ assert.equal(corrected.snapshot.totalCents,-2500);
+ await h.json('/bills/'+corrected.id+'/export',undefined,h.owner,409);
+ await h.json('/bills/'+corrected.id+'/approve',{revision:corrected.revision,reviewNote:'Reduction approved'},h.owner);
+ assert.equal((await h.request('/api/satchel/bills/'+corrected.id+'/export',undefined,h.owner)).status,200);
+ assert.equal(await(await h.request('/api/satchel/bills/'+bill.id+'/export',undefined,h.owner)).text(),originalCsv);
+});
+test('private original versions and source-confirmed deadlines keep access and history',async()=>{
+ const upload={name:'Lease-notes.txt',mime:'text/plain',contentBase64:Buffer.from('Review notice clause 7. Due 2026-11-15.').toString('base64'),visibility:'private'};
+ privateDoc=await h.json('/matters/'+m.id+'/documents',upload,h.owner);
+ await h.json('/documents/'+privateDoc.id+'/file',undefined,assistant,404);
+ sourceDoc=await h.json('/matters/'+m.id+'/documents',{...upload,name:'Notice.txt',visibility:'matter'},h.owner);
+ assert.equal((await h.request('/api/satchel/documents/'+sourceDoc.id+'/file',undefined,assistant)).status,200);
+ const deadline=await h.json('/matters/'+m.id+'/deadlines',{title:'Serve notice',date:'2026-11-15',timezone:'America/New_York',source:'Notice clause 7, reviewed with client',documentId:sourceDoc.id},assistant);
+ await h.json('/deadlines/'+deadline.id+'/confirm',{revision:deadline.revision},assistant,403);
+ await h.json('/deadlines/'+deadline.id+'/confirm',{revision:deadline.revision,note:'Date independently checked'},h.owner);
+ await h.json('/matters/'+m.id+'/documents',{...upload,name:'Notice.txt',visibility:'matter',documentId:sourceDoc.id,revision:sourceDoc.revision,contentBase64:Buffer.from('Revised agreed notice date 2026-11-20.').toString('base64')},h.owner);
+ const list=await h.json('/matters/'+m.id+'/deadlines',undefined,h.owner);assert.equal(list[0].status,'superseded');assert.ok(list[0].events.some(e=>e.action==='confirm'));
+ await h.json('/deadlines/'+deadline.id+'/complete',{evidence:'Sent'},h.owner,409);
+ const fresh=await h.json('/matters/'+m.id+'/deadlines',{title:'Serve revised notice',date:'2026-11-20',timezone:'America/New_York',source:'Revised clause',documentId:sourceDoc.id},h.owner);
+ const confirmed=await h.json('/deadlines/'+fresh.id+'/confirm',{revision:fresh.revision,note:'Checked revised agreement'},h.owner);
+ assert.equal((await h.json('/deadlines/'+fresh.id+'/complete',{revision:confirmed.revision,evidence:'Delivery acknowledgement retained'},h.owner)).status,'done');
+});
+test('agent keys only prepare; human decisions are atomic and cannot be replayed',async()=>{
+ const key=await h.json('/keys',{label:'Practice assistant'},h.owner),auth={authorization:'Bearer '+key.key};
+ const p=await h.json('/agent/prepare-deadline',{matterId:m.id,title:'Client conference',date:'2026-11-21',timezone:'America/New_York',source:'Client request'},'',200,auth);
+ assert.equal(p.status,'pending');
+ await h.json('/proposals/'+p.id+'/decide',{decision:'approve'},'',401,auth);
+ const accepted=await h.json('/proposals/'+p.id+'/decide',{decision:'approve'},h.owner);assert.equal(accepted.status,'proposed');
+ await h.json('/proposals/'+p.id+'/decide',{decision:'approve'},h.owner,409);
+ assert.equal((await h.json('/state',undefined,h.owner)).proposals.find(v=>v.id===p.id).decided_by,'owner@example.test');
+ const proposedMatter=await h.json('/agent/prepare-matter',{title:'Seabrook advice',client:'Seabrook Studio',adverse:'Oak Street LLC'},'',200,auth);
+ const search=await h.json('/conflicts',proposedMatter.payload,h.owner);
+ await h.json('/proposals/'+proposedMatter.id+'/decide',{decision:'approve',conflictId:search.id,reviewNote:'Conflicts cleared by principal',confirmed:true},h.owner);
+ const entry=await h.json('/matters/'+m.id+'/entries',{kind:'time',date:'2026-10-15',description:'Client update',minutes:15,rateCents:25000},h.owner);
+ const context=await h.json('/agent/matters/'+m.id,undefined,'',200,auth);assert.ok(context.billing.entries.some(e=>e.id===entry.id));
+ const proposedBill=await h.json('/agent/prepare-bill',{matterId:m.id,title:'Prepared update bill',date:'2026-10-15',entryIds:[entry.id]},'',200,auth);
+ const prepared=await h.json('/proposals/'+proposedBill.id+'/decide',{decision:'approve'},h.owner);assert.equal(prepared.status,'draft');
+ await h.json('/bills/'+prepared.id+'/export',undefined,h.owner,409);
+ await h.json('/keys/'+key.id+'/revoke',{},h.owner);await h.json('/agent/context',undefined,'',401,auth);
+});
+test('Clio dry-run, exact commit, provenance, replay and undo preserve linked parties',async()=>{
+ const csv=await readFile(new URL('../../fixtures/clio-contacts.csv',import.meta.url),'utf8');
+ const preview=await h.json('/import/preview',{csv},h.owner);assert.ok(preview.parties.length>0);assert.equal((await h.json('/import',undefined,h.owner)).jobs.length,0);
+ await h.json('/import/commit',{csv,fingerprint:'changed'},h.owner,409);
+ let imported=await h.json('/import/commit',{csv,fingerprint:preview.fingerprint},h.owner);
+ while(imported.job.state!=='completed')imported=await h.json('/import/resume',{id:imported.job.id},h.owner);
+ const replay=await h.json('/import/commit',{csv,fingerprint:preview.fingerprint},h.owner);assert.equal(replay.job.id,imported.job.id);
+ const p=preview.parties[0];await open(h,'Imported client matter',p.name,'Unrelated opponent');
+ let undone=await h.json('/import/undo',{id:imported.job.id},h.owner);while(undone.job.state==='undoing')undone=await h.json('/import/undo',{id:imported.job.id},h.owner);
+ const journal=await h.json('/import/status',{id:imported.job.id},h.owner);assert.equal(journal.job.state,'undone');assert.ok(JSON.stringify(journal.undo).includes('preserv'));
+ const matches=await h.json('/conflicts',{client:p.name,adverse:'Elsewhere'},h.owner);assert.ok(matches.matches.some(v=>v.name===p.name));
+ await h.json('/import/preview',{csv},assistant,403);
+});
+test('document erasure invalidates old archives and removes every version byte',async()=>{
+ oldArchive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(oldArchive.includes('runeditrun-portability'));
+ await h.json('/documents/'+privateDoc.id+'/erase',{confirm:privateDoc.title,reason:'Retention authorization'},assistant,403);
+ await h.json('/documents/'+privateDoc.id+'/erase',{confirm:privateDoc.title,reason:'Client-authorized retention disposal'},h.owner);
+ await h.json('/documents/'+privateDoc.id+'/file',undefined,h.owner,404);
+ newArchive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(newArchive.includes('runeditrun-portability'));assert.notEqual(oldArchive,newArchive);
+});
+test('archive integrity, empty destination, later erasure journal and complete restoration',async()=>{
+ await h.json('/restore',{archive:newArchive,confirm:'RESTORE'},h.owner,409);
+ const target=await harness();try{
+  const damaged=await target.request('/api/satchel/restore',{archive:newArchive.replace('Notice.txt','Changed.txt'),confirm:'RESTORE'},target.owner);assert.equal(damaged.status,400);assert.equal((await target.json('/state',undefined,target.owner)).matters.length,0);
+  const stale=await target.request('/api/satchel/restore',{archive:oldArchive,journal:newArchive,confirm:'RESTORE'},target.owner);const staleBody=await stale.json();assert.equal(stale.status,409,JSON.stringify(staleBody));assert.match(staleBody.error,/erasure/);
+  const restored=await target.json('/restore',{archive:newArchive,confirm:'RESTORE'},target.owner);assert.equal(restored.phase,'complete');
+  assert.equal((await target.json('/state',undefined,target.owner)).matters.length,(await h.json('/state',undefined,h.owner)).matters.length);
+  const roundtrip=await(await target.request('/api/satchel/backup',undefined,target.owner)).text();
+  const nativeRows=archive=>archive.trim().split('\n').map(line=>JSON.parse(line)).filter(record=>record.kind==='part').flatMap(part=>part.items).filter(item=>item.kind==='row').map(item=>JSON.stringify({table:item.table,row:item.row})).sort();
+  assert.deepEqual(nativeRows(roundtrip),nativeRows(newArchive),'Every archived native row survives export/restore/export');
+  assert.equal(await(await target.request('/api/satchel/bills/'+bill.id+'/export',undefined,target.owner)).text(),originalCsv);
+  await target.json('/documents/'+privateDoc.id+'/file',undefined,target.owner,404);
+  assert.equal((await target.json('/import',undefined,target.owner)).jobs.length,1);
+  const restoredArchive=await(await target.request('/api/satchel/backup',undefined,target.owner)).text();assert.ok(restoredArchive.includes(sourceDoc.id));
+ }finally{await target.close();}
+});
