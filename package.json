@@ -17,7 +17,7 @@
     "test:email-link": "rer queue test:email-link -- sh -c \"node tests/email-link.mjs\"",
     "onboard": "node scripts/install.mjs",
     "build:app": "rer queue build:app -- sh -c \"vite build\"",
-    "verify:app": "rer queue verify:app -- sh -c \"pnpm run build && pnpm run typecheck && pnpm run test:satchel && pnpm run test:email-link\"",
+    "verify:app": "rer queue verify:app -- sh -c \"pnpm run build && pnpm run build:site && pnpm run typecheck && pnpm run test:satchel && pnpm run test:email-link && pnpm run test:site\"",
     "reset": "rer reset",
     "export": "rer export",
     "import": "rer import",
@@ -28,7 +28,9 @@
     "check": "rer check",
     "deps": "rer install",
     "rer": "rer",
-    "test:satchel": "rer queue test:satchel -- node --test --test-concurrency=1 tests/satchel/*.test.mjs"
+    "test:satchel": "rer queue test:satchel -- node --test --test-concurrency=1 tests/satchel/*.test.mjs",
+    "build:site": "rer build --site",
+    "test:site": "node --test --test-concurrency=1 tests/site/*.test.mjs"
   },
   "dependencies": {
     "@tanstack/react-router": "1.170.33",
@@ -41,14 +43,15 @@
     "@cloudflare/vite-plugin": "1.54.5",
     "@cloudflare/workers-types": "5.20260908.1",
     "@playwright/test": "1.63.0",
-    "@runeditrun/rer": "0.2.17",
+    "@runeditrun/rer": "0.2.20",
     "@types/node": "22.20.5",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.7",
     "@vitejs/plugin-react": "6.1.1",
     "typescript": "5.9.3",
     "vite": "8.2.2",
-    "wrangler": "4.129.1"
+    "wrangler": "4.129.1",
+    "marked": "18.1.1"
   },
   "packageManager": "pnpm@10.12.4",
   "pnpm": {
@@ -61,5 +64,9 @@
       "esbuild",
       "workerd"
     ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/just-every/run-satchel.git"
   }
 }

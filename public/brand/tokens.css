@@ -1,0 +1,10 @@
+:root {
+  --paper:#FAF8F4; --surface:#FFFFFF; --surface-sunk:#F6F3EE;
+  --ink:#171717; --ink-pill:#1C1C1B; --muted:#5F5A54; --hairline:#E7E2DA;
+  --cognac:#8A4A24; --cognac-ink:#7A3F1D; --cognac-tint:#EFDFCB;
+  --leather:#854224; --leather-shade:#6C3218; --brass:#B48A4A; --brass-shade:#8A5D2D; --focus:#B48A4A;
+  --font-display:'Literata',Georgia,serif; --font-ui:'Golos Text',system-ui,sans-serif;
+  --radius-card:10px; --radius-panel:12px; --radius-mat:22px; --radius-band:28px; --radius-pill:999px;
+  --shadow-card:0 1px 0 rgba(0,0,0,.04),0 10px 24px -14px rgba(40,20,8,.35);
+  --shadow-mat:0 18px 36px -18px rgba(40,20,8,.55); --space:4px;
+}

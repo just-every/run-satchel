@@ -35,6 +35,13 @@ For ordinary email-link sign-in use `rer dev --login`, open its printed outbox
 link, request a sign-in at `/signin`, and follow the newest confirmation link.
 `rer dev --stop` stops this checkout's server. Stop it before build or verify.
 
+## Guides and run site
+
+The public run site has **Run Satchel** instructions at `/run` and owner guides
+at `/docs`. Its pages are built from the Markdown in `docs/`, `README.md`,
+`API.md` and `IMPORTING.md` with `rer build --site`. The installed `/` remains
+the Lobby. Start with [the getting-started guide](docs/getting-started.md).
+
 ## Do the first jobs
 
 1. **Matters:** enter a client, adverse party and known aliases; run the conflict

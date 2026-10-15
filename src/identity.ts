@@ -8,7 +8,8 @@ export const identity: EditionIdentity = {
   product: branding.name,
   deployment: branding.name,
   purpose: '{deployment} keeps matters, documents, deadlines and reviewed bill packages together.',
-  tagline: 'Practice management for a small law firm. Trust funds stay external.',
+  tagline: 'Free, open source practice management for small law firms: conflict checks, time, bills, files and deadlines.',
+  runSite: 'https://run-satchel.com',
   signInPath: '/signin',
   // An installed instance serves the Lobby at /.
   installedHome: 'lobby',

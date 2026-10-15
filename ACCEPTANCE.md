@@ -10,3 +10,8 @@
 Not needed: trust accounting or funds movement, tax calculations, invoice delivery,
 e-filing, legal research or advice, guaranteed conflict clearance, provider calls,
 brand design, a run site or domain purchase. Files are limited to 1 MiB each.
+
+The static run site has a Run Satchel action to `/run` and navigable `/docs`
+guides rendered from repository Markdown. An installed `/` remains the Lobby.
+Sign-in, first-run setup and all workspace tabs share the picked Satchel theme
+at desktop and phone widths, preserving every existing action and role boundary.
