@@ -14,6 +14,7 @@ export async function seedDemo(env: Bindings, { ownerEmail, now }: { ownerEmail:
    : stmt(db, `INSERT INTO ${table} (${keys.join(',')}) VALUES (${keys.map(() => '?').join(',')}) ON CONFLICT DO NOTHING`, ...Object.values(values))
  }
  await db.batch([
+  stmt(db, `UPDATE oa_operators SET display_name=? WHERE email=? AND role='owner'`, 'Julia Bennett', ownerEmail),
   stmt(db, `INSERT INTO oa_first_run(singleton,completed_by,completed_at) SELECT 1,id,? FROM oa_operators WHERE email=? ON CONFLICT DO NOTHING`, now.getTime(), ownerEmail),
   ...team.map(m => insert('s_members', {...m, active:1})),
   ...contacts.map(c => insert('s_parties', {...c, source:'native', revision:'demo-1'})),

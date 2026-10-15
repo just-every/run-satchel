@@ -4,6 +4,7 @@
   "name": "Satchel",
   "instanceType": "basic",
   "settings": {
-    "MAIL_FROM": "Satchel <auth@demo.invalid>"
-  }
+    "MAIL_FROM": "Satchel <auth@bennettlaw.example>"
+  },
+  "ownerEmail": "julia.bennett@bennettlaw.example"
 }

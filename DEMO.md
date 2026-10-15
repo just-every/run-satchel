@@ -4,7 +4,7 @@ Run `rer demo` after ordinary local setup, then open its private `RER_OPEN`
 link. `rer demo --stop` deletes the throwaway state under `.rer/demo/`.
 The ordinary `.wrangler/state` is retained. Restarting creates a fresh firm.
 
-The owner opens **Satchel Demo** with six conflict-reviewed matters, three
+The owner, Julia Bennett (`julia.bennett@bennettlaw.example`), opens **Satchel Demo** with six conflict-reviewed matters, three
 firm members, the three existing Clio fixture contacts in the conflict register,
 24 time/disbursement entries, six draft/approved/exported bill
 packages, 12 downloadable originals, 18 proposed/confirmed/completed deadlines
@@ -16,13 +16,13 @@ Base's v2 guard has no bar or outbox. Public reads run for real; writes to
 other people or accounts are mocked. Satchel's native product has no public
 network-read feature and no embedded model call: agent preparations arrive
 through its own authenticated API. Its outbound effects are sign-in,
-invitation and identity-provider email/OIDC flows. Mail uses `demoEffect`
-around the real sender and returns accepted without contacting a provider.
+invitation and identity-provider email/OIDC flows. Mail selects Base’s development sender under `RER_DEMO`; it validates the
+message and completes silently without contacting a provider.
 OIDC discovery/JWKS remain real reads; provider write requests pass through
 Base's guard. Local dev mail is silently suppressed by Base.
 
 All vendored modules, including the import kit's D1 transport dependency,
-are from `rer-v0.2.22` (`1ce15dd8cbb7c8cf2d83ebfde2b4a8a130ff9d74`), recorded
+are from `rer-v0.2.24` (`1ee378e41142c673a9098f60af21664c6d8477d1`), recorded
 by Base's `record-base` flow. The edition's supported source lock replaces
 the obsolete composition inventory. Applied migration files are unchanged.
 
@@ -35,3 +35,7 @@ Production dispatch uses the environment's real Turnstile keys at
 Each visitor receives Base's own isolated container and signed owner claim,
 ending after 60 minutes or 15 minutes idle. Settings such as the demo's
 mail sender live in `deploy-demo.json`; credentials do not.
+
+A test deployment records fifteen minutes of sanitized admission events in the
+`demo-admissions` workflow artifact before startup measurements. No request
+headers, cookies, bodies or credentials are retained.
