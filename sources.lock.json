@@ -311,7 +311,7 @@
       "executable": false
     },
     "scripts/demo-observe.mjs": {
-      "sha256": "f79b5f56e3142f37fadc86e86c40bb75a9992f7386ccc06f0596d1a566d83023",
+      "sha256": "f210de919b0e358c3826a64bc899268e01798c66846c6cbae128400d4d30e0d7",
       "executable": false
     },
     "scripts/install.mjs": {
