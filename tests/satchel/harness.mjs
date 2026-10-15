@@ -1,35 +1,44 @@
 import assert from 'node:assert/strict';
-import {spawn,execFileSync} from 'node:child_process';
-import {createServer} from 'node:net';
-import {mkdtemp,writeFile,rm} from 'node:fs/promises';
+import {createRequire} from 'node:module';
+import {mkdtemp,readFile,readdir,realpath,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
-import {join} from 'node:path';
+import {join,resolve} from 'node:path';
+import {createServer} from 'node:net';
 import {randomBytes} from 'node:crypto';
+const require=createRequire(await realpath('node_modules/wrangler/package.json'));
+const {Miniflare,convertV4MiniflareOptions}=require('miniflare');
+const {unstable_splitSqlQuery:splitSql}=require('wrangler');
 export async function harness(){
  const socket=createServer();await new Promise(r=>socket.listen(0,'127.0.0.1',r));const port=socket.address().port;await new Promise(r=>socket.close(r));
- const origin=`http://127.0.0.1:${port}`,directory=await mkdtemp(join(tmpdir(),'satchel-http-'));
- const vars={AUTH_LOCAL:'true',AUTH_ORIGIN:origin,OWNER_EMAIL:'owner@example.test',SESSION_SECRET:randomBytes(32).toString('hex'),SETUP_TOKEN:randomBytes(32).toString('hex'),MAIL_PROVIDER:'development',MAIL_FROM:'auth@localhost.test',RER_DEV_KEY:randomBytes(32).toString('hex')};
- await writeFile(join(directory,'local.env'),Object.entries(vars).map(([k,v])=>`${k}=${v}`).join('\n'),{mode:0o600});
- const wrangler='node_modules/wrangler/bin/wrangler.js',config='dist/server/wrangler.json',env={...process.env,CI:'true',WRANGLER_SEND_METRICS:'false',CLOUDFLARE_INCLUDE_PROCESS_ENV:'false'};
- execFileSync(process.execPath,[wrangler,'d1','migrations','apply','DB','--local','--persist-to',directory,'--config',config],{stdio:'pipe',env});
- const worker=spawn(process.execPath,[wrangler,'dev','--config',config,'--local','--persist-to',directory,'--ip','127.0.0.1','--port',String(port),'--inspector-port','0','--env-file',join(directory,'local.env')],{stdio:['ignore','pipe','pipe'],env});
- let diagnostics='';for(const s of [worker.stdout,worker.stderr])s.on('data',v=>diagnostics+=v);
- const request=(path,body,cookie='',extra={})=>fetch(origin+path,{redirect:'manual',method:body===undefined?'GET':'POST',headers:{origin,...(body===undefined?{}:{'content-type':'application/json'}),...(cookie?{cookie}:{}),...extra},...(body===undefined?{}:{body:JSON.stringify(body)})});
- const json=async(path,body,cookie,expected=200,extra={})=>{const r=await request('/api/satchel'+path,body,cookie,extra);const b=await r.json();if(r.status>=500){await new Promise(r=>setTimeout(r,150));let safe=diagnostics;for(const v of Object.values(vars))safe=safe.replaceAll(v,'[redacted]');console.error(safe.slice(-6000));}assert.equal(r.status,expected,JSON.stringify(b));return b;};
+ const directory=await mkdtemp(join(tmpdir(),'satchel-http-')),origin=`https://127.0.0.1:${port}`,mails=[];
+ const config=JSON.parse(await readFile('dist/server/wrangler.json','utf8'));
+ const vars={AUTH_LOCAL:'false',AUTH_ORIGIN:origin,OWNER_EMAIL:'owner@example.test',SESSION_SECRET:randomBytes(32).toString('hex'),SETUP_TOKEN:randomBytes(32).toString('hex'),MAIL_PROVIDER:'resend',MAIL_FROM:'auth@example.test',MAIL_API_KEY:'test-only-provider-key'};
+ const mf=new Miniflare({...convertV4MiniflareOptions({
+  host:'127.0.0.1',port,https:true,modulesRoot:resolve('dist/server'),modules:[config.main,...(await readdir('dist/server/assets')).filter(f=>f.endsWith('.js')).map(f=>'assets/'+f)].map(f=>({type:'ESModule',path:resolve('dist/server',f)})),
+  compatibilityDate:config.compatibility_date,compatibilityFlags:config.compatibility_flags,
+  assets:{directory:resolve('dist/client'),routerConfig:{has_user_worker:true}},d1Databases:{DB:'satchel-test'},bindings:vars,
+  // The only fake is the paid mail-provider boundary; the built app is unchanged.
+  outboundService:async request=>{assert.equal(request.url,'https://api.resend.com/emails');mails.push(await request.json());return Response.json({id:'test-mail-'+mails.length});},
+ }),resourcePersistencePath:join(directory,'state')});
+ const request=(path,body,cookie='',extra={})=>mf.dispatchFetch(origin+path,{redirect:'manual',method:body===undefined?'GET':'POST',headers:{origin,host:new URL(origin).host,'CF-Connecting-IP':'192.0.2.1',...(body===undefined?{}:{'content-type':'application/json'}),...(cookie?{cookie}:{}),...extra},...(body===undefined?{}:{body:JSON.stringify(body)})});
+ const json=async(path,body,cookie,expected=200,extra={})=>{const r=await request('/api/satchel'+path,body,cookie,extra);const b=await r.json();assert.equal(r.status,expected,JSON.stringify(b));return b;};
  async function login(email){
   assert.equal((await request('/auth/magic-link',{email})).status,202);
-  const h={'x-rer-dev-key':vars.RER_DEV_KEY},listing=await(await fetch(origin+'/__dev/outbox',{headers:h})).text();
-  const links=[...listing.matchAll(/href="(\/__dev\/outbox\?message=[^"]+)"/g)];
-  let token;
-  for(const l of links){const detail=await(await fetch(origin+l[1].replaceAll('&amp;','&'),{headers:h})).text();if(!detail.includes(email))continue;token=detail.match(/\/auth\/confirm\?token=([^"&<]+)/)?.[1];if(token)break;}
-  assert.ok(token,'Mailbox delivered a confirmation link');const result=await request('/auth/confirm',{token});assert.equal(result.status,303);return result.headers.getSetCookie().map(s=>s.split(';')[0]).join('; ');
+  const message=mails.toReversed().find(m=>m.to.includes(email));
+  assert.ok(message,'Provider accepted a confirmation link');
+  const token=(message.text??message.html).match(/\/auth\/confirm\?token=([^\s"&<]+)/)?.[1];
+  assert.ok(token,'Mail includes a confirmation token');
+  const result=await request('/auth/confirm',{token});assert.equal(result.status,303);
+  return result.headers.getSetCookie().map(s=>s.split(';')[0]).join('; ');
  }
  try{
-  let ready=false;for(let i=0;i<200;i++){if(worker.exitCode!==null)throw new Error('Worker exited');try{ready=(await request('/health')).ok;}catch{}if(ready)break;await new Promise(r=>setTimeout(r,150));}assert.ok(ready,'Worker ready');
-  assert.equal((await request('/auth/bootstrap',{token:vars.SETUP_TOKEN,displayName:'Principal'})).status,303);
+  await mf.ready;const db=await mf.getD1Database('DB');
+  for(const file of (await readdir('migrations/core')).filter(f=>f.endsWith('.sql')).sort())for(const sql of splitSql(await readFile(join('migrations/core',file),'utf8')))await db.prepare(sql).run();
+  assert.equal((await request('/health')).status,200);
+  const boot=await request('/auth/bootstrap',{token:vars.SETUP_TOKEN,displayName:'Principal'});assert.equal(boot.status,303,await boot.text());
   const owner=await login(vars.OWNER_EMAIL);
-  return {origin,owner,request,json,login,close:async()=>{worker.kill('SIGTERM');await new Promise(r=>worker.exitCode!==null?r():worker.once('exit',r));await rm(directory,{recursive:true,force:true});},diagnostics:()=>diagnostics};
- }catch(e){worker.kill('SIGTERM');for(const v of Object.values(vars))diagnostics=diagnostics.replaceAll(v,'[redacted]');throw new Error(e.message+'\n'+diagnostics.slice(-3000));}
+  return {origin,owner,request,json,login,mails,close:async()=>{await mf.dispose();await rm(directory,{recursive:true,force:true});}};
+ }catch(e){await mf.dispose();await rm(directory,{recursive:true,force:true});throw e;}
 }
 export async function open(h,title='Barton lease review',client='Barton Workshop LLC',adverse='Riverbend Holdings LLC'){
  const search=await h.json('/conflicts',{client,adverse},h.owner);

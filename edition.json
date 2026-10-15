@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "legal/satchel",
+  "identityKind": "project",
+  "toolchain": {
+    "id": "runeditrun/edition-authoring",
+    "version": "1.1.0"
+  },
+  "parent": null,
+  "components": [
+    {
+      "id": "runeditrun/base",
+      "role": "foundation",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "src/modules"
+        ]
+      }
+    },
+    {
+      "id": "legal/satchel",
+      "role": "edition",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "src/satchel",
+          "src/ui",
+          "src/routes",
+          "src/base",
+          "scripts",
+          "migrations",
+          "public",
+          "tests"
+        ]
+      }
+    }
+  ]
+}
