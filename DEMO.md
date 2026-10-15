@@ -22,7 +22,7 @@ OIDC discovery/JWKS remain real reads; provider write requests pass through
 Base's guard. Local dev mail is silently suppressed by Base.
 
 All vendored modules, including the import kit's D1 transport dependency,
-are from `rer-v0.2.21` (`756bf5a8544d792a51bb76f6e90a8ee5908a32a5`), recorded
+are from `rer-v0.2.22` (`1ce15dd8cbb7c8cf2d83ebfde2b4a8a130ff9d74`), recorded
 by Base's `record-base` flow. The edition's supported source lock replaces
 the obsolete composition inventory. Applied migration files are unchanged.
 
