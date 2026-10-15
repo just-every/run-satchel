@@ -83,7 +83,7 @@
       "executable": false
     },
     "DEMO.md": {
-      "sha256": "7c6ad638c014e937b180926975d362dcd5d7028aa9c16b5a21bf2d53806bf952",
+      "sha256": "921826f19aa0852ad549a385ca5455bcf1bd47497df67ae97f160b7073fb4ae1",
       "executable": false
     },
     "deploy-demo.json": {
@@ -427,11 +427,11 @@
       "executable": false
     },
     "src/demo.ts": {
-      "sha256": "81f77d75f67a10386505c13bc9e730542d1d1724e85a7603f3e58c0d94e14a65",
+      "sha256": "384da80b095c2d01050f52d4d76731172d74f2f22cae328f70b90da7e060fb89",
       "executable": false
     },
     "src/demo/records.ts": {
-      "sha256": "aea164d5b9428a938ecb9bec9c292e3664c62003ebb2cc8997f6b56ca9de1bd0",
+      "sha256": "addc83de3efefcff940657efe74399dca708a67a9230e82fbd1891d9681c50c0",
       "executable": false
     },
     "src/dev-personas.ts": {

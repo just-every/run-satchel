@@ -1,6 +1,6 @@
 import type { Bindings } from './auth.server'
 import { digest, stmt } from './satchel/model'
-import { matters, team } from './demo/records'
+import { contacts, matters, team } from './demo/records'
 
 /** Only called by Base's demo runtime, after its real owner has been claimed. */
 export async function seedDemo(env: Bindings, { ownerEmail, now }: { ownerEmail: string; now: Date }) {
@@ -16,6 +16,7 @@ export async function seedDemo(env: Bindings, { ownerEmail, now }: { ownerEmail:
  await db.batch([
   stmt(db, `INSERT INTO oa_first_run(singleton,completed_by,completed_at) SELECT 1,id,? FROM oa_operators WHERE email=? ON CONFLICT DO NOTHING`, now.getTime(), ownerEmail),
   ...team.map(m => insert('s_members', {...m, active:1})),
+  ...contacts.map(c => insert('s_parties', {...c, source:'native', revision:'demo-1'})),
  ])
  // Keep the recorded conflict search and its parties in the same transaction;
  // the native freshness trigger also applies to these sample matters.

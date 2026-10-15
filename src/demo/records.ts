@@ -12,3 +12,11 @@ export const team = [
  {email:'oliver.reed@example.com', name:'Oliver Reed', role:'lawyer'},
  {email:'nina.brooks@example.com', name:'Nina Brooks', role:'assistant'},
 ] as const
+
+// Reuse the seed's existing fixtures/clio-contacts.csv in the conflict register.
+// These are native demo records, not a claim of a completed Clio migration.
+export const contacts = [
+ {id:'demo-clio-contact-101',name:'Amelia Chen',aliases:'A. Chen',email:'amelia.chen@example.test'},
+ {id:'demo-clio-contact-102',name:'Riverbend Holdings Pty Ltd',aliases:'Riverbend',email:'office@riverbend.example.test'},
+ {id:'demo-clio-contact-103',name:'Jonah Reed',aliases:'J. Reed',email:'jonah.reed@example.test'},
+] as const

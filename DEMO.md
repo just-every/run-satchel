@@ -5,7 +5,8 @@ link. `rer demo --stop` deletes the throwaway state under `.rer/demo/`.
 The ordinary `.wrangler/state` is retained. Restarting creates a fresh firm.
 
 The owner opens **Satchel Demo** with six conflict-reviewed matters, three
-firm members, 24 time/disbursement entries, six draft/approved/exported bill
+firm members, the three existing Clio fixture contacts in the conflict register,
+24 time/disbursement entries, six draft/approved/exported bill
 packages, 12 downloadable originals, 18 proposed/confirmed/completed deadlines
 and three preparations awaiting a person's decision. The fictional dates are
 relative to the visitor's start. Nothing in the seed hook fetches the network.
