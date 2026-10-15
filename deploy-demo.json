@@ -2,7 +2,7 @@
   "version": 1,
   "domain": "run-satchel.com",
   "name": "Satchel",
-  "instanceType": "standard-1",
+  "instanceType": "basic",
   "settings": {
     "MAIL_FROM": "Satchel <auth@demo.invalid>"
   }
