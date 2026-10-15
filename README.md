@@ -37,6 +37,8 @@ link, request a sign-in at `/signin`, and follow the newest confirmation link.
 
 ## Guides and run site
 
+The public site is at https://run-satchel.com.
+
 The public run site has **Run Satchel** instructions at `/run` and owner guides
 at `/docs`. Its pages are built from the Markdown in `docs/`, `README.md`,
 `API.md` and `IMPORTING.md` with `rer build --site`. The installed `/` remains
