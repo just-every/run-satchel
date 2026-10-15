@@ -3,7 +3,7 @@
 Satchel was generated and assembled from the committed Base foundation at
 `runeditrun/base@fc0e1041efa55771142bbb57c4ab4743147e264d`.
 `composition.lock.json` records the original composition. Satchel owns subsequent
-product integration; the package-mode CLI is pinned to `@runeditrun/rer@0.2.15`.
+product integration; the package-mode CLI is pinned to `@runeditrun/rer@0.2.17`.
 The current public Coaster, Beam and Pier mains were read as package-mode examples.
 
 Copied/adapted MIT application source:
@@ -20,9 +20,4 @@ exact files and hashes. `0023_import.sql` composes its exported D1 schema. Base
 operator-auth copies remain unchanged. The application uses Base theme tokens,
 font, auth/setup/lobby frames and hydration component. Product design is deferred.
 
-The RER package has a small pnpm patch: macOS `lsof` gets 15 seconds instead
-of 3 for socket diagnostics. A controlled owned listener was missed when the
-three-second lookup expired; the longer lookup retains the fail-closed ownership
-check. Its package inspector also recognizes pnpm’s patch-hash suffix while
-checking the exact upstream version and integrity. The copied Lobby identity also permits an absent run-site origin, showing
-plain product credit while the domain is unpurchased.
+The exact published RER 0.2.17 package supplies bounded, nonblocking macOS listener ownership inspection. No local RER patches are applied. The copied Lobby identity also permits an absent run-site origin, showing plain product credit while the domain is unpurchased.
