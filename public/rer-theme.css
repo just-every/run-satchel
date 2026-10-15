@@ -9,3 +9,6 @@
  --rer-radius:var(--radius-panel); --rer-button-radius:var(--radius-pill); --rer-wordmark-weight:500;
  --rer-logo:url('/brand/mark.svg');
 }
+
+/* Keep the Run page’s requirements readable above its floor art. */
+body:has(.steps) .facts{background:var(--paper);border-radius:var(--radius-panel);padding:16px 20px}
