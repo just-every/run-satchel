@@ -2,7 +2,6 @@
   "version": 1,
   "domain": "run-satchel.com",
   "name": "Satchel",
-  "instanceType": "basic",
   "settings": {
     "MAIL_FROM": "Satchel <auth@bennettlaw.example>"
   },

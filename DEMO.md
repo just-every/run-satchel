@@ -22,8 +22,9 @@ OIDC discovery/JWKS remain real reads; provider write requests pass through
 Base's guard. Local dev mail is silently suppressed by Base.
 
 All vendored modules, including the import kit's D1 transport dependency,
-are from `rer-v0.2.24` (`1ee378e41142c673a9098f60af21664c6d8477d1`), recorded
-by Base's `record-base` flow. The edition's supported source lock replaces
+are from `rer-v0.2.30` (`d434ea67989fe10b6ddff01daba8bb350975e54a`), recorded
+by Base's `record-base` flow. The dependencies module's `logout.mjs` keeps
+Satchel's exact-claim-key fence check and is outside the record. The edition's supported source lock replaces
 the obsolete composition inventory. Applied migration files are unchanged.
 
 `.github/workflows/run-demo.yml` uses the `run-demo` environment on the
@@ -32,10 +33,7 @@ RunEditRun account. Manual dispatch with `test_only` deploys
 `test_only` plus `remove` removes it and reads back the provider resources.
 Production dispatch uses the environment's real Turnstile keys at
 `https://demo.run-satchel.com/`. No repository deployment variable is needed.
-Each visitor receives Base's own isolated container and signed owner claim,
-ending after 60 minutes or 15 minutes idle. Settings such as the demo's
+Each visitor receives their own native Worker Loader isolate with separate
+SQLite storage and a signed owner claim, ending after 60 minutes or 15 minutes
+idle, when the copy's storage is erased. Settings such as the demo's
 mail sender live in `deploy-demo.json`; credentials do not.
-
-A test deployment records fifteen minutes of sanitized admission events in the
-`demo-admissions` workflow artifact before startup measurements. No request
-headers, cookies, bodies or credentials are retained.
