@@ -71,7 +71,7 @@
       "executable": false
     },
     "base-copies.json": {
-      "sha256": "f7bc0744cb7ea019ae0ae91cd1353f33697b1c345acface7ecabae789ea69f44",
+      "sha256": "ca96bcf09054e9a9b42319a87820c2db57ac9550b9112a0bbb45717093fbe017",
       "executable": false
     },
     "CHANGELOG.md": {
@@ -83,7 +83,7 @@
       "executable": false
     },
     "DEMO.md": {
-      "sha256": "20cc55d7e49a7e287194e76a50662ad2c15eec9ae38ff2814f4069a161138ebd",
+      "sha256": "fce58d14ff8e12ea6f7eac3e0067ca7ba098e4610c4a30301cf1851b8b3c7c8e",
       "executable": false
     },
     "deploy-demo.json": {
@@ -1499,7 +1499,7 @@
       "executable": false
     },
     "src/modules/mail/src/inbound/headers.mjs": {
-      "sha256": "79673d562647f4e15e7fe10ca3b13241acd5b2cc25a651a32918cee45e02235c",
+      "sha256": "703fe4e58ae7da83929328281531d88622743d85c459cc1f226309a7d24d7bfc",
       "executable": false
     },
     "src/modules/mail/src/inbound/index.mjs": {

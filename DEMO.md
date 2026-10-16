@@ -23,8 +23,9 @@ Base's guard. Local dev mail is silently suppressed by Base.
 
 All vendored modules, including the import kit's D1 transport dependency,
 are from `rer-v0.2.30` (`d434ea67989fe10b6ddff01daba8bb350975e54a`), recorded
-by Base's `record-base` flow. The dependencies module's `logout.mjs` keeps
-Satchel's exact-claim-key fence check and is outside the record. The edition's supported source lock replaces
+by Base's `record-base` flow. Two maintained fixes stay outside the record:
+the dependencies module's `logout.mjs` (exact-claim-key fence check) and the
+mail module's `src/inbound/headers.mjs` (header parsing without backtracking). The edition's supported source lock replaces
 the obsolete composition inventory. Applied migration files are unchanged.
 
 `.github/workflows/run-demo.yml` uses the `run-demo` environment on the
