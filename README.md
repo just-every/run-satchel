@@ -8,13 +8,10 @@ Trust funds remain in your existing trust ledger.
 ## Clone and run
 
 ```sh
-git clone https://github.com/just-every/run-satchel.git
-cd run-satchel
-npx -y @runeditrun/rer cli install
-# If rer is not yet on PATH in this shell:
-export PATH="$HOME/.local/bin:$PATH"
-rer dev
+npx -y @runeditrun/rer dev just-every/run-satchel
 ```
+
+That one line clones Satchel, installs `rer` if you do not have it and starts the app. To start it again later, run `cd run-satchel && rer dev`.
 
 `rer dev` installs the locked dependencies, selects pinned Node 22.20.0 and
 pnpm 10.12.4, prepares local D1, and claims a local review owner on a free port.

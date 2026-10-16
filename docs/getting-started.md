@@ -4,11 +4,13 @@ Satchel keeps your firm's matters, time, disbursements, original files, deadline
 
 ## Open your workspace
 
-For a local review, run this from the checkout root:
+For a local review, run one line. It clones Satchel, installs `rer` if you do not have it and starts the app:
 
 ```sh
-rer dev
+npx -y @runeditrun/rer dev just-every/run-satchel
 ```
+
+To start it again later, run `rer dev` from the `run-satchel` folder.
 
 The first launch can take several minutes. If it is interrupted, run the same command again. Open the printed `RER_OPEN` link, confirm the owner on **Finish setup**, and enter the workspace. Keep that link private: it is a local sign-in credential. The printed `RER_READY` address is the running app's address.
 
