@@ -11,7 +11,7 @@ Trust funds remain in your existing trust ledger.
 npx -y @runeditrun/rer dev just-every/run-satchel
 ```
 
-That one line clones Satchel, installs `rer` if you do not have it and starts the app. To start it again later, run `cd run-satchel && rer dev`.
+That one line clones Satchel, installs `rer` if you do not have it and starts the app. Without Node, `curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-satchel` does the same. To start it again later, run `cd run-satchel && rer dev`.
 
 `rer dev` installs the locked dependencies, selects pinned Node 22.20.0 and
 pnpm 10.12.4, prepares local D1, and claims a local review owner on a free port.
@@ -20,10 +20,9 @@ command. Open the `RER_OPEN` link printed in your terminal, confirm the owner on
 **Finish setup**, then enter the workspace. The link is a local credential;
 keep it private. Local mail stays in the development outbox and sends no email.
 
-For a real local owner installation, before first launch use:
+For a real local owner installation, run `npx -y @runeditrun/rer install just-every/run-satchel` and then, from the checkout, before first launch:
 
 ```sh
-rer install
 rer setup --owner-email you@example.com
 rer dev
 ```
