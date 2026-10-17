@@ -6,8 +6,8 @@ import. Agents, lawyers and assistants cannot use this move-in path.
 ## Prepare the CSV
 
 This kit supports a **documented-shape subset**, not every Clio export format.
-Use the contact fields from Clio's [contacts migration template](https://help.clio.com/hc/en-au/articles/50600879151003-Import-Contacts-with-Migration-Templates).
-For a Clio Manage export, [export contacts as CSV](https://help.clio.com/hc/en-au/articles/9290532034843-Filter-and-Export-Contacts),
+Use the contact fields from Clio's [contacts migration template](https://help.clio.com/hc/en-us/articles/50600879151003-Import-Contacts-with-Migration-Templates).
+For a Clio Manage export, [export contacts as CSV](https://help.clio.com/hc/en-us/articles/9290532034843-Filter-and-Export-Contacts),
 then prepare these columns. Clio exports reflect selected columns and filters;
 this importer does not guess mappings from arbitrary export headers.
 

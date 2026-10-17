@@ -1,0 +1,17 @@
+import { Brand } from './Brand'
+import { links } from './links'
+
+/** The header on every run-site page: the lockup on the left; Docs and Source on the right, one row on phones too.
+ * `overArt` lays it over the homepage's painted hero in white. */
+export function SiteHeader({ current, overArt = false }: { current?: 'docs'; overArt?: boolean }) {
+  return <header className={`site-header${overArt ? ' over-art' : ''}`}>
+    <a className="skip-link" href="#main">Skip to content</a>
+    <div className="site-wrap site-header-row">
+      <Brand tone={overArt ? 'light' : 'ink'} />
+      <nav aria-label="Main">
+        <a href={links.docs} aria-current={current === 'docs' ? 'page' : undefined}>Docs</a>
+        <a href={links.source}>Source</a>
+      </nav>
+    </div>
+  </header>
+}

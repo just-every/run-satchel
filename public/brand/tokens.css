@@ -1,10 +1,23 @@
+/* Satchel's tokens, defined once. The run site, the app (satchel.css), sign-in, /setup, the Lobby and Base's Run,
+   contract and not-found pages read them through rer-theme.css.
+   The look (design desk, 17 Oct 2026): cool off-white paper and petrol-teal ink, a petrol Run button, walnut binder
+   tabs on light sections and brass on dark ones, the cognac of the satchel, Figtree heavy headings with tight tracking. */
 :root {
-  --paper:#FAF8F4; --surface:#FFFFFF; --surface-sunk:#F6F3EE;
-  --ink:#171717; --ink-pill:#1C1C1B; --muted:#5F5A54; --hairline:#E7E2DA;
-  --cognac:#8A4A24; --cognac-ink:#7A3F1D; --cognac-tint:#EFDFCB;
-  --leather:#854224; --leather-shade:#6C3218; --brass:#B48A4A; --brass-shade:#8A5D2D; --focus:#B48A4A;
-  --font-display:'Literata',Georgia,serif; --font-ui:'Golos Text',system-ui,sans-serif;
-  --radius-card:10px; --radius-panel:12px; --radius-mat:22px; --radius-band:28px; --radius-pill:999px;
-  --shadow-card:0 1px 0 rgba(0,0,0,.04),0 10px 24px -14px rgba(40,20,8,.35);
-  --shadow-mat:0 18px 36px -18px rgba(40,20,8,.55); --space:4px;
+  --paper: #f4f7f6; --paper-white: #ffffff; --paper-client: #e9f1f1; --surface: #ffffff; --surface-sunk: #eef3f2;
+  --ink: #0e333c; --text: #10232e; --muted: #5a6670; --muted-2: #7c838c; --hairline: #dfe6e7; --line-strong: #c8d3d5;
+  --petrol: #0f5c66; --petrol-deep: #0e3f47; --petrol-night: #0f3b42; --teal: #0e7c76; --ink-pill: var(--petrol);
+  --walnut: #6b3e22; --walnut-edge: #8a6247; --brass: #dca03c; --brass-shade: #a8741f; --brass-glow: #fcbc4b;
+  --cognac: #8a4a24; --cognac-ink: #7a3f1d; --cognac-tint: #f4e3cc; --leather: #854224; --leather-shade: #6c3218;
+  --amber: #d18a1d; --amber-bg: #fdf1df; --amber-ink: #874810; --amber-pill: #f4b858;
+  --green: #1f8a4c; --green-bg: #e7f3eb; --green-ink: #146336;
+  --red: #ef5a48; --red-bg: #fce8e4; --red-ink: #c93a2b;
+  --honey: #f9dfad; --honey-ink: #613104; --clay: #b88848; --chestnut: #794723; --peach: #fbe3c2;
+  --mark-ink: #1c2528; --mark-cream: #f5ebdb;
+  --focus: #0e7c76;
+  --font-display: 'Figtree', 'Helvetica Neue', Arial, sans-serif; --font-ui: 'Figtree', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --radius-card: 14px; --radius-panel: 14px; --radius-mat: 22px; --radius-band: 28px; --radius-pill: 999px; --radius-button: 6px;
+  --shadow-card: 0 1px 2px rgba(14, 51, 60, .06), 0 14px 34px -16px rgba(14, 51, 60, .26);
+  --shadow-float: 0 2px 4px rgba(14, 51, 60, .06), 0 24px 48px -20px rgba(14, 51, 60, .34);
+  --shadow-mat: 0 18px 36px -18px rgba(14, 40, 44, .55); --space: 4px;
 }

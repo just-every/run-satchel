@@ -1,3 +1,5 @@
+<img src="public/brand/mark.svg" width="56" height="56" alt="Satchel">
+
 # Satchel
 
 Satchel is practice management for a 1–10 lawyer US firm: conflict-reviewed
@@ -8,10 +10,11 @@ Trust funds remain in your existing trust ledger.
 ## Clone and run
 
 ```sh
-npx -y @runeditrun/rer dev just-every/run-satchel
+curl -fsSL https://runeditrun.com/install.sh | sh
+rer dev just-every/run-satchel
 ```
 
-That one line clones Satchel, installs `rer` if you do not have it and starts the app. Without Node, `curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-satchel` does the same. To start it again later, run `cd run-satchel && rer dev`.
+The first line installs `rer` for you alone, with its own Node if you have no Node 22 or later; if it prints an `export PATH=…` line, run that line before the second. The second clones Satchel into `run-satchel`, installs everything and starts it. With Node 22 or later, `npx -y @runeditrun/rer dev just-every/run-satchel` does both in one line. These are the same two lines as https://run-satchel.com/run. To start it again later, run `cd run-satchel && rer dev`.
 
 `rer dev` installs the locked dependencies, selects pinned Node 22.20.0 and
 pnpm 10.12.4, prepares local D1, and claims a local review owner on a free port.

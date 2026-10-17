@@ -8,14 +8,13 @@ export const identity: EditionIdentity = {
   product: branding.name,
   deployment: branding.name,
   purpose: '{deployment} keeps matters, documents, deadlines and reviewed bill packages together.',
-  tagline: 'Free, open source practice management for small law firms: conflict checks, time, bills, files and deadlines.',
+  tagline: 'Every matter, under control. Free, open source practice management for US small law firms.',
   runSite: 'https://run-satchel.com',
   signInPath: '/signin',
   // An installed instance serves the Lobby at /.
   installedHome: 'lobby',
   theme: '/rer-theme.css',
   mark: '/brand/mark.svg',
-  band: '/brand/band.svg',
   fonts: '/fonts/fonts.css',
   accentColor: branding.primaryColor,
 }

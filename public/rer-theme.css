@@ -2,13 +2,23 @@
 @import url('/fonts/fonts.css');
 @import url('/brand/auth.css');
 :root {
- --rer-font-body:var(--font-ui); --rer-font-heading:var(--font-display);
+ --rer-font-body:var(--font-ui); --rer-font-heading:var(--font-display); --rer-font-mono:var(--font-mono);
  --rer-page:var(--paper); --rer-surface:var(--surface); --rer-text:var(--ink);
- --rer-muted:var(--muted); --rer-border:var(--hairline); --rer-focus:var(--focus);
- --rer-link:var(--ink); --rer-accent:var(--ink-pill); --rer-accent-text:#fff;
- --rer-radius:var(--radius-panel); --rer-button-radius:var(--radius-pill); --rer-wordmark-weight:500;
+ --rer-muted:var(--muted); --rer-border:var(--line-strong); --rer-focus:var(--focus);
+ --rer-link:var(--petrol); --rer-accent:var(--petrol); --rer-accent-text:#fff;
+ --rer-code-background:var(--petrol-night); --rer-code-text:#eef6f6;
+ --rer-radius:var(--radius-panel); --rer-button-radius:var(--radius-button);
+ --rer-wordmark-weight:750; --rer-wordmark-tracking:-.025em;
  --rer-logo:url('/brand/mark.svg');
+ /* Base's /contract page: done in green, partial in brass, missing in quiet slate (not built yet, not an alarm). */
+ --rer-done:var(--green); --rer-done-ink:var(--green-ink); --rer-on-done:#fff;
+ --rer-partial:var(--brass); --rer-partial-ink:var(--amber-ink);
+ --rer-missing:#7d8f96; --rer-missing-ink:#56676e;
 }
 
-/* Keep the Run page’s requirements readable above its floor art. */
-body:has(.steps) .facts{background:var(--paper);border-radius:var(--radius-panel);padding:16px 20px}
+/* Base's Run and not-found pages: heavy Figtree headings and the desk's white cards on the paper. */
+body:has(.steps) h1, body:has(.hero) h1 { font-weight: 850; letter-spacing: -.045em; line-height: 1; }
+body:has(.steps) .step h2 { font-weight: 800; letter-spacing: -.025em; }
+body:has(.steps) .step { background: var(--surface); border-color: var(--hairline); box-shadow: var(--shadow-card); backdrop-filter: none; }
+body:has(.steps) .num { font-weight: 800; }
+body:has(.steps) .facts { background: var(--paper); border-radius: var(--radius-panel); padding: 16px 20px; }

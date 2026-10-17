@@ -32,7 +32,7 @@ Use a US firm with lawyers, assistants, billing and trust staff plus client/paye
 
 - **SAT-012 — Erase originals with a restore fence.** **Status: done.** Erase through the document API, refuse assistant erasure, confirm all version downloads fail and reject a pre-erasure backup when accompanied by the later journal. Current evidence: `src/satchel/archive.ts`; `tests/satchel/flows.test.mjs`.
 
-- **SAT-013 — Keep the chosen product surfaces.** **Status: partial.** Navigate the built site’s run instructions and guides; at 1440 and 390 pixels complete sign-in, setup and each workspace tab with real matter records, checking actions and role restrictions. Current evidence: `src/site/pages.tsx`; `src/site/docs/pages.tsx`; `src/ui/workspace.tsx`; `tests/site/navigation.test.mjs`. Gap: Site navigation is tested; the complete phone and desktop application journey is not exercised in checked-in tests.
+- **SAT-013 — Keep the chosen product surfaces.** **Status: partial.** Navigate the built site’s run instructions and guides; at 1440 and 390 pixels complete sign-in, setup and each workspace tab with real matter records, checking actions and role restrictions. Current evidence: `src/site/pages.tsx`; `src/site/docs/source.ts`; `src/ui/workspace.tsx`; `tests/site/navigation.test.mjs`. Gap: Site navigation is tested; the complete phone and desktop application journey is not exercised in checked-in tests.
 
 ## Firm authority and records
 
