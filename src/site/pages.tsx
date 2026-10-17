@@ -11,6 +11,7 @@ import { DocsIndex } from './docs/DocsIndex'
 import { docsLead, docsPages } from './docs/source'
 import { Landing } from './landing/Landing'
 import { run } from './run'
+import { satchelRunPage } from './run-page'
 
 // Code cards get their Copy button only when script runs; without it the command is still there to select.
 const COPY = "document.querySelectorAll('.docs-copy').forEach(b=>{b.hidden=false;b.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(b.closest('.docs-code').querySelector('code').textContent);b.textContent='Copied';setTimeout(()=>{b.textContent='Copy'},1600)}catch{}})})"
@@ -51,7 +52,7 @@ export function sitePages({ styles, contract }: SiteContext): SiteBuild {
   return {
     pages: [
       { path: '/', html: document('Satchel · Every matter, under control', identity.tagline, <Landing />) },
-      { path: '/run', html: icons(usSpelling(runPageHtml(identity, run, contract))) },
+      { path: '/run', html: icons(usSpelling(satchelRunPage(runPageHtml(identity, run, contract)))) },
       ...(contract ? [{ path: '/contract', html: icons(contractPageHtml(identity, run, contract)) }] : []),
       { path: '/docs', html: document('Docs · Satchel', docsLead, <DocsIndex />) },
       ...docsPages.map(page => ({ path: `/docs/${page.slug}`, html: document(`${page.title} · Satchel docs`, page.summary, <DocsArticle slug={page.slug} />, COPY) })),

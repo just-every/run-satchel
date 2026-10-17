@@ -1,6 +1,7 @@
-/* The homepage's sections. From 1080 px up each section is the desk's 1536 x 1024 page drawn on a 1440 px stage
-   (positions are the desk's x 0.9375) and zoomed in steps below 1440, so it keeps the desk's composition.
-   Under 1080 px everything stacks in reading order (the desk's 390 plan). Card internals are in cards.css. */
+/* The homepage's sections. From 1440 px up each section is the desk's 1536 x 1024 page drawn on a 1440 px stage
+   (positions are the desk's x 0.9375). From 1080 to 1439 px the same pieces reflow at full size in two-column
+   layouts (sections.css), and under 1080 px everything stacks in reading order (the desk's 390 plan).
+   Card internals are in cards.css. */
 
 /* ---------- The painted hero ---------- */
 .hero { position: relative; height: clamp(640px, 66.667vw, 1040px); color: #fff; overflow: hidden; background: #3a2a1c; }
@@ -111,7 +112,7 @@
 .split .lead h2 { margin-top: 61px; font-size: 92px; line-height: .88; letter-spacing: -.06em; }
 .split .lead-body { margin-top: 22px; font-size: 22.5px; line-height: 1.42; }
 .day-card { position: absolute; left: 231px; top: 374px; width: 582px; }
-.billing .invoice { position: absolute; left: 28px; width: 522px; }
+.billing .invoice { position: absolute; left: 28px; width: 540px; }
 .billing .inv-paid { top: 374px; }
 .billing .inv-late { top: 724px; }
 
@@ -141,11 +142,8 @@
 .moving .lead .tab { left: -128px; top: 0; }
 .moving .lead h2 { margin-top: 56px; font-size: 90px; line-height: .87; letter-spacing: -.058em; }
 .moving .lead-body { margin-top: 26px; font-size: 24.5px; line-height: 1.32; }
-.moving-grid { left: 184px; top: 360px; width: 1217px; height: 554px; }
-.moving-grid > * { position: absolute; }
-.import { left: 0; top: 0; width: 622px; height: 554px; }
-.terminal { left: 639px; top: 0; width: 578px; height: 280px; }
-.limits { left: 639px; top: 296px; width: 578px; height: 258px; }
+.moving-grid { left: 184px; top: 360px; width: 1217px; display: grid; grid-template-columns: 622px 578px; grid-template-rows: auto 1fr; gap: 16px 17px; }
+.import { grid-row: 1 / 3; }
 
 /* The closing: the office after dark, then the petrol footer */
 .closing { position: relative; height: clamp(560px, 61.2vw, 980px); overflow: hidden; background: #0d1a26; color: #fff; }
@@ -159,33 +157,26 @@
 .closing-line { top: 85.1%; }
 .closing-line .moment { --dot: 27.34%; --card: -113px; }
 
-/* ---------- Zoom the 1440 stage in steps below 1440 ---------- */
-@media (max-width: 1439px) { .sheet { zoom: .972; } }
-@media (max-width: 1399px) { .sheet { zoom: .944; } }
-@media (max-width: 1359px) { .sheet { zoom: .917; } }
-@media (max-width: 1319px) { .sheet { zoom: .889; } }
-@media (max-width: 1279px) { .sheet { zoom: .861; } }
-@media (max-width: 1239px) { .sheet { zoom: .833; } }
-@media (max-width: 1199px) { .sheet { zoom: .806; } }
-@media (max-width: 1159px) { .sheet { zoom: .778; } }
-@media (max-width: 1119px) { .sheet { zoom: .75; } }
-@media (min-width: 1080px) and (max-width: 1439px) {
-  .hero h1 { font-size: 6vw; }
-  .matter-line .moment-card { zoom: .85; }
+/* ---------- Under 1440 px the stage's pieces leave their fixed positions (reflow.css lays them out to 1080) ---------- */
+@media (max-width: 1439px) {
+  .sheet { width: auto; height: auto; }
+  .landing .band :is(.sheet > *, .intake-flow > li, .docs-cluster > .card, .client-surfaces > *, .moving-grid > *, .split-row > .split-half, .lead, .day-card, .invoice, .lead .tab, .binder) { position: relative; inset: auto; left: auto; top: auto; width: auto; height: auto; }
+  .landing .band .sheet .tab { width: 229px; height: 43px; margin-bottom: 26px; }
+  .lead-body br, .lead h2 br { display: none; }
+  .intake-flow::before { display: none; }
 }
 
 /* ---------- Under 1080 px: one column in reading order (the desk's 390 plan) ---------- */
 @media (max-width: 1079px) {
-  .sheet { zoom: 1; width: auto; height: auto; max-width: 680px; padding: 56px 24px 64px 40px; }
+  .sheet { max-width: 680px; padding: 56px 24px 64px 40px; }
   .sheet::before { left: 8px; }
-  .landing .band :is(.sheet > *, .intake-flow > li, .docs-cluster > .card, .client-surfaces > *, .moving-grid > *, .split-row > .split-half, .lead, .day-card, .invoice, .lead .tab, .binder) { position: relative; inset: auto; left: auto; top: auto; width: auto; height: auto; }
+  .landing .band .sheet .tab { margin-left: -30px; }
   .lead, .deadlines-head, .evidence-head, .client-head, .docs-lead { text-align: left; width: auto; }
-  .landing .band .sheet .tab { width: 229px; height: 43px; margin-left: -30px; margin-bottom: 26px; }
   .lead h2, .sheet h2, .deadlines-head h2, .client-head h2, .split .lead h2, .moving .lead h2, .trust-row .lead h2, .docs-lead h2, .evidence-head h2, .intake .lead h2 { margin-top: 0; font-size: 46px; line-height: .98; white-space: normal; letter-spacing: -.05em; }
   .lead-body, .intake .lead-body, .deadlines-head .lead-body, .evidence-head .lead-body, .client-head .lead-body, .split .lead-body, .moving .lead-body, .trust-row .lead-body, .docs-lead .lead-body { margin-top: 16px; width: auto; font-size: 18px; line-height: 1.5; }
-  .lead-body br, .lead h2 br { display: none; }
   .intake-flow, .docs-cluster, .client-surfaces, .moving-grid, .evidence-cards { display: grid; gap: 16px; margin-top: 32px; grid-template-columns: minmax(0, 1fr); }
   .intake-flow { gap: 10px; }
+  .import { grid-row: auto; }
   .stamp { display: none; }
   .docket, .reminder { margin-top: 28px; }
   .reminder { margin-top: 14px; }
@@ -223,30 +214,31 @@
   .closing-line .moment::before { display: none; }
   .closing-line .moment-card { position: relative; top: auto; left: auto; display: flex; white-space: normal; }
 }
+/* Under 1080 px the golden-hour plate stays behind the copy (the desk's 390 plan): a graded scrim darkens the sky
+   only as much as the white type needs, and the matter line's cards sit on the plate's lower part. */
 @media (max-width: 1079px) {
-  .hero { height: auto; min-height: 0; display: flex; flex-direction: column; background: #2a1f17; }
-  .hero::before { display: none; }
-  .hero-art { position: relative; order: 2; display: block; height: 300px; overflow: hidden; }
-  .hero-art img { position: absolute; object-position: 30% 70%; }
-  .hero-copy { order: 1; padding: 92px 16px 0; background: linear-gradient(180deg, #24333a 0%, #3c3a33 70%, #2a1f17 100%); }
-  .hero h1 { font-size: 46px; line-height: .95; letter-spacing: -.05em; }
-  .hero-sub { margin-top: 18px; font-size: 17px; }
-  .hero-alt { margin-top: 12px; font-size: 15.5px; line-height: 1.5; }
+  .hero { height: auto; display: flex; flex-direction: column; background: var(--petrol-night); }
+  .hero-art img { object-position: 20% 0; }
+  .hero::before { z-index: 1; height: auto; inset: 0; background: linear-gradient(180deg, rgba(16, 20, 22, .48) 0, rgba(20, 20, 18, .5) 140px, rgba(24, 20, 16, .5) 320px, rgba(26, 22, 18, .5) 460px, rgba(15, 59, 66, .05) 560px, rgba(15, 59, 66, .78) 720px, var(--petrol-night) 100%); }
+  .hero-copy, .hero .matter-line { z-index: 2; }
+  .hero-copy { padding: 92px 16px 0; }
+  .hero h1 { font-size: 46px; line-height: .95; letter-spacing: -.05em; text-shadow: 0 2px 22px rgba(0, 0, 0, .4); }
+  .hero-sub { margin-top: 18px; font-size: 17px; text-shadow: 0 1px 12px rgba(0, 0, 0, .55); }
+  .hero-alt { margin-top: 12px; font-size: 15.5px; line-height: 1.5; text-shadow: 0 1px 12px rgba(0, 0, 0, .55); }
   .hero .site-actions { margin-top: 22px; width: 100%; gap: 14px 28px; }
   .hero .site-actions .site-button { flex: 1 0 100%; }
-  .hero .matter-line { position: relative; order: 3; top: auto; height: auto; background: #2a1f17; padding: 20px 16px 28px 40px; display: grid; gap: 12px; }
-  .hero .matter-line::before { content: ''; position: absolute; left: 22px; top: 32px; bottom: 50px; width: 2px; background: rgba(255, 255, 255, .85); }
+  .hero .matter-line { position: relative; top: auto; height: auto; margin-top: 150px; background: transparent; padding: 0 16px 32px 40px; display: grid; gap: 12px; }
+  .hero .matter-line::before { content: ''; position: absolute; left: 22px; top: 22px; bottom: 54px; width: 2px; background: rgba(255, 255, 255, .85); }
   .hero .moment { position: relative; left: auto; }
   .hero .moment::before { left: -25px; top: 22px; }
   .hero .matter-line .moment-card { position: relative; top: auto; left: auto; display: flex; white-space: normal; }
 }
 @media (min-width: 761px) and (max-width: 1079px) {
-  .hero-art { height: 440px; }
-  .hero-copy { padding-top: 128px; padding-bottom: 8px; }
+  .hero-copy { padding-top: 128px; }
   .hero h1 { font-size: 72px; }
   .hero-sub { font-size: 19px; }
   .hero .site-actions .site-button { flex: 0 0 auto; }
-  .hero .matter-line { grid-template-columns: 1fr 1fr; padding-left: 24px; }
+  .hero .matter-line { grid-template-columns: 1fr 1fr; padding-left: 24px; margin-top: 200px; }
   .hero .matter-line::before, .hero .moment::before { display: none; }
 }
 @media (max-width: 760px) {

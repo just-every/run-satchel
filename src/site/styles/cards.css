@@ -28,7 +28,7 @@
 .row-note.bad { background: var(--red-bg); color: var(--red-ink); }
 .row-note.small { gap: 10px; padding: 8px 12px; font-size: 14px; }
 .row-note.small .check { width: 19px; height: 19px; }
-.row-note.big { font-size: 18.5px; padding: 12px 16px; white-space: nowrap; letter-spacing: -.01em; }
+.row-note.big { font-size: 18px; padding: 12px 16px; white-space: nowrap; letter-spacing: -.01em; }
 .row-note.big .check, .row-note.big .alert { width: 31px; height: 31px; }
 .card h3 { display: flex; align-items: center; gap: 18px; color: var(--ink); font: 800 23px/1.2 var(--font-display); letter-spacing: -.02em; }
 .card h3 .icon { width: 32px; height: 32px; color: var(--ink); stroke-width: 1.5; }
@@ -134,7 +134,7 @@
 .search-box .icon { width: 24px; height: 24px; }
 .search-box .clear { margin-left: auto; width: 17px; height: 17px; color: var(--muted); }
 .hit { display: flex; gap: 22px; margin-top: 26px; }
-.pdf { display: grid; place-items: end center; width: 32px; height: 42px; flex: none; padding-bottom: 7px; border: 2px solid #e04443; border-radius: 3px 10px 3px 3px; color: #e04443; font-size: 10px; font-weight: 700; }
+.pdf { display: grid; place-items: end center; width: 34px; height: 42px; flex: none; padding-bottom: 6px; border: 2px solid #e04443; border-radius: 3px 10px 3px 3px; color: #e04443; font-size: 11px; font-weight: 700; }
 .hit-file { font-size: 16px; font-weight: 600; color: #1b2a31; letter-spacing: -.01em; }
 .hit-text { margin-top: 6px; font-size: 16px; color: #4c5961; }
 .hit-text mark { padding: 2px 3px; border-radius: 3px; background: #fbd57e; color: #1b2a31; }
@@ -185,11 +185,11 @@
 .reco .row-note { margin-top: 13px; padding: 9px 14px; font-size: 14px; font-weight: 500; gap: 16px; white-space: nowrap; letter-spacing: -.005em; }
 .reco .row-note .check, .reco .row-note .alert { width: 23px; height: 23px; }
 .reco .row-note + .row-note { margin-top: 10px; }
-.three { display: grid; grid-template-columns: 180px 1fr 155px 1fr 148px; align-items: start; margin-top: 18px; }
-.three .box { min-height: 120px; padding: 15px 14px 10px 15px; border: 1px solid #b8c0c6; border-radius: 4px; background: rgba(255, 255, 255, .55); font-size: 14px; color: #1d2b33; }
+.three { display: grid; grid-template-columns: 176px 26px 170px 26px 170px; align-items: stretch; margin-top: 18px; }
+.three .box { min-height: 120px; padding: 15px 14px 12px; border: 1px solid #b8c0c6; border-radius: 4px; background: rgba(255, 255, 255, .55); font-size: 14px; color: #1d2b33; }
 .three .amount { margin-top: 8px; font-size: 26px; font-weight: 750; color: #0b1a22; letter-spacing: -.01em; }
-.three .sub { margin-top: 6px; font-size: 10.5px; line-height: 1.35; color: #3d4a52; }
-.three .eq { align-self: start; margin-top: 48px; text-align: center; font-size: 30px; font-weight: 600; color: #0b1a22; }
+.three .sub { margin-top: 6px; font-size: 11.5px; line-height: 1.35; color: #3d4a52; }
+.three .eq { align-self: start; margin-top: 46px; text-align: center; font-size: 30px; font-weight: 600; color: #0b1a22; }
 .reco > .row-note:nth-of-type(3) { margin-top: 24px; }
 .books { margin-top: 18px; font-size: 13.5px; color: #66727a; }
 .reco h4 { margin-top: 22px; padding-top: 22px; border-top: 1.5px solid #b8c0c6; font-size: 19px; font-weight: 750; color: #0f2530; letter-spacing: -.01em; }
@@ -251,17 +251,18 @@
 .terminal-bar span { width: 14px; height: 14px; border-radius: 50%; background: #f86860; }
 .terminal-bar span:nth-child(2) { background: #d9a02e; }
 .terminal-bar span:nth-child(3) { background: #3ccc7c; }
-.terminal { display: flex; flex-direction: column; }
-.terminal pre { flex: 1; display: flex; flex-direction: column; justify-content: space-between; margin: 0; padding: 34px 25px 40px; font: 500 15.5px/1.75 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.terminal pre { margin: 0; padding: 30px 25px 34px; font: 500 16px/1.9 var(--font-mono); white-space: pre-wrap; }
 .terminal pre > span { display: block; }
+.terminal .word > span { white-space: nowrap; }
 .terminal .prompt { color: #9fc0c4; }
 .terminal .comment { color: #a9c0c4; }
-.limits { padding: 30px 30px 26px 29px; }
+.limits { display: flex; flex-direction: column; padding: 30px 30px 28px 29px; }
 .limits h3 { gap: 20px; font-size: 34px; font-weight: 880; letter-spacing: -.05em; }
 .info { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #d39a26; color: #fff; font: 700 26px/1 Georgia, serif; flex: none; }
-.limits p { margin-top: 14px; font-size: 18px; line-height: 1.5; color: #142630; }
-.limits p + p { margin-top: 10px; }
-.limits a { display: inline-block; margin-top: 18px; font-size: 19px; font-weight: 600; color: var(--ink); text-underline-offset: 5px; text-decoration-thickness: 2px; }
+.limits p { margin-top: 16px; font-size: 18px; line-height: 1.6; color: #142630; }
+.limits p + p { margin-top: 12px; }
+.limits p:last-of-type { margin-bottom: 18px; }
+.limits a { align-self: flex-start; margin-top: auto; font-size: 19px; font-weight: 600; color: var(--ink); text-underline-offset: 5px; text-decoration-thickness: 2px; }
 
 /* Under 1080 px the drawings keep their look at phone sizes. */
 @media (max-width: 1079px) {
@@ -344,7 +345,7 @@
   .import li { gap: 14px; height: auto; min-height: 46px; font-size: 15px; }
   .import li .check { width: 24px; height: 24px; }
   .warn-solid { width: 26px; height: 26px; }
-  .terminal pre { font-size: 13px; padding: 22px 16px 20px; white-space: pre; overflow-x: auto; overflow-wrap: normal; }
+  .terminal pre { font-size: 13px; padding: 18px 16px 20px; }
   .limits h3 { font-size: 26px; }
   .info { width: 36px; height: 36px; font-size: 21px; }
   .limits p { font-size: 16px; }

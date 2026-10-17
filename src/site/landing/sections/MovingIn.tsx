@@ -31,7 +31,7 @@ export function MovingIn() {
         </div>
         <div className="terminal" role="img" aria-label={`One command: ${COMMAND}. Run it on your own computer or server.`}>
           <div className="terminal-bar" aria-hidden="true"><span /><span /><span /></div>
-          <pre aria-hidden="true"><span><span className="prompt">$</span> {COMMAND}</span><span className="comment">{COMMENT}</span></pre>
+          <pre aria-hidden="true"><span><span className="prompt">$</span> {COMMAND.split(' ').map((word, i) => <span key={i} className="word">{i ? ' ' : ''}<span>{word}</span></span>)}</span><span className="comment">{COMMENT}</span></pre>
         </div>
         <div className="card limits">
           <h3><span className="info" aria-hidden="true">i</span>What it doesn’t do.</h3>

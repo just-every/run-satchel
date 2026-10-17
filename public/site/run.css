@@ -1,0 +1,32 @@
+/* Satchel's touches on Base's Run page (src/site/run-page.ts adds the markup): the homepage's petrol rail and a
+   walnut binder tab, the golden-hour office as the floor strip, and room for Copy beside every command. */
+body.satchel-run { --art: clamp(230px, 34vh, 390px); background: var(--paper, #f4f7f6); }
+.satchel-run main::before { content: ''; position: absolute; top: 0; bottom: var(--art); left: 27px; width: 2px; background: var(--petrol-night, #0f3b42); }
+.satchel-run .intro { padding-top: 70px; }
+.satchel-run .intro h1 { font-weight: 880; letter-spacing: -.05em; }
+
+.satchel-tab { position: absolute; top: 0; left: 29px; display: flex; align-items: center; width: 229px; height: 43px; padding-left: 22px; border-radius: 0 9px 9px 0; background: linear-gradient(180deg, #7b4b2c, var(--walnut, #6b3e22) 55%, #5d341b); color: #fff; font: 750 13.5px/1 var(--font-ui, inherit); letter-spacing: .2em; text-transform: uppercase; box-shadow: inset 7px 0 0 rgba(255, 255, 255, .13), 0 8px 14px -8px rgba(30, 14, 4, .6); }
+.satchel-tab span { white-space: nowrap; }
+
+/* The plate: the window, skyline and satchel, fading up into the paper. */
+.satchel-plate img { object-position: 50% 52%; }
+.satchel-plate::before { content: ''; position: absolute; inset: 0 0 auto; height: 46%; z-index: 1; background: linear-gradient(180deg, var(--paper, #f4f7f6), rgba(244, 247, 246, 0)); }
+
+/* Copy sits in the code card's own right padding, so a command scrolls inside the card and never runs under it. */
+.satchel-run .code { padding-right: 104px; }
+.satchel-run .code pre { padding-right: 18px; }
+.satchel-run .code .nowrap { white-space: nowrap; }
+
+/* Under 1000 px Copy moves above the command (Base's phone layout) and the command wraps only at its spaces. */
+@media (max-width: 999px) {
+  .satchel-run .code { padding-right: 0; }
+  .satchel-run .code pre { padding: 46px 16px 14px; white-space: pre-wrap; overflow-wrap: normal; }
+  .satchel-run .copy { top: 8px; right: 8px; transform: none; min-height: 32px; padding: 0 12px; font-size: 13px; }
+}
+@media (max-width: 760px) {
+  body.satchel-run { --art: 210px; }
+  .satchel-run main::before { left: 8px; }
+  .satchel-run .satchel-tab { position: relative; left: auto; margin: 22px 0 0 -6px; width: 200px; height: 40px; padding-left: 18px; font-size: 12.5px; }
+  .satchel-run .intro { padding-top: 26px; }
+  .satchel-run .code pre { padding: 46px 14px 14px; }
+}

@@ -1,0 +1,111 @@
+/* 1080-1439 px: the binder sections reflow at full size instead of shrinking the 1440 stage. Each keeps the desk's
+   reading order and its rail and tab; the drawings keep their desktop type (cards.css) and wrap where a line no
+   longer fits. From 1240 px the wider compositions (Time beside Billing, the trust binder beside its copy, the
+   portal, phone and email in one row) come back side by side. */
+@media (min-width: 1080px) and (max-width: 1439px) {
+  .hero h1 { font-size: 6vw; }
+
+  .sheet { padding: 44px 40px 72px 100px; }
+  .landing .band .sheet .tab { margin-left: -31px; }
+  .lead h2, .sheet h2 { white-space: normal; }
+  .lead-body { width: auto; }
+
+  /* TAB 1 · Intake: the copy at left, the morning's steps down the right as a timeline */
+  .intake .sheet { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 560px); gap: 0 48px; align-items: center; }
+  .intake .lead h2 { margin-top: 0; font-size: clamp(56px, 5vw, 70px); }
+  .intake .lead-body { width: auto; font-size: 23px; }
+  .intake-flow { display: grid; gap: 6px; }
+  .intake-flow > .conflict { margin-left: 28px; }
+  .intake-flow > .engagement { margin-left: 56px; }
+  .intake-flow > .trust-in { margin-left: 84px; }
+  .intake-flow > .s1 { margin-left: 22px; }
+  .intake-flow > .s2 { margin-left: 50px; }
+  .intake-flow > .s3 { margin-left: 78px; }
+  .landing .band .intake-flow > .stamp { height: 30px; }
+  .intake-flow > .stamp::before { top: 8px; width: 14px; height: 14px; }
+  .intake-flow > .stamp span { top: 3px; }
+  .intake-flow > .opened { justify-self: end; margin-top: 8px; }
+  .conflict .row-note { white-space: normal; }
+
+  /* TAB 2 · Deadlines */
+  .deadlines-head h2 { font-size: clamp(52px, 4.6vw, 64px); }
+  .deadlines-head .lead-body { font-size: 21px; }
+  .docket { margin-top: 32px; }
+  .docket tbody th { width: 34%; }
+  .docket td.was { width: 21%; }
+  .docket td.now { width: 23%; }
+  .reminder { max-width: 380px; margin: 16px 0 0 auto; }
+
+  /* TAB 3 · Evidence */
+  .evidence-head h2 { font-size: clamp(56px, 5vw, 70px); }
+  .evidence-head .lead-body { font-size: 21px; }
+  .evidence-cards { margin-top: 36px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+  .evidence-cards .card h3 { font-size: 32px; }
+  .ev-follow li { white-space: normal; padding: 6px 0; }
+  .cites { flex-wrap: wrap; }
+  .demand-body { font-size: 21px; }
+
+  /* TAB 4 · Documents (mirrored): the folder at left, the heading on its own rail segment at right */
+  .documents .sheet { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px 28px; align-items: start; }
+  .documents .sheet::after { display: none; }
+  .docs-cluster { display: contents; }
+  .docs-lead { grid-column: 2; grid-row: 1; padding: 8px 0 12px 28px; border-left: 2px solid var(--petrol-night); }
+  .landing .band .docs-lead .tab { margin-left: -28px; }
+  .docs-lead h2 { margin-top: 0; font-size: clamp(48px, 4.4vw, 60px); white-space: normal; }
+  .docs-lead .lead-body { font-size: 21px; }
+  .folder-card { grid-column: 1; grid-row: 1 / 3; }
+  .mail-card { grid-column: 2; grid-row: 2; }
+  .sign-card { grid-column: 1; grid-row: 3; }
+  .notice-card { grid-column: 2; grid-row: 3; }
+  .mail-card .row-note { white-space: normal; }
+
+  /* TAB 5 · Time and TAB 6 · Billing: one above the other to 1239, side by side from 1240 */
+  .split-row { display: grid; gap: 64px; }
+  .split .lead h2 { margin-top: 0; font-size: clamp(60px, 5.4vw, 76px); }
+  .split .lead-body { max-width: 640px; font-size: 21px; }
+  .billing::before { display: none; }
+  .day-card { max-width: 640px; margin-top: 30px; }
+  .day-card td.what { white-space: normal; padding-right: 12px; }
+  .billing { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+  .billing .lead { grid-column: 1 / -1; }
+  .billing .invoice { margin-top: 12px; }
+  .row-note.big { white-space: normal; }
+
+  /* TAB 7 · Trust: the copy above the binder to 1239, beside it from 1240 */
+  .trust-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 32px; padding-bottom: 0; }
+  .trust-row .lead h2 { margin-top: 0; font-size: clamp(60px, 5.4vw, 76px); }
+  .trust-row .lead-body { max-width: 640px; font-size: 23px; }
+  .landing .band.trust .binder { justify-self: end; width: 883px; min-height: 960px; margin-right: -40px; }
+
+  /* TAB 8 · Client */
+  .client-head h2 { font-size: clamp(52px, 4.6vw, 64px); }
+  .client-head .lead-body { font-size: 22px; }
+  .client-surfaces { display: grid; margin-top: 36px; grid-template-columns: minmax(0, 1fr) 234px; gap: 24px 30px; align-items: start; }
+  .portal { grid-column: 1; grid-row: 1; }
+  .landing .band .client-surfaces .phone { grid-column: 2; grid-row: 1; width: 234px; height: 475px; }
+  .email { grid-column: 1 / -1; grid-row: 2; justify-self: end; max-width: 460px; }
+  .email-head { white-space: normal; }
+
+  /* TAB 9 · Moving in */
+  .moving .lead h2 { margin-top: 0; font-size: clamp(60px, 5.4vw, 80px); }
+  .moving .lead-body { font-size: 22px; }
+  .moving-grid { margin-top: 36px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .import li { height: auto; min-height: 50.5px; }
+  .import li > span { padding: 8px 0; }
+}
+
+@media (min-width: 1240px) and (max-width: 1439px) {
+  .split-row { grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr); gap: 0 44px; }
+  .billing { display: block; padding-left: 26px; }
+  .billing::before { display: block; left: 0; top: 0; bottom: 0; height: auto; }
+  .landing .band .billing .tab { margin-left: -24px; }
+  .billing .invoice + .invoice { margin-top: 16px; }
+
+  .trust-row { grid-template-columns: minmax(0, 1fr) 760px; align-items: start; }
+  .trust-row .lead { padding-top: 140px; }
+  .landing .band.trust .binder { width: auto; justify-self: stretch; }
+
+  .client-surfaces { grid-template-columns: minmax(0, 1fr) 234px minmax(0, 360px); }
+  .email { grid-column: 3; grid-row: 1; justify-self: stretch; max-width: none; }
+  .landing .band .client-surfaces .phone { grid-row: 1; }
+}

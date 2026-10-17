@@ -13,7 +13,7 @@ const MOMENTS: { icon: string; first: string; second: string; done?: boolean }[]
 /** The golden-hour office, the promise and the action, with one matter's day on the line across the desk. */
 export function Hero() {
   return <section className="hero" aria-labelledby="hero-title">
-    <Painting className="hero-art" name="hero" widths={[768, 1152, 1536]} sizes="100vw" eager phone={{ name: 'hero-phone', widths: [480, 700], media: '(max-width: 760px)' }} />
+    <Painting className="hero-art" name="hero" widths={[768, 1152, 1536]} sizes="(max-width: 1079px) 1400px, 100vw" eager />
     <div className="hero-copy">
       <h1 id="hero-title">Every matter,<br /> under control.</h1>
       <p className="hero-sub">Satchel runs your firm’s intake, matters, deadlines and documents, tracks your time, and keeps billing and trust accounts in order.</p>
