@@ -101,20 +101,21 @@
 
 /* TAB 5 · Time and TAB 6 · Billing */
 .split-row > .split-half { position: absolute; top: 0; bottom: 0; }
-.time { left: 0; width: 839px; }
-.billing { left: 839px; width: 601px; }
-.billing::before { content: ''; position: absolute; left: 0; top: 42px; height: 877px; width: 2px; background: var(--petrol-night); }
+.time { left: 0; width: 822px; }
+.billing { left: 822px; width: 618px; }
+.billing::before { content: ''; position: absolute; left: 0; top: 42px; bottom: 30px; width: 2px; background: var(--petrol-night); }
+@media (min-width: 1440px) { .split .sheet { height: 990px; } }
 .split .lead { position: absolute; }
-.time .lead { left: 232px; top: 42px; width: 560px; }
-.time .lead .tab { left: -163px; top: 0; }
-.billing .lead { left: 24px; top: 44px; width: 560px; }
+.time .lead { left: 215px; top: 42px; width: 560px; }
+.time .lead .tab { left: -146px; top: 0; }
+.billing .lead { left: 24px; top: 44px; width: 544px; }
 .billing .lead .tab { left: 2px; top: 0; }
 .split .lead h2 { margin-top: 61px; font-size: 92px; line-height: .88; letter-spacing: -.06em; }
-.split .lead-body { margin-top: 22px; font-size: 22.5px; line-height: 1.42; }
-.day-card { position: absolute; left: 231px; top: 374px; width: 582px; }
+.split .lead-body { margin-top: 22px; font-size: 21.5px; line-height: 1.45; }
+.day-card { position: absolute; left: 214px; top: 374px; width: 582px; }
 .billing .invoice { position: absolute; left: 28px; width: 540px; }
 .billing .inv-paid { top: 374px; }
-.billing .inv-late { top: 724px; }
+.billing .inv-late { top: 745px; }
 
 /* TAB 7 · Trust: copy on the paper at left, the painted binder at right with the sheet in HTML */
 .trust-row .lead { left: 170px; top: 183px; width: 380px; }
@@ -142,7 +143,7 @@
 .moving .lead .tab { left: -128px; top: 0; }
 .moving .lead h2 { margin-top: 56px; font-size: 90px; line-height: .87; letter-spacing: -.058em; }
 .moving .lead-body { margin-top: 26px; font-size: 24.5px; line-height: 1.32; }
-.moving-grid { left: 184px; top: 360px; width: 1217px; display: grid; grid-template-columns: 622px 578px; grid-template-rows: auto 1fr; gap: 16px 17px; }
+.moving-grid { left: 184px; top: 360px; width: 1217px; display: grid; grid-template-columns: 622px 578px; grid-template-rows: 1fr auto; gap: 16px 17px; }
 .import { grid-row: 1 / 3; }
 
 /* The closing: the office after dark, then the petrol footer */
@@ -245,4 +246,5 @@
   .sheet { padding: 48px 16px 56px 24px; }
   .landing .band .sheet .tab { margin-left: -14px; }
   .sheet::before { left: 8px; }
+  .landing .band .binder { margin: 32px -16px 0 -24px; padding: 28px 16px 40px 24px; }
 }

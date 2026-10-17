@@ -17,12 +17,12 @@ export function Lead({ id, n, name, title, children, tone }: { id: string; n: nu
 }
 
 /** A painted plate: AVIF, then WebP, at the sizes public/site holds; `phone` swaps in a narrower crop on phones. */
-export function Painting({ name, widths, sizes, alt = '', className, phone, eager = false }: { name: string; widths: number[]; sizes: string; alt?: string; className?: string; phone?: { name: string; widths: number[]; media: string }; eager?: boolean }) {
+export function Painting({ name, widths, sizes, alt = '', className, variant, eager = false }: { name: string; widths: number[]; sizes: string; alt?: string; className?: string; variant?: { name: string; widths: number[]; media: string; sizes: string }; eager?: boolean }) {
   const set = (n: string, ws: number[], ext: string) => ws.map(w => `/site/${n}-${w}.${ext} ${w}w`).join(', ')
   const largest = Math.max(...widths)
   return <picture className={className}>
-    {phone && <source media={phone.media} type="image/avif" srcSet={set(phone.name, phone.widths, 'avif')} sizes="100vw" />}
-    {phone && <source media={phone.media} type="image/webp" srcSet={set(phone.name, phone.widths, 'webp')} sizes="100vw" />}
+    {variant && <source media={variant.media} type="image/avif" srcSet={set(variant.name, variant.widths, 'avif')} sizes={variant.sizes} />}
+    {variant && <source media={variant.media} type="image/webp" srcSet={set(variant.name, variant.widths, 'webp')} sizes={variant.sizes} />}
     <source type="image/avif" srcSet={set(name, widths, 'avif')} sizes={sizes} />
     <img src={`/site/${name}-${largest}.webp`} srcSet={set(name, widths, 'webp')} sizes={sizes} alt={alt} loading={eager ? 'eager' : 'lazy'} decoding="async" fetchPriority={eager ? 'high' : undefined} />
   </picture>

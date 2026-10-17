@@ -1,11 +1,14 @@
-/* Satchel's touches on Base's Run page (src/site/run-page.ts adds the markup): the homepage's petrol rail and a
-   walnut binder tab, the golden-hour office as the floor strip, and room for Copy beside every command. */
-body.satchel-run { --art: clamp(230px, 34vh, 390px); background: var(--paper, #f4f7f6); }
+/* Satchel's touches on Base's Run page (src/site/run-page.ts adds the markup): the docs pages' header rule, the
+   homepage's petrol rail with a walnut binder tab on it, the golden-hour office as the floor strip, and room for
+   Copy beside every command. */
+body.satchel-run { --art: clamp(230px, 34vh, 390px); background: var(--paper, #f4f7f6); overflow-x: clip; }
+.satchel-run .bar { padding-top: 28px; padding-bottom: 28px; }
+.satchel-run .bar::after { content: ''; position: absolute; left: -100vw; right: -100vw; bottom: 0; height: 1px; background: var(--hairline, #dfe6e7); }
 .satchel-run main::before { content: ''; position: absolute; top: 0; bottom: var(--art); left: 27px; width: 2px; background: var(--petrol-night, #0f3b42); }
-.satchel-run .intro { padding-top: 70px; }
+.satchel-run .intro { padding-top: 129px; }
 .satchel-run .intro h1 { font-weight: 880; letter-spacing: -.05em; }
 
-.satchel-tab { position: absolute; top: 0; left: 29px; display: flex; align-items: center; width: 229px; height: 43px; padding-left: 22px; border-radius: 0 9px 9px 0; background: linear-gradient(180deg, #7b4b2c, var(--walnut, #6b3e22) 55%, #5d341b); color: #fff; font: 750 13.5px/1 var(--font-ui, inherit); letter-spacing: .2em; text-transform: uppercase; box-shadow: inset 7px 0 0 rgba(255, 255, 255, .13), 0 8px 14px -8px rgba(30, 14, 4, .6); }
+.satchel-tab { position: absolute; top: 50px; left: 29px; display: flex; align-items: center; width: 229px; height: 43px; padding-left: 22px; border-radius: 0 9px 9px 0; background: linear-gradient(180deg, #7b4b2c, var(--walnut, #6b3e22) 55%, #5d341b); color: #fff; font: 750 13.5px/1 var(--font-ui, inherit); letter-spacing: .2em; text-transform: uppercase; box-shadow: inset 7px 0 0 rgba(255, 255, 255, .13), 0 8px 14px -8px rgba(30, 14, 4, .6); }
 .satchel-tab span { white-space: nowrap; }
 
 /* The plate: the window, skyline and satchel, fading up into the paper. */
@@ -25,8 +28,9 @@ body.satchel-run { --art: clamp(230px, 34vh, 390px); background: var(--paper, #f
 }
 @media (max-width: 760px) {
   body.satchel-run { --art: 210px; }
+  .satchel-run .bar { padding-top: 18px; padding-bottom: 18px; }
   .satchel-run main::before { left: 8px; }
-  .satchel-run .satchel-tab { position: relative; left: auto; margin: 22px 0 0 -6px; width: 200px; height: 40px; padding-left: 18px; font-size: 12.5px; }
+  .satchel-run .satchel-tab { position: relative; top: auto; left: auto; margin: 25px 0 0 -6px; width: 200px; height: 40px; padding-left: 18px; font-size: 12.5px; }
   .satchel-run .intro { padding-top: 26px; }
   .satchel-run .code pre { padding: 46px 14px 14px; }
 }

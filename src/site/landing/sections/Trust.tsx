@@ -7,7 +7,7 @@ export function Trust() {
     <div className="sheet trust-row">
       <Lead id="trust" n={7} name="Trust" title={<>Trust that<br /> reconciles<br /> to the cent.</>}>Bank statement, trust ledger and every client ledger, matched each month. When they disagree, Satchel shows you why.</Lead>
       <div className="binder">
-      <Painting className="binder-art" name="trust" widths={[640, 942]} sizes="(max-width: 760px) 100vw, 62vw" />
+      <Painting className="binder-art" name="trust" widths={[640, 942]} sizes="(max-width: 760px) 100vw, 62vw" variant={{ name: 'trust-wide', widths: [1700], media: '(min-width: 1441px)', sizes: '1594px' }} />
       <div className="reco">
         <h3>IOLTA trust · Three-way reconciliation · September 2026</h3>
         <p className="row-note bad"><Alert />Oct 1 · Bank statement {usd(trust.statement)} ≠ trust ledger {usd(trust.ledger)} · off by {usd(trust.statement - trust.ledger)}</p>

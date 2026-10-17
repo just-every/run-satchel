@@ -246,23 +246,23 @@
 .import li .check circle { fill: #3f9a46; }
 .warn-solid { width: 33px; height: 33px; color: #fff; fill: #d79a2a; stroke: #d79a2a; stroke-width: 1.2; }
 .warn-solid path:last-child { stroke: #fff; stroke-width: 2.4; }
-.terminal { border-radius: 14px; background: var(--petrol-deep); color: #eef6f6; box-shadow: var(--shadow-card); overflow: hidden; }
+.terminal { display: flex; flex-direction: column; border-radius: 14px; background: var(--petrol-deep); color: #eef6f6; box-shadow: var(--shadow-card); overflow: hidden; }
 .terminal-bar { display: flex; gap: 9px; padding: 22px 25px 0; }
 .terminal-bar span { width: 14px; height: 14px; border-radius: 50%; background: #f86860; }
 .terminal-bar span:nth-child(2) { background: #d9a02e; }
 .terminal-bar span:nth-child(3) { background: #3ccc7c; }
-.terminal pre { margin: 0; padding: 30px 25px 34px; font: 500 16px/1.9 var(--font-mono); white-space: pre-wrap; }
+.terminal pre { flex: 1; display: flex; flex-direction: column; margin: 0; padding: 30px 25px 34px; font: 500 16px/1.9 var(--font-mono); white-space: pre-wrap; }
 .terminal pre > span { display: block; }
 .terminal .word > span { white-space: nowrap; }
 .terminal .prompt { color: #9fc0c4; }
-.terminal .comment { color: #a9c0c4; }
+.terminal .comment { margin-top: auto; color: #a9c0c4; }
 .limits { display: flex; flex-direction: column; padding: 30px 30px 28px 29px; }
 .limits h3 { gap: 20px; font-size: 34px; font-weight: 880; letter-spacing: -.05em; }
 .info { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #d39a26; color: #fff; font: 700 26px/1 Georgia, serif; flex: none; }
 .limits p { margin-top: 16px; font-size: 18px; line-height: 1.6; color: #142630; }
 .limits p + p { margin-top: 12px; }
-.limits p:last-of-type { margin-bottom: 18px; }
-.limits a { align-self: flex-start; margin-top: auto; font-size: 19px; font-weight: 600; color: var(--ink); text-underline-offset: 5px; text-decoration-thickness: 2px; }
+.limits p:last-of-type { margin-bottom: 22px; }
+.limits a { align-self: flex-start; font-size: 19px; font-weight: 600; color: var(--ink); text-underline-offset: 5px; text-decoration-thickness: 2px; }
 
 /* Under 1080 px the drawings keep their look at phone sizes. */
 @media (max-width: 1079px) {

@@ -7,7 +7,7 @@ import { Icon, Painting, Tick } from '../parts'
 export function Closing() {
   return <>
     <section className="closing" aria-labelledby="closing-title">
-      <Painting className="closing-art" name="closing" widths={[768, 1152, 1536]} sizes="100vw" phone={{ name: 'closing-phone', widths: [480, 700], media: '(max-width: 760px)' }} />
+      <Painting className="closing-art" name="closing" widths={[768, 1152, 1536]} sizes="100vw" variant={{ name: 'closing-phone', widths: [480, 700], media: '(max-width: 760px)', sizes: '100vw' }} />
       <div className="closing-copy">
         <h2 id="closing-title">Go home on time.</h2>
         <Actions demo={false} />
