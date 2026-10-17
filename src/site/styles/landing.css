@@ -219,7 +219,7 @@
 @media (max-width: 1079px) {
   .hero { height: auto; display: flex; flex-direction: column; background: var(--petrol-night); }
   .hero-art img { object-position: 20% 0; }
-  .hero::before { z-index: 1; height: auto; inset: 0; background: linear-gradient(180deg, rgba(16, 20, 22, .48) 0, rgba(20, 20, 18, .5) 140px, rgba(24, 20, 16, .5) 320px, rgba(26, 22, 18, .5) 460px, rgba(15, 59, 66, .05) 560px, rgba(15, 59, 66, .78) 720px, var(--petrol-night) 100%); }
+  .hero::before { z-index: 1; height: auto; inset: 0; background: linear-gradient(180deg, rgba(30, 18, 8, .42) 0, rgba(34, 20, 8, .46) 140px, rgba(36, 22, 10, .47) 320px, rgba(36, 22, 10, .48) 460px, rgba(15, 59, 66, .05) 560px, rgba(15, 59, 66, .78) 720px, var(--petrol-night) 100%); }
   .hero-copy, .hero .matter-line { z-index: 2; }
   .hero-copy { padding: 92px 16px 0; }
   .hero h1 { font-size: 46px; line-height: .95; letter-spacing: -.05em; text-shadow: 0 2px 22px rgba(0, 0, 0, .4); }
