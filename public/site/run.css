@@ -1,9 +1,10 @@
 /* Satchel's touches on Base's Run page (src/site/run-page.ts adds the markup): the docs pages' header rule, the
    homepage's petrol rail with a walnut binder tab on it, the golden-hour office as the floor strip, and room for
    Copy beside every command. */
-body.satchel-run { --art: clamp(230px, 34vh, 390px); background: var(--paper, #f4f7f6); overflow-x: clip; }
+body.satchel-run { --art: clamp(230px, 34vh, 390px); background: var(--paper, #f4f7f6); }
 .satchel-run .bar { padding-top: 28px; padding-bottom: 28px; }
-.satchel-run .bar::after { content: ''; position: absolute; left: -100vw; right: -100vw; bottom: 0; height: 1px; background: var(--hairline, #dfe6e7); }
+/* The rule runs edge to edge as a shadow clipped to its own row: ink, so it never widens the page. */
+.satchel-run .bar::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: var(--hairline, #dfe6e7); box-shadow: 0 0 0 100vmax var(--hairline, #dfe6e7); clip-path: inset(0 -100vmax); }
 .satchel-run main::before { content: ''; position: absolute; top: 0; bottom: var(--art); left: 27px; width: 2px; background: var(--petrol-night, #0f3b42); }
 .satchel-run .intro { padding-top: 129px; }
 .satchel-run .intro h1 { font-weight: 880; letter-spacing: -.05em; }
