@@ -59,7 +59,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "f87b59bfb7ad9708339d60c8ecc85ef121b70fb3d0a2f0d2d17f875b9bf8564b",
+      "sha256": "454b0b1ce210abc64524a5cfb999d7655b5d017d1a471b231e585dd3d45b4ce8",
       "executable": false
     },
     "AGENTS.md": {
@@ -2120,6 +2120,10 @@
     },
     "wrangler.jsonc": {
       "sha256": "d935734d78e6f1456c2e4abdd6f7a1cb2c3decdefec2236df533fa5ee6649ad3",
+      "executable": false
+    },
+    "CONTRACT.md": {
+      "sha256": "973b86053e4288800ec37a9a70596dc6593b6c5ec4c9bef916e0d7dec0198d29",
       "executable": false
     }
   }
