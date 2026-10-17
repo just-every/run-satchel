@@ -1,0 +1,7 @@
+{
+  "schema": 1,
+  "projectId": "legal/satchel",
+  "name": "Satchel",
+  "sourceRepository": "https://github.com/just-every/run-satchel",
+  "license": "MIT"
+}
