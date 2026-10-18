@@ -23,6 +23,28 @@ test('native authentication, role denial, CSRF, matter membership and revocation
  await h.json('/state',undefined,assistant,403);
  await h.json('/team',{email:'assistant@example.test',name:'Case assistant',role:'assistant'},h.owner);
 });
+test('FIRM-001 principal enters, exports and imports US firm settings with provenance',async()=>{
+ assert.equal((await h.json('/firm',undefined,h.owner)).settings,null);
+ const address={line1:'200 Park Avenue',line2:'Floor 12',city:'New York',state:'ny',zip:'10166'};
+ const settings={name:'Barton & Lee LLP',email:'Office@BartonLee.example',phone:'212-555-0100',address,timezone:'America/New_York',currency:'USD',billing:{defaultRateCents:32500,incrementMinutes:6,paymentTermsDays:30},fiscal:{yearStartMonth:7,basis:'accrual'},offices:[{name:'Manhattan',phone:'(212) 555-0100',timezone:'America/New_York',address},{name:'Denver',phone:'+1 303 555 0188',timezone:'America/Denver',address:{line1:'1600 Broadway',city:'Denver',state:'CO',zip:'80202-4900'}}],practiceAreas:[{code:'re',name:'Real estate'},{code:'LIT',name:'Litigation'}]};
+ await h.json('/firm',{settings},lawyer,403);
+ for(const bad of [{timezone:'Mars/Olympus'},{currency:'EUR'},{address:{...address,state:'ZZ'}},{phone:'555-0100'},{practiceAreas:[{code:'RE',name:'A'},{code:'re',name:'B'}]}])await h.json('/firm',{settings:{...settings,...bad}},h.owner,400);
+ const saved=await h.json('/firm',{settings},h.owner);
+ assert.equal(saved.settings.address.state,'NY');assert.equal(saved.settings.offices[1].timezone,'America/Denver');assert.equal(saved.settings.practiceAreas[0].code,'RE');assert.equal(saved.settings.currency,'USD');
+ assert.equal(saved.provenance.source,'principal');assert.equal(saved.provenance.by,'owner@example.test');
+ await h.json('/firm',{settings},h.owner,409);
+ const staff=await h.json('/firm',undefined,assistant);assert.deepEqual(staff.settings,saved.settings);
+ assert.equal((await h.json('/state',undefined,lawyer)).firm.billing.defaultRateCents,32500);
+ assert.equal((await h.request('/api/satchel/firm/export',undefined,lawyer)).status,403);
+ const exported=await(await h.request('/api/satchel/firm/export',undefined,h.owner)).text();
+ const file=JSON.parse(exported);assert.deepEqual(file.settings,saved.settings);
+ file.settings.practiceAreas.push({code:'EST',name:'Estates'});const content=JSON.stringify(file);
+ await h.json('/firm/import',{name:'other.json',content:JSON.stringify({settings:file.settings}),revision:saved.revision},h.owner,400);
+ const imported=await h.json('/firm/import',{name:'barton-settings.json',content,revision:saved.revision},h.owner);
+ assert.equal(imported.settings.practiceAreas.length,3);assert.equal(imported.provenance.source,'import');assert.equal(imported.provenance.name,'barton-settings.json');
+ assert.equal(imported.provenance.digest,(await import('node:crypto')).createHash('sha256').update(content).digest('hex'));
+ assert.ok((await h.json('/team',undefined,h.owner)).audit.some(a=>a.action==='firm.settings_imported'&&a.detail.includes(imported.provenance.digest)));
+});
 test('matter opening requires a recorded fresh human conflict review',async()=>{
  await h.json('/matters',{title:'No clearance'},h.owner,400);
  const search=await h.json('/conflicts',{client:'Barton Workshop',adverse:'Other company'},h.owner);assert.ok(search.matches.some(p=>p.name==='Barton Workshop LLC'));
@@ -111,6 +133,7 @@ test('document erasure invalidates old archives and removes every version byte',
 test('archive integrity, empty destination, later erasure journal and complete restoration',async()=>{
  await h.json('/restore',{archive:newArchive,confirm:'RESTORE'},h.owner,409);
  const target=await harness();try{
+  const fresh=await target.json('/state',undefined,target.owner);assert.deepEqual([fresh.matters.length,fresh.members.length,fresh.firm],[0,0,null],'A fresh installation starts with no sample clients, members or firm settings');
   const damaged=await target.request('/api/satchel/restore',{archive:newArchive.replace('Notice.txt','Changed.txt'),confirm:'RESTORE'},target.owner);assert.equal(damaged.status,400);assert.equal((await target.json('/state',undefined,target.owner)).matters.length,0);
   const stale=await target.request('/api/satchel/restore',{archive:oldArchive,journal:newArchive,confirm:'RESTORE'},target.owner);const staleBody=await stale.json();assert.equal(stale.status,409,JSON.stringify(staleBody));assert.match(staleBody.error,/erasure/);
   const restored=await target.json('/restore',{archive:newArchive,confirm:'RESTORE'},target.owner);assert.equal(restored.phase,'complete');
@@ -118,6 +141,7 @@ test('archive integrity, empty destination, later erasure journal and complete r
   const roundtrip=await(await target.request('/api/satchel/backup',undefined,target.owner)).text();
   const nativeRows=archive=>archive.trim().split('\n').map(line=>JSON.parse(line)).filter(record=>record.kind==='part').flatMap(part=>part.items).filter(item=>item.kind==='row').map(item=>JSON.stringify({table:item.table,row:item.row})).sort();
   assert.deepEqual(nativeRows(roundtrip),nativeRows(newArchive),'Every archived native row survives export/restore/export');
+  assert.deepEqual(await target.json('/firm',undefined,target.owner),await h.json('/firm',undefined,h.owner),'Firm settings and their provenance restore exactly');
   assert.equal(await(await target.request('/api/satchel/bills/'+bill.id+'/export',undefined,target.owner)).text(),originalCsv);
   await target.json('/documents/'+privateDoc.id+'/file',undefined,target.owner,404);
   assert.equal((await target.json('/import',undefined,target.owner)).jobs.length,1);

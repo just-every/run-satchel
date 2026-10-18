@@ -1,5 +1,6 @@
 // Party identity/association and parameterized search adapted from MIT run-orbit
 // src/core/features/records/repository.ts @ 38cef87571a413802dbaa7aa6afbab332d8cd778.
+import { firmSettings } from './firm';
 import { atomic, audit, human, id, insist, matter, need, now, rows, stmt, text, type Actor, type Data } from './model';
 export async function conflictSearch(db: D1Database, actor: Actor, body: Data) {
  need(actor,'owner','lawyer');
@@ -36,7 +37,7 @@ export async function workspace(db: D1Database, actor: Actor) {
  const matters=await rows(db,"SELECT m.* FROM s_matters m WHERE ?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=m.id AND a.email=?) ORDER BY opened_at DESC",actor.role,actor.email);
  const members=await rows(db,'SELECT email,name,role,active FROM s_members ORDER BY name');
  const proposals=await rows(db,'SELECT * FROM s_proposals WHERE for_email=? ORDER BY created_at DESC',actor.email);
- return {actor,matters,members,proposals:proposals.map(p=>({...p,payload:JSON.parse(p.payload)}))};
+ return {actor,matters,members,proposals:proposals.map(p=>({...p,payload:JSON.parse(p.payload)})),firm:(await firmSettings(db)).settings};
 }
 export async function matterDetail(db: D1Database, actor: Actor, matterId: string) {
  const m=await matter(db,actor,matterId);

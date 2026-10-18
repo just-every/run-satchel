@@ -11,6 +11,7 @@ import {listDeadlines,proposeDeadline,confirmDeadline,completeDeadline} from './
 import {propose,decideProposal} from './proposals';
 import {importAction,importState} from './imports';
 import {backup,restore,eraseDocument} from './archive';
+import {firmSettings,saveFirm,importFirm,exportFirm} from './firm';
 type C=Context<{Bindings:Bindings}>;
 export const api=new Hono<{Bindings:Bindings}>();
 api.get('/health',c=>c.json({status:'ok',...deploymentHealth(c.env)}));
@@ -41,6 +42,10 @@ api.get('/api/satchel/matters/:id/deadlines',as((a,c)=>listDeadlines(db(c),a,par
 api.post('/api/satchel/matters/:id/deadlines',as(async(a,c)=>proposeDeadline(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/deadlines/:id/confirm',as(async(a,c)=>confirmDeadline(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/deadlines/:id/complete',as(async(a,c)=>completeDeadline(db(c),a,param(c),await body(c))));
+api.get('/api/satchel/firm',as((a,c)=>firmSettings(db(c))));
+api.post('/api/satchel/firm',as(async(a,c)=>saveFirm(db(c),a,await body(c))));
+api.get('/api/satchel/firm/export',as((a,c)=>exportFirm(db(c),a)));
+api.post('/api/satchel/firm/import',as(async(a,c)=>importFirm(db(c),a,await body(c))));
 api.get('/api/satchel/team',as((a,c)=>teamState(db(c),a)));
 api.post('/api/satchel/team',as(async(a,c)=>saveMember(db(c),a,await body(c))));
 api.post('/api/satchel/team/invite',as(async(a,c)=>inviteMember(c.req.raw,c.env,a,await body(c))));

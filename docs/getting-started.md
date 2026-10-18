@@ -19,6 +19,8 @@ For an existing installation, open **Sign in** and follow the email-link sign-in
 
 ## Do your first jobs
 
+A new installation starts empty, with no sample clients or matters. The principal first lands on **Firm**: enter the firm's name, email, phone and US address, its IANA timezone, USD billing defaults (hourly rate, billing increment, payment terms), fiscal year and accounting basis, each office and each practice area with a short code, then choose **Save firm settings**. Lawyers and assistants see these settings read-only; new time entries start at the firm rate and new deadlines at the firm timezone. **Download firm settings** saves them as a file, and **Import a firm settings file** loads one from another Satchel installation, recording the file name and its SHA-256 as their source. The firm archive in **Team & safety** includes them.
+
 1. Open **Matters**. Enter the client, adverse party and known aliases, then choose **Run conflict search**. Review the results, record your conclusion and open the matter. See [Matters and conflict review](matters.md).
 2. Open **Time & bills** and check **Current matter**. Record work, prepare a bill, review its exact lines and download its approved CSV. See [Time and bills](time-and-bills.md).
 3. Open **Documents** to save an original. In **Deadlines**, record its date, timezone and source for a lawyer's confirmation. See [Documents and deadlines](documents-and-deadlines.md).

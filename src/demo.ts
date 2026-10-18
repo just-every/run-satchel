@@ -1,6 +1,6 @@
 import type { Bindings } from './auth.server'
 import { digest, stmt } from './satchel/model'
-import { contacts, matters, team } from './demo/records'
+import { contacts, firm, matters, practiceAreas, team } from './demo/records'
 
 /** Only called by Base's demo runtime, after its real owner has been claimed. */
 export async function seedDemo(env: Bindings, { ownerEmail, now }: { ownerEmail: string; now: Date }) {
@@ -16,6 +16,9 @@ export async function seedDemo(env: Bindings, { ownerEmail, now }: { ownerEmail:
  await db.batch([
   stmt(db, `UPDATE oa_operators SET display_name=? WHERE email=? AND role='owner'`, 'Julia Bennett', ownerEmail),
   stmt(db, `INSERT INTO oa_first_run(singleton,completed_by,completed_at) SELECT 1,id,? FROM oa_operators WHERE email=? ON CONFLICT DO NOTHING`, now.getTime(), ownerEmail),
+  insert('s_firm', {id:1, ...firm, currency:'USD', source:'principal', revision:'demo-1', updated_by:ownerEmail, updated_at:now.toISOString()}),
+  insert('s_offices', {id:'demo-office', position:0, name:'Main office', phone:firm.phone, line1:firm.line1, line2:firm.line2, city:firm.city, state:firm.state, zip:firm.zip, timezone:firm.timezone}),
+  ...practiceAreas.map((p, position) => insert('s_practice_areas', {...p, position})),
   ...team.map(m => insert('s_members', {...m, active:1})),
   ...contacts.map(c => insert('s_parties', {...c, source:'native', revision:'demo-1'})),
  ])

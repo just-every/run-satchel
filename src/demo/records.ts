@@ -20,3 +20,5 @@ export const contacts = [
  {id:'demo-clio-contact-102',name:'Riverbend Holdings Pty Ltd',aliases:'Riverbend',email:'office@riverbend.example.test'},
  {id:'demo-clio-contact-103',name:'Jonah Reed',aliases:'J. Reed',email:'jonah.reed@example.test'},
 ] as const
+export const firm = {name:'Bennett Patel Reed LLP', email:'office@example.com', phone:'(212) 555-0147', line1:'48 Hudson Street', line2:'Suite 600', city:'New York', state:'NY', zip:'10013', timezone:'America/New_York', default_rate_cents:30000, billing_increment_minutes:6, payment_terms_days:30, fiscal_year_start_month:1, accounting_basis:'cash'}
+export const practiceAreas = [{code:'RE', name:'Real estate'}, {code:'EST', name:'Estates and trusts'}, {code:'EMP', name:'Employment'}]

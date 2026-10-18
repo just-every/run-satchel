@@ -38,7 +38,7 @@ Use a US firm with lawyers, assistants, billing and trust staff plus client/paye
 
 ## Firm authority and records
 
-- **FIRM-001 — Set up an empty US firm.** **Status: partial.** Start a fresh installation, finish setup, inspect empty matters and enter firm settings; export and restore them. Current evidence: `src/base/setup.ts`; `src/ui/workspace.tsx`. Gap: Native owner setup exists; persistent firm, office and fiscal settings are absent.
+- **FIRM-001 — Set up an empty US firm.** **Status: done.** Start a fresh installation, finish setup, inspect empty matters and enter firm settings; export and restore them. Current evidence: `src/satchel/firm.ts`; `src/ui/firm.tsx`; `migrations/core/0025_firm.sql`; `tests/satchel/flows.test.mjs`.
 
 - **FIRM-002 — Separate finance and legal rights.** **Status: partial.** Create each role and use direct APIs for legal approval, invoice delivery, trust transfer, reconciliation and access changes; deny every capability outside that role. Current evidence: `src/satchel/session.ts`; `src/satchel/team.ts`. Gap: Only principal, lawyer and assistant roles exist; finance, accountant, client and trust authorities are missing.
 
