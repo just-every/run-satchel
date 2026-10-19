@@ -2771,7 +2771,7 @@
       "executable": false
     },
     "tests/satchel/numbering-journey.test.mjs": {
-      "sha256": "b61894a1a8e3043d54bdb4c0ec582e2c822786a7470cd20419c9e617c29ca8cf",
+      "sha256": "1472af41fac4816a20603fdef5473815681ecd13c07925d1743644ca5747e74d",
       "executable": false
     },
     "tests/satchel/numbering.test.mjs": {
