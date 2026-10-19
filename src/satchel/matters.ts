@@ -1,3 +1,5 @@
+import {contactState} from './contact-read';
+import {contactMatches} from './contact-graph';
 import { matterIdentity } from './numbering';
 // Party identity/association and parameterized search adapted from MIT run-orbit
 // src/core/features/records/repository.ts @ 38cef87571a413802dbaa7aa6afbab332d8cd778.
@@ -10,10 +12,9 @@ export async function conflictSearch(db: D1Database, actor: Actor, body: Data) {
  const queries=[client,adverse,...aliases.split(';').map(v=>v.trim()).filter(Boolean)];
  // Scan every party, including aliases. There is no hidden first-page result cap.
  // This is a firm-record search, not a guarantee that conflicts do not exist.
- const result=await db.batch([stmt(db,'SELECT party_revision FROM s_meta WHERE id=1'),stmt(db,'SELECT p.*,group_concat(mp.matter_id) matter_ids FROM s_parties p LEFT JOIN s_matter_parties mp ON mp.party_id=p.id GROUP BY p.id ORDER BY p.name')]);
- const normal=(v:string)=>v.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
- const matches=result[1].results.filter((p:any)=>queries.some(q=>normal(q).split(' ').filter(Boolean).some(t=>normal(`${p.name} ${p.aliases}`).split(' ').some(w=>w.startsWith(t)))));
- const conflict={id:id(),client,adverse,queries,matches,partyRevision:(result[0].results[0] as any).party_revision,actor:actor.email,at:now()};
+ const graph=await contactState(db,actor);
+ const matches=graph.contacts.filter(p=>queries.some(q=>contactMatches(p,q,graph.contacts))).map(p=>({...p,aliases:p.aliases.join('; '),matter_ids:p.matterRoles.map(r=>r.matter_id).join(',')}));
+ const conflict={id:id(),client,adverse,queries,matches,partyRevision:graph.revision,actor:actor.email,at:now()};
  await atomic(db,actor,[stmt(db,'INSERT INTO s_conflicts VALUES(?,?,?,?,?,?,?,?)',conflict.id,client,adverse,JSON.stringify(queries),JSON.stringify(matches),conflict.partyRevision,actor.email,conflict.at),audit(db,actor,'conflict.searched',conflict.id)]);
  return conflict;
 }

@@ -51,3 +51,11 @@ numbers and new allocations skip them. Changing the pattern or starting number
 never renumbers existing matters. The saved number accompanies matter searches,
 documents, calendar records and reviewed bill packages. Search **Matters** by
 name or number; only matters you can access appear.
+
+## Maintain legal contacts
+
+**Legal contacts** on **Matters** searches names, aliases, former names, related entities, source IDs and permitted matter roles. The principal or a lawyer can create a person or organization, edit its profile, add an entity relationship or attach its client, adverse, insurer, witness, expert or counsel role to a permitted matter. Staff see only contacts linked to matters they can access; contact access grants no new matter access.
+
+To deduplicate imported aliases, classify both contacts, select the survivor, expand **Merge a duplicate**, choose the duplicate and record why they are the same identity. **Preview contact merge** shows the exact source identities and relationships. **Apply reviewed contact merge** retains both original IDs, source provenance and every existing link. A changed graph needs a new preview. Earlier recorded conflict searches remain unchanged; opening a new matter requires fresh review.
+
+Record communication evidence against its exact source identity and channel, with its evidence date and source reference. Unknown is the default. After a merge any denied identity denies that channel; otherwise every identity must allow before it becomes allowed. The evidence date records what was attested, rather than scheduling a future change. These are evidence records; sending and contact sync require their own explicit authority.

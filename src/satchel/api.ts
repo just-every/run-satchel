@@ -1,3 +1,5 @@
+import {contactState,contactDetail,saveContact,contactAction} from './contacts';
+import {previewContactMerge,applyContactMerge} from './contact-merge';
 import {documentSetState,documentSetAction} from './document-sets';
 import {createTrustPeriod,listTrustPeriods,trustPeriodReport,signTrustPeriod,reopenTrustPeriod,trustClientStatement,getTrustPacket} from './trust-periods';
 import {journalState,requestJournalReversal,decideJournalReversal} from './trust-journal';
@@ -37,6 +39,12 @@ const asAgent=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>c.json(await fn(
 api.get('/api/satchel/numbering',as((a,c)=>numberSettings(db(c))));
 api.post('/api/satchel/numbering',as(async(a,c)=>saveNumberSettings(db(c),a,await body(c))));
 api.get('/api/satchel/state',as((a,c)=>workspace(db(c),a)));
+api.get('/api/satchel/contacts',as((a,c)=>contactState(db(c),a,(c.req.query('q')??'').slice(0,500))));
+api.get('/api/satchel/contacts/:id',as((a,c)=>contactDetail(db(c),a,param(c))));
+api.post('/api/satchel/contacts',as(async(a,c)=>saveContact(db(c),a,await body(c))));
+api.post('/api/satchel/contacts/merge-preview',as(async(a,c)=>previewContactMerge(db(c),a,await body(c))));
+api.post('/api/satchel/contacts/merge',as(async(a,c)=>applyContactMerge(db(c),a,await body(c))));
+api.post('/api/satchel/contacts/:id/:op',as(async(a,c)=>contactAction(db(c),a,param(c),param(c,'op'),await body(c))));
 api.post('/api/satchel/conflicts',as(async(a,c)=>conflictSearch(db(c),a,await body(c))));
 api.post('/api/satchel/matters',as(async(a,c)=>openMatter(db(c),a,await body(c))));
 api.get('/api/satchel/matters/:id',as((a,c)=>matterDetail(db(c),a,param(c))));

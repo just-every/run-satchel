@@ -2,6 +2,12 @@
 // Explicit columns exclude credentials and original file bytes.
 const record=(table:string,columns:string[],matter='NULL',revision='NULL',where='x.id=i.object_id',extra:Record<string,string>={})=>`(SELECT json_object('recordType','${table}','matterId',${matter},'revision',${revision},${[...columns.flatMap(c=>[`'${c}'`,`x.${c}`]),...Object.entries(extra).flatMap(([k,v])=>[`'${k}'`,v])].join(',')}) FROM ${table} x WHERE ${where} LIMIT 1)`;
 const contexts=[
+ record('s_contact_profiles',['party_id','kind','display_name','aliases','former_names','emails','phones','addresses','updated_by','updated_at'],'NULL','x.revision',"x.party_id=i.object_id AND i.action IN ('contact.created','contact.profile_updated')"),
+ record('s_contact_relationships',['id','from_id','to_id','relationship','created_by','created_at']),
+ record('s_contact_matter_roles',['id','party_id','matter_id','role','created_by','created_at'],'x.matter_id'),
+ record('s_contact_consents',['id','sequence','party_id','channel','decision','effective_date','source','recorded_by','recorded_at']),
+ record('s_contact_merges',['losing_id','survivor_id','reason','reviewed_revision','snapshot','merged_by','merged_at'],'NULL','CAST(x.reviewed_revision AS TEXT)',"i.action='contact.merged' AND x.losing_id=i.object_id"),
+ record('s_contact_merge_previews',['id','for_email','role','graph_revision','snapshot','created_at','applied_at'],'NULL','CAST(x.graph_revision AS TEXT)'),
  record('s_document_folders',['id','matter_id','name','created_by','created_at'],'x.matter_id','NULL',"i.action='document.folder-created' AND x.id=json_extract(i.detail,'$.id')"),
  record('s_document_views',['id','matter_id','for_email','name','filters','created_at'],'x.matter_id','NULL',"i.action='document.view-saved' AND x.id=json_extract(i.detail,'$.viewId')"),
  record('s_document_bulk_previews',['id','matter_id','for_email','role','snapshot','created_at','applied_at'],'x.matter_id','NULL',"i.action='document.bulk-previewed' AND x.id=json_extract(i.detail,'$.previewId')"),
