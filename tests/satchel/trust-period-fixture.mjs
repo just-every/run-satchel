@@ -4,8 +4,8 @@ export async function transaction(h,f,{ledgerId=f.ledger.id,cents=1250,direction
  await h.json('/trust/transactions/'+t.id+'/decide',{revision:t.revision,decision:'approved',reviewNote:'Bank original, client ownership and amount reviewed'},h.owner);
  return (await h.json('/trust',undefined,h.owner)).entries.find(e=>e.source_id===t.id);
 }
-export async function periodFoundation(h){
- const f=await foundation(h);const o=await h.json('/trust/openings',{accountId:f.account.id,ledgerId:f.ledger.id,cents:100000,statementDate:'2026-09-01',documentId:f.source.id,note:'Dated September opening statement'},h.owner);
+export async function periodFoundation(h,statementDate='2026-09-01',statementText){
+ const f=await foundation(h);if(statementText)f.source=await h.json('/matters/'+f.m.id+'/documents',{name:'Bank statement supporting '+statementDate+'.txt',mime:'text/plain',contentBase64:Buffer.from(statementText).toString('base64'),visibility:'matter'},h.owner);const o=await h.json('/trust/openings',{accountId:f.account.id,ledgerId:f.ledger.id,cents:100000,statementDate,documentId:f.source.id,note:'Dated opening bank statement for '+statementDate},h.owner);
  await h.json('/trust/openings/'+o.id+'/approve',{revision:o.revision,reviewNote:'Opening source and client ownership reviewed'},h.owner);
  return f;
 }
