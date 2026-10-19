@@ -3,6 +3,7 @@
 import { atomic, audit, human, id, insist, integer, matter, need, now, rows, stmt, text, type Actor, type Data } from './model';
 import { calendarDate, visibleDeadline } from './deadlines';
 import { matterGuard } from './documents';
+import { firmToday } from './retention';
 
 const priorities = ['low', 'normal', 'high', 'urgent'], recurrences = ['none', 'daily', 'weekly', 'monthly'];
 const sees = `EXISTS(SELECT 1 FROM oa_operators o LEFT JOIN s_members m ON m.email=o.email WHERE o.email=? AND o.status='active' AND (o.role='owner' OR (m.active=1 AND EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=? AND a.email=o.email))))`;
@@ -23,7 +24,7 @@ function nextDue(day: string, recurrence: string) {
 }
 
 export async function listTasks(db: D1Database, actor: Actor, matterId: string) {
- const m = await matter(db, actor, matterId), today = new Date().toISOString().slice(0, 10);
+ const m = await matter(db, actor, matterId), today = await firmToday(db);
  const tasks = await rows(db, `SELECT t.*,d.date deadline_date,d.status deadline_status,d.title deadline_title,o.display_name owner_name FROM s_tasks t LEFT JOIN s_deadlines d ON d.id=t.deadline_id LEFT JOIN oa_operators o ON o.email=t.owner_email WHERE t.matter_id=? ORDER BY t.status DESC,COALESCE(d.date,t.due_date,'9999'),t.created_at,t.id`, m.id);
  const deps = await rows(db, 'SELECT x.* FROM s_task_dependencies x JOIN s_tasks t ON t.id=x.task_id WHERE t.matter_id=?', m.id);
  const events = await rows(db, 'SELECT e.* FROM s_task_events e JOIN s_tasks t ON t.id=e.task_id WHERE t.matter_id=? ORDER BY e.at,e.id', m.id);

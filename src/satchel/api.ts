@@ -25,6 +25,7 @@ import {propose,decideProposal} from './proposals';
 import {importAction,importState} from './imports';
 import {backup,restore,eraseDocument} from './archive';
 import {firmSettings,saveFirm,importFirm,exportFirm} from './firm';
+import {workload,myHandoffs,handOff,acknowledgeHandoff} from './workload';
 import {listTasks,createTask,assignTask,completeTask,bulkTasks,myNotifications,readNotification} from './tasks';
 import {agenda,exportAgenda,absenceState,recordAbsence,assignCoverage,assignDeadlineOwner} from './agenda';
 import {matterCalendar,firmCalendar,bookAppointment,changeOccurrence,availability} from './appointments';
@@ -69,6 +70,10 @@ api.get('/api/satchel/matters/:id/calendar',as((a,c)=>matterCalendar(db(c),a,par
 api.post('/api/satchel/matters/:id/appointments',as(async(a,c)=>bookAppointment(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/appointments/:id/occurrences/:n/:op',as(async(a,c)=>changeOccurrence(db(c),a,param(c),Number(param(c,'n')),param(c,'op'),await body(c))));
 api.get('/api/satchel/calendar',as((a,c)=>firmCalendar(db(c),a,{from:c.req.query('from'),to:c.req.query('to')})));
+api.get('/api/satchel/workload',as((a,c)=>workload(db(c),a)));
+api.get('/api/satchel/handoffs',as((a,c)=>myHandoffs(db(c),a)));
+api.post('/api/satchel/handoffs',as(async(a,c)=>handOff(db(c),a,await body(c))));
+api.post('/api/satchel/handoffs/:id/acknowledge',as((a,c)=>acknowledgeHandoff(db(c),a,param(c))));
 api.get('/api/satchel/matters/:id/tasks',as((a,c)=>listTasks(db(c),a,param(c))));
 api.post('/api/satchel/matters/:id/tasks',as(async(a,c)=>createTask(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/matters/:id/tasks/bulk',as(async(a,c)=>bulkTasks(db(c),a,param(c),await body(c))));

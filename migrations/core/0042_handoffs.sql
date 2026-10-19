@@ -1,0 +1,7 @@
+-- MATTER-006: handoffs of task and deadline ownership with receiver acknowledgment.
+CREATE TABLE s_handoffs(id TEXT PRIMARY KEY, from_email TEXT NOT NULL, to_email TEXT NOT NULL, reason TEXT NOT NULL, created_by TEXT NOT NULL, created_at TEXT NOT NULL, acknowledged_by TEXT, acknowledged_at TEXT, CHECK(from_email<>to_email));
+CREATE TRIGGER s_handoff_acknowledge_once BEFORE UPDATE ON s_handoffs WHEN OLD.acknowledged_at IS NOT NULL OR NEW.id IS NOT OLD.id OR NEW.from_email IS NOT OLD.from_email OR NEW.to_email IS NOT OLD.to_email OR NEW.reason IS NOT OLD.reason OR NEW.created_by IS NOT OLD.created_by OR NEW.created_at IS NOT OLD.created_at OR NEW.acknowledged_by IS NOT OLD.to_email BEGIN SELECT RAISE(ABORT,'constraint: only the receiver acknowledges a handoff, once'); END;
+CREATE TRIGGER s_handoff_delete BEFORE DELETE ON s_handoffs BEGIN SELECT RAISE(ABORT,'constraint: handoffs are history'); END;
+CREATE TABLE s_handoff_items(handoff_id TEXT NOT NULL REFERENCES s_handoffs(id), kind TEXT NOT NULL CHECK(kind IN ('task','deadline')), item_id TEXT NOT NULL, matter_id TEXT NOT NULL REFERENCES s_matters(id), title TEXT NOT NULL, PRIMARY KEY(handoff_id,kind,item_id));
+CREATE TRIGGER s_handoff_item_update BEFORE UPDATE ON s_handoff_items BEGIN SELECT RAISE(ABORT,'constraint: handoff items are history'); END;
+CREATE TRIGGER s_handoff_item_delete BEFORE DELETE ON s_handoff_items BEGIN SELECT RAISE(ABORT,'constraint: handoff items are history'); END;

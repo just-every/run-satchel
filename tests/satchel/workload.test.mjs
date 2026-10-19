@@ -1,0 +1,48 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {harness,open} from './harness.mjs';
+test('MATTER-006 principal sees workload, due work, absences and unowned work, hands off an absent lawyer\'s matters with acknowledgment and leaves time entries and completed work untouched',async()=>{
+ const h=await harness();try{
+  const staff=async(email,name,role)=>{await h.json('/team',{email,name,role},h.owner);await h.json('/team/invite',{email},h.owner);return h.login(email);};
+  const marcus=await staff('lawyer@example.test','Marcus Lee','lawyer'),priya=await staff('priya@example.test','Priya Shah','lawyer'),dana=await staff('dana@example.test','Dana Ortiz','assistant');
+  const m=await open(h),m2=await open(h,'Pine Studio lease','Pine Studio','Cedar Property'),m3=await open(h,'Oak estate','Oak Family Trust','Elm Bank');
+  for(const [matter,email] of [[m,'lawyer@example.test'],[m2,'lawyer@example.test'],[m,'priya@example.test'],[m,'dana@example.test'],[m3,'dana@example.test']])await h.json('/matters/'+matter.id+'/access',{email},h.owner);
+  const day=n=>{const d=new Date(new Intl.DateTimeFormat('en-CA',{timeZone:'UTC'}).format(new Date())+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
+  await h.json('/matters/'+m.id+'/entries',{kind:'time',date:day(-3),description:'Interrogatory strategy',minutes:90,rateCents:30000},marcus);
+  const billingBefore=await h.json('/matters/'+m.id+'/billing',undefined,h.owner);
+  const task=(matter,body,who=marcus)=>h.json('/matters/'+matter.id+'/tasks',body,who);
+  const serve=await task(m,{title:'Serve interrogatories',ownerEmail:'lawyer@example.test',dueDate:day(3)});
+  const old=await task(m,{title:'Intake memo',ownerEmail:'lawyer@example.test'});await h.json('/tasks/'+old.id+'/complete',{evidence:'Memo filed'},marcus);
+  const brief=await task(m2,{title:'Draft brief',ownerEmail:'lawyer@example.test',dueDate:day(30)});
+  let deadline=await h.json('/matters/'+m.id+'/deadlines',{kind:'filing',title:'File motion',date:day(5),timezone:'America/New_York',source:'Order ¶2'},h.owner);
+  deadline=await h.json('/deadlines/'+deadline.id+'/confirm',{revision:deadline.revision,note:'Checked'},h.owner);await h.json('/deadlines/'+deadline.id+'/owner',{email:'lawyer@example.test'},h.owner);
+  const orphan=await task(m3,{title:'Gather trust deeds',dueDate:day(2)},dana);
+  await h.json('/absences',{email:'lawyer@example.test',startDate:day(0),endDate:day(10),reason:'Surgery'},h.owner);
+  await h.json('/workload',undefined,marcus,403);
+  let load=await h.json('/workload',undefined,h.owner);const person=email=>load.people.find(p=>p.email===email);
+  assert.deepEqual(person('lawyer@example.test').dueSoon.map(w=>[w.kind,w.title]),[['task','Serve interrogatories'],['deadline','File motion']]);
+  assert.deepEqual([person('lawyer@example.test').open,person('lawyer@example.test').absences.map(a=>a.endDate)],[3,[day(10)]]);
+  assert.deepEqual(load.imminentUnowned.map(w=>w.title),['Gather trust deeds']);assert.deepEqual(load.unownedMatters.map(x=>x.id),[m3.id]);
+  await h.json('/handoffs',{from:'lawyer@example.test',to:'priya@example.test',matterIds:[m.id,m2.id],reason:'Marcus on leave'},h.owner,409);
+  assert.equal((await h.json('/matters/'+m2.id+'/tasks',undefined,marcus)).find(t=>t.id===brief.id).owner,'lawyer@example.test','A refused handoff moves nothing');
+  await h.json('/handoffs',{from:'lawyer@example.test',to:'priya@example.test',matterIds:[m.id],reason:'x'},marcus,403);
+  const handoff=await h.json('/handoffs',{from:'lawyer@example.test',to:'priya@example.test',matterIds:[m.id],reason:'Marcus on leave until next month'},h.owner);
+  assert.deepEqual(handoff.items.map(i=>[i.kind,i.title]),[['deadline','File motion'],['task','Serve interrogatories']]);assert.equal(handoff.acknowledgedAt,null);
+  const tasks=await h.json('/matters/'+m.id+'/tasks',undefined,priya);
+  assert.equal(tasks.find(t=>t.id===serve.id).owner,'priya@example.test');assert.equal(tasks.find(t=>t.id===serve.id).history.at(-1).kind,'handoff');
+  assert.deepEqual([tasks.find(t=>t.id===old.id).owner,tasks.find(t=>t.id===old.id).completedBy],['lawyer@example.test','lawyer@example.test'],'Completed work keeps its attribution');
+  assert.equal((await h.json('/matters/'+m.id+'/deadlines',undefined,h.owner)).find(d=>d.id===deadline.id).owner,'priya@example.test');
+  assert.ok((await h.json('/notifications',undefined,priya)).some(n=>n.message==='Handed off to you: Serve interrogatories (Marcus on leave until next month); acknowledge the handoff'));
+  load=await h.json('/workload',undefined,h.owner);assert.equal(person('priya@example.test').pendingHandoffs,1);
+  await h.json('/handoffs/'+handoff.id+'/acknowledge',{},dana,404);await h.json('/handoffs/'+handoff.id+'/acknowledge',{},h.owner,403);
+  assert.ok((await h.json('/handoffs',undefined,priya)).some(x=>x.id===handoff.id));assert.deepEqual(await h.json('/handoffs',undefined,dana),[]);
+  const ack=await h.json('/handoffs/'+handoff.id+'/acknowledge',{},priya);assert.ok(ack.acknowledgedAt);
+  await h.json('/handoffs/'+handoff.id+'/acknowledge',{},priya,409);
+  await h.json('/tasks/'+orphan.id+'/assign',{email:'dana@example.test',reason:'Owner needed before the due date'},h.owner);
+  load=await h.json('/workload',undefined,h.owner);
+  assert.deepEqual([load.imminentUnowned,load.unownedMatters,person('priya@example.test').pendingHandoffs],[[],[],0],'Every imminent task has an active owner');
+  assert.deepEqual(person('priya@example.test').dueSoon.map(w=>w.title),['Serve interrogatories','File motion']);
+  assert.deepEqual(await h.json('/matters/'+m.id+'/billing',undefined,h.owner),billingBefore,'Historic time entries are unchanged');
+  const trail=(await h.json('/audit',undefined,h.owner)).records.map(r=>r.action);for(const a of ['handoff.created','handoff.acknowledged'])assert.ok(trail.includes(a),a);
+ }finally{await h.close();}
+});

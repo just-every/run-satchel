@@ -6,7 +6,7 @@ import { documentGuard, visibleDocument } from './documents';
 const active = (alias = 'd') => `EXISTS(SELECT 1 FROM s_holds h WHERE h.released_at IS NULL AND h.matter_id=${alias}.matter_id AND (h.document_id IS NULL OR h.document_id=${alias}.id))`;
 // A document follows its own current schedule, otherwise its matter's.
 const schedule = (alias = 'd') => `COALESCE((SELECT r.id FROM s_retention r WHERE r.superseded_at IS NULL AND r.document_id=${alias}.id),(SELECT r.id FROM s_retention r WHERE r.superseded_at IS NULL AND r.document_id IS NULL AND r.matter_id=${alias}.matter_id))`;
-async function firmToday(db: D1Database) {
+export async function firmToday(db: D1Database) {
  const zone = (await stmt(db, 'SELECT timezone FROM s_firm WHERE id=1').first<{ timezone: string }>())?.timezone ?? 'UTC';
  return new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 }

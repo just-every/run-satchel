@@ -59,7 +59,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "b8901f5d60b33cb241cc0c85664b6fa6c0c47a93dd3587fb89c7b65add4f8fb5",
+      "sha256": "fd623784a89803847d99c42ceadfb2e9c78f4d198683e9712a3c3f6276a21f51",
       "executable": false
     },
     "AGENTS.md": {
@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "10626a2fdb2618e6d9bdaee169cf5a7937131225c375f6a6c2a0244220a120ce",
+      "sha256": "bf130a833a85d53a9189b8f26849e856c1c0a85ef8a461f113a3faf043fae171",
       "executable": false
     },
     "DEMO.md": {
@@ -285,6 +285,10 @@
     "migrations/core/0041_tasks.sql": {
       "executable": false,
       "sha256": "d2d494ed5ea3aa1a59cf13d0c18d443bdce0f8d78a516e72445fca99ff08188e"
+    },
+    "migrations/core/0042_handoffs.sql": {
+      "executable": false,
+      "sha256": "3224962541df6f07d79db9567ae4745e3e1f15fd20f4d9c31d8d793e5e928da9"
     },
     "ONBOARDING.md": {
       "sha256": "31dbf44f24514b9f626261911b9b83c806cacdf00dd23e49f465f3fdfebb715e",
@@ -2335,7 +2339,7 @@
       "sha256": "8d9ed605605f8251d90292404ab87d89f2222a67d8ca641d7b188977aeacd162"
     },
     "src/satchel/api.ts": {
-      "sha256": "bae5997f326dafc64583c7de2ff579f71613ee5ec6701fd1a1d341760510a216",
+      "sha256": "f54837169f5d3504f60796b72bb6cb953f17107529eb81be1a697cca5331a28a",
       "executable": false
     },
     "src/satchel/appointments.ts": {
@@ -2355,7 +2359,7 @@
       "executable": false
     },
     "src/satchel/audit-record.ts": {
-      "sha256": "e9c07994b8594c4e7f35630c412385e9b5bb19c4af72907287160f3c4fce0174",
+      "sha256": "ecdd8809ae443589af833c6003a06e9e18f48b1204f77fbf72f114fbf505a501",
       "executable": false
     },
     "src/satchel/audit.ts": {
@@ -2459,7 +2463,7 @@
       "executable": false
     },
     "src/satchel/retention.ts": {
-      "sha256": "8c3c6b42e365801041de9f8bb80baf456f30d174391667ef45ccaefa248decbf",
+      "sha256": "1ec54ef110d1eb0ccde715fe87912ba9e947b9bf9083d704b7a81ca17532bb55",
       "executable": false
     },
     "src/satchel/session.ts": {
@@ -2468,7 +2472,7 @@
     },
     "src/satchel/tasks.ts": {
       "executable": false,
-      "sha256": "607b3ce54497bd3ee9d003e53920d138e5ec49406afe42c4463efa086ecaf347"
+      "sha256": "80818c8e2806e3603b896456045a2ea90fbcecadb6c6684cf901cf682bb36e7b"
     },
     "src/satchel/team.ts": {
       "sha256": "c900557a54e3d62a9f24557e8a6828e447c8f9cb3dcf74c97306c8d23ba9e754",
@@ -2509,6 +2513,10 @@
     "src/satchel/trust.ts": {
       "sha256": "c1408a3cab9e42a78ff68b4e3a3d95c8b4acbefdccf37d028cf05bf821c2f4d8",
       "executable": false
+    },
+    "src/satchel/workload.ts": {
+      "executable": false,
+      "sha256": "769bccb9c9a83f1b1c7150317306be77bf6c25f30577994be4ada3fe01dfbee9"
     },
     "src/server.dev.ts": {
       "sha256": "4892545be3afaf55d1a45b99933f017baa43512d7152f56b21422010aa70b8a5",
@@ -2750,8 +2758,12 @@
       "sha256": "9cf07e328d06dceb640709ede3d4a8cc7a5e57bd43e4122c8c11966c7ae7348d",
       "executable": false
     },
+    "src/ui/workload.tsx": {
+      "executable": false,
+      "sha256": "f975baf7874ca6452c264d9f0512ff1e712a8b159d8a026afbcfa93a65bcf6a8"
+    },
     "src/ui/workspace.tsx": {
-      "sha256": "be643b2ea4ceb41b3a3784e122e7972b2678fb7415b1be915237832a08c057de",
+      "sha256": "342c86068be9f50ac1707fa0ef8051cc1eac5d5d55e81e5ae4fbf2acf85dedca",
       "executable": false
     },
     "test-budget.json": {
@@ -2881,6 +2893,14 @@
     "tests/satchel/trust.test.mjs": {
       "sha256": "156ebe5f255e30a66211a9a91c9ff7eb0b9a527fdee9c03477a17e0941ae2f3a",
       "executable": false
+    },
+    "tests/satchel/workload-journey.test.mjs": {
+      "executable": false,
+      "sha256": "3a58668e825d87618d2af11ebfb99efa1c8e77ebfd6c3ebd5d1b040866c3f347"
+    },
+    "tests/satchel/workload.test.mjs": {
+      "executable": false,
+      "sha256": "2abb023ef103198aab2665d1286f60a9b4665810a18a1408d853e510ffa50e0f"
     },
     "tests/site/navigation.test.mjs": {
       "sha256": "30278e554dc37734f7f30dd27495258cf7d4325968af0b1d19b5956477dfadb2",

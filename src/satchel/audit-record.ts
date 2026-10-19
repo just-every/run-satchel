@@ -18,6 +18,7 @@ const contexts=[
  record('s_absences',['id','email','start_date','end_date','recorded_by','recorded_at']),
  record('s_absence_coverage',['id','absence_id','covering_email','assigned_by','assigned_at']),
  record('s_tasks',['id','parent_id','title','priority','due_date','deadline_id','owner_email','recurrence','series_id','status','completed_by','completed_at','completion_evidence'],'x.matter_id','x.revision'),
+ record('s_handoffs',['id','from_email','to_email','reason','created_by','created_at','acknowledged_by','acknowledged_at'],'NULL','NULL',undefined,{items:"(SELECT json_group_array(json_object('kind',i.kind,'id',i.item_id,'matterId',i.matter_id)) FROM s_handoff_items i WHERE i.handoff_id=x.id)"}),
  record('s_holds',['id','matter_id','document_id','reason','placed_by','placed_at','released_by','released_at','release_reason'],'x.matter_id'),
  record('s_retention',['id','matter_id','document_id','dispose_after','basis','set_by','set_at','superseded_at'],'x.matter_id'),
  record('s_matters',['id','matter_number','client','adverse','conflict_id','review_note','opened_by','opened_at'],'x.id'),
