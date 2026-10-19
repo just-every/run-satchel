@@ -71,10 +71,11 @@ export async function reportInputs(db:D1Database,actor:Actor,accountId:string,cu
 export async function buildTrustReport(db:D1Database,actor:Actor,period:Data){
  const account=await accountTrustAccess(db,actor,period.account_id),input=await reportInputs(db,actor,period.account_id,period.end_date);
  const {entries}=input;
- const outstanding=entries.filter(e=>!e.clearedDate||e.clearedDate>period.end_date);
+ const bankEntries=entries.filter(e=>e.kind!=='matter_allocation');
+ const outstanding=bankEntries.filter(e=>!e.clearedDate||e.clearedDate>period.end_date);
  const outstandingDeposits=outstanding.filter(e=>e.cents>0),outstandingChecks=outstanding.filter(e=>e.cents<0);
  const sum=(list:Data[])=>list.reduce((n,e)=>n+e.cents,0);
- const registerCents=sum(entries),subsidiaryCents=sum(entries.filter(e=>e.ledger_id!==null));
+ const registerCents=sum(bankEntries),subsidiaryCents=sum(entries.filter(e=>e.ledger_id!==null));
  const outstandingDepositsCents=sum(outstandingDeposits),outstandingChecksCents=-sum(outstandingChecks);
  const adjustedBankCents=period.closing_balance_cents+outstandingDepositsCents-outstandingChecksCents;
  const suspense=entries.filter(e=>e.ledger_id===null);
@@ -86,7 +87,7 @@ export async function buildTrustReport(db:D1Database,actor:Actor,period:Data){
  const ledgers=input.ledgers.map(l=>({...l,balanceCents:sum(entries.filter(e=>e.ledger_id===l.id))}));
  const report={period,account,cutoffDate:period.end_date,sourceDocument:{id:period.source_document_id,version:period.source_version,digest:period.source_digest},
   bankClosingCents:period.closing_balance_cents,registerCents,subsidiaryCents,outstandingDepositsCents,outstandingChecksCents,adjustedBankCents,
-  balanced:differences.every(d=>d.cents===0),differences,entries,outstandingDeposits,outstandingChecks,suspense,ledgers,
+  bankEntries,balanced:differences.every(d=>d.cents===0),differences,entries,outstandingDeposits,outstandingChecks,suspense,ledgers,
   clientStatements:ledgers.map(l=>clientStatement(l,entries,period.end_date,period.start_date)),events:input.events.filter(e=>e.period_id===period.id)};
  insist([registerCents,subsidiaryCents,outstandingDepositsCents,outstandingChecksCents,adjustedBankCents,...differences.map(d=>d.cents)].every(Number.isSafeInteger),'Trust totals exceed exact integer cents',409);
  return {report,reportDigest:await digest(JSON.stringify(report)),stateToken:input.stateToken};

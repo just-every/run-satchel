@@ -6,7 +6,7 @@ import {currentDate,ledgerFor} from './trust-transactions';
 async function original(db:D1Database,actor:Actor,entryId:string){
  await trustOfficer(db,actor);const e=await stmt(db,'SELECT e.*,COALESCE(e.cleared_date,c.cleared_date) bank_cleared FROM s_trust_entries e LEFT JOIN s_trust_clearings c ON c.entry_id=e.id WHERE e.id=?',entryId).first<Data>();insist(e,'Original entry not found',404);
  if(e.ledger_id)await ledgerFor(db,actor,e.ledger_id);else insist(actor.role==='owner','The principal reviews suspense and operating corrections',403);
- insist(!['earned_fee_transfer','earned_fee_reversal','journal_reversal'].includes(e.kind),'Use the original earned-fee application reversal, or correct the original journal entry',409);return e;
+ insist(!['earned_fee_transfer','earned_fee_reversal','journal_reversal','matter_allocation','matter_bank_transfer'].includes(e.kind),'Use the original earned-fee application reversal, or correct the original journal entry',409);return e;
 }
 export async function journalState(db:D1Database,actor:Actor){
  await trustOfficer(db,actor);return rows(db,`SELECT r.*,e.cents original_cents,e.account_id,e.ledger_id,e.effective_date original_date,d.decision,d.actor decided_by,d.note review_note,d.at decided_at,x.id entry_id FROM s_trust_journal_reversals r JOIN s_trust_entries e ON e.id=r.original_entry_id LEFT JOIN s_trust_journal_decisions d ON d.reversal_id=r.id LEFT JOIN s_trust_entries x ON x.source_id=r.id WHERE (?='owner' OR EXISTS(SELECT 1 FROM s_trust_ledgers l JOIN s_matter_access a ON a.matter_id=l.matter_id WHERE l.id=e.ledger_id AND a.email=?)) ORDER BY r.requested_at,r.id`,actor.role,actor.email);

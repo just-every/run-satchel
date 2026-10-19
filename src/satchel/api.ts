@@ -1,6 +1,8 @@
 import {checkState,prepareCheck,requestCheckVoid,decideCheckVoid,matchCheck,prepareDepositSlip} from './trust-checks';
 import {printCheck,printDepositSlip} from './trust-check-print';
 import {prepareOperatingTransaction,decideOperatingTransaction} from './trust-check-operating';
+import {matterTransferState,requestMatterTransfer,decideMatterTransfer} from './trust-matter-transfers';
+import {matterTransferBankResult} from './trust-matter-transfer-bank';
 import {matterLifecycle,closurePreview,closeMatter,reopenMatter} from './matter-lifecycle';
 import {integrationState,createIntegration,revokeIntegration,rotateIntegration,resumeIntegration,integrationAuth,integrationMatters,integrationMatter,integrationRecords,integrationPrepare,capability} from './integrations';
 import {dispatchIntegration,webhookJournal,integrationEventPage} from './webhooks';
@@ -248,3 +250,9 @@ api.post('/api/satchel/trust/periods/:id/sign',as(async(a,c)=>signTrustPeriod(db
 api.post('/api/satchel/trust/periods/:id/reopen',as(async(a,c)=>reopenTrustPeriod(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/trust/ledgers/:id/statement',as((a,c)=>trustClientStatement(db(c),a,param(c),c.req.query())));
 api.get('/api/satchel/trust/packets/:id',as(async(a,c)=>new Response(JSON.stringify(await getTrustPacket(db(c),a,param(c))),{headers:{'content-type':'application/json','content-disposition':'attachment; filename="satchel-signed-trust-packet.json"','cache-control':'private, no-store'}})));
+
+api.get('/api/satchel/trust/matter-transfers',as((a,c)=>matterTransferState(db(c),a)));
+api.post('/api/satchel/trust/matter-transfers',as(async(a,c)=>requestMatterTransfer(db(c),a,await body(c))));
+api.post('/api/satchel/trust/matter-transfers/:id/decide',as(async(a,c)=>decideMatterTransfer(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/trust/matter-transfers/:id/bank-result',as(async(a,c)=>matterTransferBankResult(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/trust/matter-transfers/:id/reversal',as(async(a,c)=>requestMatterTransfer(db(c),a,await body(c),param(c))));
