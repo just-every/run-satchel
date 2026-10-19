@@ -1,3 +1,4 @@
+import {invoiceFunds} from './trust-transfers';
 // Adapted from just-every/run-gauge src/gauge/{billing,time,model}.ts (MIT):
 // source reservations, exact rounded minor units, reviewed CSV, additive corrections.
 // Copyright (c) 2026 Run Edit Run. See the repository LICENSE for the MIT terms.
@@ -84,7 +85,7 @@ export async function listBilling(db: D1Database, actor: Actor, matterId: string
   rows(db,'SELECT e.*,s.bill_id FROM s_entries e LEFT JOIN s_billing_sources s ON s.entry_id=e.id WHERE e.matter_id=? ORDER BY e.date,e.created_at,e.id',matterId),
   matterBills(db,matterId),
  ]);
- return {entries:entries.map(entryRow),bills,correctionReviews:correctionReviews(bills)};
+ return {entries:entries.map(entryRow),bills:await Promise.all(bills.map(async b=>({...b,trustPayment:await invoiceFunds(db,b.id)}))),correctionReviews:correctionReviews(bills)};
 }
 
 export async function prepareBill(db: D1Database, actor: Actor, matterId: string, body: Data) {
@@ -130,6 +131,7 @@ export async function voidBill(db: D1Database, actor: Actor, billId: string, bod
  insist(['draft','approved'].includes(bill.status), 'Exported bills require an additive correction; only unexported bills can be voided',409);
  const reason = text(body.reason,'Void reason',2000);
  await atomic(db,actor,[accessGuard(db,actor,bill.matterId),revisionGuard(db,bill),
+  guard(db,"NOT EXISTS(SELECT 1 FROM s_operating_payments p WHERE p.bill_id=? AND p.cents>COALESCE((SELECT SUM(r.cents) FROM s_operating_payment_reversals r WHERE r.payment_id=p.id),0)) AND NOT EXISTS(SELECT 1 FROM s_trust_transfers t WHERE t.bill_id=? AND NOT EXISTS(SELECT 1 FROM s_trust_transfer_actions a WHERE a.transfer_id=t.id AND a.kind IN('declined','not_executed','cleared')))",bill.id,bill.id),
   stmt(db,"UPDATE s_bills SET status='void',revision=?,void_reason=?,voided_by=?,voided_at=? WHERE id=? AND revision=? AND status IN ('draft','approved')",id(),reason,actor.email,now(),bill.id,bill.revision),
   stmt(db,'DELETE FROM s_billing_sources WHERE bill_id=?',bill.id),audit(db,actor,'bill.voided',bill.id,reason),
  ]);

@@ -1,3 +1,5 @@
+import {requestReversal,reversalAction} from './trust-reversals';
+import {requestTransfer,transferState,transferPolicy,decideTransfer,bankTransferResult} from './trust-transfers';
 import {transactionState,prepareTransaction,decideTransaction,recordClearance} from './trust-transactions';
 import {trustState,createTrustAccount,createTrustLedger,prepareOpening,approveOpening} from './trust';
 import {reminderState,scheduleReminder,acknowledgeReminder,resolveReminder,cancelReminder} from './reminders';
@@ -90,3 +92,13 @@ api.get('/api/satchel/trust/transactions',as((a,c)=>transactionState(db(c),a)));
 api.post('/api/satchel/trust/transactions',as(async(a,c)=>prepareTransaction(db(c),a,await body(c))));
 api.post('/api/satchel/trust/transactions/:id/decide',as(async(a,c)=>decideTransaction(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/trust/entries/:id/clear',as(async(a,c)=>recordClearance(db(c),a,param(c),await body(c))));
+
+api.get('/api/satchel/trust/transfers',as((a,c)=>transferState(db(c),a)));
+api.get('/api/satchel/trust/transfer-policy',as((a,c)=>transferPolicy(db(c),a)));
+api.post('/api/satchel/trust/transfer-policy',as(async(a,c)=>transferPolicy(db(c),a,await body(c))));
+api.post('/api/satchel/trust/transfers',as(async(a,c)=>requestTransfer(db(c),a,await body(c))));
+api.post('/api/satchel/trust/transfers/:id/decide',as(async(a,c)=>decideTransfer(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/trust/transfers/:id/bank-result',as(async(a,c)=>bankTransferResult(db(c),a,param(c),await body(c))));
+
+api.post('/api/satchel/trust/transfers/:id/reversal',as(async(a,c)=>requestReversal(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/trust/transfers/:id/reversal/action',as(async(a,c)=>reversalAction(db(c),a,param(c),await body(c))));

@@ -1,0 +1,14 @@
+CREATE TABLE s_trust_transfer_policy(id INTEGER PRIMARY KEY CHECK(id=1),dual_authorization INTEGER NOT NULL CHECK(dual_authorization IN(0,1)),revision TEXT NOT NULL);
+INSERT INTO s_trust_transfer_policy VALUES(1,0,'initial');
+CREATE TABLE s_trust_transfers(id TEXT PRIMARY KEY,request_key TEXT NOT NULL UNIQUE,bill_id TEXT NOT NULL REFERENCES s_bills(id),bill_revision TEXT NOT NULL,earned_cents INTEGER NOT NULL,ledger_id TEXT NOT NULL REFERENCES s_trust_ledgers(id),operating_account_id TEXT NOT NULL REFERENCES s_trust_accounts(id),cents INTEGER NOT NULL CHECK(cents>0),revision TEXT NOT NULL,required_approvals INTEGER NOT NULL CHECK(required_approvals IN(1,2)),requested_by TEXT NOT NULL,created_at TEXT NOT NULL);
+CREATE TABLE s_trust_transfer_actions(id TEXT PRIMARY KEY,transfer_id TEXT NOT NULL REFERENCES s_trust_transfers(id),kind TEXT NOT NULL CHECK(kind IN('approved','declined','submitted','cleared','not_executed')),actor TEXT NOT NULL,note TEXT NOT NULL,bank_reference TEXT,bank_date TEXT,source_document_id TEXT REFERENCES s_documents(id),source_version INTEGER,source_digest TEXT,at TEXT NOT NULL);
+CREATE UNIQUE INDEX s_trust_transfer_approval ON s_trust_transfer_actions(transfer_id,actor) WHERE kind='approved';
+CREATE UNIQUE INDEX s_trust_transfer_outcome ON s_trust_transfer_actions(transfer_id,kind) WHERE kind IN('declined','submitted','cleared','not_executed');
+CREATE UNIQUE INDEX s_trust_transfer_bank_reference ON s_trust_transfer_actions(bank_reference) WHERE kind='submitted';
+CREATE TABLE s_operating_payments(id TEXT PRIMARY KEY,transfer_id TEXT NOT NULL UNIQUE REFERENCES s_trust_transfers(id),bill_id TEXT NOT NULL REFERENCES s_bills(id),cents INTEGER NOT NULL CHECK(cents>0),trust_entry_id TEXT NOT NULL REFERENCES s_trust_entries(id),operating_entry_id TEXT NOT NULL REFERENCES s_trust_entries(id),bank_date TEXT NOT NULL,actor TEXT NOT NULL,at TEXT NOT NULL);
+CREATE TRIGGER s_trust_transfers_no_update BEFORE UPDATE ON s_trust_transfers BEGIN SELECT RAISE(ABORT,'trust transfer requests are immutable'); END;
+CREATE TRIGGER s_trust_transfers_no_delete BEFORE DELETE ON s_trust_transfers BEGIN SELECT RAISE(ABORT,'trust transfer requests are immutable'); END;
+CREATE TRIGGER s_trust_transfer_actions_no_update BEFORE UPDATE ON s_trust_transfer_actions BEGIN SELECT RAISE(ABORT,'trust transfer actions are append-only'); END;
+CREATE TRIGGER s_trust_transfer_actions_no_delete BEFORE DELETE ON s_trust_transfer_actions BEGIN SELECT RAISE(ABORT,'trust transfer actions are append-only'); END;
+CREATE TRIGGER s_operating_payments_no_update BEFORE UPDATE ON s_operating_payments BEGIN SELECT RAISE(ABORT,'operating payments are append-only'); END;
+CREATE TRIGGER s_operating_payments_no_delete BEFORE DELETE ON s_operating_payments BEGIN SELECT RAISE(ABORT,'operating payments are append-only'); END;

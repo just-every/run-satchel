@@ -1,0 +1,12 @@
+CREATE TABLE s_trust_reversals(id TEXT PRIMARY KEY,transfer_id TEXT NOT NULL UNIQUE REFERENCES s_trust_transfers(id),revision TEXT NOT NULL,cents INTEGER NOT NULL CHECK(cents>0),required_approvals INTEGER NOT NULL CHECK(required_approvals IN(1,2)),reason TEXT NOT NULL,created_by TEXT NOT NULL,created_at TEXT NOT NULL);
+CREATE TABLE s_trust_reversal_actions(id TEXT PRIMARY KEY,reversal_id TEXT NOT NULL REFERENCES s_trust_reversals(id),kind TEXT NOT NULL CHECK(kind IN('approved','declined','submitted','cleared','not_executed')),actor TEXT NOT NULL,note TEXT NOT NULL,bank_reference TEXT,bank_date TEXT,source_document_id TEXT REFERENCES s_documents(id),source_version INTEGER,source_digest TEXT,at TEXT NOT NULL);
+CREATE UNIQUE INDEX s_trust_reversal_approval ON s_trust_reversal_actions(reversal_id,actor) WHERE kind='approved';
+CREATE UNIQUE INDEX s_trust_reversal_outcome ON s_trust_reversal_actions(reversal_id,kind) WHERE kind IN('declined','submitted','cleared','not_executed');
+CREATE UNIQUE INDEX s_trust_reversal_bank_reference ON s_trust_reversal_actions(bank_reference) WHERE kind='submitted';
+CREATE TABLE s_operating_payment_reversals(id TEXT PRIMARY KEY,payment_id TEXT NOT NULL UNIQUE REFERENCES s_operating_payments(id),reversal_id TEXT NOT NULL UNIQUE REFERENCES s_trust_reversals(id),cents INTEGER NOT NULL CHECK(cents>0),trust_entry_id TEXT NOT NULL REFERENCES s_trust_entries(id),operating_entry_id TEXT NOT NULL REFERENCES s_trust_entries(id),bank_date TEXT NOT NULL,actor TEXT NOT NULL,at TEXT NOT NULL);
+CREATE TRIGGER s_trust_reversals_no_update BEFORE UPDATE ON s_trust_reversals BEGIN SELECT RAISE(ABORT,'trust reversal requests are immutable'); END;
+CREATE TRIGGER s_trust_reversals_no_delete BEFORE DELETE ON s_trust_reversals BEGIN SELECT RAISE(ABORT,'trust reversal requests are immutable'); END;
+CREATE TRIGGER s_trust_reversal_actions_no_update BEFORE UPDATE ON s_trust_reversal_actions BEGIN SELECT RAISE(ABORT,'trust reversal actions are append-only'); END;
+CREATE TRIGGER s_trust_reversal_actions_no_delete BEFORE DELETE ON s_trust_reversal_actions BEGIN SELECT RAISE(ABORT,'trust reversal actions are append-only'); END;
+CREATE TRIGGER s_operating_payment_reversals_no_update BEFORE UPDATE ON s_operating_payment_reversals BEGIN SELECT RAISE(ABORT,'payment reversals are append-only'); END;
+CREATE TRIGGER s_operating_payment_reversals_no_delete BEFORE DELETE ON s_operating_payment_reversals BEGIN SELECT RAISE(ABORT,'payment reversals are append-only'); END;

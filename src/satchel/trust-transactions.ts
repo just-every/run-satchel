@@ -3,7 +3,7 @@ import {accessGuard,guard,availabilitySql} from './trust-guards';
 import {officerGuard,sourceDocument,sourceGuard,trustOfficer} from './trust';
 export async function ledgerFor(db:D1Database,actor:Actor,ledgerId:string){const l=await stmt(db,'SELECT * FROM s_trust_ledgers WHERE id=?',text(ledgerId,'Subsidiary ledger')).first<Data>();insist(l,'Subsidiary ledger not found',404);await matter(db,actor,l.matter_id);return l;}
 export function currentDate(value:unknown,label='Date'){const day=date(value);insist(day<=now().slice(0,10),label+' cannot be in the future');return day;}
-function fundsGuard(db:D1Database,ledgerId:string,cents:number,exclude=''){return guard(db,`(${availabilitySql()})>=?`,ledgerId,ledgerId,exclude,cents);}
+function fundsGuard(db:D1Database,ledgerId:string,cents:number,exclude=''){return guard(db,`(${availabilitySql()})>=?`,ledgerId,ledgerId,exclude,ledgerId,exclude,cents);}
 export async function transactionState(db:D1Database,actor:Actor){
  await trustOfficer(db,actor);const s=actor.role==='owner',permitted=`(?=1 OR EXISTS(SELECT 1 FROM s_trust_ledgers l JOIN s_matter_access a ON a.matter_id=l.matter_id WHERE l.id=t.ledger_id AND a.email=?))`;
  return rows(db,`SELECT t.*,d.decision,d.actor decided_by,d.note review_note,d.at decided_at,e.id entry_id,COALESCE(t.cleared_date,c.cleared_date) reconciled_cleared_date,c.bank_reference cleared_bank_reference,c.source_document_id clearance_document_id,c.source_version clearance_source_version,c.actor clearance_actor FROM s_trust_transactions t LEFT JOIN s_trust_decisions d ON d.transaction_id=t.id LEFT JOIN s_trust_entries e ON e.source_id=t.id LEFT JOIN s_trust_clearings c ON c.entry_id=e.id WHERE ${permitted} ORDER BY t.created_at,t.id`,s?1:0,actor.email);
