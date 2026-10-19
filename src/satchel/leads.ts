@@ -3,7 +3,11 @@
 // officers see none. History is append-only and a merge keeps the duplicate as provenance.
 import {atomic,audit,date,human,id,insist,integer,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
 import {guard} from './trust-guards';
-import {firmToday} from './retention';
+export async function leadCalendar(db:D1Database) {
+ const timezone=(await stmt(db,'SELECT timezone FROM s_firm WHERE id=1').first<{timezone:string}>())?.timezone??'UTC';
+ const today=new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+ return {today,timezone};
+}
 
 const qualifications=['pending','qualified','not_qualified'];
 export const counselRole=(actor:Actor)=>['owner','lawyer'].includes(actor.role);
@@ -59,15 +63,16 @@ async function visibleLead(db:D1Database,actor:Actor,leadId:string) {
  staff(actor);
  const l=await stmt(db,`SELECT * FROM s_leads l WHERE l.id=? AND ${visibleLeadSql}`,leadId,...visibleParams(actor)).first<Data>();insist(l,'Lead not found',404);return l;
 }
-export function leadJson(l:Data,stages:Data[],today:string) {
+export function leadJson(l:Data,stages:Data[],today:string,timezone:string) {
  const inactive=new Date(today+'T00:00:00Z');inactive.setUTCDate(inactive.getUTCDate()-14);
- const stalled=l.status!=='open'?[]:[...(l.next_action_date&&l.next_action_date<today?['Next action overdue']:[]),...(!l.next_action_date?['No next action']:[]),...(l.last_activity_at.slice(0,10)<=inactive.toISOString().slice(0,10)?['No activity for 14 days']:[])];
+ const activityDate=new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(l.last_activity_at));
+ const stalled=l.status!=='open'?[]:[...(l.next_action_date&&l.next_action_date<today?['Next action overdue']:[]),...(activityDate<=inactive.toISOString().slice(0,10)?['No activity for 14 days']:[])];
  return {id:l.id,name:l.name,email:l.email,phone:l.phone,summary:l.summary,referralSource:l.referral_source,stageId:l.stage_id,stageName:stages.find(s=>s.id===l.stage_id)?.name??null,assignedEmail:l.assigned_email,qualification:l.qualification,consultationOutcome:l.consultation_outcome,nextAction:l.next_action,nextActionDate:l.next_action_date,status:l.status,lostReason:l.lost_reason,matterId:l.matter_id,mergedInto:l.merged_into,revision:l.revision,createdBy:l.created_by,createdAt:l.created_at,lastActivityAt:l.last_activity_at,overdue:Boolean(l.status==='open'&&l.next_action_date&&l.next_action_date<today),stalled};
 }
 export async function leadDetail(db:D1Database,actor:Actor,leadId:string) {
- const l=await visibleLead(db,actor,leadId),stages=await leadStages(db),today=await firmToday(db);
+ const l=await visibleLead(db,actor,leadId),stages=await leadStages(db),{today,timezone}=await leadCalendar(db);
  const [events,merged,others]=await Promise.all([rows(db,'SELECT * FROM s_lead_events WHERE lead_id=? ORDER BY at,id',leadId),rows(db,'SELECT * FROM s_leads WHERE merged_into=? ORDER BY created_at,id',leadId),rows(db,`SELECT * FROM s_leads l WHERE l.status='open' AND ${visibleLeadSql}`,...visibleParams(actor))]);
- return {...leadJson(l,stages,today),history:events.map(e=>({kind:e.kind,detail:JSON.parse(e.detail),actor:e.actor,at:e.at})),
+ return {...leadJson(l,stages,today,timezone),history:events.map(e=>({kind:e.kind,detail:JSON.parse(e.detail),actor:e.actor,at:e.at})),
   mergedFrom:merged.map(m=>({id:m.id,name:m.name,email:m.email,phone:m.phone,summary:m.summary,referralSource:m.referral_source,createdBy:m.created_by,createdAt:m.created_at})),
   duplicates:l.status==='open'?others.map(o=>({id:o.id,name:o.name,reason:duplicateOf(l,o)})).filter(o=>o.reason):[]};
 }

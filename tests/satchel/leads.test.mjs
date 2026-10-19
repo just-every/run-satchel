@@ -7,7 +7,7 @@ test('INTAKE-002 staff qualify, assign and move leads through edited stages, mer
  const h=await harness();let restored;
  try{
   const people={};for(const [email,role] of [['lawyer@example.test','lawyer'],['assistant@example.test','assistant'],['trust@example.test','trust_officer']]){await h.json('/team',{email,name:email,role},h.owner);await h.json('/team/invite',{email},h.owner);people[role]=await h.login(email);}
-  const {lawyer,assistant,trust_officer:officer}=people;
+  const {lawyer,assistant,trust_officer:officer}=people,mailCount=h.mails.length;
   await h.json('/lead-stages',{name:'Unauthorized',position:0},assistant,403);
   let stages=await h.json('/lead-stages',{name:'New inquiry',position:0},h.owner);stages=await h.json('/lead-stages',{name:'Consultation booked',position:1},lawyer);
   const renamed=await h.json('/lead-stages',{id:stages[1].id,revision:stages[1].revision,name:'Consultation held',position:1},h.owner);assert.deepEqual(renamed.map(s=>s.name),['New inquiry','Consultation held']);
@@ -62,12 +62,49 @@ test('INTAKE-002 staff qualify, assign and move leads through edited stages, mer
   assert.deepEqual([report.total,report.converted,report.lost],[4,1,1]);
   assert.deepEqual(report.bySource.map(s=>[s.name,s.leads,s.converted,s.lost]),[['Google Ads',2,1,0],['Referral: Smith & Co',1,0,0],['Walk-in',1,0,1]]);
   assert.deepEqual(report.byStage.map(s=>[s.name,s.leads]),[['Consultation held',1],['New inquiry',1],['No stage',2]]);
-  assert.deepEqual(report.stalled.map(s=>[s.id,s.reasons]),[[ellis.id,['No next action']]]);
+  assert.deepEqual(report.stalled,[],'A missing next action alone is not stalled under ct’s approved rule');
   assert.deepEqual(report.lostReasons.map(l=>[l.id,l.reason]),[[own.id,'Chose another firm on price']]);
   assert.equal((await h.json('/leads/report',undefined,assistant)).total,2,'An assistant reports only their own leads');
 
   const audit=await h.json('/audit',undefined,h.owner);for(const action of ['lead.created','lead.updated','lead.merged','lead.absorbed','lead.lost','lead.converted'])assert.ok(audit.records.some(r=>r.action===action),action);
+  assert.equal(h.mails.length,mailCount,'Lead operations never send names or details in notification subjects');
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();restored=await harness();await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);
   assert.deepEqual(await restored.json('/leads/report',undefined,restored.owner),report);assert.deepEqual(await restored.json('/leads/'+maria.id,undefined,restored.owner),await h.json('/leads/'+maria.id,undefined,h.owner));
+  const first=await h.json('/leads',{name:'Nadia Patel',phone:'(212) 555-0144',summary:'Property question',referralSource:'Telephone'},h.owner);
+  const second=await h.json('/leads',{name:'Different spelling',phone:'2125550144',summary:'Second inquiry',referralSource:'Telephone'},h.owner);
+  assert.ok(second.duplicates.some(d=>d.id===first.id&&d.reason==='same phone'));
+  const named=await h.json('/leads',{name:'  NADIA   Patel  ',summary:'Third inquiry',referralSource:'Walk-in'},h.owner);
+  assert.ok(named.duplicates.some(d=>d.id===first.id&&d.reason==='same name'));
+  const nextMatter=await open(h,'Patel property advice','Nadia Patel','Oak Street LLC');
+  const raced=await Promise.all([first,second].map(l=>h.request('/api/satchel/leads/'+l.id,{revision:l.revision,matterId:nextMatter.id},h.owner)));
+  assert.deepEqual(raced.map(r=>r.status).sort(),[200,409],'Concurrent conversion cannot attach two leads to one matter');
  }finally{await restored?.close();await h.close();}
+});
+
+test('INTAKE-002 stalled inactivity uses inclusive firm-local dates across UTC midnight, while new unplanned leads are not stalled',async()=>{
+ const h=await harness(),target=await harness();
+ try{
+  // Build a historical native backup fixture, then use the real restore and read doors.
+  const calendar=new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}),today=calendar.format(new Date());
+  const address={line1:'200 Park Avenue',city:'New York',state:'NY',zip:'10166'};
+  await h.json('/firm',{settings:{name:'Barton & Lee LLP',email:'office@example.test',phone:'212-555-0100',address,timezone:'America/New_York',billing:{defaultRateCents:30000,incrementMinutes:6,paymentTermsDays:30},fiscal:{yearStartMonth:1,basis:'cash'},offices:[{name:'Manhattan',phone:'212-555-0100',timezone:'America/New_York',address}],practiceAreas:[{code:'FAM',name:'Family law'}]}},h.owner);
+  const leads=[];for(const name of ['Fourteen days','Thirteen days','Unplanned today'])leads.push(await h.json('/leads',{name,summary:'Historical inquiry',referralSource:'Telephone'},h.owner));
+  const records=(await(await h.request('/api/satchel/backup',undefined,h.owner)).text()).trim().split('\n').map(JSON.parse);
+  const localOffset=n=>{const d=new Date(today+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
+  // 02:00Z belongs to the preceding New York date in both EST and EDT.
+  const historical=[localOffset(-13)+'T02:00:00.000Z',localOffset(-12)+'T02:00:00.000Z'];
+  for(const part of records.filter(r=>r.kind==='part'))for(const item of part.items)if(item.kind==='row'&&item.table==='s_leads'){
+   const index=leads.findIndex(l=>l.id===item.row.id);if(index<2)item.row.last_activity_at=historical[index];
+  }
+  const {makePart}=await import('@runeditrun/rer/modules/portability');
+  const {ArchiveVerifier,ContentVerifier}=await import('../../node_modules/@runeditrun/rer/modules/portability/format.mjs');
+  const manifest=records[0],content=new ContentVerifier(manifest),integrity=new ArchiveVerifier(manifest),parts=[];
+  for(const old of records.filter(r=>r.kind==='part')){const part=await makePart(old.index,old.items);parts.push(part);integrity.add(part);for(const item of part.items)content.add(item);}
+  const archive=[manifest,...parts,{kind:'closing',partCount:parts.length,contentHash:content.digest(),archiveHash:integrity.digest()}].map(JSON.stringify).join('\n')+'\n';
+  await target.json('/restore',{archive,confirm:'RESTORE'},target.owner);
+  const pipeline=await target.json('/leads',undefined,target.owner);assert.equal(pipeline.today,today);
+  assert.deepEqual(pipeline.leads.filter(l=>l.stalled.length).map(l=>[l.name,l.stalled]),[['Fourteen days',['No activity for 14 days']]]);
+  assert.deepEqual((await target.json('/leads/'+leads[0].id,undefined,target.owner)).stalled,['No activity for 14 days']);
+  assert.deepEqual((await target.json('/leads/report',undefined,target.owner)).stalled.map(l=>[l.name,l.reasons]),[['Fourteen days',['No activity for 14 days']]]);
+ }finally{await target.close();await h.close();}
 });

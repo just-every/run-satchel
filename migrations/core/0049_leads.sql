@@ -14,6 +14,7 @@ CREATE TABLE s_leads (
  revision TEXT NOT NULL, created_by TEXT NOT NULL, created_at TEXT NOT NULL, last_activity_at TEXT NOT NULL,
  CHECK(status<>'lost' OR lost_reason IS NOT NULL), CHECK(status<>'converted' OR matter_id IS NOT NULL), CHECK(status<>'merged' OR merged_into IS NOT NULL)
 );
+CREATE UNIQUE INDEX s_leads_converted_matter ON s_leads(matter_id) WHERE status='converted';
 CREATE INDEX s_leads_queue ON s_leads(assigned_email,status,next_action_date);
 CREATE TRIGGER s_lead_delete BEFORE DELETE ON s_leads BEGIN SELECT RAISE(ABORT,'constraint: leads are history'); END;
 CREATE TRIGGER s_lead_final BEFORE UPDATE ON s_leads WHEN OLD.status='merged' OR NEW.created_at IS NOT OLD.created_at OR NEW.created_by IS NOT OLD.created_by OR NEW.referral_source IS NOT OLD.referral_source
