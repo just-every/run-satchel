@@ -29,3 +29,19 @@ For a confirmed deadline, the principal or a lawyer enters **What was done (evid
 Appending a new version of a linked source document supersedes its earlier pending or confirmed deadlines. Review the new source, propose the appropriate deadline again and have a lawyer confirm it. Erasing a source document also invalidates affected deadlines.
 
 Document erasure is managed by the principal in **Team & safety**. See [Backup and restore](backup-and-restore.md) before erasing originals.
+
+## Schedule reminders
+
+Expand **Reminders for** on a confirmed deadline. The principal or a lawyer can choose **Set up reminders** (or **Edit reminder rule**), select a primary recipient and a different backup lawyer, and choose email, workspace, or both. Recipients must be active lawyers or the principal with access to the matter.
+
+Set the number of days before the deadline and the local send time. Send time and quiet hours use the deadline’s IANA timezone. Clear both quiet-hour fields to turn quiet hours off. The scheduled worker checks every 15 minutes; this is not an exact-minute alarm. Saving a replacement rule supersedes the earlier rule’s unsent work. A stale deadline revision must be refreshed before saving.
+
+Email uses the firm’s configured native mail provider. A provider accepting a message does not prove mailbox delivery. Workspace reminders are durable notifications visible to the recipient in the deadline’s reminder record. **Delivery results** lists each actual recipient, channel, stage, status, scheduled and attempted times, provider, and provider reference. Review the result for each channel separately.
+
+The actual recipient can choose **Acknowledge reminder**. Acknowledgment records receipt only; it never marks the deadline complete. If the primary fails, has an uncertain result, or remains unacknowledged after the configured delay, the backup receives one escalation per selected channel.
+
+Failed and uncertain attempts remain visible. For a failed or uncertain provider result, the principal or a lawyer checks the provider, opens **Resolve delivery**, and records whether it was delivered together with evidence or a provider reference. Do not blindly resend an uncertain message.
+
+Use **Cancel reminders**, enter a reason, and choose **Cancel reminder rule** to stop the active rule. Delivery and rule history remain available, including after deadline completion. Record the legal work separately with **Mark complete** and its evidence.
+
+Ambiguous clock times during a daylight-saving transition use the earlier instant. A nonexistent local send time is refused so counsel can choose a valid time. Quiet hours can defer a send until the next scheduler check outside the quiet window. Backup escalation waits until the configured delay after the actual primary attempt. Changing recipients cancels unsent work; a send already begun keeps its result and uncertainty history. A source change, completion, cancellation, loss of scheduling authority or loss of recipient access prevents future sends. Messages contain a generic workspace link rather than confidential matter or source text.

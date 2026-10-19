@@ -8,18 +8,19 @@ import {randomBytes} from 'node:crypto';
 const require=createRequire(await realpath('node_modules/wrangler/package.json'));
 const {Miniflare,convertV4MiniflareOptions}=require('miniflare');
 const {unstable_splitSqlQuery:splitSql}=require('wrangler');
-export async function harness(){
+export async function harness(options={}){
  const socket=createServer();await new Promise(r=>socket.listen(0,'127.0.0.1',r));const port=socket.address().port;await new Promise(r=>socket.close(r));
  const directory=await mkdtemp(join(tmpdir(),'satchel-http-')),origin=`https://127.0.0.1:${port}`,mails=[];
  const config=JSON.parse(await readFile('dist/server/wrangler.json','utf8'));
  const vars={AUTH_LOCAL:'false',AUTH_ORIGIN:origin,OWNER_EMAIL:'owner@example.test',SESSION_SECRET:randomBytes(32).toString('hex'),SETUP_TOKEN:randomBytes(32).toString('hex'),MAIL_PROVIDER:'resend',MAIL_FROM:'auth@example.test',MAIL_API_KEY:'test-only-provider-key'};
- const mf=new Miniflare({...convertV4MiniflareOptions({
+ const configOptions={...convertV4MiniflareOptions({
   host:'127.0.0.1',port,https:true,modulesRoot:resolve('dist/server'),modules:[config.main,...(await readdir('dist/server/assets')).filter(f=>f.endsWith('.js')).map(f=>'assets/'+f)].map(f=>({type:'ESModule',path:resolve('dist/server',f)})),
   compatibilityDate:config.compatibility_date,compatibilityFlags:config.compatibility_flags,
   assets:{directory:resolve('dist/client'),routerConfig:{has_user_worker:true}},d1Databases:{DB:'satchel-test'},bindings:vars,
   // The only fake is the paid mail-provider boundary; the built app is unchanged.
-  outboundService:async request=>{assert.equal(request.url,'https://api.resend.com/emails');mails.push(await request.json());return Response.json({id:'test-mail-'+mails.length});},
- }),resourcePersistencePath:join(directory,'state')});
+  outboundService:async request=>{assert.equal(request.url,'https://api.resend.com/emails');const message=await request.json();mails.push(message);return options.mailResponse?options.mailResponse(message,request):Response.json({id:'test-mail-'+mails.length});},
+ }),resourcePersistencePath:join(directory,'state')};
+ let mf=new Miniflare(configOptions);
  const request=(path,body,cookie='',extra={})=>mf.dispatchFetch(origin+path,{redirect:'manual',method:body===undefined?'GET':'POST',headers:{origin,host:new URL(origin).host,'CF-Connecting-IP':'192.0.2.1',...(body===undefined?{}:{'content-type':'application/json'}),...(cookie?{cookie}:{}),...extra},...(body===undefined?{}:{body:JSON.stringify(body)})});
  const json=async(path,body,cookie,expected=200,extra={})=>{const r=await request('/api/satchel'+path,body,cookie,extra);const b=await r.json();assert.equal(r.status,expected,JSON.stringify(b));return b;};
  async function login(email){
@@ -37,7 +38,7 @@ export async function harness(){
   assert.equal((await request('/health')).status,200);
   const boot=await request('/auth/bootstrap',{token:vars.SETUP_TOKEN,displayName:'Principal'});assert.equal(boot.status,303,await boot.text());
   const owner=await login(vars.OWNER_EMAIL);
-  return {origin,owner,request,json,login,mails,close:async()=>{await mf.dispose();await rm(directory,{recursive:true,force:true});}};
+  return {origin,owner,request,json,login,mails,scheduled:async at=>(await mf.getWorker()).scheduled({scheduledTime:typeof at==='number'?at:Date.parse(at),cron:'*/15 * * * *'}),restart:async()=>{await mf.dispose();mf=new Miniflare(configOptions);await mf.ready;},close:async()=>{await mf.dispose();await rm(directory,{recursive:true,force:true});}};
  }catch(e){await mf.dispose();await rm(directory,{recursive:true,force:true});throw e;}
 }
 export async function open(h,title='Barton lease review',client='Barton Workshop LLC',adverse='Riverbend Holdings LLC'){

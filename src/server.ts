@@ -1,3 +1,4 @@
+import {runReminders} from './satchel/reminder-scheduler'
 import { withDemo } from './modules/demo/index.mjs'
 import { seedDemo } from './demo'
 import { rejectedResponse } from './base/rejected-response'
@@ -21,6 +22,7 @@ function noTransform(response: Response): Response {
 }
 
 export default withDemo({
+  async scheduled(controller,env) { await runReminders(runtimeBindings(env),controller.scheduledTime) },
   async fetch(request, env, execution) {
     const asset = await staticAssetResponse(request, env)
     if (asset) return asset

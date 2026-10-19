@@ -28,7 +28,7 @@ function visibility(actor: Actor) {
  return { sql: `(t.document_id IS NULL OR EXISTS(SELECT 1 FROM s_documents d WHERE d.id=t.document_id AND ${access.sql}))`, params: access.params };
 }
 
-async function visibleDeadline(db: D1Database, actor: Actor, deadlineId: string) {
+export async function visibleDeadline(db: D1Database, actor: Actor, deadlineId: string) {
  const access = visibility(actor);
  const deadline = await stmt(db, `SELECT t.*,(SELECT matter_number FROM s_matters WHERE id=t.matter_id) AS matter_number FROM s_deadlines t WHERE t.id=? AND (?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=t.matter_id AND a.email=?)) AND ${access.sql}`, deadlineId, actor.role, actor.email, ...access.params).first<Data>();
  insist(deadline, 'Deadline not found', 404); return deadline;

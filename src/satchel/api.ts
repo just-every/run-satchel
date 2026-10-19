@@ -1,3 +1,4 @@
+import {reminderState,scheduleReminder,acknowledgeReminder,resolveReminder,cancelReminder} from './reminders';
 import {matterImport,matterImportState} from './imports/matters';
 import {numberSettings,saveNumberSettings} from './numbering';
 import {Hono,type Context} from 'hono';
@@ -47,6 +48,11 @@ api.get('/api/satchel/matters/:id/deadlines',as((a,c)=>listDeadlines(db(c),a,par
 api.post('/api/satchel/matters/:id/deadlines',as(async(a,c)=>proposeDeadline(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/deadlines/:id/confirm',as(async(a,c)=>confirmDeadline(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/deadlines/:id/complete',as(async(a,c)=>completeDeadline(db(c),a,param(c),await body(c))));
+api.get('/api/satchel/deadlines/:id/reminders',as((a,c)=>reminderState(db(c),a,param(c))));
+api.post('/api/satchel/deadlines/:id/reminders',as(async(a,c)=>scheduleReminder(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/reminders/:id/acknowledge',as((a,c)=>acknowledgeReminder(db(c),a,param(c))));
+api.post('/api/satchel/reminders/:id/resolve',as(async(a,c)=>resolveReminder(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/reminders/rules/:id/cancel',as(async(a,c)=>cancelReminder(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/retention',as((a,c)=>retentionState(db(c),a,c.req.query('matter')||undefined)));
 api.post('/api/satchel/holds',as(async(a,c)=>placeHold(db(c),a,await body(c))));
 api.post('/api/satchel/holds/:id/release',as(async(a,c)=>releaseHold(db(c),a,param(c),await body(c))));

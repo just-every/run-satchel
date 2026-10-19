@@ -437,8 +437,8 @@ Judged from the code and tests at commit `bdde701059f93a1d3756bd8be3f1041f4a8b6f
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 13 | 1 | 0 | 14 |
-| Target and push further | 4 | 21 | 98 | 123 |
-| All | 17 | 22 | 98 | 137 |
+| Target and push further | 5 | 20 | 98 | 123 |
+| All | 18 | 21 | 98 | 137 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -503,7 +503,7 @@ Judged from the code and tests at commit `bdde701059f93a1d3756bd8be3f1041f4a8b6f
 | `CAL-004` | Calculate LawToolBox deadlines | target | missing |  | Through a contracted LawToolBox integration, counsel chooses court, jurisdiction, trigger and service method, reviews computed dates and rule citations, and confirms publication to dependent tasks and calendars. Coverage and provider rule versions are visible. |
 | `CAL-005` | Calculate CalendarRules deadlines | target | missing |  | CalendarRules is a supported alternative rules connector with court coverage, trigger/service inputs, rule versions, calculation provenance and attorney confirmation. Switching providers compares proposed dates rather than silently replacing confirmed deadlines. |
 | `CAL-006` | Propagate reviewed source changes | target | partial | `src/satchel/deadlines.ts`; `tests/satchel/flows.test.mjs` | Exact-version supersession exists; provider comparison, dependent work and calendar acknowledgment do not. |
-| `CAL-007` | Remind and escalate deadlines | target | partial | `src/satchel/deadlines.ts` | Completion evidence is recorded; reminder delivery, acknowledgment and escalation are absent. |
+| `CAL-007` | Remind and escalate deadlines | target | done | `tests/satchel/reminders.test.mjs`; `tests/satchel/reminder-journey.test.mjs` | Scheduled Worker dispatches reviewed advance email/workspace reminders with local quiet hours, current recipients, durable outcomes, acknowledgment, evidence-based resolution and one backup escalation; only completion evidence closes the deadline. Exercised at 1440 and 390 pixels. |
 | `CAL-008` | Show firm deadline coverage | target | missing |  | Lawyers see firm and matter agenda, upcoming limitation dates, conflicts, unconfirmed dates and absence coverage. Reports identify each source, owner, confirmation status and next action; an extracted date never appears as confirmed. |
 | `CAL-009` | File and serve through InfoTrack | target | missing |  | An authorized lawyer approves exact filing documents, court, service recipients and fees; InfoTrack submits through covered networks and returns acceptance/rejection, stamped copies, service proof and costs to the matter. Submission alone is never filing completion. |
 | `CAL-010` | Track court docket changes | target | missing |  | Connect PACER through an authorized docket provider such as CourtListener RECAP where available and court/provider accounts for coverage, attach returned docket entries and orders, and propose related work with a lawyer reviewing legal effects and provider fees. |
