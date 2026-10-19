@@ -52,7 +52,7 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`SAT-013 sign-in, setup
   await assistant.goto(link.replaceAll('&amp;','&'));await assistant.getByRole('button').first().click();await assistant.goto(h.origin+'/app');
   await assistant.getByText('Case assistant · assistant').waitFor();await assistant.getByRole('button',{name:/Harper lease dispute/}).waitFor();
   assert.equal(await assistant.getByRole('heading',{name:'Open a matter'}).count(),0,'Assistants cannot open matters');
-  await tab(assistant,'Deadlines');await assistant.getByText('Cure period ends').waitFor();assert.equal(await assistant.getByRole('button',{name:'Mark complete'}).count(),0);
+  await tab(assistant,'Deadlines');await assistant.getByText('Cure period ends',{exact:true}).waitFor();assert.equal(await assistant.getByRole('button',{name:'Mark complete'}).count(),0);
   await tab(assistant,'Documents');assert.equal(await assistant.getByRole('heading',{name:'Legal holds & retention'}).count(),0);
   await tab(assistant,'Firm');await assistant.getByRole('heading',{name:'Barton & Lee LLP'}).waitFor();assert.equal(await assistant.getByRole('button',{name:'Save firm settings'}).count(),0);
   await tab(assistant,'Team & safety');assert.equal(await assistant.getByRole('heading',{name:'Firm members'}).count(),0);assert.equal(await assistant.getByRole('heading',{name:'Backup & restore'}).count(),0);
