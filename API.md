@@ -116,3 +116,13 @@ Success returns only `{receipt,receivedAt}`; token replay returns that receipt w
 ## Scoped versioned integrations (CONNECT-001)
 
 Principal-created, explicitly scoped integration keys use `/api/satchel/v1`, separate from legacy agent keys. See [the complete versioned API, pagination, preparation idempotency, signing and delivery guide](docs/integrations.md). Team & safety exposes matter/capability selection, opt-in webhooks, once-only credentials, durable outcome journals, replay and revocation.
+
+## Numbered checks and deposit records (TRUST-009)
+
+Officers read `GET /trust/checks`. `POST /trust/checks` takes `{transactionId,checkNumber,requestKey}` for an approved uncleared check disbursement; reissues also take `{originalCheckId,reason}` and must match the voided original account, ledger, payee and amount. Positive decimal numbers normalize leading zeros and remain unique per account after voids. `GET /trust/checks/:id/print` returns a printable record, never a payment authorization.
+
+`POST /trust/checks/:id/void` takes `{revision,reason,effectiveDate,documentId}`; `/void/decide` takes `{checkRevision,revision,decision,reviewNote}` for exact append-only reversal review. `/match` takes `{revision,checkNumber,cents,clearedDate,bankReference,documentId}`. A voided/pending-void check cannot clear; a cleared check cannot be voided.
+
+The principal with an active officer designation records operating transactions at `POST /trust/operating-transactions` using the trust transaction fields without a client ledger. `/trust/operating-transactions/:id/decide` reviews `{revision,decision,reviewNote}`. Both this and the older generic decision door enforce the same operating guards. Cleared funds minus pending operating disbursements and earned-fee reversals cover each payment. Satchel records bank activity; it sends no money.
+
+`POST /trust/deposit-slips` takes `{accountId,slipNumber,bankReference,entryIds,requestKey}` with distinct approved uncleared receipts in one bank account; each receipt belongs to one immutable slip. `GET /trust/deposit-slips/:id/print` preserves original receipt sources and says it is not bank confirmation. Numbered records, reviews and sources round-trip through native archives.

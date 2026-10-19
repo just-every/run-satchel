@@ -1,3 +1,6 @@
+import {checkState,prepareCheck,requestCheckVoid,decideCheckVoid,matchCheck,prepareDepositSlip} from './trust-checks';
+import {printCheck,printDepositSlip} from './trust-check-print';
+import {prepareOperatingTransaction,decideOperatingTransaction} from './trust-check-operating';
 import {matterLifecycle,closurePreview,closeMatter,reopenMatter} from './matter-lifecycle';
 import {integrationState,createIntegration,revokeIntegration,rotateIntegration,resumeIntegration,integrationAuth,integrationMatters,integrationMatter,integrationRecords,integrationPrepare,capability} from './integrations';
 import {dispatchIntegration,webhookJournal,integrationEventPage} from './webhooks';
@@ -70,6 +73,16 @@ api.get('/api/satchel/v1/matters/:id/:resource',async c=>c.json(await integratio
 api.get('/api/satchel/v1/documents/:id/file',async c=>{const i=await integrationAuth(db(c),c.req.raw);capability(i,'documents:read');const d=await visibleDocument(db(c),i.actor,param(c));await integrationMatter(db(c),i,d.matter_id);return documentFile(db(c),i.actor,d.id,c.req.query('version')?Number(c.req.query('version')):undefined);});
 api.get('/api/satchel/v1/events',async c=>c.json(await integrationEventPage(db(c),await integrationAuth(db(c),c.req.raw),c.req.query())));
 api.post('/api/satchel/v1/prepare/:kind',async c=>c.json(await integrationPrepare(db(c),await integrationAuth(db(c),c.req.raw),param(c,'kind'),await body(c),c.req.header('Idempotency-Key')??'')));
+api.get('/api/satchel/trust/checks',as((a,c)=>checkState(db(c),a)));
+api.post('/api/satchel/trust/checks',as(async(a,c)=>prepareCheck(db(c),a,await body(c))));
+api.post('/api/satchel/trust/checks/:id/void',as(async(a,c)=>requestCheckVoid(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/trust/checks/:id/void/decide',as(async(a,c)=>decideCheckVoid(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/trust/checks/:id/match',as(async(a,c)=>matchCheck(db(c),a,param(c),await body(c))));
+api.get('/api/satchel/trust/checks/:id/print',as((a,c)=>printCheck(db(c),a,param(c))));
+api.post('/api/satchel/trust/deposit-slips',as(async(a,c)=>prepareDepositSlip(db(c),a,await body(c))));
+api.get('/api/satchel/trust/deposit-slips/:id/print',as((a,c)=>printDepositSlip(db(c),a,param(c))));
+api.post('/api/satchel/trust/operating-transactions',as(async(a,c)=>prepareOperatingTransaction(db(c),a,await body(c))));
+api.post('/api/satchel/trust/operating-transactions/:id/decide',as(async(a,c)=>decideOperatingTransaction(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/numbering',as((a,c)=>numberSettings(db(c))));
 api.post('/api/satchel/numbering',as(async(a,c)=>saveNumberSettings(db(c),a,await body(c))));
 api.get('/api/satchel/matters/:id/lifecycle',as((a,c)=>matterLifecycle(db(c),a,param(c))));

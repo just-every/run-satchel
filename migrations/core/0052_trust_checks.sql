@@ -1,0 +1,16 @@
+CREATE TABLE s_trust_checks(id TEXT PRIMARY KEY,request_key TEXT NOT NULL UNIQUE,transaction_id TEXT NOT NULL UNIQUE REFERENCES s_trust_transactions(id),account_id TEXT NOT NULL REFERENCES s_trust_accounts(id),ledger_id TEXT REFERENCES s_trust_ledgers(id),check_number TEXT NOT NULL,revision TEXT NOT NULL,original_check_id TEXT UNIQUE REFERENCES s_trust_checks(id),reissue_reason TEXT,created_by TEXT NOT NULL,created_at TEXT NOT NULL,UNIQUE(account_id,check_number));
+CREATE TABLE s_trust_check_voids(check_id TEXT PRIMARY KEY REFERENCES s_trust_checks(id),reversal_id TEXT NOT NULL UNIQUE REFERENCES s_trust_journal_reversals(id));
+CREATE TABLE s_trust_deposit_slips(id TEXT PRIMARY KEY,request_key TEXT NOT NULL UNIQUE,account_id TEXT NOT NULL REFERENCES s_trust_accounts(id),slip_number TEXT NOT NULL,bank_reference TEXT NOT NULL,created_by TEXT NOT NULL,created_at TEXT NOT NULL,UNIQUE(account_id,slip_number));
+CREATE TABLE s_trust_deposit_items(slip_id TEXT NOT NULL REFERENCES s_trust_deposit_slips(id),entry_id TEXT NOT NULL UNIQUE REFERENCES s_trust_entries(id),PRIMARY KEY(slip_id,entry_id));
+CREATE TRIGGER s_trust_checks_no_update BEFORE UPDATE ON s_trust_checks BEGIN SELECT RAISE(ABORT,'numbered checks are immutable'); END;
+CREATE TRIGGER s_trust_checks_no_delete BEFORE DELETE ON s_trust_checks BEGIN SELECT RAISE(ABORT,'check numbers are retained permanently'); END;
+CREATE TRIGGER s_trust_check_voids_no_update BEFORE UPDATE ON s_trust_check_voids BEGIN SELECT RAISE(ABORT,'check void links are immutable'); END;
+CREATE TRIGGER s_trust_check_voids_no_delete BEFORE DELETE ON s_trust_check_voids BEGIN SELECT RAISE(ABORT,'check void links are immutable'); END;
+CREATE TRIGGER s_trust_deposit_slips_no_update BEFORE UPDATE ON s_trust_deposit_slips BEGIN SELECT RAISE(ABORT,'deposit records are immutable'); END;
+CREATE TRIGGER s_trust_deposit_slips_no_delete BEFORE DELETE ON s_trust_deposit_slips BEGIN SELECT RAISE(ABORT,'deposit records are immutable'); END;
+CREATE TRIGGER s_trust_deposit_items_no_update BEFORE UPDATE ON s_trust_deposit_items BEGIN SELECT RAISE(ABORT,'deposit sources are immutable'); END;
+CREATE TRIGGER s_trust_deposit_items_no_delete BEFORE DELETE ON s_trust_deposit_items BEGIN SELECT RAISE(ABORT,'deposit sources are immutable'); END;
+-- Clearance and void approval compete in the same database transaction, including
+-- through the older journal/clearance doors. A stopped check cannot clear later.
+CREATE TRIGGER s_trust_voided_check_no_clear BEFORE INSERT ON s_trust_clearings WHEN EXISTS(SELECT 1 FROM s_trust_checks k JOIN s_trust_entries e ON e.source_id=k.transaction_id JOIN s_trust_journal_reversals r ON r.original_entry_id=e.id LEFT JOIN s_trust_journal_decisions d ON d.reversal_id=r.id WHERE e.id=NEW.entry_id AND (d.id IS NULL OR d.decision='approved')) BEGIN SELECT RAISE(ABORT,'check void is pending or approved'); END;
+CREATE TRIGGER s_trust_cleared_check_no_void BEFORE INSERT ON s_trust_journal_decisions WHEN NEW.decision='approved' AND EXISTS(SELECT 1 FROM s_trust_journal_reversals r JOIN s_trust_entries e ON e.id=r.original_entry_id JOIN s_trust_checks k ON k.transaction_id=e.source_id WHERE r.id=NEW.reversal_id AND (e.cleared_date IS NOT NULL OR EXISTS(SELECT 1 FROM s_trust_clearings c WHERE c.entry_id=e.id))) BEGIN SELECT RAISE(ABORT,'a cleared check requires a bank reversal'); END;
