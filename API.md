@@ -39,6 +39,12 @@ the matter's firm, client and matter rules, budget and alerts; `POST /matters/:i
 (`scope`, `effectiveFrom`, `rateCents`, `incrementMinutes`, `discountBps`, `billable`, `note`, optional
 `timekeeperEmail` and `utbmsTask`) and `POST /matters/:id/budget` sets a budget version (`cents`,
 `alertPercent`, `note`).
+MATTER-004 workflows: `GET/POST /workflows` (`name`, `trigger` manual/opening/stage, `triggerStageId`, `steps`,
+`note`), `POST /workflows/:id/versions` (`version`, `steps`, `note`), `GET/POST /workflows/:id/rollout`
+(`version`, `matterIds`), `GET /matters/:id/workflows`, `POST /matters/:id/workflow-preview` (`workflowId`),
+`POST /matters/:id/workflow-runs` (`workflowId`, `version`, `steps`, live run `revision`),
+`POST /workflow-runs/:id/stop|restart` (`revision`, `reason`) and `POST /document-requests/:id/receive`
+(`documentId`). Document requests are recorded only; nothing is sent.
 `GET /matters/:id/billing` returns entries and bill snapshots. All errors are JSON
 `{error}` with a non-2xx status. The UI uses these exact routes.
 

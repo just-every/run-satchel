@@ -3,6 +3,7 @@ import { accessGuard, guard } from './trust-guards';
 import { closureChecks, closureDeclarations, closureSourceGuards, readClosureSources } from './matter-closure-checks';
 import { visibility } from './deadlines';
 import { documentAccess } from './documents';
+import { reopenRunWrites } from './workflow-runs';
 
 async function counsel(db: D1Database, actor: Actor, matterId: string) {
  human(actor); need(actor, 'owner', 'lawyer');
@@ -59,6 +60,7 @@ function retainedWorkflows(source: Record<string, Data[]>, access: ResponseAcces
  return [...source.tasks.filter(t => t.status === 'open' && (!t.deadline_id || access.deadlines.has(t.deadline_id))).map(t => ({ id: `task:${t.id}`, title: t.title })),
   ...source.deadlines.filter(d => ['proposed','confirmed'].includes(d.status) && access.deadlines.has(d.id)).map(d => ({ id: `deadline:${d.id}`, title: d.title })),
   ...source.appointments.filter(a => !source.appointmentChanges.some(c => c.appointment_id === a.id && c.occurrence === 0 && c.kind === 'cancelled')).map(a => ({ id: `appointment:${a.id}`, title: a.title })),
+  ...source.workflowRuns.filter(r => ['proposed','active'].includes(r.status)).map(r => ({ id: `workflow-run:${r.id}`, title: `Workflow run ${r.status}` })),
   ...source.reminderRules.filter(r => r.status === 'active' && access.deadlines.has(r.deadline_id)).map(r => ({ id: `reminder:${r.id}`, title: `Reminder: ${source.deadlines.find(d => d.id === r.deadline_id)?.title ?? r.deadline_id}` }))];
 }
 export async function matterLifecycle(db: D1Database, actor: Actor, matterId: string) {
@@ -127,6 +129,7 @@ export async function reopenMatter(db: D1Database, actor: Actor, matterId: strin
  await atomic(db, actor, [accessGuard(db, actor, matterId), revisionGuard(db, matterId, m.lifecycle_revision, 'closed'), ...closureSourceGuards(db, matterId, source),
   stmt(db, 'INSERT INTO s_matter_lifecycle_events(id,matter_id,kind,previous_revision,revision,reason,actor,actor_id,at,preview_id,snapshot,exceptions,restoration) VALUES(?,?,?,?,?,?,?,?,?,NULL,?,?,?)', eventId, matterId, 'reopened', m.lifecycle_revision, revision, reason, actor.email, actor.id, at, JSON.stringify({ source }), '[]', JSON.stringify(restoration)),
   stmt(db, "UPDATE s_matters SET lifecycle_status='open',lifecycle_revision=? WHERE id=? AND lifecycle_revision=?", revision, matterId, m.lifecycle_revision),
+  ...reopenRunWrites(db, actor, matterId, source.workflowRuns, workflows, at),
   audit(db, actor, 'matter.reopened', eventId, JSON.stringify({ matterId, reason, revision, restoration }), { source, restoration }),
  ]);
  return matterLifecycle(db, actor, matterId);

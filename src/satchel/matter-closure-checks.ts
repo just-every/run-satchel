@@ -23,6 +23,8 @@ export function closureSources(matterId: string) {
   reminderRules: `SELECT * FROM s_reminder_rules WHERE deadline_id IN (${deadlines})`,
   handoffs: 'SELECT * FROM s_handoffs WHERE id IN (SELECT handoff_id FROM s_handoff_items WHERE matter_id=?)',
   handoffItems: 'SELECT * FROM s_handoff_items WHERE matter_id=?',
+  workflowRuns: 'SELECT * FROM s_workflow_runs WHERE matter_id=?', workflowItems: 'SELECT * FROM s_workflow_run_items WHERE run_id IN (SELECT id FROM s_workflow_runs WHERE matter_id=?)',
+  documentRequests: 'SELECT * FROM s_document_requests WHERE matter_id=?',
   entries: 'SELECT * FROM s_entries WHERE matter_id=?', bills: 'SELECT * FROM s_bills WHERE matter_id=?',
   billingSources: 'SELECT * FROM s_billing_sources WHERE entry_id IN (SELECT id FROM s_entries WHERE matter_id=?)',
   ledgers: 'SELECT * FROM s_trust_ledgers WHERE matter_id=?',
@@ -88,6 +90,9 @@ export function closureChecks(s: Record<string, Data[]>, declarations: Data) {
  const add = (kind: string, sourceId: string | null, title: string, state: Data) => checks.push({ key: `${kind}:${sourceId ?? 'review'}`, kind, sourceId, title, state });
  for (const t of s.tasks.filter(t => t.status === 'open')) add('task', t.id, t.title, { ...t, due: s.deadlines.find(d => d.id === t.deadline_id)?.date ?? t.due_date });
  for (const d of s.deadlines.filter(d => ['proposed','confirmed'].includes(d.status))) add('deadline', d.id, d.title, d);
+ // MATTER-004: a proposed or active workflow run and an open document request are live work.
+ for (const r of s.workflowRuns.filter(r => ['proposed','active'].includes(r.status))) add('workflow-run', r.id, `Workflow run ${r.status}`, { ...r, items: s.workflowItems.filter(i => i.run_id === r.id) });
+ for (const q of s.documentRequests.filter(q => q.status === 'open')) add('document-request', q.id, q.title, q);
  for (const h of s.handoffs.filter(h => !h.acknowledged_at)) add('handoff', h.id, `Handoff awaiting ${h.to_email}`, { ...h, items: s.handoffItems.filter(i => i.handoff_id === h.id) });
  // Nonbillable time (billable=0) is recorded but never billed, so it is not unbilled work.
  for (const e of s.entries.filter(e => e.billable !== 0 && !s.billingSources.some(b => b.entry_id === e.id))) add('unbilled-entry', e.id, e.description, e);

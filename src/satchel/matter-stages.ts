@@ -2,6 +2,7 @@
 import {atomic,audit,date,Fault,human,id,insist,integer,matter,need,now,stmt,text,type Actor,type Data} from './model';
 import {documentGuard,matterGuard,visibleDocument} from './documents';
 import {guard} from './trust-guards';
+import {proposeRuns} from './workflow-runs';
 import {matterStageState,missingTypes,readStageProfile,stageDefinitions} from './matter-stage-state';
 export {matterBoard,matterStageState,stageDefinitions} from './matter-stage-state';
 
@@ -78,7 +79,7 @@ export async function transitionMatterStage(db:D1Database,actor:Actor,matterId:s
   const state=await matterStageState(db,actor,matterId);
   detail.exceptions={openTasks:state.openTasks,blockedTasks:state.blockedTasks,openDeadlines:state.openDeadlines,milestoneOverdue:state.milestoneOverdue,today:state.today,timezone:state.timezone};
   const revision=id(),at=now();detail.revision=revision;detail.profile={...previous,stageId,revision};
-  writes.push(profileWrite(db,actor,{...previous,stageId},revision,at),...stageEvent(db,actor,matterId,'transition',detail,at));
+  writes.push(profileWrite(db,actor,{...previous,stageId},revision,at),...stageEvent(db,actor,matterId,'transition',detail,at),...await proposeRuns(db,actor,matterId,'stage',stageId,at));
   await atomic(db,actor,writes);
  } catch(error) {
   if(error instanceof Fault&&error.status===409) {

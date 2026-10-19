@@ -4,6 +4,7 @@ import { matterIdentity } from './numbering';
 // Party identity/association and parameterized search adapted from MIT run-orbit
 // src/core/features/records/repository.ts @ 38cef87571a413802dbaa7aa6afbab332d8cd778.
 import { firmSettings } from './firm';
+import { proposeRuns } from './workflow-runs';
 import { atomic, audit, human, id, insist, matter, need, now, rows, stmt, text, type Actor, type Data } from './model';
 export async function conflictSearch(db: D1Database, actor: Actor, body: Data) {
  need(actor,'owner','lawyer');
@@ -36,6 +37,8 @@ export async function openMatter(db: D1Database, actor: Actor, body: Data, fixed
   statements.push(stmt(db,'INSERT OR IGNORE INTO s_matter_parties VALUES(?,?,?)',matterId,partyId,relation));
  }
  statements.push(audit(db,actor,'matter.opened',matterId,`Conflict ${conflict.id}; ${note}`));
+ // MATTER-004: opening after conflict review ends intake; imported matters propose nothing.
+ if(!imported)statements.push(...await proposeRuns(db,actor,matterId,'opening',null,time));
  await atomic(db,actor,statements); return (await stmt(db,'SELECT *,matter_number AS number FROM s_matters WHERE id=?',matterId).first<Data>())!;
 }
 export async function workspace(db: D1Database, actor: Actor) {
