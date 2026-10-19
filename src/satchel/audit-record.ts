@@ -12,6 +12,8 @@ const contexts=[
  record('s_document_views',['id','matter_id','for_email','name','filters','created_at'],'x.matter_id','NULL',"i.action='document.view-saved' AND x.id=json_extract(i.detail,'$.viewId')"),
  record('s_document_bulk_previews',['id','matter_id','for_email','role','snapshot','created_at','applied_at'],'x.matter_id','NULL',"i.action='document.bulk-previewed' AND x.id=json_extract(i.detail,'$.previewId')"),
  record('s_disposals',['id','document_id','matter_id','retention_id','reason','journal','approved_by','approved_at'],'x.matter_id','NULL',"x.document_id=i.object_id AND i.action='document.disposed'"),
+ record('s_appointments',['id','title','location','video_url','timezone','start_date','start_time','duration_minutes','frequency','repeat_interval','occurrences','created_by','created_at'],'x.matter_id','NULL',undefined,{attendees:"(SELECT json_group_array(a.email) FROM s_appointment_attendees a WHERE a.appointment_id=x.id)"}),
+ record('s_appointment_changes',['id','appointment_id','occurrence','kind','new_date','new_time','reason','changed_by','changed_at'],'(SELECT matter_id FROM s_appointments WHERE id=x.appointment_id)'),
  record('s_holds',['id','matter_id','document_id','reason','placed_by','placed_at','released_by','released_at','release_reason'],'x.matter_id'),
  record('s_retention',['id','matter_id','document_id','dispose_after','basis','set_by','set_at','superseded_at'],'x.matter_id'),
  record('s_matters',['id','matter_number','client','adverse','conflict_id','review_note','opened_by','opened_at'],'x.id'),

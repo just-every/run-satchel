@@ -6,13 +6,13 @@
 import { atomic, audit, human, id, insist, integer, matter, need, now, rows, stmt, text, type Actor, type Data } from './model';
 import { documentAccess, documentGuard, matterGuard, visibleDocument } from './documents';
 
-function calendarDate(value: unknown) {
+export function calendarDate(value: unknown) {
  const day = text(value, 'Date', 10), parsed = new Date(day);
  insist(/^\d{4}-\d{2}-\d{2}$/.test(day) && Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === day, 'Use a valid YYYY-MM-DD date');
  return day;
 }
 
-function timezone(value: unknown) {
+export function timezone(value: unknown) {
  const zone = text(value, 'Timezone', 100);
  try { new Intl.DateTimeFormat('en-US', { timeZone: zone }).format(); }
  catch { insist(false, 'Use an IANA timezone such as America/New_York'); }
@@ -23,7 +23,7 @@ function deadlineJson(d: Data, events: Data[] = []) {
  return { id: d.id, matterId: d.matter_id, matterNumber:d.matter_number, title: d.title, date: d.date, timezone: d.timezone, source: d.source, documentId: d.document_id, version: d.document_version, status: d.status, active: d.status === 'confirmed', revision: d.revision, proposedBy: d.proposed_by, proposedChannel: d.proposed_channel, proposedAt: d.proposed_at, confirmedBy: d.confirmed_by, confirmedAt: d.confirmed_at, completedBy: d.completed_by, completedAt: d.completed_at, completionEvidence: d.completion_evidence, events: events.filter(e => e.deadline_id === d.id).map(e => ({ action: e.action, actor: e.actor, channel: e.channel, at: e.at, detail: JSON.parse(e.detail) })) };
 }
 
-function visibility(actor: Actor) {
+export function visibility(actor: Actor) {
  const access = documentAccess(actor);
  return { sql: `(t.document_id IS NULL OR EXISTS(SELECT 1 FROM s_documents d WHERE d.id=t.document_id AND ${access.sql}))`, params: access.params };
 }

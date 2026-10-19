@@ -6,11 +6,11 @@ function parts(at:number,zone:string){
 }
 // Probe both sides of a timezone transition, then retain exact local matches.
 // Ambiguous times use the earlier instant; nonexistent local times are refused.
-export function localInstant(day:string,time:string,zone:string){
+export function localInstant(day:string,time:string,zone:string,gap='This local reminder time does not exist because of a timezone transition; choose another send time'){
  const target=Date.parse(`${day}T${time}:00Z`),offsets=new Set<number>();
  for(const probe of [target-86400000,target,target+86400000]){const p=parts(probe,zone);offsets.add(Date.parse(`${p.day}T${p.clock}:00Z`)-probe);}
  const matches=[...offsets].map(offset=>target-offset).filter(at=>{const p=parts(at,zone);return p.day===day&&p.clock===time;});
- insist(matches.length,'This local reminder time does not exist because of a timezone transition; choose another send time');
+ insist(matches.length,gap);
  return Math.min(...matches);
 }
 export function reminderDue(day:string,advance:number,time:string,zone:string){const d=new Date(day+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-advance);return localInstant(d.toISOString().slice(0,10),time,zone);}
