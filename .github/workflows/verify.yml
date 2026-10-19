@@ -6,9 +6,15 @@ on:
 permissions:
   contents: read
 jobs:
+  # Three parallel shards keep each push Verify under 15 minutes; shard 1 also
+  # builds the site and runs the typecheck, email-link and site tests.
   verify:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     env:
       CI: 'true'
       WRANGLER_SEND_METRICS: 'false'
@@ -24,4 +30,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm exec rer check --profile first-party
-      - run: pnpm exec rer verify
+      - run: pnpm run build
+      - if: matrix.shard == 1
+        run: pnpm run build:site && pnpm run typecheck && pnpm run test:email-link && pnpm run test:site
+      - run: node --test --test-concurrency=1 --test-shard=${{ matrix.shard }}/3 tests/satchel/*.test.mjs
