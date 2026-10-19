@@ -37,17 +37,17 @@ test('TIME-001 timer started on a 390px phone, resumed and switched at 1440px, d
   assert.equal(await dayGroup.getByRole('article').count(),3);
   const firstDraft=drafts.first(),edit=firstDraft.locator('form');await edit.getByLabel('Time spent (min)').fill('45');await edit.getByLabel('UTBMS task').fill('L110');await edit.getByLabel('UTBMS activity').fill('A101');await edit.getByRole('button',{name:'Save draft'}).click();await done('Draft saved');
   await drafts.nth(1).getByRole('button',{name:'Reject draft'}).click();await done('Draft rejected');
-  await dayGroup.getByRole('heading',{name:`${today} · 0 h 46 min · $225.00 billable`,exact:true}).waitFor();
-  await drafts.first().getByText('45 min · billable · timer · draft · L110 · A101 · $225.00',{exact:true}).waitFor();await shot('1440-day-review');
+  await dayGroup.getByRole('heading',{name:`${today} · 0 h 46 min · $240.00 billable`,exact:true}).waitFor();
+  await drafts.first().getByText('45 min (billed 48) · billable · timer · draft · L110 · A101 · $240.00',{exact:true}).waitFor();await shot('1440-day-review');
   await dayGroup.getByRole('button',{name:'Post day '+today}).click();await done('Day posted');
-  await drafts.first().getByText('45 min · billable · timer · posted · L110 · A101 · $225.00',{exact:true}).waitFor();
+  await drafts.first().getByText('45 min (billed 48) · billable · timer · posted · L110 · A101 · $240.00',{exact:true}).waitFor();
   await sheet.getByRole('article',{name:`Draft ${b.matter_number} Estate inventory`}).getByText(/nonbillable · timer · posted/).waitFor();
   await drafts.nth(1).getByText(/· rejected ·/).waitFor();assert.equal(await dayGroup.getByRole('button',{name:'Post day '+today}).count(),0);
   await sheet.getByRole('button',{name:'Submit week'}).click();await done('Week submitted');
   await page.getByLabel('Current matter').selectOption(a.id);const unbilled=page.locator('section.panel',{has:page.getByRole('heading',{name:'Unbilled work',exact:true})});
-  await unbilled.getByRole('cell',{name:'$225.00'}).waitFor();assert.equal(await unbilled.getByRole('row').count(),2);await shot('1440-posted');
+  await unbilled.getByRole('cell',{name:'$240.00'}).waitFor();assert.equal(await unbilled.getByRole('row').count(),2);await shot('1440-posted');
   await page.getByLabel('Current matter').selectOption(b.id);await unbilled.getByText('Nonbillable time recorded, never billed: 1 entry',{exact:true}).waitFor();
-  const entries=(await h.json('/matters/'+a.id+'/billing',undefined,h.owner)).entries;assert.deepEqual(entries.map(e=>[e.minutes,e.amountCents,e.utbmsTask,e.utbmsActivity,e.createdBy]),[[45,22500,'L110','A101','owner@example.test']]);
+  const entries=(await h.json('/matters/'+a.id+'/billing',undefined,h.owner)).entries;assert.deepEqual(entries.map(e=>[e.minutes,e.amountCents,e.utbmsTask,e.utbmsActivity,e.createdBy]),[[45,24000,'L110','A101','owner@example.test']]);
   assert.deepEqual(errors,[]);
  }finally{await browser.close();await h.close();}
 });

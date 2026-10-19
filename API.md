@@ -31,6 +31,14 @@ Human routes are under `/api/satchel`: `state`, `conflicts`, `matters`,
 `proposals/:id/decide`, `team`, `team/invite`, `keys`, `keys/:id/revoke`,
 `import`, `import/:op`, `backup`, `restore`, `documents/:id/erase`.
 GET reads; POST mutates except bill exports, whose GET records export history.
+`POST /matters/:id/entries` takes `kind`, `date`, `description` and either `minutes` (with an optional
+`rateCents`, `utbmsTask`, `utbmsActivity` and `billable`) or `amountCents`. An explicit `rateCents` is
+recorded exactly as entered; without one the TIME-003 fee agreement prices the work and the entry
+reports `billedMinutes`, `discountBps`, `rateSource` and `rateRuleId`. `GET /matters/:id/rates` returns
+the matter's firm, client and matter rules, budget and alerts; `POST /matters/:id/rates` adds a rule
+(`scope`, `effectiveFrom`, `rateCents`, `incrementMinutes`, `discountBps`, `billable`, `note`, optional
+`timekeeperEmail` and `utbmsTask`) and `POST /matters/:id/budget` sets a budget version (`cents`,
+`alertPercent`, `note`).
 `GET /matters/:id/billing` returns entries and bill snapshots. All errors are JSON
 `{error}` with a non-2xx status. The UI uses these exact routes.
 

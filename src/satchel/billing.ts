@@ -4,6 +4,8 @@ import {invoiceFunds} from './trust-transfers';
 // Copyright (c) 2026 Run Edit Run. See the repository LICENSE for the MIT terms.
 import { type Actor, type Data, insist, text, integer, date, id, now, need, human, stmt, rows, matter, audit, atomic, digest } from './model';
 import { correctionReview, correctionReviews } from './billing-corrections';
+import { budgetAlerts, loadPricing, price, pricingGuard } from './rates';
+import { utbmsActivity, utbmsTask } from './timesheets';
 
 const maxMoney = 1_000_000_000_000;
 const money = (v: unknown) => integer(v, 'Amount in USD cents', 0, maxMoney);
@@ -17,7 +19,7 @@ function accessGuard(db: D1Database, actor: Actor, matterId: string) {
 function revisionGuard(db: D1Database, bill: Data) {
  return guard(db, 'EXISTS(SELECT 1 FROM s_bills WHERE id=? AND revision=? AND status=?)', bill.id, bill.revision, bill.status);
 }
-const entryRow = (r: Data) => ({id:r.id,matterId:r.matter_id,revision:r.revision,kind:r.kind,date:r.date,description:r.description,minutes:r.minutes,rateCents:r.rate_cents,amountCents:r.amount_cents,currency:r.currency,createdBy:r.created_by,createdAt:r.created_at,reservedBy:r.bill_id ?? null,billable:r.billable!==0,utbmsTask:r.utbms_task??null,utbmsActivity:r.utbms_activity??null});
+const entryRow = (r: Data) => ({id:r.id,matterId:r.matter_id,revision:r.revision,kind:r.kind,date:r.date,description:r.description,minutes:r.minutes,rateCents:r.rate_cents,amountCents:r.amount_cents,currency:r.currency,createdBy:r.created_by,createdAt:r.created_at,reservedBy:r.bill_id ?? null,billable:r.billable!==0,utbmsTask:r.utbms_task??null,utbmsActivity:r.utbms_activity??null,billedMinutes:r.billed_minutes??null,discountBps:r.discount_bps??null,rateSource:r.rate_source??null,rateRuleId:r.rate_rule_id??null});
 const billRow = (r: Data) => ({id:r.id,matterId:r.matter_id,revision:r.revision,status:r.status,snapshot:JSON.parse(r.snapshot),correctsBillId:r.corrects_bill_id,artifact:r.artifact,artifactDigest:r.artifact_digest,approvedBy:r.approved_by,approvedAt:r.approved_at,reviewNote:r.review_note,exportedAt:r.exported_at,voidReason:r.void_reason,voidedBy:r.voided_by,voidedAt:r.voided_at,createdBy:r.created_by,createdAt:r.created_at});
 async function getBill(db: D1Database, actor: Actor, billId: string) {
  const bill = await stmt(db, 'SELECT * FROM s_bills WHERE id=?', billId).first<Data>();
@@ -64,17 +66,18 @@ async function createBill(db: D1Database, actor: Actor, matterId: string, snapsh
 }
 
 export async function addEntry(db: D1Database, actor: Actor, matterId: string, body: Data) {
- await matter(db,actor,matterId);
  insist(['time','disbursement'].includes(body.kind), 'Choose time or disbursement');
  const kind = body.kind, workDate = date(body.date), description = text(body.description,'Description',2000);
- const minutes = kind === 'time' ? integer(body.minutes,'Minutes',1,1440) : null;
- const rate = kind === 'time' ? integer(body.rateCents,'Hourly rate in USD cents',0,100000000) : null;
- // Gauge exact-integer half-up charge, adapted from seconds/AUD to minutes/USD.
- const amount = kind === 'time' ? Number((BigInt(minutes!) * BigInt(rate!) + 30n) / 60n) : money(body.amountCents);
- const entryId = id();
- await atomic(db,actor,[accessGuard(db,actor,matterId),
-  stmt(db,'INSERT INTO s_entries(id,matter_id,revision,kind,date,description,minutes,rate_cents,amount_cents,created_by,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)',entryId,matterId,id(),kind,workDate,description,minutes,rate,amount,actor.email,now()),
-  audit(db,actor,'billing.entry.recorded',entryId,kind),
+ insist(body.billable === undefined || typeof body.billable === 'boolean', 'Say whether the work is billable');
+ const requested = body.billable !== false, task = kind === 'time' ? utbmsTask(body.utbmsTask) : null, activity = kind === 'time' ? utbmsActivity(body.utbmsActivity) : null;
+ const m = await matter(db,actor,matterId), pricing = await loadPricing(db), entryId = id(), at = now();
+ // An explicit hourly rate is recorded exactly as entered (SAT-004); without one,
+ // TIME-003's fee agreement resolves the rate, increment, discount and billability.
+ const p = kind === 'time' ? price(pricing,{matterId,client:m.client,date:workDate,timekeeper:actor.email,task,minutes:integer(body.minutes,'Minutes',1,1440),billable:requested,rateCents:body.rateCents === undefined ? undefined : integer(body.rateCents,'Hourly rate in USD cents',0,100000000)}) : null;
+ const minutes = p ? integer(body.minutes,'Minutes',1,1440) : null, amount = p ? p.amountCents : money(body.amountCents);
+ await atomic(db,actor,[accessGuard(db,actor,matterId),pricingGuard(db,pricing),
+  stmt(db,'INSERT INTO s_entries(id,matter_id,revision,kind,date,description,minutes,rate_cents,amount_cents,created_by,created_at,billable,utbms_task,utbms_activity,billed_minutes,discount_bps,rate_rule_id,rate_source) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',entryId,matterId,id(),kind,workDate,description,minutes,p?.rateCents ?? null,amount,actor.email,at,(p ? p.billable : requested) ? 1 : 0,task,activity,p?.billedMinutes ?? null,p?.discountBps ?? null,p?.ruleId ?? null,p?.rateSource ?? null),
+  budgetAlerts(db,matterId,entryId,at),audit(db,actor,'billing.entry.recorded',entryId,kind),
  ]);
  return entryRow((await stmt(db,'SELECT * FROM s_entries WHERE id=?',entryId).first<Data>())!);
 }
@@ -96,7 +99,7 @@ export async function prepareBill(db: D1Database, actor: Actor, matterId: string
  const entries = await rows(db,`SELECT e.*,s.bill_id FROM s_entries e LEFT JOIN s_billing_sources s ON s.entry_id=e.id WHERE e.matter_id=? AND e.id IN (SELECT value FROM json_each(?)) ORDER BY e.date,e.id`,matterId,JSON.stringify(ids));
  insist(entries.length === ids.length && entries.every(e => !e.bill_id), 'Entries must belong to this matter and be unbilled',409);
  insist(entries.every(e => e.billable !== 0), 'Nonbillable time is recorded but never billed',409);
- const lines = entries.map(e => ({kind:e.kind,sourceId:e.id,sourceRevision:e.revision,date:e.date,description:e.description,minutes:e.minutes,rateCents:e.rate_cents,amountCents:e.amount_cents,rounding:e.kind === 'time' ? 'minutes × hourly USD cents / 60; half-up to cents' : 'exact USD cents'}));
+ const lines = entries.map(e => ({kind:e.kind,sourceId:e.id,sourceRevision:e.revision,date:e.date,description:e.description,minutes:e.minutes,rateCents:e.rate_cents,amountCents:e.amount_cents,rounding:e.kind !== 'time' ? 'exact USD cents' : e.billed_minutes == null || e.rate_source === 'entry' ? 'minutes × hourly USD cents / 60; half-up to cents' : `${e.billed_minutes} billed minutes (${e.minutes} worked, rounded up to the agreed increment) × hourly USD cents / 60${e.discount_bps ? `, less ${e.discount_bps / 100}% discount` : ''}; half-up to cents`}));
  return createBill(db,actor,matterId,{title:text(body.title,'Bill title',200),date:date(body.date),currency:'USD',matterId,matterNumber:m.matter_number,matterTitle:m.title,client:m.client,lines,totalCents:sum(lines)},lines);
 }
 
