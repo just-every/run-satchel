@@ -1,3 +1,4 @@
+import {auditQuery,type AuditActor} from './audit-record';
 export type Data = Record<string, any>;
 export type Actor = { id: string; email: string; name: string; role: 'owner' | 'lawyer' | 'assistant' | 'trust_officer'; channel: 'person' | 'agent'; approval?: {id: string; resultId: string} };
 export class Fault extends Error { constructor(message: string, public status = 400) { super(message); } }
@@ -18,11 +19,11 @@ export async function matter(db: D1Database, actor: Actor, matterId: string) {
 export function authority(actor: Actor) {
  return { sql: `EXISTS(SELECT 1 FROM oa_operators o WHERE o.id=? AND o.status='active' AND (o.role='owner' OR EXISTS(SELECT 1 FROM s_members m WHERE m.email=o.email AND m.active=1 AND m.role=?)))`, params: [actor.id, actor.role] };
 }
-export function audit(db: D1Database, actor: Actor, action: string, objectId: string, detail = '') { return stmt(db, 'INSERT INTO s_audit(id,actor,action,object_id,detail,at) VALUES(?,?,?,?,?,?)', id(), actor.email, action, objectId, detail, now()); }
+export function audit(db:D1Database,actor:AuditActor,action:string,objectId:string,detail='',evidence:Data={}){const q=auditQuery(actor,action,objectId,detail,evidence);return stmt(db,q.sql,...q.params);}
 export async function atomic(db: D1Database, actor: Actor, statements: D1PreparedStatement[]) {
  const a = authority(actor), guard = id();
  const approval = actor.approval ? [stmt(db, `INSERT INTO s_guard(id,ok) VALUES(?,CASE WHEN EXISTS(SELECT 1 FROM s_proposals WHERE id=? AND for_email=? AND status='pending') THEN 1 ELSE 0 END)`, 'approval:'+guard, actor.approval.id, actor.email)] : [];
- const decision = actor.approval ? [stmt(db, "UPDATE s_proposals SET status='approved',result_id=?,decided_by=?,decided_at=? WHERE id=?",actor.approval.resultId,actor.email,now(),actor.approval.id),stmt(db,'DELETE FROM s_guard WHERE id=?','approval:'+guard)] : [];
+ const decision = actor.approval ? [stmt(db, "UPDATE s_proposals SET status='approved',result_id=?,decided_by=?,decided_at=? WHERE id=?",actor.approval.resultId,actor.email,now(),actor.approval.id),audit(db,actor,'proposal.approved',actor.approval.id,JSON.stringify({resultId:actor.approval.resultId})),stmt(db,'DELETE FROM s_guard WHERE id=?','approval:'+guard)] : [];
  try { await db.batch([...approval,stmt(db, `INSERT INTO s_guard(id,ok) VALUES(?,CASE WHEN (${a.sql}) THEN 1 ELSE 0 END)`, guard, ...a.params), ...statements, ...decision, stmt(db, 'DELETE FROM s_guard WHERE id=?', guard)]); }
  catch (error) { if (/constraint|s_guard|UNIQUE|stale conflict/i.test(String(error))) throw new Fault('The record changed or this action is no longer allowed. Refresh and try again.', 409); throw error; }
 }

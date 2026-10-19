@@ -27,7 +27,7 @@ async function scope(db: D1Database, actor: Actor, body: Data) {
 }
 export async function placeHold(db: D1Database, actor: Actor, body: Data) {
  const s = await scope(db, actor, body), holdId = id(), reason = text(body.reason, 'Hold reason', 1000);
- await atomic(db, actor, [stmt(db, 'INSERT INTO s_holds(id,matter_id,document_id,reason,placed_by,placed_at) VALUES(?,?,?,?,?,?)', holdId, s.matterId, s.documentId, reason, actor.email, now()), audit(db, actor, 'hold.placed', s.documentId ?? s.matterId, reason)]);
+ await atomic(db, actor, [stmt(db, 'INSERT INTO s_holds(id,matter_id,document_id,reason,placed_by,placed_at) VALUES(?,?,?,?,?,?)', holdId, s.matterId, s.documentId, reason, actor.email, now()), audit(db, actor, 'hold.placed', holdId, reason)]);
  return { id: holdId, ...s, reason };
 }
 export async function releaseHold(db: D1Database, actor: Actor, holdId: string, body: Data) {
@@ -36,7 +36,7 @@ export async function releaseHold(db: D1Database, actor: Actor, holdId: string, 
  insist(hold, 'Hold not found', 404); await matter(db, actor, hold.matter_id);
  insist(!hold.released_at, 'This hold was already released', 409);
  const reason = text(body.reason, 'Release reason', 1000);
- await atomic(db, actor, [stmt(db, 'UPDATE s_holds SET released_by=?,released_at=?,release_reason=? WHERE id=? AND released_at IS NULL', actor.email, now(), reason, holdId), audit(db, actor, 'hold.released', hold.document_id ?? hold.matter_id, reason)]);
+ await atomic(db, actor, [stmt(db, 'UPDATE s_holds SET released_by=?,released_at=?,release_reason=? WHERE id=? AND released_at IS NULL', actor.email, now(), reason, holdId), audit(db, actor, 'hold.released', hold.id, reason)]);
  return { id: holdId, released: true };
 }
 export async function setSchedule(db: D1Database, actor: Actor, body: Data) {
@@ -44,7 +44,7 @@ export async function setSchedule(db: D1Database, actor: Actor, body: Data) {
  await atomic(db, actor, [
   stmt(db, 'UPDATE s_retention SET superseded_at=? WHERE superseded_at IS NULL AND matter_id=? AND document_id IS ?', at, s.matterId, s.documentId),
   stmt(db, 'INSERT INTO s_retention VALUES(?,?,?,?,?,?,?,NULL)', scheduleId, s.matterId, s.documentId, disposeAfter, basis, actor.email, at),
-  audit(db, actor, 'retention.scheduled', s.documentId ?? s.matterId, `${disposeAfter}: ${basis}`)]);
+  audit(db, actor, 'retention.scheduled', scheduleId, `${disposeAfter}: ${basis}`)]);
  return { id: scheduleId, ...s, disposeAfter, basis };
 }
 export async function retentionState(db: D1Database, actor: Actor, matterId?: string) {

@@ -43,7 +43,7 @@ test('FIRM-001 principal enters, exports and imports US firm settings with prove
  const imported=await h.json('/firm/import',{name:'barton-settings.json',content,revision:saved.revision},h.owner);
  assert.equal(imported.settings.practiceAreas.length,3);assert.equal(imported.provenance.source,'import');assert.equal(imported.provenance.name,'barton-settings.json');
  assert.equal(imported.provenance.digest,(await import('node:crypto')).createHash('sha256').update(content).digest('hex'));
- assert.ok((await h.json('/team',undefined,h.owner)).audit.some(a=>a.action==='firm.settings_imported'&&a.detail.includes(imported.provenance.digest)));
+ assert.ok((await h.json('/audit?action=firm.settings_imported',undefined,h.owner)).records.some(a=>a.action==='firm.settings_imported'&&a.detail.includes(imported.provenance.digest)));
 });
 test('matter opening requires a recorded fresh human conflict review',async()=>{
  await h.json('/matters',{title:'No clearance'},h.owner,400);
@@ -174,7 +174,9 @@ test('archive integrity, empty destination, later erasure journal and complete r
   assert.equal((await target.json('/state',undefined,target.owner)).matters.length,(await h.json('/state',undefined,h.owner)).matters.length);
   const roundtrip=await(await target.request('/api/satchel/backup',undefined,target.owner)).text();
   const nativeRows=archive=>archive.trim().split('\n').map(line=>JSON.parse(line)).filter(record=>record.kind==='part').flatMap(part=>part.items).filter(item=>item.kind==='row').map(item=>JSON.stringify({table:item.table,row:item.row})).sort();
-  assert.deepEqual(nativeRows(roundtrip),nativeRows(newArchive),'Every archived native row survives export/restore/export');
+  const restoredRows=nativeRows(roundtrip),custody=restoredRows.map(JSON.parse).filter(item=>item.table==='s_audit'&&item.row.action==='firm.archive_restored');
+  assert.equal(custody.length,1,'Restore appends exactly one new custody action');assert.equal(custody[0].row.role,'owner');assert.equal(JSON.parse(custody[0].row.detail).sha256,(await import('node:crypto')).createHash('sha256').update(newArchive).digest('hex'));
+  assert.deepEqual(restoredRows.filter(row=>JSON.parse(row).row.id!==custody[0].row.id),nativeRows(newArchive),'Every archived native row survives unchanged beside the new restore custody action');
   assert.deepEqual(await target.json('/firm',undefined,target.owner),await h.json('/firm',undefined,h.owner),'Firm settings and their provenance restore exactly');
   assert.equal(await(await target.request('/api/satchel/bills/'+bill.id+'/export',undefined,target.owner)).text(),originalCsv);
   await target.json('/documents/'+privateDoc.id+'/file',undefined,target.owner,404);

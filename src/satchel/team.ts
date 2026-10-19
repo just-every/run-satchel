@@ -11,7 +11,9 @@ export async function saveMember(db:D1Database,actor:Actor,body:Data) {
 export async function inviteMember(request:Request,env:Bindings,actor:Actor,body:Data) {
  human(actor);need(actor,'owner'); const member=await stmt(env.DB,'SELECT * FROM s_members WHERE email=? AND active=1',text(body.email,'Email').toLowerCase()).first<Data>();
  insist(member,'Save an active firm member first',404);
- return operatorAuth(runtimeBindings(env)).invite(request,{email:member.email,displayName:member.name,role:'member',returnTo:'/app'});
+ await atomic(env.DB,actor,[audit(env.DB,actor,'member.invitation_requested',member.email,'Native invitation requested; provider outcome not yet known')]);
+ try{const result=await operatorAuth(runtimeBindings(env)).invite(request,{email:member.email,displayName:member.name,role:'member',returnTo:'/app'});await atomic(env.DB,actor,[audit(env.DB,actor,'member.invitation_result',member.email,JSON.stringify({nativeRequestStatus:result.status,delivery:'unconfirmed',providerMessageId:null}))]);return result;}
+ catch(error){await atomic(env.DB,actor,[audit(env.DB,actor,'member.invitation_uncertain',member.email,'No confirmed result returned; reconcile the native invitation and mail state before another send')]);throw error;}
 }
 export async function createAgentKey(db:D1Database,actor:Actor,body:Data) {
  human(actor); need(actor,'owner','lawyer');
@@ -23,5 +25,5 @@ export async function revokeAgentKey(db:D1Database,actor:Actor,keyId:string) {
  human(actor);await atomic(db,actor,[stmt(db,'UPDATE s_agent_keys SET revoked=1 WHERE id=? AND owner_id=?',keyId,actor.id),audit(db,actor,'agent.key_revoked',keyId)]);return {ok:true};
 }
 export async function teamState(db:D1Database,actor:Actor) {
- return {keys:await rows(db,'SELECT id,label,revoked,created_at FROM s_agent_keys WHERE owner_id=? ORDER BY created_at DESC',actor.id),audit:actor.role==='owner'?await rows(db,'SELECT * FROM s_audit ORDER BY at DESC LIMIT 100'):[]};
+ return {keys:await rows(db,'SELECT id,label,revoked,created_at FROM s_agent_keys WHERE owner_id=? ORDER BY created_at DESC',actor.id)};
 }

@@ -37,7 +37,7 @@ test('TRUST-002 records source-backed retainer, check, wire, disbursement and un
   assert.equal((await h.json('/trust/transactions',{...base,direction:'disbursement',kind:'wire',cents:25000,counterparty:'County recorder',bankReference:'WIRE-883',receivedDate:'2026-10-03',depositDate:'2026-10-03',documentId:f.source.id,purpose:'Client authorized recording charge, authorization page 2',requestKey:'recording-disbursement'},h.owner)).id,debit.id);
   await h.json('/trust/transactions/'+debit.id+'/decide',{revision:debit.revision,decision:'approved',reviewNote:'Replay'},h.owner);
   await h.restart();const s=await h.json('/trust',undefined,h.owner);assert.equal(s.accounts.find(a=>a.id===f.account.id).balance_cents,255000);assert.equal(s.ledgers.find(l=>l.id===f.ledger.id).balance_cents,125000);assert.equal(s.ledgers.find(l=>l.id===f.ledger.id).available_cents,125000);assert.equal(s.ledgers.find(l=>l.id===f.otherLedger.id).available_cents,90000);assert.equal(s.entries.filter(e=>e.ledger_id===null).length,1);assert.equal(s.entries.length,4);assert.equal(s.clearings.length,1);assert.equal((await h.json('/trust/transactions',undefined,h.owner)).find(t=>t.id===pending.id).reconciled_cleared_date,'2026-10-02');
-  const audit=(await h.json('/team',undefined,h.owner)).audit;assert.ok(audit.some(a=>a.action==='trust.transaction_refused'));
+  const audit=(await h.json('/audit?action=trust.transaction_refused',undefined,h.owner)).records;assert.ok(audit.some(a=>a.action==='trust.transaction_refused'));
  }finally{await h.close();}
 });
 test('TRUST-003 refuses cross-client borrowing, uncleared/negative funds, concurrent overcommitment, bank fees and unsupported backdating without hiding attempts',async()=>{
@@ -56,6 +56,6 @@ test('TRUST-003 refuses cross-client borrowing, uncleared/negative funds, concur
   await h.json('/trust/transactions/'+winner.id+'/decide',{revision:winner.revision,decision:'approved',reviewNote:'Client approved exact payment and available funds reviewed'},h.owner);
   const edit=await h.request('/api/satchel/trust/transactions/'+winner.id,{cents:0},h.owner);assert.equal(edit.status,404);
   await h.restart();s=await h.json('/trust',undefined,h.owner);assert.equal(s.ledgers.find(l=>l.id===f.ledger.id).balance_cents,225000);assert.equal(s.ledgers.find(l=>l.id===f.ledger.id).available_cents,125000);assert.ok(s.accounts.find(a=>a.id===f.account.id).balance_cents>40000);
-  const trail=(await h.json('/team',undefined,h.owner)).audit.filter(a=>a.action==='trust.transaction_refused');assert.ok(trail.length>=3);assert.ok(trail.some(a=>JSON.parse(a.detail).cents===40000));assert.equal((await h.json('/trust/transactions',undefined,h.owner)).find(t=>t.id===winner.id).cents,25000);
+  const trail=(await h.json('/audit?action=trust.transaction_refused',undefined,h.owner)).records.filter(a=>a.action==='trust.transaction_refused');assert.ok(trail.length>=3);assert.ok(trail.some(a=>a.detail.cents===40000));assert.equal((await h.json('/trust/transactions',undefined,h.owner)).find(t=>t.id===winner.id).cents,25000);
  }finally{await h.close();}
 });

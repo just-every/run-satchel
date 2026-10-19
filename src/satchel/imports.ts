@@ -1,7 +1,7 @@
 import { applyD1ImportBatches, createD1ImportJob, planD1Import, readD1ImportJob, readD1ImportOriginals, readD1ImportUndoReport, resumeD1Import, undoD1Import, type D1ImportContext } from '../modules/import-kit/src/d1/index';
-import { Fault, human, insist, integer, need, stmt, text, type Actor, type Data } from './model';
+import { atomic, audit, Fault, human, insist, integer, need, stmt, text, type Actor, type Data } from './model';
 import { clioSource, MAPPING_VERSION, NAMESPACE } from './imports/clio';
-import { partyTargets } from './imports/target';
+import { auditedPartyTargets } from './imports/target';
 
 function authority(actor: Actor) {
   need(actor, 'owner'); human(actor);
@@ -11,7 +11,7 @@ function context(db: D1Database, actor: Actor): D1ImportContext {
   const guard = authority(actor);
   return {
     destination: 'main', namespace: NAMESPACE, mappingVersion: MAPPING_VERSION, reversalPolicy: 'preserve-conflicts',
-    storage: { database: db, targets: partyTargets },
+    storage: { database: db, targets: auditedPartyTargets(actor) },
     // Role custody survives installation export/restore; each operation still
     // checks the current native owner row inside Base's atomic transaction.
     authorization: { principalId: 'role:owner', predicate: () => guard }, batchSize: 20, maxBatches: 2,
@@ -19,7 +19,9 @@ function context(db: D1Database, actor: Actor): D1ImportContext {
 }
 
 export async function importAction(db: D1Database, actor: Actor, op: string, body: Data) {
-  try { return await action(db, actor, op, body); }
+  need(actor,'owner');human(actor);const changes=['commit','resume','undo'].includes(op);
+  if(changes)await atomic(db,actor,[audit(db,actor,'import.'+op+'_requested','import',JSON.stringify({operation:op,fingerprint:typeof body.fingerprint==='string'&&/^[a-f0-9]{64}$/.test(body.fingerprint)?body.fingerprint:null,jobId:typeof body.id==='string'&&/^[a-f0-9-]{36}$/.test(body.id)?body.id:null}))]);
+  try {const result:Data=await action(db,actor,op,body);if(changes&&result.job)await atomic(db,actor,[audit(db,actor,'import.'+op+'_result',result.job.id,JSON.stringify({state:result.job.state,checkpoint:result.job.checkpoint}))]);return result; }
   catch (error) {
     if (error instanceof Fault) throw error;
     const message = error instanceof Error ? error.message : String(error);

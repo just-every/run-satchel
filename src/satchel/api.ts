@@ -1,3 +1,4 @@
+import {actionAudit,exportActionAudit} from './audit';
 import {requestReversal,reversalAction} from './trust-reversals';
 import {requestTransfer,transferState,transferPolicy,decideTransfer,bankTransferResult} from './trust-transfers';
 import {transactionState,prepareTransaction,decideTransaction,recordClearance} from './trust-transactions';
@@ -102,3 +103,6 @@ api.post('/api/satchel/trust/transfers/:id/bank-result',as(async(a,c)=>bankTrans
 
 api.post('/api/satchel/trust/transfers/:id/reversal',as(async(a,c)=>requestReversal(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/trust/transfers/:id/reversal/action',as(async(a,c)=>reversalAction(db(c),a,param(c),await body(c))));
+
+api.get('/api/satchel/audit',as((a,c)=>actionAudit(db(c),a,c.req.query())));
+api.get('/api/satchel/audit/export',as((a,c)=>exportActionAudit(db(c),a,c.req.query())));

@@ -1,3 +1,5 @@
+import {auditQuery} from '../audit-record';
+import type {Actor} from '../model';
 import type { D1TargetAdapter, D1Sql, TargetRow } from '../../modules/import-kit/src/d1/index';
 
 const sql = (sql: string, ...params: unknown[]): D1Sql => ({ sql, params });
@@ -70,3 +72,8 @@ export const partyTargets: D1TargetAdapter = {
     return (await db.prepare('SELECT * FROM s_parties ORDER BY id').all()).results.map(party => row(destination, party));
   },
 };
+
+export function auditedPartyTargets(actor:Actor):D1TargetAdapter{return {...partyTargets,
+ write(current){return [...partyTargets.write(current),auditQuery(actor,'contact.imported',current.targetId,JSON.stringify({revision:current.revision,source:current.value}))];},
+ remove(destination,kind,targetId){return [auditQuery(actor,'contact.import_undo',targetId,'Remove an unchanged, unused imported contact'),...partyTargets.remove(destination,kind,targetId)];},
+};}

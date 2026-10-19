@@ -1,11 +1,11 @@
 import type {Bindings} from '../auth.server';
 import {operatorMail} from '../mail.server.mjs';
-import {id,now,rows,stmt,type Data} from './model';
+import {audit,id,now,rows,stmt,type Data} from './model';
 import {eligible} from './reminder-access';
 import {isQuiet} from './reminder-time';
 const live=`r.status='active' AND t.status='confirmed' AND EXISTS(SELECT 1 FROM oa_operators so WHERE so.id=r.created_by AND so.status='active' AND (so.role='owner' OR EXISTS(SELECT 1 FROM s_members sm JOIN s_matter_access sa ON sa.email=sm.email WHERE sm.email=so.email AND sm.active=1 AND sm.role='lawyer' AND sa.matter_id=t.matter_id)))`;
 async function outcome(db:D1Database,d:Data,claim:string,status:string,provider:string,providerId:string|null,detail:string){
- await db.batch([stmt(db,"UPDATE s_reminder_deliveries SET status=?,provider=?,provider_id=?,detail=? WHERE id=? AND claim=? AND status='sending'",status,provider,providerId,detail,d.id,claim),stmt(db,"INSERT INTO s_audit(id,actor,action,object_id,detail,at) SELECT ?,'scheduler',?,id,?,? FROM s_reminder_deliveries WHERE id=? AND claim=?",id(),'deadline.reminder_result',JSON.stringify({recipient:d.recipient,status,provider,providerId,detail}),now(),d.id,claim)]);
+ await db.batch([stmt(db,"UPDATE s_reminder_deliveries SET status=?,provider=?,provider_id=?,detail=? WHERE id=? AND claim=? AND status='sending'",status,provider,providerId,detail,d.id,claim),audit(db,{id:'scheduled-reminders',email:'scheduler',role:'system',channel:'automation'},'deadline.reminder_result',d.id,JSON.stringify({recipient:d.recipient,status,provider,providerId,detail}))]);
 }
 export async function runReminders(env:Bindings,at=Date.now()){
  const db=env.DB;

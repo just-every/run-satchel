@@ -54,5 +54,6 @@ export async function importFirm(db:D1Database,actor:Actor,body:Data) {
 }
 export async function exportFirm(db:D1Database,actor:Actor) {
  human(actor);need(actor,'owner');const current=await firmSettings(db);insist(current.settings,'Enter firm settings first',404);
- return new Response(JSON.stringify({format,exportedAt:now(),settings:current.settings},null,1),{headers:{'content-type':'application/json','content-disposition':'attachment; filename="satchel-firm-settings.json"','cache-control':'no-store'}});
+ const artifact=JSON.stringify({format,exportedAt:now(),settings:current.settings},null,1),fence=id();await atomic(db,actor,[stmt(db,'INSERT INTO s_guard(id,ok) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM s_firm WHERE revision=?) THEN 1 ELSE 0 END',fence,current.revision),audit(db,actor,'firm.settings_exported','firm',JSON.stringify({revision:current.revision,sha256:await digest(artifact)})),stmt(db,'DELETE FROM s_guard WHERE id=?',fence)]);
+ return new Response(artifact,{headers:{'content-type':'application/json','content-disposition':'attachment; filename="satchel-firm-settings.json"','cache-control':'no-store'}});
 }

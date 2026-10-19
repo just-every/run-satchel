@@ -107,6 +107,7 @@ export async function documentFile(db: D1Database, actor: Actor, documentId: str
  insist(stored, 'Document version not found', 404);
  const bytes = decode(stored.content_base64);
  insist(bytes.length === stored.size && await digest(bytes) === stored.sha256, 'Stored original failed its integrity check', 503);
+ const fence=id();await atomic(db,actor,[stmt(db,`INSERT INTO s_guard(id,ok) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM s_document_versions v JOIN s_documents d ON d.id=v.document_id WHERE d.id=? AND d.erased_at IS NULL AND v.version=? AND v.sha256=? AND v.content_base64 IS NOT NULL AND ${access.sql}) THEN 1 ELSE 0 END`,fence,documentId,stored.version,stored.sha256,...access.params),audit(db,actor,'document.downloaded',documentId,JSON.stringify({version:stored.version,sha256:stored.sha256,bytes:stored.size})),stmt(db,'DELETE FROM s_guard WHERE id=?',fence)]);
  const filename = encodeURIComponent(stored.name).replace(/['()*]/g, c => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
  return new Response(bytes, { headers: { 'content-type': stored.mime, 'content-length': String(bytes.length), 'content-disposition': `attachment; filename*=UTF-8''${filename}`, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'content-security-policy': "sandbox; default-src 'none'; base-uri 'none'", 'referrer-policy': 'no-referrer' } });
 }

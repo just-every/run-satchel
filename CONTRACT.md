@@ -64,7 +64,7 @@ All clauses inherit server-side authorization, matter confidentiality, stable so
 
 - **FIRM-004 — Secure sessions and connected secrets.** Native sign-in is extended with MFA or federated SSO, session/device revocation and least-privilege connector grants. Secrets stay installation-local, encrypted at rest, redacted from logs and absent from archives; revocation stops new work and exposes in-flight uncertainty. **Acceptance evidence:** Sign in with MFA, revoke a device and a Microsoft connector while work is queued, then attempt reads and inspect logs and an export.
 
-- **FIRM-005 — Export a complete action audit.** Authorized custodians filter and export an append-only history of actor, role, matter, source, revision, human decision, automation policy and provider outcome. Audit access respects walls; corrections add records rather than rewriting prior actions. **Acceptance evidence:** Open the audit, filter a matter and date range, export a transfer and approval trail, and verify an unauthorized reader cannot inspect it.
+- **FIRM-005 — Export a complete action audit.** Authorized custodians filter and export an append-only history of actor, role, matter, source, revision, human decision, automation policy and provider outcome. Audit access respects walls; corrections add records rather than rewriting prior actions. The principal is the current native custodian. Every capability and provider that exists today records this evidence; FIRM-002, FIRM-003, FIRM-004, FIRM-008, BILL-005/006/007, BOOKS-001/002, CONNECT-003 and AGENT-010 inherit the obligation before their new roles, walls, providers, policies or doors ship, as does each future clause adding a capability or record kind. Legacy rows retain every original field unchanged; unavailable role, channel, source and revision fields remain null and are labelled “legacy, not recorded”, never inferred from present membership. Audit date filters include whole UTC calendar days, ordered by action timestamp and ID. Export streams a frozen append-only snapshot with its record count; its own export-request action is recorded after that snapshot. Archive restore retains all imported rows unchanged and appends a new custody action naming the exact supplied archive hash. **Acceptance evidence:** Open the audit, filter a matter and date range, export a transfer and approval trail, and verify an unauthorized reader cannot inspect it.
 
 - **FIRM-006 — Apply retention and legal holds.** Counsel assigns matter/document retention schedules and legal holds; holds block scheduled disposal and ordinary erasure, expiration asks an authorized custodian, and approved disposal removes originals, previews, OCR, search vectors and connector caches with a journal. **Acceptance evidence:** Place a hold, request erasure and receive a refusal; release it with authority, approve disposal and prove all derivative downloads and searches stop.
 
@@ -375,7 +375,7 @@ Every capability claim in br’s approved homepage register (17 October 2026, 60
 | 4 | "documents" | `SAT-007`, `DOC-001` | partial |
 | 5 | "tracks your time" | `SAT-004`, `TIME-001` | partial |
 | 6 | "keeps billing … in order" | `SAT-005`, `SAT-006`, `BILL-001` | partial |
-| 7 | "… and trust accounts in order" | `TRUST-001`, `TRUST-005` | missing |
+| 7 | "… and trust accounts in order" | `TRUST-001`, `TRUST-005` | partial |
 | 8 | "100% free, open source" | `OSS-001` | partial |
 | 9 | "alternative to Clio, MyCase and Smokeball" | `MOVE-002`, `MOVE-003`, `MOVE-004` | partial |
 | 10 | "Intake · Martinez v. Reed · conflict check clear ✓" | `SAT-002`, `INTAKE-001` | partial |
@@ -386,7 +386,7 @@ Every capability claim in br’s approved homepage register (17 October 2026, 60
 | 15 | "conflict check across every contact" (1,912 contacts searched, match, partner clears it) | `SAT-002`, `INTAKE-005` | partial |
 | 16 | "former client, closed 2023" on the match | `INTAKE-005`, `MATTER-007` | partial |
 | 17 | "engagement letter signed" (Signed 2 of 2, hourly rates) | `INTAKE-006`, `TIME-003` | partial |
-| 18 | "the retainer in trust" (Trust · IOLTA, retainer deposited) | `TRUST-002` | missing |
+| 18 | "the retainer in trust" (Trust · IOLTA, retainer deposited) | `TRUST-002` | done |
 | 19 | "Matter opened · Martinez v. Reed · 2026-0147" | `SAT-002`, `MATTER-008` | done |
 | 20 | "Enter the new trial date once. Satchel recalculates every deadline" | `CAL-004`, `CAL-005`, `CAL-006` | partial |
 | 21 | "syncs every calendar" (Google Calendar, Outlook chips) | `CAL-002`, `CAL-003` | missing |
@@ -414,7 +414,7 @@ Every capability claim in br’s approved homepage register (17 October 2026, 60
 | 43 | Invoice #2033: overdue reminder and payment plan | `BILL-009`, `BILL-008` | missing |
 | 44 | "Trust that reconciles to the cent" (three-way reconciliation each month) | `TRUST-005` | missing |
 | 45 | "When they disagree, Satchel shows you why" (outstanding check) | `TRUST-005` | missing |
-| 46 | Martinez client trust ledger | `TRUST-001`, `TRUST-002` | missing |
+| 46 | Martinez client trust ledger | `TRUST-001`, `TRUST-002` | done |
 | 47 | "Operating books · QuickBooks Online · synced" | `BOOKS-001` | missing |
 | 48 | "A secure portal for documents and messages" | `CLIENT-001`, `CLIENT-002` | missing |
 | 49 | "plus text" (mediation reminder, Reply C to confirm) | `CLIENT-005` | missing |
@@ -432,13 +432,13 @@ Every capability claim in br’s approved homepage register (17 October 2026, 60
 
 ## Status
 
-Judged from the code and tests at commit `bdde701059f93a1d3756bd8be3f1041f4a8b6f4d` (17 October 2026).
+Statuses are updated with each implementation round; evidence paths below name the public-door checks. The original 17 October 2026 baseline was `bdde701059f93a1d3756bd8be3f1041f4a8b6f4d`.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 13 | 1 | 0 | 14 |
-| Target and push further | 8 | 21 | 94 | 123 |
-| All | 21 | 22 | 94 | 137 |
+| Target and push further | 9 | 21 | 93 | 123 |
+| All | 22 | 22 | 93 | 137 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -457,12 +457,12 @@ Judged from the code and tests at commit `bdde701059f93a1d3756bd8be3f1041f4a8b6f
 | `SAT-013` | Keep the chosen product surfaces | published | done | `src/site/pages.tsx`; `src/site/docs/source.ts`; `src/ui/workspace.tsx`; `tests/site/navigation.test.mjs`; `tests/satchel/journey.test.mjs` |  |
 | `OSS-001` | Free and open source, MIT licensed | published | partial | `LICENSE`; `README.md`; `src/site/landing/Landing.tsx`; `src/site/run.ts`; `src/satchel/billing.ts` | MIT source, self-hosting instructions and the native unmetered workflow exist; page/docs agreement on direct third-party charges and an exercised provider-cost disclosure are absent. |
 | `FIRM-001` | Set up an empty US firm | target | done | `src/satchel/firm.ts`; `src/ui/firm.tsx`; `migrations/core/0025_firm.sql`; `tests/satchel/flows.test.mjs` |  |
-| `FIRM-002` | Separate finance and legal rights | target | partial | `src/satchel/session.ts`; `src/satchel/team.ts` | Only principal, lawyer and assistant roles exist; finance, accountant, client and trust authorities are missing. |
+| `FIRM-002` | Separate finance and legal rights | target | partial | `src/satchel/session.ts`; `src/satchel/team.ts` | Principal, lawyer, assistant and designated trust-officer authorities exist; finance/billing, accountant and client roles and their invoice-delivery, reconciliation and portal capabilities remain missing. |
 | `FIRM-003` | Enforce ethical walls | target | missing |  | Restricted matters support explicit ethical walls, excluding ordinary administrators and search, exports, notifications, connected repositories and agent context. A designated custodian records exceptional access with reason and an audit entry. |
 | `FIRM-004` | Secure sessions and connected secrets | target | partial | `src/auth.server.ts`; `src/satchel/session.ts`; `src/satchel/archive-policy.mjs` | Native sessions and archive exclusions exist; MFA, SSO and connector credential lifecycle do not. |
-| `FIRM-005` | Export a complete action audit | target | partial | `src/satchel/model.ts`; `src/satchel/team.ts` | Writes record action audit and principal can read recent rows; complete filtered export and provider/policy audit are missing. |
+| `FIRM-005` | Export a complete action audit | target | done | `src/satchel/audit.ts`; `src/satchel/audit-record.ts`; `migrations/core/0034_action_audit.sql`; `tests/satchel/audit.test.mjs`; `tests/satchel/audit-journey.test.mjs` | Filtered browse and complete streamed JSONL export; immutable actor/source/revision/decision/policy/outcome snapshots, transfer and reversal trails, import/retention/provider transitions, exact legacy preservation, archive custody and desktop/phone download journeys. |
 | `FIRM-006` | Apply retention and legal holds | target | done | `src/satchel/retention.ts`; `src/satchel/archive.ts`; `src/ui/retention.tsx`; `migrations/core/0026_retention.sql`; `tests/satchel/flows.test.mjs` |  |
-| `FIRM-007` | Operate and recover the owned system | target | partial | `src/satchel/archive.ts`; `src/satchel/archive-policy.mjs`; `README.md` | Current small-file archives restore; large-file, trust and paused provider-job recovery and the named health diagnostics are not implemented. |
+| `FIRM-007` | Operate and recover the owned system | target | partial | `src/satchel/archive.ts`; `src/satchel/archive-policy.mjs`; `README.md` | Small-file archives and native trust applications/reversals restore; large attachments, reconciled trust periods, paused provider jobs and the named health diagnostics remain missing. |
 | `FIRM-008` | Define custom roles and rate visibility | target | missing |  | Beyond FIRM-002’s built-in roles, the principal defines custom roles with per-area permissions: billing rates (none, own, all), operating and trust bank accounts (none, balances only, full transactions), reports (none, own matters, firm-wide), contacts, documents, billing and settings. Server-side handlers apply the role to every read, export, search result and report; a role change takes effect on the next request and is audited. Legal approval and trust authorization stay tied to FIRM-002’s lawyer and trust-officer authority, and a custom role cannot confer them. |
 | `BASE-001` | Preserve Base guarantees through replacements | target | done | `src/auth.server.ts`; `src/satchel/archive.ts`; `src/satchel/archive-policy.mjs`; `tests/satchel/flows.test.mjs` |  |
 | `INTAKE-001` | Publish conditional intake forms | target | missing |  | Staff publish branded accessible forms with conditional questions, consent, secure attachments, spam controls and practice-specific fields. Every submission becomes a permissioned lead with source and receipt; sensitive replies never appear in public URLs or notification subjects. |
@@ -546,7 +546,7 @@ Judged from the code and tests at commit `bdde701059f93a1d3756bd8be3f1041f4a8b6f
 | `TRUST-003` | Prevent overdrafts and commingling | target | done | `src/satchel/trust-guards.ts`; `src/satchel/trust-transactions.ts`; `tests/satchel/trust.test.mjs` | Cleared client/matter availability deducts pending and posted debits atomically; cross-client borrowing, negative amounts, bank-fee kinds and unsupported posting dates are refused with persistent attempted-action audit. |
 | `TRUST-004` | Authorize earned-fee trust transfers | target | partial | `src/satchel/trust-transfers.ts`; `src/satchel/trust-reversals.ts`; `tests/satchel/trust-transfer.test.mjs`; `tests/satchel/trust-transfer-journey.test.mjs` | Native exact reviewed applications, dual officers, reservations, manual bank uncertainty/clearance, paired operating payments and reviewed append-only reversals exist. BILL-001 batch request, BILL-009 collection, BILL-010 full client statements, TRUST-005 reconciliation and BOOKS-001 accounting sync remain missing; each inherits once-only application/reversal obligations before shipping. |
 | `TRUST-005` | Reconcile all three trust views | target | missing |  | For each statement period reconcile adjusted bank statement balance, trust bank register and sum of client subsidiary balances, showing outstanding checks/deposits and every difference. A trust officer signs and locks a dated reconciliation packet only when differences are resolved or explicitly recorded for correction. |
-| `TRUST-006` | Correct and lock trust history | target | missing |  | Posted trust entries are append-only; reversals name the original and reason, closed periods need authorized reopen, and each action retains person/time/source. Reconciliation reports and client trust statements reproduce any prior cutoff. |
+| `TRUST-006` | Correct and lock trust history | target | partial | `migrations/core/0030_trust_ledgers.sql`; `src/satchel/trust-reversals.ts`; `tests/satchel/trust-transfer.test.mjs` | Posted native trust entries and earned-fee application reversals are append-only with original IDs, person/time/source. Generic receipt/disbursement reversals, closed-period locks/reopen and reproducible cutoff statements/reconciliation packets remain missing. |
 | `TRUST-007` | Match banks and legal processor settlements | target | missing |  | Import OFX/QFX or bank CSV statements and connect authorized US bank feeds such as Plaid, matching LawPay/Stripe settlement references without duplicating receipts. Trust and operating feeds remain separate, with unresolved matches and stale-feed status visible. |
 | `TRUST-008` | Report trust and replenish retainers | target | missing |  | Trust officers and authorized clients obtain client trust statements, balance alerts, reconciliation packets and state trust-record reports reviewed by the firm. California (Rule 1.15 monthly reconciliation of client ledgers, account journal and bank statements, and Client Trust Account Protection Program annual reporting fields) and New York (Rule 1.15(d) required bookkeeping records, retained seven years) ship first; other states’ fields are configured and reviewed by the firm. Low retainers generate approved replenishment requests; they never auto-withdraw funds without valid authorization. |
 | `TRUST-009` | Produce checks and deposit records | target | missing |  | Authorized staff prepare numbered trust/operating checks and deposit slips tied to approved ledger transactions, support void/reissue with reasons and bank matching, and prevent duplicate check numbers or printing from authorizing a payment. |

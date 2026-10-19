@@ -1,0 +1,16 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdir} from 'node:fs/promises';
+import {chromium} from '@playwright/test';
+import {harness} from './harness.mjs';
+import {auditedTransfer} from './audit-fixture.mjs';
+const form=(p,n)=>p.locator('form',{has:p.getByRole('button',{name:n,exact:true})});
+for(const [width,height] of [[1440,1000],[390,844]])test(`FIRM-005 filter, inspect source/decision and download the transfer action audit at ${width}px`,async()=>{
+ const h=await harness(),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});try{
+  const f=await auditedTransfer(h),context=await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true}),page=await context.newPage();page.setDefaultTimeout(15000);
+  await page.goto(h.origin+'/signin');await page.getByLabel('Email').fill('owner@example.test');await page.getByRole('button',{name:'Email a sign-in link'}).click();await page.getByText('a sign-in link is on its way').waitFor();const mail=h.mails.toReversed().find(m=>m.to.includes('owner@example.test')),link=(mail.text??mail.html).match(/https:\/\/[^\s"<]+\/auth\/confirm\?token=[^\s"&<]+/)[0];await page.goto(link);await page.getByRole('button',{name:'Confirm'}).click();await page.waitForURL(/\/setup/);await page.getByLabel('Your name').fill('Avery Barton');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup'}).click();await page.waitForURL(/\/app/);await page.getByRole('heading',{level:1,name:'Firm',exact:true}).waitFor();await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Team & safety',exact:true}).click();await page.getByRole('heading',{name:'Action audit',exact:true}).waitFor();
+  const filter=form(page,'Filter action audit'),day=new Date().toISOString().slice(0,10);await filter.locator('select[name="matterId"]').selectOption(f.m.id);await filter.getByLabel('From date (UTC)').fill(day);await filter.getByLabel('Through date (UTC)').fill(day);await filter.getByLabel('Exact action (optional)').fill('trust.transfer_bank_cleared');await filter.getByRole('button',{name:'Filter action audit',exact:true}).click();await page.getByText(/^1 matching actions/).waitFor();const audit=page.locator('section',{has:page.getByRole('heading',{name:'Action audit',exact:true})});await audit.locator('summary').click();await audit.getByText(/owner · person/).waitFor();assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);
+  if(process.env.SATCHEL_SCREENSHOTS){await mkdir(process.env.SATCHEL_SCREENSHOTS,{recursive:true});await audit.screenshot({path:`${process.env.SATCHEL_SCREENSHOTS}/${width}-action-audit.png`});}
+  const downloadPromise=page.waitForEvent('download');await page.getByRole('link',{name:'Download matching audit JSONL'}).click();const download=await downloadPromise,stream=await download.createReadStream(),chunks=[];for await(const c of stream)chunks.push(c);const rows=Buffer.concat(chunks).toString().trim().split('\n').map(JSON.parse);assert.equal(rows.length,1);assert.equal(rows[0].action,'trust.transfer_bank_cleared');assert.equal(rows[0].detail.bankReference,'BANK-AUDIT-001');assert.equal(rows[0].evidence.record.payment.cents,100000);
+ }finally{await browser.close();await h.close();}
+});
