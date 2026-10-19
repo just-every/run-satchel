@@ -1,3 +1,4 @@
+import {trustState,createTrustAccount,createTrustLedger,prepareOpening,approveOpening} from './trust';
 import {reminderState,scheduleReminder,acknowledgeReminder,resolveReminder,cancelReminder} from './reminders';
 import {matterImport,matterImportState} from './imports/matters';
 import {numberSettings,saveNumberSettings} from './numbering';
@@ -77,3 +78,9 @@ api.get('/api/satchel/import',as((a,c)=>importState(db(c),a)));
 api.post('/api/satchel/import/:op',as(async(a,c)=>importAction(db(c),a,param(c,'op'),await body(c))));
 api.get('/api/satchel/backup',as((a,c)=>backup(db(c),a)));
 api.post('/api/satchel/restore',as(async(a,c)=>restore(db(c),a,await body(c))));
+
+api.get('/api/satchel/trust',as((a,c)=>trustState(db(c),a)));
+api.post('/api/satchel/trust/accounts',as(async(a,c)=>createTrustAccount(db(c),a,await body(c))));
+api.post('/api/satchel/trust/ledgers',as(async(a,c)=>createTrustLedger(db(c),a,await body(c))));
+api.post('/api/satchel/trust/openings',as(async(a,c)=>prepareOpening(db(c),a,await body(c))));
+api.post('/api/satchel/trust/openings/:id/approve',as(async(a,c)=>approveOpening(db(c),a,param(c),await body(c))));

@@ -1,0 +1,12 @@
+CREATE TABLE s_members_new(email TEXT PRIMARY KEY, name TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('lawyer','assistant','trust_officer')), active INTEGER NOT NULL DEFAULT 1);
+INSERT INTO s_members_new SELECT * FROM s_members;
+DROP TABLE s_members;
+ALTER TABLE s_members_new RENAME TO s_members;
+CREATE TABLE s_trust_accounts(id TEXT PRIMARY KEY,name TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN('trust','operating')),bank_reference TEXT NOT NULL,created_by TEXT NOT NULL,created_at TEXT NOT NULL);
+CREATE TABLE s_trust_ledgers(id TEXT PRIMARY KEY,account_id TEXT NOT NULL REFERENCES s_trust_accounts(id),matter_id TEXT NOT NULL REFERENCES s_matters(id),created_by TEXT NOT NULL,created_at TEXT NOT NULL,UNIQUE(account_id,matter_id));
+CREATE TABLE s_trust_openings(id TEXT PRIMARY KEY,account_id TEXT NOT NULL REFERENCES s_trust_accounts(id),ledger_id TEXT REFERENCES s_trust_ledgers(id),revision TEXT NOT NULL,cents INTEGER NOT NULL CHECK(cents>=0),statement_date TEXT NOT NULL,source_document_id TEXT NOT NULL REFERENCES s_documents(id),source_version INTEGER NOT NULL,source_digest TEXT NOT NULL,note TEXT NOT NULL,created_by TEXT NOT NULL,created_at TEXT NOT NULL);
+CREATE TABLE s_trust_entries(id TEXT PRIMARY KEY,account_id TEXT NOT NULL REFERENCES s_trust_accounts(id),ledger_id TEXT REFERENCES s_trust_ledgers(id),kind TEXT NOT NULL,cents INTEGER NOT NULL,effective_date TEXT NOT NULL,cleared_date TEXT,source_id TEXT NOT NULL UNIQUE,approved_by TEXT NOT NULL,at TEXT NOT NULL);
+CREATE TRIGGER s_trust_entries_no_update BEFORE UPDATE ON s_trust_entries BEGIN SELECT RAISE(ABORT,'posted trust entries are append-only'); END;
+CREATE TRIGGER s_trust_entries_no_delete BEFORE DELETE ON s_trust_entries BEGIN SELECT RAISE(ABORT,'posted trust entries are append-only'); END;
+CREATE TRIGGER s_trust_openings_no_update BEFORE UPDATE ON s_trust_openings BEGIN SELECT RAISE(ABORT,'opening reviews are immutable'); END;
+CREATE TRIGGER s_trust_openings_no_delete BEFORE DELETE ON s_trust_openings BEGIN SELECT RAISE(ABORT,'opening reviews are immutable'); END;

@@ -224,7 +224,7 @@ Use a US firm with lawyers, assistants, billing and trust staff plus client/paye
 
 ## Trust accounting
 
-- **TRUST-001 — Keep built-in IOLTA client ledgers.** **Status: missing.** Create an IOLTA account and two client ledgers, import reviewed opening balances and drill bank and client totals to their source records. Gap: Satchel itself maintains separate US IOLTA/trust bank registers, client/matter subsidiary ledgers and operating records in exact cents. Opening balances require dated source statements and approval; a shared bank balance never substitutes for each client’s owned funds.
+- **TRUST-001 — Keep built-in IOLTA client ledgers.** **Status: done.** Create an IOLTA account and two client ledgers, import reviewed opening balances and drill bank and client totals to their source records. Evidence: `tests/satchel/trust.test.mjs` and `tests/satchel/trust-journey.test.mjs` exercise exact-cent bank/subsidiary/operating totals, original statement versions and hashes, designated-officer review, stale revision and unauthorized refusals, replay, archive restore and the public controls at 1440/390. Dates are inclusive YYYY-MM-DD calendar dates and future openings are refused against the current UTC date.
 
 - **TRUST-002 — Record deposits and disbursements.** **Status: missing.** Deposit funds for two clients, record a third unidentified receipt and disburse a cleared authorized amount; inspect separate balances and a suspense exception. Gap: Record trust receipts, retainer deposits, checks, wires and authorized disbursements with payer/payee, matter, bank reference, deposit/cleared dates and supporting documents. Unidentified receipts remain suspense items rather than another client’s available money.
 
