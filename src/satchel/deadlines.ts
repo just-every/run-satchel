@@ -6,6 +6,8 @@
 import { atomic, audit, human, id, insist, integer, matter, need, now, rows, stmt, text, type Actor, type Data } from './model';
 import { documentAccess, documentGuard, matterGuard, visibleDocument } from './documents';
 
+export const deadlineKinds = ['deadline', 'limitation', 'hearing', 'filing'];
+
 export function calendarDate(value: unknown) {
  const day = text(value, 'Date', 10), parsed = new Date(day);
  insist(/^\d{4}-\d{2}-\d{2}$/.test(day) && Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === day, 'Use a valid YYYY-MM-DD date');
@@ -20,7 +22,7 @@ export function timezone(value: unknown) {
 }
 
 function deadlineJson(d: Data, events: Data[] = []) {
- return { id: d.id, matterId: d.matter_id, matterNumber:d.matter_number, title: d.title, date: d.date, timezone: d.timezone, source: d.source, documentId: d.document_id, version: d.document_version, status: d.status, active: d.status === 'confirmed', revision: d.revision, proposedBy: d.proposed_by, proposedChannel: d.proposed_channel, proposedAt: d.proposed_at, confirmedBy: d.confirmed_by, confirmedAt: d.confirmed_at, completedBy: d.completed_by, completedAt: d.completed_at, completionEvidence: d.completion_evidence, events: events.filter(e => e.deadline_id === d.id).map(e => ({ action: e.action, actor: e.actor, channel: e.channel, at: e.at, detail: JSON.parse(e.detail) })) };
+ return { id: d.id, matterId: d.matter_id, matterNumber:d.matter_number, title: d.title, kind: d.kind ?? 'deadline', owner: d.owner_email ?? null, date: d.date, timezone: d.timezone, source: d.source, documentId: d.document_id, version: d.document_version, status: d.status, active: d.status === 'confirmed', revision: d.revision, proposedBy: d.proposed_by, proposedChannel: d.proposed_channel, proposedAt: d.proposed_at, confirmedBy: d.confirmed_by, confirmedAt: d.confirmed_at, completedBy: d.completed_by, completedAt: d.completed_at, completionEvidence: d.completion_evidence, events: events.filter(e => e.deadline_id === d.id).map(e => ({ action: e.action, actor: e.actor, channel: e.channel, at: e.at, detail: JSON.parse(e.detail) })) };
 }
 
 export function visibility(actor: Actor) {
@@ -50,6 +52,7 @@ export async function listDeadlines(db: D1Database, actor: Actor, matterId: stri
 export async function proposeDeadline(db: D1Database, actor: Actor, matterId: string, body: Data) {
  need(actor, 'owner', 'lawyer', 'assistant');
  await matter(db, actor, matterId);
+ const kind = body.kind ?? 'deadline'; insist(deadlineKinds.includes(kind), 'Choose deadline, limitation, hearing or filing');
  const title = text(body.title, 'Deadline title', 500), date = calendarDate(body.date), zone = timezone(body.timezone), source = text(body.source, 'Source and citation', 4000);
  const document = body.documentId ? await visibleDocument(db, actor, text(body.documentId, 'Source document ID', 100)) : null;
  if (document) { insist(document.matter_id === matterId, 'Source document not found', 404); insist(!document.erased_at, 'Use an available original as the deadline source', 409); }
@@ -59,10 +62,10 @@ export async function proposeDeadline(db: D1Database, actor: Actor, matterId: st
  // original. No timezone conversion or court-rule calculation is implied.
  if (document) insist(version === document.current_version, 'Use the current source document version', 409);
  const deadlineId = actor.approval?.resultId ?? id(), revision = id(), at = now();
- const deadline = { id: deadlineId, matter_id: matterId, title, date, timezone: zone, source, document_id: document?.id ?? null, document_version: version, status: 'proposed', revision, proposed_by: actor.email, proposed_channel: actor.channel, proposed_at: at, confirmed_by: null, confirmed_at: null, completed_by: null, completed_at: null, completion_evidence: null };
+ const deadline = { id: deadlineId, matter_id: matterId, title, kind, owner_email: null, date, timezone: zone, source, document_id: document?.id ?? null, document_version: version, status: 'proposed', revision, proposed_by: actor.email, proposed_channel: actor.channel, proposed_at: at, confirmed_by: null, confirmed_at: null, completed_by: null, completed_at: null, completion_evidence: null };
  const writes = [...matterGuard(db, actor, matterId)];
  if (document) writes.push(...documentGuard(db, actor, document));
- writes.push(stmt(db, `INSERT INTO s_deadlines(id,matter_id,title,date,timezone,source,document_id,document_version,status,revision,proposed_by,proposed_channel,proposed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, deadlineId, matterId, title, date, zone, source, deadline.document_id, version, 'proposed', revision, actor.email, actor.channel, at), ...event(db, actor, deadline, 'propose', at));
+ writes.push(stmt(db, `INSERT INTO s_deadlines(id,matter_id,title,kind,date,timezone,source,document_id,document_version,status,revision,proposed_by,proposed_channel,proposed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, deadlineId, matterId, title, kind, date, zone, source, deadline.document_id, version, 'proposed', revision, actor.email, actor.channel, at), ...event(db, actor, deadline, 'propose', at));
  await atomic(db, actor, writes);
  return deadlineJson(deadline);
 }

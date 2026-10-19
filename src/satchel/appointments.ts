@@ -37,7 +37,7 @@ async function load(db: D1Database, where: string, ...params: unknown[]) {
 async function deadlinesIn(db: D1Database, actor: Actor, where: string, ...params: unknown[]) {
  const access = visibility(actor);
  const list = await rows(db, `SELECT t.*,m.matter_number FROM s_deadlines t JOIN s_matters m ON m.id=t.matter_id WHERE ${seeable('t.matter_id')} AND ${access.sql} AND ${where} ORDER BY t.date,t.id`, actor.role, actor.email, ...access.params, ...params);
- return list.map(d => ({ id: d.id, matterId: d.matter_id, matterNumber: d.matter_number, title: d.title, date: d.date, timezone: d.timezone, source: d.source, status: d.status }));
+ return list.map(d => ({ id: d.id, matterId: d.matter_id, matterNumber: d.matter_number, title: d.title, kind: d.kind, owner: d.owner_email ?? null, date: d.date, timezone: d.timezone, source: d.source, status: d.status, proposedChannel: d.proposed_channel, confirmedBy: d.confirmed_by, completedBy: d.completed_by }));
 }
 
 export async function matterCalendar(db: D1Database, actor: Actor, matterId: string) {

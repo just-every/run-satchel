@@ -59,7 +59,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "3574bef876d2089046a2fff0d596022f2a27e3a895078ed2ce2199470a74ef3a",
+      "sha256": "9df18498a1e9cf4cfeb94dbbda8f1651acd616db3a3ced86d8232952d5f1bd7d",
       "executable": false
     },
     "AGENTS.md": {
@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "ce2b436669f7195dbc23f87b75bdd7f346eaf075447b8d3a317b1c946e5b9b10",
+      "sha256": "57ac05af5e9d7d5b5ca9e5cb522867f19282aea5b5da8902ba60241845b7818c",
       "executable": false
     },
     "DEMO.md": {
@@ -277,6 +277,10 @@
     "migrations/core/0039_appointments.sql": {
       "sha256": "3b9d58da9fdd49d4cbfee2345a48fc012f0fcc3c74d37df3f66bf1acbba0ce5c",
       "executable": false
+    },
+    "migrations/core/0040_agenda.sql": {
+      "executable": false,
+      "sha256": "2cda485803c127180b3684540798c9753ee90d5b7f041fd5459f696a9ac360f7"
     },
     "ONBOARDING.md": {
       "sha256": "31dbf44f24514b9f626261911b9b83c806cacdf00dd23e49f465f3fdfebb715e",
@@ -2322,12 +2326,16 @@
       "sha256": "96d0c5b230dce78283ab17f3962282bcd6722da46f3d3a58fe71d03f02613a4d",
       "executable": false
     },
+    "src/satchel/agenda.ts": {
+      "executable": false,
+      "sha256": "8d9ed605605f8251d90292404ab87d89f2222a67d8ca641d7b188977aeacd162"
+    },
     "src/satchel/api.ts": {
-      "sha256": "3dc988a0a4b9971dfe9b3ea915cfe894cbde8f1a35cb739fff122a34205dbb21",
+      "sha256": "9f08769fa1f34cf7ee779e1256a26771e9d8ac7d5d50133063661e0d3b4038f6",
       "executable": false
     },
     "src/satchel/appointments.ts": {
-      "sha256": "f006f65fefa244cfdfa1bff363194a49472a388f53b99cab4739b140cca77665",
+      "sha256": "175349aeb540d57394bbad11c70f089c81ebe013900dc22bf92f52bfed073032",
       "executable": false
     },
     "src/satchel/archive-policy.d.mts": {
@@ -2343,7 +2351,7 @@
       "executable": false
     },
     "src/satchel/audit-record.ts": {
-      "sha256": "d485b9f07e462c1f426e556efbaf02f1384b0e0bb712b10bae41d87d1e6f9360",
+      "sha256": "cb8984c80f64a8f7aa7e3b83a5727c14bdd094f9c369738ffd447e5dfc3f3b5e",
       "executable": false
     },
     "src/satchel/audit.ts": {
@@ -2379,7 +2387,7 @@
       "executable": false
     },
     "src/satchel/deadlines.ts": {
-      "sha256": "74780d8dce2d836a5fe97f4fa966a52cb4fac0ac7736ae575ae2f769edc26689",
+      "sha256": "5d4b5bed172296b6fd8bc0f3282adef599af677eaacc944ab11f933c1980eb47",
       "executable": false
     },
     "src/satchel/document-sets.ts": {
@@ -2630,6 +2638,10 @@
       "sha256": "11274649bf30317b8508597fc2dc6243ec6c40b01f202b57ff2d6c5feb62ded2",
       "executable": false
     },
+    "src/ui/agenda.tsx": {
+      "executable": false,
+      "sha256": "03c80145bcfaef2b963dd153a5a0dee39de05f2480ffa1797afebc70b185a921"
+    },
     "src/ui/audit.tsx": {
       "sha256": "709b296482284139ad883f391e9978821955c5b6defe81f61159bdbb2bfc89b9",
       "executable": false
@@ -2655,7 +2667,7 @@
       "executable": false
     },
     "src/ui/deadlines.tsx": {
-      "sha256": "27be005f89ded5568eb0873299905f145932c411d20713c0828bf7462c8e4cf1",
+      "sha256": "53a0c25dc232750754a02d458c4febb50699abeb46f4ed274ba080592833dc56",
       "executable": false
     },
     "src/ui/document-sets.tsx": {
@@ -2727,7 +2739,7 @@
       "executable": false
     },
     "src/ui/workspace.tsx": {
-      "sha256": "1696bc3c5860b9d2d40dfaaadfa3c830e6a0707d06cfda1b87c7ff2b6e815df2",
+      "sha256": "076ac98b2a290707d28a449421937a35c6fc39156be677ef1354943cfb0f699d",
       "executable": false
     },
     "test-budget.json": {
@@ -2737,6 +2749,14 @@
     "tests/email-link.mjs": {
       "sha256": "730fa6a36741f1af9f821a5fce81d0941e55b0589eb4bdab0ef034779a5d0399",
       "executable": false
+    },
+    "tests/satchel/agenda-journey.test.mjs": {
+      "executable": false,
+      "sha256": "44936c792fa02df84a00842061c1fbf428ef12925daffc109cd78daedda8e9b0"
+    },
+    "tests/satchel/agenda.test.mjs": {
+      "executable": false,
+      "sha256": "cb435fde8c089281c9c0a04372197485ef3b47651e0f524cb64a79f6ef0abede"
     },
     "tests/satchel/audit-fixture.mjs": {
       "sha256": "86cff403d2fafdbb86925fa87f30f1de33501fd037cbc33678273ce1ebb79a09",
