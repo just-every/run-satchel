@@ -16,23 +16,24 @@ function Template({w,stages,run}:{w:Row;stages:Row[];run:Run}){
 }
 export function Workflows({matterId,actor,run,tick}:{matterId:string;actor:Row;run:Run;tick:number}){
  const [firm,setFirm]=useState<Row|null>(null),[mine,setMine]=useState<Row|null>(null),[stages,setStages]=useState<Row[]>([]),[preview,setPreview]=useState<Row|null>(null),[docs,setDocs]=useState<Row[]>([]);
- useEffect(()=>setPreview(null),[matterId]);
- useEffect(()=>{let active=true;Promise.all([api('/workflows'),api('/matters/'+matterId+'/workflows'),api('/stages'),api('/matters/'+matterId+'/documents')]).then(([w,m,s,d])=>{if(active){setFirm(w);setMine(m);setStages(s.stages);setDocs(d);}}).catch(e=>{if(active)void run(async()=>{throw e;});});return()=>{active=false;};},[matterId,tick]);
+ useEffect(()=>{setPreview(null);setMine(null);setDocs([]);},[matterId]);
+ useEffect(()=>{let active=true;Promise.all([api('/workflows'),api('/stages')]).then(([w,s])=>{if(active){setFirm(w);setStages(s.stages);}}).catch(e=>{if(active)void run(async()=>{throw e;});});return()=>{active=false;};},[tick]);
+ useEffect(()=>{let active=true;if(!matterId)return;Promise.all([api('/matters/'+matterId+'/workflows'),api('/matters/'+matterId+'/documents')]).then(([m,d])=>{if(active){setMine(m);setDocs(d);}}).catch(e=>{if(active)void run(async()=>{throw e;});});return()=>{active=false;};},[matterId,tick]);
  const counsel=['owner','lawyer'].includes(actor.role);
- if(!firm||!mine)return <section className="panel" aria-busy="true"><h2>Workflows</h2><p>Opening workflows…</p></section>;
- const runFor=(id:string)=>mine.runs.find((r:Row)=>r.id===id);
+ if(!firm||(matterId&&!mine))return <section className="panel" aria-busy="true"><h2>Workflows</h2><p>Opening workflows…</p></section>;
+ const runFor=(id:string)=>mine?.runs.find((r:Row)=>r.id===id);
  return <section className="panel"><h2>Workflows</h2>
-  <h3>This matter</h3>{!mine.runs.length&&<p>No workflow runs on this matter.</p>}
-  {mine.runs.map((r:Row)=><article className="record" key={r.id} aria-label={`Run ${r.workflowName} ${r.status}`}><strong>{r.workflowName} · version {r.version} · {r.status}</strong><p>Started {r.source==='manual'?'by counsel':r.source==='stage'?'by a stage transition (review below)':'on matter opening (review below)'}</p>
+  <h3>This matter</h3>{!matterId&&<p>Choose a matter to inspect its workflow runs.</p>}{mine&&!mine.runs.length&&<p>No workflow runs on this matter.</p>}
+  {mine?.runs.map((r:Row)=><article className="record" key={r.id} aria-label={`Run ${r.workflowName} ${r.status}`}><strong>{r.workflowName} · version {r.version} · {r.status}</strong><p>Started {r.source==='manual'?'by counsel':r.source==='stage'?'by a stage transition (review below)':'on matter opening (review below)'}</p>
    <ul>{r.steps.map((s:Row)=><li key={s.key}>{kindName[s.kind]}: {s.title} · {s.item?'created':s.approved?'approved, not created':'not approved'}</li>)}</ul>
    {counsel&&r.status!=='stopped'&&<details><summary>Stop {r.workflowName}</summary><Form label="Stop run" submit={d=>run(()=>api('/workflow-runs/'+r.id+'/stop',{revision:r.revision,reason:d.reason}),'Run stopped; completed work kept')}><Field label="Reason" name="reason"/></Form></details>}
    {counsel&&r.status==='stopped'&&<details><summary>Restart {r.workflowName}</summary><Form label="Restart run" submit={d=>run(()=>api('/workflow-runs/'+r.id+'/restart',{revision:r.revision,reason:d.reason}),'Run restarted; only missing steps created')}><Field label="Reason" name="reason"/></Form></details>}
   </article>)}
-  {counsel&&firm.workflows.length>0&&<Form label="Preview workflow" submit={d=>run(async()=>setPreview(await api('/matters/'+matterId+'/workflow-preview',{workflowId:d.workflowId})),'Workflow previewed')}><Field label="Workflow" name="workflowId"><select name="workflowId">{firm.workflows.map((w:Row)=><option key={w.id} value={w.id}>{w.name}</option>)}</select></Field></Form>}
+  {matterId&&counsel&&firm.workflows.length>0&&<Form label="Preview workflow" submit={d=>run(async()=>setPreview(await api('/matters/'+matterId+'/workflow-preview',{workflowId:d.workflowId})),'Workflow previewed')}><Field label="Workflow" name="workflowId"><select name="workflowId">{firm.workflows.map((w:Row)=><option key={w.id} value={w.id}>{w.name}</option>)}</select></Field></Form>}
   {preview&&<Form label="Approve selected steps" submit={d=>run(async()=>{await api('/matters/'+matterId+'/workflow-runs',{workflowId:preview.workflowId,version:preview.version,revision:preview.run?runFor(preview.run.id)?.revision:undefined,steps:preview.steps.filter((s:Row)=>d['s:'+s.key]==='on').map((s:Row)=>s.key)});setPreview(null);},'Selected steps created once')}>
    <p>Preview of {preview.name} version {preview.version}{preview.run?` (${preview.run.status} run)`:''}</p>
    {preview.steps.map((s:Row)=><label className="check" key={s.key}><input type="checkbox" name={'s:'+s.key} disabled={s.created} defaultChecked={s.created}/>{kindName[s.kind]}: {s.title} · {s.date}{s.time?' '+s.time:''}{s.created?' · already created':''}</label>)}</Form>}
-  {mine.documentRequests.length>0&&<><h3>Document requests</h3><p>Recorded in Satchel; nothing is sent to the client.</p>{mine.documentRequests.map((q:Row)=><article className="record" key={q.id} aria-label={'Request '+q.title}><strong>{q.title}</strong><p>{q.status==='open'?`Open · due ${q.dueDate}`:`Received ${q.receivedAt.slice(0,10)} · ${q.receivedBy}`}</p>
+  {mine&&mine.documentRequests.length>0&&<><h3>Document requests</h3><p>Recorded in Satchel; nothing is sent to the client.</p>{mine.documentRequests.map((q:Row)=><article className="record" key={q.id} aria-label={'Request '+q.title}><strong>{q.title}</strong><p>{q.status==='open'?`Open · due ${q.dueDate}`:`Received ${q.receivedAt.slice(0,10)} · ${q.receivedBy}`}</p>
    {counsel&&q.status==='open'&&docs.length>0&&<Form label="Mark received" submit={d=>run(()=>api('/document-requests/'+q.id+'/receive',{documentId:d.documentId}),'Request marked received')}><Field label="Received document" name="documentId"><select name="documentId">{docs.map((x:Row)=><option key={x.id} value={x.id}>{x.title}</option>)}</select></Field></Form>}</article>)}</>}
   <h3>Firm workflows</h3>{!firm.workflows.length&&<Empty>No workflows yet.</Empty>}
   {firm.workflows.map((w:Row)=><Template key={w.id} w={w} stages={stages} run={run}/>)}
