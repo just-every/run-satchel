@@ -437,8 +437,8 @@ Judged from the code and tests at commit `bdde701059f93a1d3756bd8be3f1041f4a8b6f
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 13 | 1 | 0 | 14 |
-| Target and push further | 3 | 21 | 99 | 123 |
-| All | 16 | 22 | 99 | 137 |
+| Target and push further | 4 | 21 | 98 | 123 |
+| All | 17 | 22 | 98 | 137 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
