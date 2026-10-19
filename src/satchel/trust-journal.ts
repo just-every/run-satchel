@@ -1,3 +1,4 @@
+import {historicalFundsGuard} from './trust-funds';
 import {atomic,audit,id,insist,now,rows,stmt,text,type Actor,type Data} from './model';
 import {accessGuard,availabilitySql,guard} from './trust-guards';
 import {officerGuard,sourceDocument,sourceGuard,trustOfficer} from './trust';
@@ -20,7 +21,7 @@ export async function decideJournalReversal(db:D1Database,actor:Actor,reversalId
  insist(b.revision===r.revision,'Review the exact correction revision',409);insist(['approved','declined'].includes(b.decision),'Choose approved or declined');const note=text(b.reviewNote,'Correction review note',1000),prior=await stmt(db,'SELECT * FROM s_trust_journal_decisions WHERE reversal_id=?',r.id).first<Data>();if(prior){insist(prior.decision===b.decision,'Correction already decided differently',409);return prior;}
  const source={id:r.source_document_id,version:r.source_version,digest:r.source_digest},writes:D1PreparedStatement[]=[];
  if(b.decision==='approved'){
-  if(ledger&&e.cents>0&&e.bank_cleared)writes.push(guard(db,`(${availabilitySql()})>=?`,ledger.id,ledger.id,'',ledger.id,'',e.cents));
+  if(ledger&&e.cents>0&&e.bank_cleared)writes.push(guard(db,`(${availabilitySql()})>=?`,ledger.id,ledger.id,'',ledger.id,'',e.cents),historicalFundsGuard(db,ledger.id,e.cents,r.effective_date>e.bank_cleared?r.effective_date:e.bank_cleared));
   writes.push(stmt(db,"INSERT INTO s_trust_entries VALUES(?,?,?,'journal_reversal',?,?,?,?,?,?)",id(),e.account_id,e.ledger_id,-e.cents,r.effective_date,e.bank_cleared&&e.bank_cleared>=r.effective_date?e.bank_cleared:null,r.id,actor.email,now()));
  }
  await atomic(db,actor,[officerGuard(db,actor),sourceGuard(db,source),...(ledger?[accessGuard(db,actor,ledger.matter_id)]:[]),...writes,stmt(db,'INSERT INTO s_trust_journal_decisions VALUES(?,?,?,?,?,?)',id(),r.id,b.decision,actor.email,note,now()),audit(db,actor,'trust.journal_reversal_'+b.decision,r.id,JSON.stringify({matterId:ledger?.matter_id,originalEntryId:e.id,reason:r.reason,source,note,day:r.effective_date}))]);return stmt(db,'SELECT * FROM s_trust_journal_decisions WHERE reversal_id=?',r.id).first<Data>();
