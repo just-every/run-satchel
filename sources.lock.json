@@ -59,7 +59,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "d75a92ad16d19f9d5758a57acfed0d31f926e13e146d5e744a4ebe167daa8319",
+      "sha256": "f892bf0a905c10b9e10db1357aaa25d53029c13d619577d00dc15b3adfb22b78",
       "executable": false
     },
     "AGENTS.md": {
@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "ea5c7c4d2b6900205094477e1af05c6bf767804ff2f5cd3f1a25f2ecae104b8f",
+      "sha256": "5fbdc78ca236fd01555d00996ce94b7f18202fe419f6b3a6606452ce7d9bed59",
       "executable": false
     },
     "DEMO.md": {
@@ -2375,7 +2375,7 @@
       "executable": false
     },
     "src/satchel/document-sets.ts": {
-      "sha256": "d036c454d62410735810e54b44bb36e920da458584775c57848c0cbdd3594f78",
+      "sha256": "e68942a27af51a3a1af07fd66364a481ae87a5809ea0189d45ba985a6a80d1ea",
       "executable": false
     },
     "src/satchel/documents.ts": {
@@ -2647,7 +2647,7 @@
       "executable": false
     },
     "src/ui/document-sets.tsx": {
-      "sha256": "bbc7504b4e0bb492a9661a9bf6a1eeaff3cb2d4c4d155f55b0c2a5e54329d665",
+      "sha256": "410a7e4b24b5eaf0c0e4883552b23df9e3778d13e2ee7f168b4b7d135a91061b",
       "executable": false
     },
     "src/ui/documents.tsx": {
@@ -2755,7 +2755,7 @@
       "executable": false
     },
     "tests/satchel/flows.test.mjs": {
-      "sha256": "891c032304ab2a490f6799fb7f28663cd2042ecef1f69a9f1fbd8ea15353d949",
+      "sha256": "42f653f1d8f3d5ef1a48ec9950782a8858c2bdfeb2550c0f37bd50dcdc12bca9",
       "executable": false
     },
     "tests/satchel/harness.mjs": {
@@ -2775,7 +2775,7 @@
       "executable": false
     },
     "tests/satchel/numbering.test.mjs": {
-      "sha256": "b4015356d2d8a8a12f0fc9b8b9fcdbd1c579e2e4cc5e14d3df9f8c9642219980",
+      "sha256": "32eca1269511f9d9ee06db77b5f7a43fc7c07d44bbde182317566040bdae5cad",
       "executable": false
     },
     "tests/satchel/reminder-journey.test.mjs": {

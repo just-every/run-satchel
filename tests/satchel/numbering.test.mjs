@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {harness,open} from './harness.mjs';
-test('MATTER-008 atomic firm and per-client numbers, collision avoidance, fixed records and permissioned search',async()=>{
+test('MATTER-008 and SAT-002 concurrent single-use reviews, atomic firm and per-client numbers, collision avoidance, fixed records and permissioned search',async()=>{
  const h=await harness();try{
   await h.json('/team',{email:'lawyer@example.test',name:'Marcus Lee',role:'lawyer'},h.owner);
   await h.json('/team/invite',{email:'lawyer@example.test'},h.owner);
@@ -17,6 +17,10 @@ test('MATTER-008 atomic firm and per-client numbers, collision avoidance, fixed 
   const parallel=await Promise.all(searches.map((s,i)=>make(s.id,'Concurrent '+i)));
   assert.deepEqual(parallel.map(m=>m.number_sequence).sort(),[1051,1052]);
   assert.equal(new Set(parallel.map(m=>m.matter_number)).size,2);
+  for(const used of searches)await h.json('/matters',{title:'Reused review',conflictId:used.id,confirmed:true,reviewNote:'Reviewed'},h.owner,409);
+  const older=await search(),contacts=await h.json('/contacts',undefined,h.owner),party=contacts.contacts.find(c=>c.name==='Riverbend Holdings LLC');
+  await h.json('/contacts',{id:party.id,revision:contacts.revision,kind:'organization',name:party.name,aliases:[],formerNames:[],emails:[],phones:['+1 212 555 0190'],addresses:[]},h.owner);
+  await h.json('/matters',{title:'Older review',conflictId:older.id,confirmed:true,reviewNote:'Reviewed'},h.owner,409);
   assert.equal(first.matter_number,`${new Date().getUTCFullYear()}-0001-1050`);
   const entry=await h.json('/matters/'+first.id+'/entries',{kind:'time',date:'2026-10-19',description:'Client advice',minutes:60,rateCents:30000},h.owner);
   let bill=await h.json('/matters/'+first.id+'/bills',{title:'Legal advice',date:'2026-10-19',entryIds:[entry.id]},h.owner);

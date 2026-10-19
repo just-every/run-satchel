@@ -8,7 +8,7 @@ export function DocumentSets({matterId,actor,documents,run,tick,children}:Props)
  useEffect(()=>{let active=true;api(base).then(s=>{if(active)setState(s);}).catch(e=>{if(active)void run(async()=>{throw e;});});return()=>{active=false;};},[matterId,tick]);
  useEffect(()=>{setSelected(ids=>ids.filter(id=>documents.some(d=>d.id===id&&!d.erasedAt)));},[documents]);
  const change=(key:string,value:any)=>setFilter(f=>({...f,[key]:value}));
- const visible=documents.filter(d=>(filter.folderId===undefined||d.folderId===filter.folderId)&&(!filter.tag||d.tags.includes(filter.tag))&&(!filter.documentType||d.documentType===filter.documentType)&&(!filter.query||`${d.title} ${d.documentType} ${d.tags.join(' ')}`.toLowerCase().includes(filter.query.toLowerCase()))&&(!filter.duplicatesOnly||d.duplicates.length));
+ const visible=documents.filter(d=>(filter.folderId===undefined||d.folderId===filter.folderId)&&(!filter.tag||d.tags.includes(filter.tag))&&(!filter.documentType||d.documentType===filter.documentType)&&(!filter.query||!d.erasedAt&&`${d.title} ${d.documentType} ${d.tags.join(' ')}`.toLowerCase().includes(filter.query.toLowerCase()))&&(!filter.duplicatesOnly||d.duplicates.length));
  const toggle=(id:string)=>{setPreview(undefined);setSelected(ids=>ids.includes(id)?ids.filter(v=>v!==id):[...ids,id]);};
  const editable=visible.filter(d=>!d.erasedAt&&(actor.role==='owner'||d.createdBy===actor.email));
  return <>

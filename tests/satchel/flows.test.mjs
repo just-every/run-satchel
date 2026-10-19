@@ -1,6 +1,7 @@
 import {test,before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
 import {harness,open} from './harness.mjs';
 let h,m,assistant,lawyer,privateDoc,sourceDoc,bill,originalCsv,oldArchive,newArchive;
 before(async()=>{h=await harness();m=await open(h);});
@@ -38,20 +39,33 @@ test('FIRM-001 principal enters, exports and imports US firm settings with prove
  assert.equal((await h.request('/api/satchel/firm/export',undefined,lawyer)).status,403);
  const exported=await(await h.request('/api/satchel/firm/export',undefined,h.owner)).text();
  const file=JSON.parse(exported);assert.deepEqual(file.settings,saved.settings);
+ const sha256=v=>createHash('sha256').update(v).digest('hex'),fresh=await harness();try{
+  assert.deepEqual([(await fresh.json('/state',undefined,fresh.owner)).matters.length,(await fresh.json('/firm',undefined,fresh.owner)).settings],[0,null]);
+  const moved=await fresh.json('/firm/import',{name:'satchel-firm-settings.json',content:exported},fresh.owner);
+  assert.deepEqual(moved.settings,saved.settings);assert.deepEqual([moved.provenance.source,moved.provenance.name,moved.provenance.digest],['import','satchel-firm-settings.json',sha256(exported)]);
+ }finally{await fresh.close();}
  file.settings.practiceAreas.push({code:'EST',name:'Estates'});const content=JSON.stringify(file);
  await h.json('/firm/import',{name:'other.json',content:JSON.stringify({settings:file.settings}),revision:saved.revision},h.owner,400);
  const imported=await h.json('/firm/import',{name:'barton-settings.json',content,revision:saved.revision},h.owner);
  assert.equal(imported.settings.practiceAreas.length,3);assert.equal(imported.provenance.source,'import');assert.equal(imported.provenance.name,'barton-settings.json');
- assert.equal(imported.provenance.digest,(await import('node:crypto')).createHash('sha256').update(content).digest('hex'));
+ assert.equal(imported.provenance.digest,sha256(content));
  assert.ok((await h.json('/audit?action=firm.settings_imported',undefined,h.owner)).records.some(a=>a.action==='firm.settings_imported'&&a.detail.includes(imported.provenance.digest)));
 });
-test('matter opening requires a recorded fresh human conflict review',async()=>{
+test('SAT-002 a party insert or update invalidates a conflict review; a fresh confirmed review opens exactly once',async()=>{
  await h.json('/matters',{title:'No clearance'},h.owner,400);
- const search=await h.json('/conflicts',{client:'Barton Workshop',adverse:'Other company'},h.owner);assert.ok(search.matches.some(p=>p.name==='Barton Workshop LLC'));
+ const review=()=>h.json('/conflicts',{client:'Barton Workshop',adverse:'Other company'},h.owner);
+ let stale=await review();assert.ok(stale.matches.some(p=>p.name==='Barton Workshop LLC'));
  await open(h,'Another matter','Pine Studio','Cedar Property');
- await h.json('/matters',{title:'Stale',conflictId:search.id,confirmed:true,reviewNote:'Reviewed'},h.owner,409);
- const latest=await h.json('/conflicts',{client:'Barton Workshop',adverse:'Other company'},h.owner);
+ await h.json('/matters',{title:'Stale',conflictId:stale.id,confirmed:true,reviewNote:'Reviewed'},h.owner,409);
+ stale=await review();
+ const contacts=await h.json('/contacts',undefined,h.owner),cedar=contacts.contacts.find(c=>c.name==='Cedar Property');
+ await h.json('/contacts',{id:cedar.id,revision:contacts.revision,kind:'organization',name:'Cedar Property',aliases:['Cedar Property Holdings'],formerNames:[],emails:[],phones:[],addresses:[]},h.owner);
+ await h.json('/matters',{title:'Stale',conflictId:stale.id,confirmed:true,reviewNote:'Reviewed'},h.owner,409);
+ const latest=await review();
  await h.json('/matters',{title:'Not confirmed',conflictId:latest.id,reviewNote:'Reviewed'},h.owner,400);
+ const opened=await h.json('/matters',{title:'Barton follow-on',conflictId:latest.id,confirmed:true,reviewNote:'Reviewed fresh matches; cleared to open'},h.owner);
+ assert.equal(opened.conflict_id,latest.id);assert.equal(opened.review_note,'Reviewed fresh matches; cleared to open');
+ await h.json('/matters',{title:'Replay',conflictId:latest.id,confirmed:true,reviewNote:'Reviewed'},h.owner,409);
 });
 test('time and disbursements form a reviewed immutable bill, with unique reservations',async()=>{
  const time=await h.json('/matters/'+m.id+'/entries',{kind:'time',date:'2026-10-15',description:'Review draft lease',minutes:90,rateCents:25000},assistant);
@@ -130,6 +144,9 @@ test('FIRM-006 legal holds block erasure and disposal; expired retention asks th
  const later=await h.json('/matters/'+m.id+'/documents',{name:'Current-terms.txt',mime:'text/plain',contentBase64:bytes('Current engagement terms.'),visibility:'matter'},h.owner);
  await h.json('/matters/'+m.id+'/access',{email:'lawyer@example.test'},h.owner);
  await h.json('/holds',{matterId:m.id,reason:'Anticipated fee dispute'},assistant,403);
+ const view=await h.json('/matters/'+m.id+'/document-sets/view',{name:'Engagement search',filters:{query:'engagement-2019'}},lawyer);
+ const viewCount=async()=>(await h.json('/matters/'+m.id+'/document-sets',undefined,lawyer)).views.find(v=>v.id===view.id).count;
+ assert.equal(await viewCount(),1);
  const hold=await h.json('/holds',{matterId:m.id,reason:'Anticipated fee dispute'},lawyer);
  const refused=await h.request('/api/satchel/documents/'+doc.id+'/erase',{confirm:doc.title,reason:'Client asked for deletion'},h.owner);
  assert.equal(refused.status,409);assert.match((await refused.json()).error,/legal hold/);
@@ -146,15 +163,18 @@ test('FIRM-006 legal holds block erasure and disposal; expired retention asks th
  assert.deepEqual(queue.due.map(d=>d.id),[doc.id]);assert.equal(queue.holds.find(x=>x.id===hold.id).released_by,'lawyer@example.test');
  await h.json('/documents/'+later.id+'/dispose',{confirm:later.title,reason:'Too early'},h.owner,409);
  await h.json('/documents/'+doc.id+'/dispose',{confirm:doc.title,reason:'Retention expired'},lawyer,403);
+ await h.json('/documents/'+doc.id+'/dispose',{confirm:doc.title,reason:'Retention expired'},assistant,403);
  const disposed=await h.json('/documents/'+doc.id+'/dispose',{confirm:doc.title,reason:'Retention period expired; approved by principal'},h.owner);
  assert.deepEqual(disposed.journal.originals.map(v=>v.version),[1,2]);
+ const noDerivatives={previews:0,ocrText:0,searchVectors:0,connectorCaches:0};assert.deepEqual(disposed.journal.derivatives,noDerivatives);
+ assert.equal(await viewCount(),0,'Document search no longer finds the disposed document');
  for(const version of [1,2])await h.json('/documents/'+doc.id+'/file?version='+version,undefined,h.owner,404);
  await h.json('/documents/'+doc.id+'/file',undefined,lawyer,404);
  assert.ok((await h.json('/matters/'+m.id+'/documents',undefined,lawyer)).find(d=>d.id===doc.id).erasedAt);
  assert.equal((await h.request('/api/satchel/documents/'+later.id+'/file',undefined,h.owner)).status,200);
  const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();
  assert.ok(!archive.includes(first)&&!archive.includes(second),'No disposed original remains in a new archive');
- const journal=(await h.json('/retention?matter='+m.id,undefined,lawyer)).disposals;assert.equal(journal.length,1);assert.equal(journal[0].approved_by,'owner@example.test');
+ const journal=(await h.json('/retention?matter='+m.id,undefined,lawyer)).disposals;assert.equal(journal.length,1);assert.equal(journal[0].approved_by,'owner@example.test');assert.deepEqual(journal[0].journal.derivatives,noDerivatives);
  await h.json('/documents/'+doc.id+'/dispose',{confirm:doc.title,reason:'Replay'},h.owner,409);
 });
 test('document erasure invalidates old archives and removes every version byte',async()=>{
@@ -164,7 +184,7 @@ test('document erasure invalidates old archives and removes every version byte',
  await h.json('/documents/'+privateDoc.id+'/file',undefined,h.owner,404);
  newArchive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(newArchive.includes('runeditrun-portability'));assert.notEqual(oldArchive,newArchive);
 });
-test('archive integrity, empty destination, later erasure journal and complete restoration',async()=>{
+test('FIRM-001 and archive integrity: empty destination, later erasure journal, complete restoration with firm settings provenance',async()=>{
  await h.json('/restore',{archive:newArchive,confirm:'RESTORE'},h.owner,409);
  const target=await harness();try{
   const fresh=await target.json('/state',undefined,target.owner);assert.deepEqual([fresh.matters.length,fresh.members.length,fresh.firm],[0,0,null],'A fresh installation starts with no sample clients, members or firm settings');

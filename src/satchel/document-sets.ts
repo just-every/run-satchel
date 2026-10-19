@@ -20,8 +20,9 @@ async function folder(db:D1Database,matterId:string,folderId:unknown) {
  const f=await stmt(db,'SELECT * FROM s_document_folders WHERE id=? AND matter_id=?',text(folderId,'Folder',100),matterId).first<Data>();
  insist(f,'Folder not found',404);return f;
 }
+// A search never finds an erased or disposed document (FIRM-006); its tombstone stays in the list.
 function matches(d:Data,f:Data) {
- return (f.folderId===undefined||d.folderId===f.folderId)&&(!f.tag||d.tags.includes(f.tag))&&(!f.documentType||d.documentType===f.documentType)&&(!f.query||`${d.title} ${d.documentType} ${d.tags.join(' ')}`.toLocaleLowerCase().includes(f.query.toLocaleLowerCase()))&&(!f.duplicatesOnly||d.duplicates.length>0);
+ return (f.folderId===undefined||d.folderId===f.folderId)&&(!f.tag||d.tags.includes(f.tag))&&(!f.documentType||d.documentType===f.documentType)&&(!f.query||!d.erasedAt&&`${d.title} ${d.documentType} ${d.tags.join(' ')}`.toLocaleLowerCase().includes(f.query.toLocaleLowerCase()))&&(!f.duplicatesOnly||d.duplicates.length>0);
 }
 export async function documentSetState(db:D1Database,actor:Actor,matterId:string) {
  await matter(db,actor,matterId);
