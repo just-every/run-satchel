@@ -190,7 +190,7 @@ All clauses inherit server-side authorization, matter confidentiality, stable so
 
 ### Time and fee arrangements
 
-- **TIME-001 — Run timers and timesheets.** Timekeepers start, pause, resume and switch matter timers, enter work on weekly timesheets, distinguish billable/nonbillable activity and submit reviewed time without overlapping unnoticed timers. A timekeeper also reviews and posts a complete drafted day with editable durations and UTBMS codes; posting is idempotent and shows exact daily hours and USD totals. **Acceptance evidence:** Start a timer on phone, resume on desktop, switch matters and submit the week; inspect one attributed entry per approved interval. Review a day of draft entries, edit durations and UTBMS codes, then Post day; inspect one attributed posted entry per accepted draft and exact daily hours/USD totals, with rejected drafts excluded and a repeated post producing no duplicate work.
+- **TIME-001 — Run timers and timesheets.** Timekeepers start, pause, resume and switch matter timers, enter work on weekly timesheets, distinguish billable/nonbillable activity and submit reviewed time without overlapping unnoticed timers. A timekeeper also reviews and posts a complete drafted day with editable durations and UTBMS codes; posting is idempotent and shows exact daily hours and USD totals. Every staff member keeps only their own timers and timesheet, on matters they see. Timers live on the server, so one started on a phone resumes on a desktop. A person has at most one running timer: starting or resuming another pauses the running one in the same step and says so, so timers never overlap unnoticed. Each closed timer interval (pause, stop or switch) drafts exactly one entry attributed to its timekeeper: elapsed time rounded up to a whole minute (at most 1,440, longer intervals labelled for review), dated by the interval start in the firm timezone (UTC before firm setup), at the firm default rate. The weekly timesheet runs Monday to Sunday; timekeepers add drafts and edit duration (1–1,440 minutes), billability and UTBMS task (letter plus three digits, e.g. L110) and activity (A plus three digits) codes, checked for format only until TIME-007 supplies firm code sets, or reject a draft. Post day or Submit week turns each remaining draft into one immutable entry, refused while the timekeeper has a running timer; rejected drafts are excluded, posted drafts are final and a repeated post records nothing. Daily and weekly totals show exact hours and minutes of non-rejected drafts and billable USD at minutes × hourly cents / 60, half-up to whole cents. Nonbillable entries are recorded but refused on bills. TIME-002 suggestions, TIME-003 rate schedules and TIME-007 code sets inherit these drafts and the posting rule before they ship. **Acceptance evidence:** Start a timer on phone, resume on desktop, switch matters and submit the week; inspect one attributed entry per approved interval. Review a day of draft entries, edit durations and UTBMS codes, then Post day; inspect one attributed posted entry per accepted draft and exact daily hours/USD totals, with rejected drafts excluded and a repeated post producing no duplicate work.
 
 - **TIME-002 — Capture email calendar and document activity.** With explicit staff permission, Microsoft Word/Outlook and Google email/calendar/document activity becomes private time suggestions linked to matter sources. Staff review duration and billability, merge overlaps and exclude personal content before anything is billed. **Acceptance evidence:** Work on an email, meeting and Word draft, review suggestions, discard personal activity and accept nonoverlapping time once despite repeated sync. Inspect the draft day assembled from the email, calendar and document sources, open each source reference, edit an inaccurate suggestion and pass only the reviewed suggestions to TIME-001 day posting.
 
@@ -373,7 +373,7 @@ Every capability claim in br’s approved homepage register (17 October 2026, 60
 | 2 | "matters" | `SAT-002`, `SAT-003` | done |
 | 3 | "deadlines" | `SAT-008` | done |
 | 4 | "documents" | `SAT-007`, `DOC-001` | partial |
-| 5 | "tracks your time" | `SAT-004`, `TIME-001` | partial |
+| 5 | "tracks your time" | `SAT-004`, `TIME-001` | done |
 | 6 | "keeps billing … in order" | `SAT-005`, `SAT-006`, `BILL-001` | partial |
 | 7 | "… and trust accounts in order" | `TRUST-001`, `TRUST-005` | done |
 | 8 | "100% free, open source" | `OSS-001` | partial |
@@ -404,7 +404,7 @@ Every capability claim in br’s approved homepage register (17 October 2026, 60
 | 33 | "clients sign online" (bank records authorization) | `DOC-007` | missing |
 | 34 | Matter documents card: folders and counts | `SAT-007`, `DOC-004` | done |
 | 35 | "Satchel drafts time entries from your email, calendar and documents" | `TIME-002` | missing |
-| 36 | "Review the day and post it" (UTBMS codes, Post day) | `TIME-001`, `TIME-007` | missing |
+| 36 | "Review the day and post it" (UTBMS codes, Post day) | `TIME-001`, `TIME-007` | partial |
 | 37 | Day total "6.4 h · $1,920.00" in exact USD | `SAT-004` | done |
 | 38 | "Hourly" | `SAT-004` | done |
 | 39 | "flat fee or contingency" | `TIME-004`, `TIME-005` | missing |
@@ -427,7 +427,7 @@ Every capability claim in br’s approved homepage register (17 October 2026, 60
 | 56 | "court-rule deadlines come from LawToolBox or CalendarRules" | `CAL-004`, `CAL-005` | missing |
 | 57 | "Word and Gmail stay your editors" | `DOC-005`, `DOC-009` | missing |
 | 58 | "lawyers make every legal call" | `SAT-002`, `SAT-005`, `SAT-008`, `SAT-009` | done |
-| 59 | "Oct 15 · 6.4 h posted · 0 deadlines open tonight" | `SAT-004`, `SAT-008`, `TIME-001` | partial |
+| 59 | "Oct 15 · 6.4 h posted · 0 deadlines open tonight" | `SAT-004`, `SAT-008`, `TIME-001` | done |
 | 60 | "Free and open source, MIT licensed." | `OSS-001` | partial |
 
 ## Status
@@ -437,8 +437,8 @@ Judged from the code and tests at commit `86152a8b33ab92d3c7892ee45ec25757d0d140
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 13 | 1 | 0 | 14 |
-| Target and push further | 20 | 18 | 85 | 123 |
-| All | 33 | 19 | 85 | 137 |
+| Target and push further | 21 | 18 | 84 | 123 |
+| All | 34 | 19 | 84 | 137 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -517,7 +517,7 @@ Judged from the code and tests at commit `86152a8b33ab92d3c7892ee45ec25757d0d140
 | `CLIENT-007` | Keep call records and authorized recordings | target | missing |  | Staff log calls, participants, advice notes and follow-ups and link recordings/transcripts obtained through a consented phone provider. Recording permission and US state consent policy are checked before recording; staff approve transcript-derived work. |
 | `CLIENT-008` | Send reviewed matter updates | target | missing |  | Matter events produce draft client updates with source links and outstanding client actions. Counsel reviews wording, recipients and promises; approved scheduled updates track delivery and unresolved replies through completion. |
 | `CLIENT-009` | Control sharing and communication preferences | target | missing |  | Record communication channels, language, accessibility needs, legal-representative authority and recipient verification; revoking consent or portal access stops new automated contact and invalidates outstanding links where possible while preserving historic delivered records. |
-| `TIME-001` | Run timers and timesheets | target | missing |  | Timekeepers start, pause, resume and switch matter timers, enter work on weekly timesheets, distinguish billable/nonbillable activity and submit reviewed time without overlapping unnoticed timers. |
+| `TIME-001` | Run timers and timesheets | target | done | `src/satchel/timers.ts`; `src/satchel/timesheets.ts`; `src/ui/timesheet.tsx`; `migrations/core/0046_timesheets.sql`; `tests/satchel/timesheets.test.mjs`; `tests/satchel/timesheets-journey.test.mjs` |  |
 | `TIME-002` | Capture email calendar and document activity | target | missing |  | With explicit staff permission, Microsoft Word/Outlook and Google email/calendar/document activity becomes private time suggestions linked to matter sources. Staff review duration and billability, merge overlaps and exclude personal content before anything is billed. |
 | `TIME-003` | Apply versioned rates and budgets | target | partial | `src/satchel/billing.ts` | Per-entry hourly USD rate exists; rate schedules, agreement precedence, budgets and nonbillable classification do not. |
 | `TIME-004` | Bill flat and recurring fees | target | missing |  | Flat-fee milestones, recurring retainers, capped fees and blended arrangements record earned timing, included work and approved exceptions. Recurring schedules produce reviewable draft bills without silently recognizing unearned trust funds as revenue. |

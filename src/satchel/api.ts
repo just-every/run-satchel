@@ -14,6 +14,8 @@ import {reminderState,scheduleReminder,acknowledgeReminder,resolveReminder,cance
 import {matterImport,matterImportState} from './imports/matters';
 import {numberSettings,saveNumberSettings} from './numbering';
 import {matterTypes,saveMatterType} from './matter-types';
+import {startTimer,timerAction} from './timers';
+import {timesheet,addDraft,reviewDraft,postTime} from './timesheets';
 import {matterFields,saveMatterFields} from './matter-fields';
 import {Hono,type Context} from 'hono';
 import {deploymentHealth} from '../base/deployment-health';
@@ -51,6 +53,12 @@ api.post('/api/satchel/matters/:id/closure-preview',as(async(a,c)=>closurePrevie
 api.post('/api/satchel/matters/:id/close',as(async(a,c)=>closeMatter(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/matters/:id/reopen',as(async(a,c)=>reopenMatter(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/state',as((a,c)=>workspace(db(c),a)));
+api.get('/api/satchel/time',as((a,c)=>timesheet(db(c),a,c.req.query('week')||undefined)));
+api.post('/api/satchel/timers',as(async(a,c)=>startTimer(db(c),a,await body(c))));
+api.post('/api/satchel/timers/:id/:op',as(async(a,c)=>timerAction(db(c),a,param(c),param(c,'op'),await body(c))));
+api.post('/api/satchel/time/drafts',as(async(a,c)=>addDraft(db(c),a,await body(c))));
+api.post('/api/satchel/time/drafts/:id',as(async(a,c)=>reviewDraft(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/time/post',as(async(a,c)=>postTime(db(c),a,await body(c))));
 api.get('/api/satchel/matter-types',as((a,c)=>matterTypes(db(c))));
 api.post('/api/satchel/matter-types',as(async(a,c)=>saveMatterType(db(c),a,await body(c))));
 api.get('/api/satchel/matters/:id/fields',as((a,c)=>matterFields(db(c),a,param(c))));
