@@ -432,7 +432,7 @@ Every capability claim in br’s approved homepage register (17 October 2026, 60
 
 ## Status
 
-Statuses are updated with each implementation round; evidence paths below name the public-door checks. The original 17 October 2026 baseline was `bdde701059f93a1d3756bd8be3f1041f4a8b6f4d`.
+Judged from the code and tests at commit `2af8d66b76aa14c451143a4428147e9859d14516` (19 October 2026).
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
