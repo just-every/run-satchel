@@ -70,7 +70,7 @@ export async function signTrustPeriod(db:D1Database,actor:Actor,periodId:string,
   guard(db,"COALESCE((SELECT kind FROM s_trust_period_events WHERE period_id=? ORDER BY sequence DESC LIMIT 1),'reopened')='reopened'",p.id),
   stmt(db,'INSERT INTO s_trust_packets VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',packetId,p.id,version,snapshot,hash,reviewed,built.report.balanced?1:0,correctionNote,actor.email,signedAt,source.id,source.version,source.digest),
   stmt(db,"INSERT INTO s_trust_period_events(id,period_id,packet_id,kind,actor,at,reason,source_document_id,source_version,source_digest) VALUES(?,?,?,'signed',?,?,?,?,?,?)",eventId,p.id,packetId,actor.email,signedAt,correctionNote,source.id,source.version,source.digest),
-  audit(db,actor,'trust.period_signed',p.id,JSON.stringify({packetId,version,digest:hash,balanced:built.report.balanced,correctionNote,source}))]);
+  audit(db,actor,'trust.period_signed',packetId,JSON.stringify({periodId:p.id,packetId,version,digest:hash,balanced:built.report.balanced,correctionNote,source}))]);
  return getTrustPacket(db,actor,packetId);
 }
 
@@ -86,7 +86,7 @@ export async function reopenTrustPeriod(db:D1Database,actor:Actor,periodId:strin
  await atomic(db,actor,[officerGuard(db,actor),accountTrustGuard(db,actor,p.account_id),sourceGuard(db,source),evidenceAccessGuard(db,actor,source.id),
   guard(db,'(SELECT sequence FROM s_trust_period_events WHERE period_id=? ORDER BY sequence DESC LIMIT 1)=?',p.id,last.sequence),
   stmt(db,"INSERT INTO s_trust_period_events(id,period_id,packet_id,kind,actor,at,reason,source_document_id,source_version,source_digest) VALUES(?,?,?,'reopened',?,?,?,?,?,?)",eventId,p.id,last.packet_id,actor.email,now(),reason,source.id,source.version,source.digest),
-  audit(db,actor,'trust.period_reopened',p.id,JSON.stringify({packetId:last.packet_id,reason,source}))]);
+  audit(db,actor,'trust.period_reopened',eventId,JSON.stringify({periodId:p.id,packetId:last.packet_id,reason,source}))]);
  return stmt(db,'SELECT * FROM s_trust_period_events WHERE id=?',eventId).first<Data>();
 }
 
