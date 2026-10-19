@@ -436,9 +436,9 @@ Judged from the code and tests at commit `bdde701059f93a1d3756bd8be3f1041f4a8b6f
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
-| Published | 12 | 2 | 0 | 14 |
+| Published | 13 | 1 | 0 | 14 |
 | Target and push further | 3 | 21 | 99 | 123 |
-| All | 15 | 23 | 99 | 137 |
+| All | 16 | 22 | 99 | 137 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -454,7 +454,7 @@ Judged from the code and tests at commit `bdde701059f93a1d3756bd8be3f1041f4a8b6f
 | `SAT-010` | Preview Clio contact move-in | published | done | `src/satchel/imports/clio.ts`; `src/satchel/imports.ts`; `tests/satchel/flows.test.mjs` |  |
 | `SAT-011` | Restore a private firm archive | published | done | `src/satchel/archive.ts`; `src/satchel/archive-policy.mjs`; `tests/satchel/flows.test.mjs` |  |
 | `SAT-012` | Erase originals with a restore fence | published | done | `src/satchel/archive.ts`; `tests/satchel/flows.test.mjs` |  |
-| `SAT-013` | Keep the chosen product surfaces | published | partial | `src/site/pages.tsx`; `src/site/docs/source.ts`; `src/ui/workspace.tsx`; `tests/site/navigation.test.mjs` | Site navigation is tested; the complete phone and desktop application journey is not exercised in checked-in tests. |
+| `SAT-013` | Keep the chosen product surfaces | published | done | `src/site/pages.tsx`; `src/site/docs/source.ts`; `src/ui/workspace.tsx`; `tests/site/navigation.test.mjs`; `tests/satchel/journey.test.mjs` |  |
 | `OSS-001` | Free and open source, MIT licensed | published | partial | `LICENSE`; `README.md`; `src/site/landing/Landing.tsx`; `src/site/run.ts`; `src/satchel/billing.ts` | MIT source, self-hosting instructions and the native unmetered workflow exist; page/docs agreement on direct third-party charges and an exercised provider-cost disclosure are absent. |
 | `FIRM-001` | Set up an empty US firm | target | done | `src/satchel/firm.ts`; `src/ui/firm.tsx`; `migrations/core/0025_firm.sql`; `tests/satchel/flows.test.mjs` |  |
 | `FIRM-002` | Separate finance and legal rights | target | partial | `src/satchel/session.ts`; `src/satchel/team.ts` | Only principal, lawyer and assistant roles exist; finance, accountant, client and trust authorities are missing. |
