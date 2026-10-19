@@ -1,11 +1,11 @@
 import {useEffect,useState} from 'react';
 import {api,Field,Form,type Row,type Run} from './common';
 export function MatterStages({matterId,state,run,tick}:{matterId:string;state:Row;run:Run;tick:number}){
- const [detail,setDetail]=useState<Row>(),[stageId,setStageId]=useState(''),[evidence,setEvidence]=useState<string[]>([]);
+ const [loadedTick,setLoadedTick]=useState(-1),[loadedMatter,setLoadedMatter]=useState(''),[detail,setDetail]=useState<Row>(),[stageId,setStageId]=useState(''),[evidence,setEvidence]=useState<string[]>([]);
  useEffect(()=>{setDetail(undefined);setEvidence([]);setStageId('');},[matterId]);
- useEffect(()=>{let active=true;if(matterId)api('/matters/'+matterId+'/stage').then(d=>{if(active)setDetail(d);}).catch(e=>{if(active)void run(async()=>{throw e;});});return()=>{active=false;};},[matterId,tick]);
+ useEffect(()=>{let active=true;if(matterId)api('/matters/'+matterId+'/stage').then(d=>{if(active){setDetail(d);setLoadedTick(tick);setLoadedMatter(matterId);}}).catch(e=>{if(active)void run(async()=>{throw e;});});return()=>{active=false;};},[matterId,tick]);
  const edit=['owner','lawyer'].includes(state.actor.role),base='/matters/'+matterId;
- return <section className="panel"><h2>Stages and milestones</h2>{!detail?<p>Choose a matter to inspect its stage.</p>:<>
+ return <section className="panel"><h2>Stages and milestones</h2><fieldset className="content" disabled={Boolean(matterId)&&(loadedTick!==tick||loadedMatter!==matterId)} aria-busy={Boolean(matterId)&&(loadedTick!==tick||loadedMatter!==matterId)}>{!detail?<p>Choose a matter to inspect its stage.</p>:<>
   <p>Current stage: {detail.stages.find((s:Row)=>s.id===detail.profile.stageId)?.name??'Unassigned'}</p>
   <p>Missing evidence: {detail.missingTypes.join(', ')||'None'}</p>
   {edit&&<><Form key={detail.profile.revision??'empty'} label="Save matter milestones" submit={d=>run(()=>api(base+'/stage-profile',{...d,lawyerEmail:d.lawyerEmail||null,risk:d.risk||null,milestone:d.milestone||null,milestoneDate:d.milestoneDate||null,revision:detail.profile.revision}),'Matter milestones saved')}>
@@ -21,5 +21,5 @@ export function MatterStages({matterId,state,run,tick}:{matterId:string;state:Ro
   <h3>Stage activity</h3>{detail.history.length?detail.history.map((event:Row)=><article className="record" key={event.id}><strong>{event.kind} · {event.actor}</strong><p>{event.at} · {event.detail.reason??'Profile updated'}</p><p>{event.detail.stageName??''}</p>{event.detail.error&&<p>{event.detail.error}</p>}{event.detail.documents?.map((d:Row)=><a key={d.id} href={'/api/satchel/documents/'+d.id+'/file?version='+d.currentVersion}>{d.title} · version {d.currentVersion}</a>)}</article>):<p>No transitions recorded.</p>}
  </>}
  {edit&&<details><summary>Configure firm stages</summary>{detail?.stages.map((s:Row)=><Form key={s.revision} label={'Update stage '+s.name} submit={d=>run(()=>api('/stages',{id:s.id,revision:s.revision,name:d.name,requiredTypes:String(d.requiredTypes).split(',').map(v=>v.trim()).filter(Boolean)}),'Stage updated')}><Field label="Edit stage name" name="name" value={s.name}/><Field label="Edit required document types" name="requiredTypes" value={s.requiredTypes.join(', ')} required={false}/></Form>)}<Form label="Create stage" submit={d=>run(()=>api('/stages',{name:d.name,requiredTypes:String(d.requiredTypes).split(',').map(s=>s.trim()).filter(Boolean)}),'Stage created')}><Field name="name" label="Stage name"/><Field name="requiredTypes" label="Required document types, separated by commas" required={false}/></Form></details>}
- </section>;
+ </fieldset></section>;
 }
