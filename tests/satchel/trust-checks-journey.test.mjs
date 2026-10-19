@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdir} from 'node:fs/promises';
+import {capturePanel} from './browser-shots.mjs';
 import {chromium} from '@playwright/test';
 import {harness} from './harness.mjs';
 import {foundation} from './trust-fixture.mjs';
@@ -12,7 +12,7 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`TRUST-009 reviews numb
  const trust=await transaction(false);let operating;await transaction(false,true);await transaction(true,true);
  const context=await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true,reducedMotion:'reduce'}),page=await context.newPage();page.setDefaultTimeout(15000);
  const notice=async text=>page.getByRole('status').getByText(text,{exact:true}).waitFor();
- const shot=async(name,target)=>{await target.scrollIntoViewIfNeeded();assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);if(process.env.SATCHEL_SCREENSHOTS){await mkdir(process.env.SATCHEL_SCREENSHOTS,{recursive:true});await page.screenshot({path:`${process.env.SATCHEL_SCREENSHOTS}/${width}-trust-checks-${name}.png`});}};
+ const shot=async(name,target)=>{assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,target,process.env.SATCHEL_SCREENSHOTS,`${width}-trust-checks-${name}`);};
  await page.goto(h.origin+'/signin');await page.getByLabel('Email',{exact:true}).fill('owner@example.test');await page.getByRole('button',{name:'Email a sign-in link'}).click();await page.getByText('a sign-in link is on its way').waitFor();const mail=h.mails.toReversed().find(m=>m.to.includes('owner@example.test')),link=(mail.text??mail.html).match(/https:\/\/[^\s"<]+\/auth\/confirm\?token=[^\s"&<]+/)[0];await page.goto(link);await page.getByRole('button',{name:'Confirm',exact:true}).click();await page.waitForURL(/\/setup/);await page.getByLabel('Your name').fill('Avery Barton');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup'}).click();await page.waitForURL(/\/app/);
  const tab=async()=>{await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Trust',exact:true}).click();await page.getByRole('heading',{name:'Numbered checks & deposit records',exact:true}).waitFor();};await tab();
  const opPanel=page.locator('section.panel',{has:page.getByRole('heading',{name:'Operating receipt & payment records',exact:true})}),opForm=form(opPanel,'Prepare operating transaction');
