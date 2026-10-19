@@ -45,3 +45,13 @@ Document originals are base64, at most 1 MiB each. The restore convenience route
 accepts `{archive,confirm:'RESTORE',journal?}` with up to 24 MB of JSON; the CLI
 supports larger archives. `journal` is the complete newer archive, validated for
 its erasure checkpoint. Import CSV details and fixtures are in IMPORTING.md.
+
+## Native trust records (TRUST-001, TRUST-002)
+
+The principal creates `POST /api/satchel/trust/accounts` with `name`, `kind` (`trust` or `operating`) and `bankReference`. Save a member with role `trust_officer` to designate them; an owner also needs this explicit designation to authorize trust work. Designation does not grant matter access or legal approval.
+
+Designated officers read `/trust` and `/trust/transactions` under the same `/api/satchel` prefix. `POST /trust/ledgers` takes `accountId` and `matterId`. `POST /trust/openings` takes `accountId`, `ledgerId` (trust only), integer `cents`, `statementDate`, `documentId` and `note`; `/trust/openings/:id/approve` takes its exact `revision` and `reviewNote`. The original document version and SHA-256 remain linked to that review.
+
+`POST /trust/transactions` takes a stable `requestKey`, `accountId`, `ledgerId` (empty for an unidentified receipt), `direction` (`receipt` or `disbursement`), `kind` (`receipt`, `retainer`, `check`, `wire`, `ach`, `cash`; disbursements use a payment method), integer positive `cents`, `counterparty`, `bankReference`, `receivedDate`, `depositDate`, optional bank-confirmed `clearedDate`, `documentId` and `purpose`. Replaying a request key with changed content is refused. `/trust/transactions/:id/decide` takes `revision`, `decision` (`approved` or `declined`) and `reviewNote`; replay never posts a second entry. Pending disbursements reserve that matter ledger’s cleared available funds. Unidentified receipts stay in suspense and never increase another client’s availability.
+
+`POST /trust/entries/:id/clear` records an actual bank result with `clearedDate`, `bankReference` and `documentId`. It appends evidence rather than rewriting the posted entry. These doors record bank activity; they do not claim to send money. Dates are inclusive YYYY-MM-DD dates, cannot be future UTC dates, and received/deposit/cleared dates must be ordered. New transaction posting dates cannot precede the bank register’s latest posting date. Agents have no trust authorization door.

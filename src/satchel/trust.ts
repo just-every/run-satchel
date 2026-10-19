@@ -1,5 +1,5 @@
 import {atomic,audit,date,human,id,insist,integer,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
-import {accessGuard,guard} from './trust-guards';
+import {accessGuard,guard,availabilitySql} from './trust-guards';
 import {visibleDocument} from './documents';
 export async function trustOfficer(db:D1Database,actor:Actor){
  human(actor);insist(await stmt(db,"SELECT 1 FROM s_members WHERE email=? AND role='trust_officer' AND active=1",actor.email).first(),'A designated trust officer must authorize this action',403);
@@ -8,11 +8,11 @@ export const officerGuard=(db:D1Database,actor:Actor)=>guard(db,"EXISTS(SELECT 1
 export async function trustState(db:D1Database,actor:Actor){
  await trustOfficer(db,actor);
  const accounts=await rows(db,'SELECT a.*,COALESCE((SELECT SUM(e.cents) FROM s_trust_entries e WHERE e.account_id=a.id),0) balance_cents FROM s_trust_accounts a ORDER BY a.created_at,a.id');
- const ledgers=await rows(db,`SELECT l.*,m.title,m.matter_number,m.client,COALESCE((SELECT SUM(e.cents) FROM s_trust_entries e WHERE e.ledger_id=l.id),0) balance_cents FROM s_trust_ledgers l JOIN s_matters m ON m.id=l.matter_id WHERE (?='owner' OR EXISTS(SELECT 1 FROM s_matter_access x WHERE x.matter_id=l.matter_id AND x.email=?)) ORDER BY l.created_at,l.id`,actor.role,actor.email);
+ const ledgers=await rows(db,`SELECT l.*,m.title,m.matter_number,m.client,COALESCE((SELECT SUM(e.cents) FROM s_trust_entries e WHERE e.ledger_id=l.id),0) balance_cents,(${availabilitySql('l.id',"''")}) available_cents FROM s_trust_ledgers l JOIN s_matters m ON m.id=l.matter_id WHERE (?='owner' OR EXISTS(SELECT 1 FROM s_matter_access x WHERE x.matter_id=l.matter_id AND x.email=?)) ORDER BY l.created_at,l.id`,actor.role,actor.email);
  const allowed=JSON.stringify(ledgers.map(l=>l.id));
  const openings=await rows(db,`SELECT o.*,e.approved_by,e.at approved_at FROM s_trust_openings o LEFT JOIN s_trust_entries e ON e.source_id=o.id WHERE (o.ledger_id IN (SELECT value FROM json_each(?)) OR (o.ledger_id IS NULL AND EXISTS(SELECT 1 FROM s_documents d WHERE d.id=o.source_document_id AND (?='owner' OR EXISTS(SELECT 1 FROM s_matter_access x WHERE x.matter_id=d.matter_id AND x.email=?))))) ORDER BY o.created_at,o.id`,allowed,actor.role,actor.email);
- const entries=await rows(db,`SELECT * FROM s_trust_entries WHERE ledger_id IN (SELECT value FROM json_each(?)) OR (ledger_id IS NULL AND ?='owner') ORDER BY effective_date,at,id`,allowed,actor.role);
- return {accounts,ledgers,openings,entries};
+ const entries=await rows(db,`SELECT e.*,COALESCE(e.cleared_date,(SELECT c.cleared_date FROM s_trust_clearings c WHERE c.entry_id=e.id)) reconciled_cleared_date FROM s_trust_entries e WHERE ledger_id IN (SELECT value FROM json_each(?)) OR (ledger_id IS NULL AND ?='owner') ORDER BY effective_date,at,id`,allowed,actor.role);
+ return {accounts,ledgers,openings,entries,clearings:await rows(db,`SELECT c.* FROM s_trust_clearings c JOIN s_trust_entries e ON e.id=c.entry_id WHERE e.ledger_id IN (SELECT value FROM json_each(?)) OR (e.ledger_id IS NULL AND ?='owner')`,allowed,actor.role)};
 }
 export async function createTrustAccount(db:D1Database,actor:Actor,b:Data){
  human(actor);need(actor,'owner');insist(['trust','operating'].includes(b.kind),'Choose trust or operating');const accountId=id();
@@ -28,12 +28,13 @@ export async function sourceDocument(db:D1Database,actor:Actor,documentId:string
  const v=await stmt(db,'SELECT * FROM s_document_versions WHERE document_id=? AND version=?',d.id,d.current_version).first<Data>();
  insist(v?.content_base64,'The supporting original is unavailable',409);return {id:d.id,version:v.version,digest:v.sha256};
 }
+export function sourceGuard(db:D1Database,source:{id:string;version:number;digest:string}){return guard(db,`EXISTS(SELECT 1 FROM s_documents d JOIN s_document_versions v ON v.document_id=d.id WHERE d.id=? AND d.erased_at IS NULL AND v.version=? AND v.sha256=? AND v.content_base64 IS NOT NULL)`,source.id,source.version,source.digest);}
 export async function prepareOpening(db:D1Database,actor:Actor,b:Data){
  await trustOfficer(db,actor);const account=await stmt(db,'SELECT * FROM s_trust_accounts WHERE id=?',text(b.accountId,'Account')).first<Data>();insist(account,'Account not found',404);
  const ledger=b.ledgerId?await stmt(db,'SELECT * FROM s_trust_ledgers WHERE id=? AND account_id=?',b.ledgerId,account.id).first<Data>():null;
  insist(account.kind==='operating'?!b.ledgerId:ledger,'Choose a subsidiary ledger for trust, or no ledger for operating');if(ledger)await matter(db,actor,ledger.matter_id);
  const source=await sourceDocument(db,actor,b.documentId,ledger?.matter_id),openingId=id(),revision=id(),day=date(b.statementDate);insist(day<=now().slice(0,10),'Opening statement cannot be in the future');
- await atomic(db,actor,[officerGuard(db,actor),...(ledger?[accessGuard(db,actor,ledger.matter_id)]:[]),stmt(db,'INSERT INTO s_trust_openings VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',openingId,account.id,ledger?.id??null,revision,integer(b.cents,'Opening USD cents',0,100000000000),day,source.id,source.version,source.digest,text(b.note,'Statement citation',1000),actor.email,now()),audit(db,actor,'trust.opening_prepared',openingId,JSON.stringify({source,day,cents:b.cents}))]);return {id:openingId,revision};
+ await atomic(db,actor,[officerGuard(db,actor),sourceGuard(db,source),...(ledger?[accessGuard(db,actor,ledger.matter_id)]:[]),stmt(db,'INSERT INTO s_trust_openings VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',openingId,account.id,ledger?.id??null,revision,integer(b.cents,'Opening USD cents',0,100000000000),day,source.id,source.version,source.digest,text(b.note,'Statement citation',1000),actor.email,now()),audit(db,actor,'trust.opening_prepared',openingId,JSON.stringify({source,day,cents:b.cents}))]);return {id:openingId,revision};
 }
 export async function approveOpening(db:D1Database,actor:Actor,openingId:string,b:Data){
  await trustOfficer(db,actor);const o=await stmt(db,'SELECT * FROM s_trust_openings WHERE id=?',openingId).first<Data>();insist(o,'Opening not found',404);insist(b.revision===o.revision,'Review the exact opening revision',409);

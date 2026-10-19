@@ -21,3 +21,22 @@ test('TRUST-001 reviewed source openings maintain separate bank, client/matter a
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),target=await harness();try{await target.json('/restore',{archive,confirm:'RESTORE'},target.owner);assert.deepEqual(await target.json('/trust',undefined,target.owner),s);}finally{await target.close();}
  }finally{await h.close();}
 });
+test('TRUST-002 records source-backed retainer, check, wire, disbursement and unidentified suspense; only bank evidence clears funds and replay posts once',async()=>{
+ const h=await harness();try{
+  const f=await foundation(h),base={accountId:f.account.id,ledgerId:f.ledger.id,direction:'receipt',kind:'retainer',cents:150000,counterparty:'Barton Workshop LLC',bankReference:'DEP-20261001-17',receivedDate:'2026-10-01',depositDate:'2026-10-01',documentId:f.source.id,purpose:'Client retainer deposit',requestKey:'barton-retainer'};
+  const post=async b=>{const t=await h.json('/trust/transactions',b,h.owner);await h.json('/trust/transactions/'+t.id+'/decide',{revision:t.revision,decision:'approved',reviewNote:'Exact bank record and client authorization reviewed'},h.owner);return t;};
+  const pending=await post(base);assert.equal((await h.json('/trust',undefined,h.owner)).ledgers.find(l=>l.id===f.ledger.id).available_cents,0);
+  await h.json('/trust/transactions',{...base,direction:'disbursement',kind:'wire',cents:1,requestKey:'uncleared-attempt'},h.owner,409);
+  let transactions=await h.json('/trust/transactions',undefined,h.owner),entry=transactions.find(t=>t.id===pending.id).entry_id;
+  await h.json('/trust/entries/'+entry+'/clear',{clearedDate:'2026-09-30',bankReference:'BANK-17',documentId:f.source.id},h.owner,400);
+  const clearance=await h.json('/trust/entries/'+entry+'/clear',{clearedDate:'2026-10-02',bankReference:'BANK-17',documentId:f.source.id},h.owner);
+  assert.equal((await h.json('/trust/entries/'+entry+'/clear',{clearedDate:'2026-10-02',bankReference:'BANK-17',documentId:f.source.id},h.owner)).id,clearance.id);
+  await post({...base,ledgerId:f.otherLedger.id,documentId:f.otherSource.id,kind:'check',cents:90000,counterparty:'Pine Studio',bankReference:'CHECK-991',clearedDate:'2026-10-02',requestKey:'pine-check'});
+  await post({...base,ledgerId:null,kind:'wire',cents:40000,counterparty:'Unknown remitter',bankReference:'WIRE-UNMATCHED-82',clearedDate:'2026-10-02',requestKey:'suspense-wire'});
+  const debit=await post({...base,direction:'disbursement',kind:'wire',cents:25000,counterparty:'County recorder',bankReference:'WIRE-883',receivedDate:'2026-10-03',depositDate:'2026-10-03',documentId:f.source.id,purpose:'Client authorized recording charge, authorization page 2',requestKey:'recording-disbursement'});
+  assert.equal((await h.json('/trust/transactions',{...base,direction:'disbursement',kind:'wire',cents:25000,counterparty:'County recorder',bankReference:'WIRE-883',receivedDate:'2026-10-03',depositDate:'2026-10-03',documentId:f.source.id,purpose:'Client authorized recording charge, authorization page 2',requestKey:'recording-disbursement'},h.owner)).id,debit.id);
+  await h.json('/trust/transactions/'+debit.id+'/decide',{revision:debit.revision,decision:'approved',reviewNote:'Replay'},h.owner);
+  await h.restart();const s=await h.json('/trust',undefined,h.owner);assert.equal(s.accounts.find(a=>a.id===f.account.id).balance_cents,255000);assert.equal(s.ledgers.find(l=>l.id===f.ledger.id).balance_cents,125000);assert.equal(s.ledgers.find(l=>l.id===f.ledger.id).available_cents,125000);assert.equal(s.ledgers.find(l=>l.id===f.otherLedger.id).available_cents,90000);assert.equal(s.entries.filter(e=>e.ledger_id===null).length,1);assert.equal(s.entries.length,4);assert.equal(s.clearings.length,1);assert.equal((await h.json('/trust/transactions',undefined,h.owner)).find(t=>t.id===pending.id).reconciled_cleared_date,'2026-10-02');
+  const audit=(await h.json('/team',undefined,h.owner)).audit;assert.ok(audit.some(a=>a.action==='trust.transaction_refused'));
+ }finally{await h.close();}
+});

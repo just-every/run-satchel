@@ -1,3 +1,4 @@
+import {transactionState,prepareTransaction,decideTransaction,recordClearance} from './trust-transactions';
 import {trustState,createTrustAccount,createTrustLedger,prepareOpening,approveOpening} from './trust';
 import {reminderState,scheduleReminder,acknowledgeReminder,resolveReminder,cancelReminder} from './reminders';
 import {matterImport,matterImportState} from './imports/matters';
@@ -84,3 +85,8 @@ api.post('/api/satchel/trust/accounts',as(async(a,c)=>createTrustAccount(db(c),a
 api.post('/api/satchel/trust/ledgers',as(async(a,c)=>createTrustLedger(db(c),a,await body(c))));
 api.post('/api/satchel/trust/openings',as(async(a,c)=>prepareOpening(db(c),a,await body(c))));
 api.post('/api/satchel/trust/openings/:id/approve',as(async(a,c)=>approveOpening(db(c),a,param(c),await body(c))));
+
+api.get('/api/satchel/trust/transactions',as((a,c)=>transactionState(db(c),a)));
+api.post('/api/satchel/trust/transactions',as(async(a,c)=>prepareTransaction(db(c),a,await body(c))));
+api.post('/api/satchel/trust/transactions/:id/decide',as(async(a,c)=>decideTransaction(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/trust/entries/:id/clear',as(async(a,c)=>recordClearance(db(c),a,param(c),await body(c))));
