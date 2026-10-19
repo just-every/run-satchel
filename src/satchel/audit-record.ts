@@ -2,6 +2,8 @@
 // Explicit columns exclude credentials and original file bytes.
 const record=(table:string,columns:string[],matter='NULL',revision='NULL',where='x.id=i.object_id',extra:Record<string,string>={})=>`(SELECT json_object('recordType','${table}','matterId',${matter},'revision',${revision},${[...columns.flatMap(c=>[`'${c}'`,`x.${c}`]),...Object.entries(extra).flatMap(([k,v])=>[`'${k}'`,v])].join(',')}) FROM ${table} x WHERE ${where} LIMIT 1)`;
 const contexts=[
+ record('s_matter_stages',['id','name','position','updated_by','updated_at'],'NULL','x.revision',"x.id=i.object_id AND i.action='matter.stage_configured'",{requiredTypes:'json(x.required_types)'}),
+ record('s_matter_stage_events',['id','kind','actor','at'],'x.matter_id',"json_extract(x.detail,'$.revision')",undefined,{detail:'json(x.detail)'}),
  record('s_contact_profiles',['party_id','kind','display_name','aliases','former_names','emails','phones','addresses','updated_by','updated_at'],'NULL','x.revision',"x.party_id=i.object_id AND i.action IN ('contact.created','contact.profile_updated')"),
  record('s_contact_relationships',['id','from_id','to_id','relationship','created_by','created_at']),
  record('s_contact_matter_roles',['id','party_id','matter_id','role','created_by','created_at'],'x.matter_id'),

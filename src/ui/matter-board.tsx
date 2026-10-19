@@ -1,0 +1,16 @@
+import {useEffect,useState} from 'react';
+import {api,type Row,type Run} from './common';
+export function MatterBoard({state,choose,run,tick}:{state:Row;choose:(id:string)=>void;run:Run;tick:number}){
+ const [data,setData]=useState<Row>(),[filters,setFilters]=useState<Row>({}),[view,setView]=useState('list');
+ useEffect(()=>{let active=true;api('/matter-board?'+new URLSearchParams(filters)).then(d=>{if(active)setData(d);}).catch(e=>{if(active)void run(async()=>{throw e;});});return()=>{active=false;};},[filters,tick]);
+ const change=(key:string,value:string)=>setFilters(f=>({...f,[key]:value}));
+ const card=(m:Row)=><article key={m.id} className="record"><button className="quiet" aria-label="Inspect stages" aria-describedby={'stage-card-'+m.id} onClick={()=>choose(m.id)}>{m.matterNumber} · {m.title}</button><span id={'stage-card-'+m.id}>Stage summary for {m.title}</span><p>{m.stageName??'Unassigned'} · {m.profile.risk||'No risk label'} · {m.profile.lawyerEmail||'No responsible lawyer'}</p><p>{m.profile.milestone||'No next milestone'} {m.profile.milestoneDate??''}{m.milestoneOverdue?' · Overdue milestone':''}</p><p>Missing evidence: {m.missingTypes.join(', ')||'None'}</p>{m.blockedTasks?.map((t:Row)=><p key={t.id}>Blocked: {t.title}</p>)}{m.overdueTasks?.map((t:Row)=><p key={t.id}>Overdue task: {t.title}</p>)}{m.overdueDeadlines?.map((d:Row)=><p key={d.id}>Overdue deadline: {d.title}</p>)}</article>;
+ return <section className="panel"><h2>Matter stages</h2><div className="grid">
+  <label>Filter by lawyer<select value={filters.lawyer??''} onChange={e=>change('lawyer',e.target.value)}><option value="">All lawyers</option>{[...state.members.filter((m:Row)=>m.active&&['owner','lawyer'].includes(m.role)),...(state.actor.role==='owner'&&!state.members.some((m:Row)=>m.email===state.actor.email)?[state.actor]:[])].map((m:Row)=><option key={m.email} value={m.email}>{m.name}</option>)}</select></label>
+  <label>Filter by practice<select value={filters.practice??''} onChange={e=>change('practice',e.target.value)}><option value="">All practices</option>{state.firm?.practiceAreas.map((p:Row)=><option key={p.code} value={p.code}>{p.name}</option>)}</select></label>
+  <label>Filter by stage<select value={filters.stage??''} onChange={e=>change('stage',e.target.value)}><option value="">All stages</option>{data?.stages.map((s:Row)=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
+  <label>Filter by risk<input value={filters.risk??''} onChange={e=>change('risk',e.target.value)}/></label><label>Filter by next milestone<input value={filters.milestone??''} onChange={e=>change('milestone',e.target.value)}/></label>
+ </div><label>Stage view<select value={view} onChange={e=>setView(e.target.value)}><option value="list">List</option><option value="kanban">Kanban</option></select></label>
+ {!data?<p>Opening matter stages…</p>:<><p>{data.matters.length} matters in this view</p>{view==='list'?data.matters.map(card):<div className="grid">{[{id:null,name:'Unassigned'},...data.stages].map((s:Row)=><section key={s.id??'unassigned'} aria-label={s.name}><h3>{s.name}</h3>{data.matters.filter((m:Row)=>m.profile.stageId===s.id).map(card)}</section>)}</div>}</>}
+ </section>;
+}

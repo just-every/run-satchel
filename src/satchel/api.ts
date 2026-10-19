@@ -1,3 +1,4 @@
+import {stageDefinitions,saveStageDefinition,matterBoard,matterStageState,saveStageProfile,transitionMatterStage} from './matter-stages';
 import {contactState,contactDetail,saveContact,contactAction} from './contacts';
 import {previewContactMerge,applyContactMerge} from './contact-merge';
 import {documentSetState,documentSetAction} from './document-sets';
@@ -43,6 +44,12 @@ const asAgent=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>c.json(await fn(
 api.get('/api/satchel/numbering',as((a,c)=>numberSettings(db(c))));
 api.post('/api/satchel/numbering',as(async(a,c)=>saveNumberSettings(db(c),a,await body(c))));
 api.get('/api/satchel/state',as((a,c)=>workspace(db(c),a)));
+api.get('/api/satchel/stages',as((a,c)=>stageDefinitions(db(c))));
+api.post('/api/satchel/stages',as(async(a,c)=>saveStageDefinition(db(c),a,await body(c))));
+api.get('/api/satchel/matter-board',as((a,c)=>matterBoard(db(c),a,c.req.query())));
+api.get('/api/satchel/matters/:id/stage',as((a,c)=>matterStageState(db(c),a,param(c))));
+api.post('/api/satchel/matters/:id/stage-profile',as(async(a,c)=>saveStageProfile(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/matters/:id/stage-transition',as(async(a,c)=>transitionMatterStage(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/contacts',as((a,c)=>contactState(db(c),a,(c.req.query('q')??'').slice(0,500))));
 api.get('/api/satchel/contacts/:id',as((a,c)=>contactDetail(db(c),a,param(c))));
 api.post('/api/satchel/contacts',as(async(a,c)=>saveContact(db(c),a,await body(c))));
