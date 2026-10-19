@@ -127,7 +127,12 @@ id,display_number,description,client,adverse_party
 843,2019-0043,Boundary dispute,Pine Studio,Cedar Property
 ```
 
-All five cells are required and must be free of control characters. The file
+An optional `case_number` column (Satchel input extension, at most 100
+characters without control characters) records the court case number on the
+imported matter's fields with its source row as provenance (MATTER-001); an
+empty cell records none.
+
+All five required cells must be present and free of control characters. The file
 limits are 1–1,000 matters and 1 MB of UTF-8 CSV. BOM, LF/CRLF, quoted commas,
 escaped quotes and quoted newlines are parsed; mapped cells still have the
 field restrictions above. Unknown columns are retained in the original and raw

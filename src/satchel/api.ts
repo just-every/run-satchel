@@ -13,6 +13,8 @@ import {trustState,createTrustAccount,createTrustLedger,prepareOpening,approveOp
 import {reminderState,scheduleReminder,acknowledgeReminder,resolveReminder,cancelReminder} from './reminders';
 import {matterImport,matterImportState} from './imports/matters';
 import {numberSettings,saveNumberSettings} from './numbering';
+import {matterTypes,saveMatterType} from './matter-types';
+import {matterFields,saveMatterFields} from './matter-fields';
 import {Hono,type Context} from 'hono';
 import {deploymentHealth} from '../base/deployment-health';
 import {type Bindings,runtimeBindings} from '../auth.server';
@@ -49,6 +51,10 @@ api.post('/api/satchel/matters/:id/closure-preview',as(async(a,c)=>closurePrevie
 api.post('/api/satchel/matters/:id/close',as(async(a,c)=>closeMatter(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/matters/:id/reopen',as(async(a,c)=>reopenMatter(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/state',as((a,c)=>workspace(db(c),a)));
+api.get('/api/satchel/matter-types',as((a,c)=>matterTypes(db(c))));
+api.post('/api/satchel/matter-types',as(async(a,c)=>saveMatterType(db(c),a,await body(c))));
+api.get('/api/satchel/matters/:id/fields',as((a,c)=>matterFields(db(c),a,param(c))));
+api.post('/api/satchel/matters/:id/fields',as(async(a,c)=>saveMatterFields(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/stages',as((a,c)=>stageDefinitions(db(c))));
 api.post('/api/satchel/stages',as(async(a,c)=>saveStageDefinition(db(c),a,await body(c))));
 api.get('/api/satchel/matter-board',as((a,c)=>matterBoard(db(c),a,c.req.query())));
