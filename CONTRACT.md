@@ -122,7 +122,7 @@ All clauses inherit server-side authorization, matter confidentiality, stable so
 
 - **DOC-003 — Search OCR and full text.** OCR scanned records and index permitted document text, metadata and email with matter/date/type filters, exact page snippets and index freshness. Search applies matter walls before snippets and includes deletion of all derivatives on disposal. **Acceptance evidence:** Find a phrase only present in a scanned page, open its citation, revoke access and confirm snippets and cached results disappear.
 
-- **DOC-004 — Organize and act on document sets.** Folders, tags, document types, saved views, bulk filing and duplicate detection support everyday matter navigation. Bulk operations preview their destinations and permissions and retain original identity and version history. **Acceptance evidence:** File a mixed production into two matter folders, catch a duplicate and bulk-retag it without exposing private files or replacing originals. Open the matter document folders and compare each displayed file count with its accessible contents before and after filing; private files contribute neither a name nor a count for an unauthorized reader.
+- **DOC-004 — Organize and act on document sets.** Folders, tags, document types, saved views, bulk filing and duplicate detection support everyday matter navigation. Bulk operations preview their destinations and permissions and retain original identity and version history. Saved filters belong to the person within the matter, grant no sharing access and recheck current document access on every use. Metadata filing uses the existing uploader-or-principal edit authority and never changes readers. Folder, facet, saved-view and duplicate counts are computed only from accessible originals; duplicates are SHA-256 matches across retained versions of distinct documents, each original retained separately. Applying a recorded preview requires the same person and role, current matter/document access and unchanged document revisions; a preview applies once. **Acceptance evidence:** File a mixed production into two matter folders, catch a duplicate and bulk-retag it without exposing private files or replacing originals. Open the matter document folders and compare each displayed file count with its accessible contents before and after filing; private files contribute neither a name nor a count for an unauthorized reader.
 
 - **DOC-005 — Work in Microsoft Word.** Open matter DOCX files in Word through Microsoft 365, preserve tracked changes, comments and original versions, and save a new version back to the correct matter with conflict detection and access revocation. **Acceptance evidence:** Open a matter brief in Word, edit tracked changes, save back, race another save and inspect a visible conflict and both retained versions.
 
@@ -402,7 +402,7 @@ Every capability claim in br’s approved homepage register (17 October 2026, 60
 | 31 | "Every scan is searchable" (search hit in the deposition transcript) | `DOC-003` | missing |
 | 32 | "templates fill from the matter" (notice of deposition) | `DOC-006` | missing |
 | 33 | "clients sign online" (bank records authorization) | `DOC-007` | missing |
-| 34 | Matter documents card: folders and counts | `SAT-007`, `DOC-004` | partial |
+| 34 | Matter documents card: folders and counts | `SAT-007`, `DOC-004` | done |
 | 35 | "Satchel drafts time entries from your email, calendar and documents" | `TIME-002` | missing |
 | 36 | "Review the day and post it" (UTBMS codes, Post day) | `TIME-001`, `TIME-007` | missing |
 | 37 | Day total "6.4 h · $1,920.00" in exact USD | `SAT-004` | done |
@@ -437,8 +437,8 @@ Judged from the code and tests at commit `86152a8b33ab92d3c7892ee45ec25757d0d140
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 13 | 1 | 0 | 14 |
-| Target and push further | 11 | 20 | 92 | 123 |
-| All | 24 | 21 | 92 | 137 |
+| Target and push further | 12 | 20 | 91 | 123 |
+| All | 25 | 21 | 91 | 137 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -486,7 +486,7 @@ Judged from the code and tests at commit `86152a8b33ab92d3c7892ee45ec25757d0d140
 | `DOC-001` | Store real working files | target | partial | `src/satchel/documents.ts` | Original-byte storage is limited to 1 MiB and has no resumable object storage, quarantine or large-file journey. |
 | `DOC-002` | Preview and compare versions | target | partial | `src/satchel/documents.ts` | Original versions exist; previews, annotation, comparison and connected-edit conflict handling are absent. |
 | `DOC-003` | Search OCR and full text | target | missing |  | OCR scanned records and index permitted document text, metadata and email with matter/date/type filters, exact page snippets and index freshness. Search applies matter walls before snippets and includes deletion of all derivatives on disposal. |
-| `DOC-004` | Organize and act on document sets | target | missing |  | Folders, tags, document types, saved views, bulk filing and duplicate detection support everyday matter navigation. Bulk operations preview their destinations and permissions and retain original identity and version history. |
+| `DOC-004` | Organize and act on document sets | target | done | `src/satchel/document-sets.ts`; `src/ui/document-sets.tsx`; `tests/satchel/document-sets.test.mjs`; `tests/satchel/document-sets-journey.test.mjs` |  |
 | `DOC-005` | Work in Microsoft Word | target | missing |  | Open matter DOCX files in Word through Microsoft 365, preserve tracked changes, comments and original versions, and save a new version back to the correct matter with conflict detection and access revocation. |
 | `DOC-006` | Assemble legal documents and forms | target | missing |  | Versioned Word/PDF templates merge typed matter fields, conditional clauses and repeating parties from approved questionnaires. Staff preview unresolved fields, maintain court-form versions and approve the generated DOCX/PDF before sending. |
 | `DOC-007` | Sign and file matter documents | target | missing |  | DocuSign and Inkwell connectors request ordered or parallel signatures on an approved exact version, remind permitted recipients and retain signed bytes, certificate, provider ID and failure/decline history. Revoking a request never overwrites a signed original. |

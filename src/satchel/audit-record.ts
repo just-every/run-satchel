@@ -2,13 +2,16 @@
 // Explicit columns exclude credentials and original file bytes.
 const record=(table:string,columns:string[],matter='NULL',revision='NULL',where='x.id=i.object_id',extra:Record<string,string>={})=>`(SELECT json_object('recordType','${table}','matterId',${matter},'revision',${revision},${[...columns.flatMap(c=>[`'${c}'`,`x.${c}`]),...Object.entries(extra).flatMap(([k,v])=>[`'${k}'`,v])].join(',')}) FROM ${table} x WHERE ${where} LIMIT 1)`;
 const contexts=[
+ record('s_document_folders',['id','matter_id','name','created_by','created_at'],'x.matter_id','NULL',"i.action='document.folder-created' AND x.id=json_extract(i.detail,'$.id')"),
+ record('s_document_views',['id','matter_id','for_email','name','filters','created_at'],'x.matter_id','NULL',"i.action='document.view-saved' AND x.id=json_extract(i.detail,'$.viewId')"),
+ record('s_document_bulk_previews',['id','matter_id','for_email','role','snapshot','created_at','applied_at'],'x.matter_id','NULL',"i.action='document.bulk-previewed' AND x.id=json_extract(i.detail,'$.previewId')"),
  record('s_disposals',['id','document_id','matter_id','retention_id','reason','journal','approved_by','approved_at'],'x.matter_id','NULL',"x.document_id=i.object_id AND i.action='document.disposed'"),
  record('s_holds',['id','matter_id','document_id','reason','placed_by','placed_at','released_by','released_at','release_reason'],'x.matter_id'),
  record('s_retention',['id','matter_id','document_id','dispose_after','basis','set_by','set_at','superseded_at'],'x.matter_id'),
  record('s_matters',['id','matter_number','client','adverse','conflict_id','review_note','opened_by','opened_at'],'x.id'),
  record('s_bills',['id','status','snapshot','artifact_digest','approved_by','approved_at','review_note','corrects_bill_id','void_reason'],'x.matter_id','x.revision'),
  record('s_entries',['id','kind','date','description','minutes','rate_cents','amount_cents'],'x.matter_id','x.revision'),
- record('s_documents',['id','title','visibility','current_version','erased_at'],'x.matter_id','x.revision',undefined,{originals:"(SELECT json_group_array(json_object('version',v.version,'sha256',v.sha256,'size',v.size)) FROM s_document_versions v WHERE v.document_id=x.id)"}),
+ record('s_documents',['id','title','visibility','current_version','erased_at','folder_id','document_type','tags'],'x.matter_id','x.revision',undefined,{originals:"(SELECT json_group_array(json_object('version',v.version,'sha256',v.sha256,'size',v.size)) FROM s_document_versions v WHERE v.document_id=x.id)"}),
  record('s_deadlines',['id','title','date','timezone','source','document_id','document_version','status','confirmed_by','confirmed_at','completed_by','completed_at','completion_evidence'],'x.matter_id','x.revision'),
  record('s_conflicts',['id','client','adverse','queries','matches','party_revision','actor','at'],'NULL','CAST(x.party_revision AS TEXT)'),
  record('s_parties',['id','name','aliases','email','source'],'NULL','x.revision'),

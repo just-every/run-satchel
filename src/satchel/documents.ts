@@ -57,8 +57,8 @@ function versionJson(v: Data) {
  return { version: v.version, name: v.name, mime: v.mime, declaredMime: v.declared_mime, size: v.size, sha256: v.sha256, createdBy: v.created_by, channel: v.created_channel, createdAt: v.created_at };
 }
 
-function documentJson(d: Data, versions: Data[]) {
- return { id: d.id, matterId: d.matter_id, matterNumber:d.matter_number, title: d.title, name: d.title, visibility: d.visibility, createdBy: d.created_by, createdAt: d.created_at, currentVersion: d.current_version, revision: d.revision, updatedAt: d.updated_at, erasedAt: d.erased_at, versions: versions.filter(v => v.document_id === d.id).map(versionJson) };
+function documentJson(d: Data, versions: Data[], duplicates: Data[] = []) {
+ return { id: d.id, matterId: d.matter_id, matterNumber:d.matter_number, title: d.title, name: d.title, visibility: d.visibility, createdBy: d.created_by, createdAt: d.created_at, currentVersion: d.current_version, revision: d.revision, updatedAt: d.updated_at, erasedAt: d.erased_at, folderId: d.folder_id ?? null, documentType: d.document_type ?? '', tags: JSON.parse(d.tags ?? '[]'), duplicates, versions: versions.filter(v => v.document_id === d.id).map(versionJson) };
 }
 
 export async function listDocuments(db: D1Database, actor: Actor, matterId: string) {
@@ -66,7 +66,29 @@ export async function listDocuments(db: D1Database, actor: Actor, matterId: stri
  const access = documentAccess(actor);
  const documents = await rows(db, `SELECT d.*,(SELECT matter_number FROM s_matters WHERE id=d.matter_id) AS matter_number FROM s_documents d WHERE d.matter_id=? AND ${access.sql} ORDER BY d.updated_at DESC,d.id`, matterId, ...access.params);
  const versions = await rows(db, `SELECT ${metadata.split(',').map(c => `v.${c}`).join(',')} FROM s_document_versions v JOIN s_documents d ON d.id=v.document_id WHERE d.matter_id=? AND ${access.sql} ORDER BY v.version`, matterId, ...access.params);
- return documents.map(d => documentJson(d, versions));
+ const duplicates=duplicateIndex(documents,versions);
+ return documents.map(d => documentJson(d, versions, duplicates.get(d.id)??[]));
+}
+
+// Index only permitted originals, including historical versions. A private
+// filename or its existence must never enter another reader's hash matches.
+function duplicateIndex(documents:Data[],versions:Data[]) {
+ const permitted=new Map(documents.filter(d=>!d.erased_at).map(d=>[d.id,d]));
+ const hashes=new Map<string,Data[]>(),byDocument=new Map<string,Set<string>>();
+ for(const v of versions)if(permitted.has(v.document_id)){
+  const group=hashes.get(v.sha256)??[];group.push(v);hashes.set(v.sha256,group);
+  const own=byDocument.get(v.document_id)??new Set<string>();own.add(v.sha256);byDocument.set(v.document_id,own);
+ }
+ const result=new Map<string,Data[]>();
+ for(const [documentId,own] of byDocument){
+  const matches=new Map<string,Data>();
+  for(const hash of own)for(const v of hashes.get(hash)??[])if(v.document_id!==documentId){
+   const d=permitted.get(v.document_id)!,match=matches.get(d.id)??{id:d.id,title:d.title,versions:[]};
+   match.versions.push({version:v.version,sha256:v.sha256});matches.set(d.id,match);
+  }
+  result.set(documentId,[...matches.values()].sort((a,b)=>String(a.id).localeCompare(String(b.id))));
+ }
+ return result;
 }
 
 export async function saveDocument(db: D1Database, actor: Actor, matterId: string, body: Data) {
@@ -97,7 +119,7 @@ export async function saveDocument(db: D1Database, actor: Actor, matterId: strin
  writes.push(stmt(db, 'INSERT INTO s_guard(id,ok) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM s_document_versions WHERE document_id=? AND version=? AND sha256=? AND size=? AND content_base64=?) THEN 1 ELSE 0 END', integrityGuard, documentId, version, sha256, bytes.length, body.contentBase64), stmt(db, 'DELETE FROM s_guard WHERE id=?', integrityGuard));
  await atomic(db, actor, writes);
  const document = await visibleDocument(db, actor, documentId);
- return documentJson(document, await rows(db, `SELECT ${metadata} FROM s_document_versions WHERE document_id=? ORDER BY version`, documentId));
+ return (await listDocuments(db, actor, matterId)).find(d => d.id === document.id)!;
 }
 
 export async function documentFile(db: D1Database, actor: Actor, documentId: string, version?: number): Promise<Response> {

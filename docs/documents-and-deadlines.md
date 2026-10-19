@@ -45,3 +45,9 @@ Failed and uncertain attempts remain visible. For a failed or uncertain provider
 Use **Cancel reminders**, enter a reason, and choose **Cancel reminder rule** to stop the active rule. Delivery and rule history remain available, including after deadline completion. Record the legal work separately with **Mark complete** and its evidence.
 
 Ambiguous clock times during a daylight-saving transition use the earlier instant. A nonexistent local send time is refused so counsel can choose a valid time. Quiet hours can defer a send until the next scheduler check outside the quiet window. Backup escalation waits until the configured delay after the actual primary attempt. Changing recipients cancels unsent work; a send already begun keeps its result and uncertainty history. A source change, completion, cancellation, loss of scheduling authority or loss of recipient access prevents future sends. Messages contain a generic workspace link rather than confidential matter or source text.
+
+## Organize document sets
+
+In **Documents**, create matter folders and select documents to file together. A bulk preview shows each original, its versions, present and proposed folder, tags and document type, and who may read it. Apply the reviewed preview to change metadata; an intervening version or metadata change requires a fresh preview. Filing retains the same document IDs, original bytes and version links.
+
+Folder counts, tag/type totals, saved-filter counts and duplicate warnings include only documents you can currently read. A duplicate warning identifies matching original hashes without replacing either original. Private documents keep their existing readers when filed into a folder.
