@@ -112,3 +112,7 @@ The public page is `/intake/:id`. `GET /api/satchel/intake/public/:id` reads its
 Success returns only `{receipt,receivedAt}`; token replay returns that receipt while the token remains valid. No mail or anonymous receipt-retrieval door exists. Inquiry-review consent creates no contact identity, channel consent or authority to contact the prospect.
 
 `GET /api/satchel/leads/:id/intake` returns permitted source submissions, recorded consent, answers and original-file metadata. `/intake/files/:id` streams an authenticated attachment after hash and current source/survivor ACL checks. Originals are explicitly **not malware-scanned**. Lead reassignment and merging do not create a second access boundary. Native archives include originals and immutable provenance; ephemeral tokens, network digests and temporary upload reservations are excluded. Unfinished uploads prevent an incomplete archive; expired uncommitted R2 keys are collected through the scheduled/public/backup cleanup paths.
+
+## Scoped versioned integrations (CONNECT-001)
+
+Principal-created, explicitly scoped integration keys use `/api/satchel/v1`, separate from legacy agent keys. See [the complete versioned API, pagination, preparation idempotency, signing and delivery guide](docs/integrations.md). Team & safety exposes matter/capability selection, opt-in webhooks, once-only credentials, durable outcome journals, replay and revocation.

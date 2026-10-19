@@ -13,6 +13,8 @@ const theme = { href: '/rer-theme.css', productName: branding.name, accentColor:
 export interface Bindings {
  DB: D1Database
  ORIGINALS: R2Bucket
+ /** Installation-owned enforcing egress service; never ordinary fetch for webhook destinations. */
+ SATCHEL_EGRESS?: {send(wire:{url:string;headers:Record<string,string>;body:string}):Promise<{status:number}>}
  /** Built browser files; hosted deploys run the Worker first (staticAssetResponse). */
  ASSETS?: Fetcher
  RER_DEMO?: string
