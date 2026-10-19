@@ -432,7 +432,7 @@ Every capability claim in br’s approved homepage register (17 October 2026, 60
 
 ## Status
 
-Judged from the code and tests at commit `0bf0b6df1b43b2c59006e3aaa4d10813df825e0f` (19 October 2026).
+Judged from the code and tests at commit `628e362a726426ac3cd0dcbe2d84cc0ec3793500` (19 October 2026).
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
