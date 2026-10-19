@@ -89,7 +89,8 @@ export function closureChecks(s: Record<string, Data[]>, declarations: Data) {
  for (const t of s.tasks.filter(t => t.status === 'open')) add('task', t.id, t.title, { ...t, due: s.deadlines.find(d => d.id === t.deadline_id)?.date ?? t.due_date });
  for (const d of s.deadlines.filter(d => ['proposed','confirmed'].includes(d.status))) add('deadline', d.id, d.title, d);
  for (const h of s.handoffs.filter(h => !h.acknowledged_at)) add('handoff', h.id, `Handoff awaiting ${h.to_email}`, { ...h, items: s.handoffItems.filter(i => i.handoff_id === h.id) });
- for (const e of s.entries.filter(e => !s.billingSources.some(b => b.entry_id === e.id))) add('unbilled-entry', e.id, e.description, e);
+ // Nonbillable time (billable=0) is recorded but never billed, so it is not unbilled work.
+ for (const e of s.entries.filter(e => e.billable !== 0 && !s.billingSources.some(b => b.entry_id === e.id))) add('unbilled-entry', e.id, e.description, e);
  for (const b of s.bills.filter(b => b.status === 'draft')) add('draft-bill', b.id, JSON.parse(b.snapshot).title, b);
  // Corrections are additive: reconcile the entire approved branch against its
  // original invoice's net payments, preserving credits as obligations as well.

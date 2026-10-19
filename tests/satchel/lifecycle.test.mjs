@@ -11,6 +11,7 @@ test('MATTER-007 counsel reviews live trust, court work, final bills, original r
   let legal=await h.json(base+'/deadlines',{title:'Open court deadline',date:'2026-12-01',timezone:'America/New_York',source:'Order paragraph 7'},h.owner);legal=await h.json('/deadlines/'+legal.id+'/confirm',{revision:legal.revision,note:'Reviewed order'},h.owner);
   const task=await h.json(base+'/tasks',{title:'Open court task',deadlineId:legal.id,ownerEmail:'owner@example.test'},h.owner);
   const bill=await earnedBill(h,f.m,30000,'Final legal services');await h.json(base+'/entries',{kind:'disbursement',date:'2026-10-01',description:'Unbilled courier expense',amountCents:2500},h.owner);
+  await h.json('/time/drafts',{matterId:f.m.id,date:'2026-10-01',minutes:30,description:'Nonbillable file review',billable:false},h.owner);await h.json('/time/post',{from:'2026-10-01',to:'2026-10-01'},h.owner);
   const extra=await h.json(base+'/entries',{kind:'disbursement',date:'2026-10-01',description:'Draft costs',amountCents:1000},h.owner);await h.json(base+'/bills',{title:'Unreviewed closing costs',date:'2026-10-01',entryIds:[extra.id]},h.owner);
   for(const [email,role] of [['lawyer@example.test','lawyer'],['assistant@example.test','assistant']]){await h.json('/team',{email,name:email,role},h.owner);await h.json('/team/invite',{email},h.owner);}
   const lawyer=await h.login('lawyer@example.test'),assistant=await h.login('assistant@example.test');await h.json(base+'/access',{email:'lawyer@example.test'},h.owner);await h.json(base+'/access',{email:'assistant@example.test'},h.owner);
@@ -23,7 +24,7 @@ test('MATTER-007 counsel reviews live trust, court work, final bills, original r
   const preview=body=>h.json(base+'/closure-preview',body,h.owner);
   let p=await preview({});assert.ok(p.checks.some(c=>c.kind==='client-promises'));assert.ok(p.checks.some(c=>c.kind==='originals'));
   p=await preview(declarations);for(const kind of ['task','deadline','handoff','bill-balance','draft-bill','unbilled-entry','trust-balance','client-promise'])assert.ok(p.checks.some(c=>c.kind===kind),kind);
-  assert.equal(p.checks.find(c=>c.kind==='trust-balance').state.balanceCents,150001);assert.equal(p.checks.find(c=>c.kind==='bill-balance').sourceId,bill.id);
+  assert.equal(p.checks.find(c=>c.kind==='trust-balance').state.balanceCents,150001);assert.deepEqual(p.checks.filter(c=>c.kind==='unbilled-entry').map(c=>c.title),['Unbilled courier expense'],'Nonbillable time is never an unbilled-entry blocker');assert.equal(p.checks.find(c=>c.kind==='bill-balance').sourceId,bill.id);
   const close=(p,exceptions=[],who=h.owner,expected=200)=>h.json(base+'/close',{previewId:p.id,digest:p.digest,revision:p.revision,reason:'Counsel reviewed exact closeout, continuing expressly carried items',exceptions},who,expected);
   await close(p,[],h.owner,409);await close(p,p.checks.map(c=>({key:c.key,reason:'Carried under responsible counsel'})),lawyer,409);
   await h.json(base+'/tasks',{title:'New work after preview',ownerEmail:'owner@example.test'},h.owner);await close(p,p.checks.map(c=>({key:c.key,reason:'Carried'})),h.owner,409);
