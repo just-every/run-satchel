@@ -1,0 +1,6 @@
+CREATE TABLE s_trust_journal_reversals(id TEXT PRIMARY KEY,original_entry_id TEXT NOT NULL UNIQUE REFERENCES s_trust_entries(id),revision TEXT NOT NULL,reason TEXT NOT NULL,effective_date TEXT NOT NULL,source_document_id TEXT NOT NULL REFERENCES s_documents(id),source_version INTEGER NOT NULL,source_digest TEXT NOT NULL,requested_by TEXT NOT NULL,requested_at TEXT NOT NULL);
+CREATE TABLE s_trust_journal_decisions(id TEXT PRIMARY KEY,reversal_id TEXT NOT NULL UNIQUE REFERENCES s_trust_journal_reversals(id),decision TEXT NOT NULL CHECK(decision IN('approved','declined')),actor TEXT NOT NULL,note TEXT NOT NULL,at TEXT NOT NULL);
+CREATE TRIGGER s_trust_journal_reversals_no_update BEFORE UPDATE ON s_trust_journal_reversals BEGIN SELECT RAISE(ABORT,'journal corrections are append-only'); END;
+CREATE TRIGGER s_trust_journal_reversals_no_delete BEFORE DELETE ON s_trust_journal_reversals BEGIN SELECT RAISE(ABORT,'journal corrections are append-only'); END;
+CREATE TRIGGER s_trust_journal_decisions_no_update BEFORE UPDATE ON s_trust_journal_decisions BEGIN SELECT RAISE(ABORT,'journal decisions are append-only'); END;
+CREATE TRIGGER s_trust_journal_decisions_no_delete BEFORE DELETE ON s_trust_journal_decisions BEGIN SELECT RAISE(ABORT,'journal decisions are append-only'); END;

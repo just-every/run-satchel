@@ -1,3 +1,5 @@
+import {createTrustPeriod,listTrustPeriods,trustPeriodReport,signTrustPeriod,reopenTrustPeriod,trustClientStatement,getTrustPacket} from './trust-periods';
+import {journalState,requestJournalReversal,decideJournalReversal} from './trust-journal';
 import {actionAudit,exportActionAudit} from './audit';
 import {requestReversal,reversalAction} from './trust-reversals';
 import {requestTransfer,transferState,transferPolicy,decideTransfer,bankTransferResult} from './trust-transfers';
@@ -106,3 +108,15 @@ api.post('/api/satchel/trust/transfers/:id/reversal/action',as(async(a,c)=>rever
 
 api.get('/api/satchel/audit',as((a,c)=>actionAudit(db(c),a,c.req.query())));
 api.get('/api/satchel/audit/export',as((a,c)=>exportActionAudit(db(c),a,c.req.query())));
+
+api.get('/api/satchel/trust/journal-reversals',as((a,c)=>journalState(db(c),a)));
+api.post('/api/satchel/trust/entries/:id/reversal',as(async(a,c)=>requestJournalReversal(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/trust/journal-reversals/:id/decide',as(async(a,c)=>decideJournalReversal(db(c),a,param(c),await body(c))));
+
+api.get('/api/satchel/trust/periods',as((a,c)=>listTrustPeriods(db(c),a,c.req.query('accountId')??'')));
+api.post('/api/satchel/trust/periods',as(async(a,c)=>createTrustPeriod(db(c),a,await body(c))));
+api.get('/api/satchel/trust/periods/:id',as((a,c)=>trustPeriodReport(db(c),a,param(c))));
+api.post('/api/satchel/trust/periods/:id/sign',as(async(a,c)=>signTrustPeriod(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/trust/periods/:id/reopen',as(async(a,c)=>reopenTrustPeriod(db(c),a,param(c),await body(c))));
+api.get('/api/satchel/trust/ledgers/:id/statement',as((a,c)=>trustClientStatement(db(c),a,param(c),c.req.query())));
+api.get('/api/satchel/trust/packets/:id',as(async(a,c)=>new Response(JSON.stringify(await getTrustPacket(db(c),a,param(c))),{headers:{'content-type':'application/json','content-disposition':'attachment; filename="satchel-signed-trust-packet.json"','cache-control':'private, no-store'}})));

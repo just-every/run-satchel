@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {harness} from './harness.mjs';
 import {foundation,earnedBill} from './trust-fixture.mjs';
-test('TRUST-004 native slice: exact partial earned-fee reservations, distinct dual officers, interrupted bank reconciliation paired invoice payments and exact reviewed reversal post once',async()=>{
+test('TRUST-004 native slice / TRUST-005 inherited reconciliation: exact partial earned-fee reservations, distinct dual officers, interrupted bank reconciliation paired invoice payments and exact reviewed reversal post once',async()=>{
  const h=await harness();try{
   const f=await foundation(h),o=await h.json('/trust/openings',{accountId:f.account.id,ledgerId:f.ledger.id,cents:150000,statementDate:'2026-10-01',documentId:f.source.id,note:'Opening client funds'},h.owner);await h.json('/trust/openings/'+o.id+'/approve',{revision:o.revision,reviewNote:'Reviewed exact statement'},h.owner);
   const first=await earnedBill(h,f.m,100000,'Earned October advice'),second=await earnedBill(h,f.m,90000,'Earned supplemental advice');let policy=await h.json('/trust/transfer-policy',undefined,h.owner);await h.json('/trust/transfer-policy',{revision:policy.revision,dualAuthorization:true},h.owner);
@@ -30,6 +30,11 @@ test('TRUST-004 native slice: exact partial earned-fee reservations, distinct du
   s=await h.json('/trust/transfers',undefined,h.owner);assert.equal(s.find(t=>t.id===b.id).invoice.due_cents,90000);assert.equal(s.find(t=>t.id===b.id).invoice.paid_cents,0);assert.equal(s.find(t=>t.id===b.id).reversal.status,'cleared');const restoredFunds=await h.json('/trust',undefined,h.owner);assert.equal(restoredFunds.ledgers.find(l=>l.id===f.ledger.id).balance_cents,50000);assert.equal(restoredFunds.ledgers.find(l=>l.id===f.ledger.id).available_cents,50000);assert.equal(restoredFunds.accounts.find(a=>a.id===f.operating.id).balance_cents,100000);assert.equal(restoredFunds.entries.length,7);
   const uncertain=await h.json('/trust/transfers',{billId:second.id,ledgerId:f.ledger.id,operatingAccountId:f.operating.id,requestKey:'bank-no-execution'},h.owner);await h.json('/trust/transfers/'+uncertain.id+'/decide',{revision:uncertain.revision,decision:'approved',reviewNote:'Reviewed exact remaining fees and restored funds'},h.owner);await h.json('/trust/transfers/'+uncertain.id+'/bank-result',{...bank(uncertain,'submitted','BANK-NOT-EXECUTED'),bankDate:'2026-10-05'},h.owner);assert.equal((await h.json('/trust',undefined,h.owner)).ledgers.find(l=>l.id===f.ledger.id).available_cents,0);await h.json('/trust/transfers/'+uncertain.id+'/bank-result',{...bank(uncertain,'not_executed','BANK-NOT-EXECUTED'),bankDate:'2026-10-05'},h.owner);assert.equal((await h.json('/trust',undefined,h.owner)).ledgers.find(l=>l.id===f.ledger.id).available_cents,50000);
   s=await h.json('/trust/transfers',undefined,h.owner);assert.equal(s.find(t=>t.id===uncertain.id).status,'not_executed');
+  const period=await h.json('/trust/periods',{accountId:f.account.id,startDate:'2026-10-01',endDate:'2026-10-18',closingBalanceCents:50000,documentId:f.source.id},h.owner),report=await h.json('/trust/periods/'+period.id,undefined,h.owner);
+  assert.deepEqual([report.registerCents,report.subsidiaryCents,report.adjustedBankCents],[50000,50000,50000]);assert.equal(report.balanced,true);
+  for(const transfer of [a,b])assert.equal(report.entries.filter(e=>e.source_id===transfer.id+':trust').length,1);
+  assert.equal(report.entries.filter(e=>e.kind==='earned_fee_reversal').length,1);assert.equal(report.clientStatements.find(l=>l.ledgerId===f.ledger.id).closingBalanceCents,50000);
+  await h.json('/trust/periods/'+period.id+'/sign',{reportDigest:report.reportDigest},h.owner);
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),target=await harness();try{await target.json('/restore',{archive,confirm:'RESTORE'},target.owner);assert.deepEqual(await target.json('/trust/transfers',undefined,target.owner),s);}finally{await target.close();}
  }finally{await h.close();}
 });
