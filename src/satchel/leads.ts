@@ -71,8 +71,8 @@ export function leadJson(l:Data,stages:Data[],today:string,timezone:string) {
 }
 export async function leadDetail(db:D1Database,actor:Actor,leadId:string) {
  const l=await visibleLead(db,actor,leadId),stages=await leadStages(db),{today,timezone}=await leadCalendar(db);
- const [events,merged,others]=await Promise.all([rows(db,'SELECT * FROM s_lead_events WHERE lead_id=? ORDER BY at,id',leadId),rows(db,'SELECT * FROM s_leads WHERE merged_into=? ORDER BY created_at,id',leadId),rows(db,`SELECT * FROM s_leads l WHERE l.status='open' AND ${visibleLeadSql}`,...visibleParams(actor))]);
- return {...leadJson(l,stages,today,timezone),history:events.map(e=>({kind:e.kind,detail:JSON.parse(e.detail),actor:e.actor,at:e.at})),
+ const [events,merged,others]=await Promise.all([rows(db,'SELECT * FROM s_lead_events WHERE lead_id=? ORDER BY at,id',leadId),rows(db,`SELECT * FROM s_leads l WHERE l.merged_into=? AND ${visibleLeadSql} ORDER BY l.created_at,l.id`,leadId,...visibleParams(actor)),rows(db,`SELECT * FROM s_leads l WHERE l.status='open' AND ${visibleLeadSql}`,...visibleParams(actor))]);
+ return {...leadJson(l,stages,today,timezone),history:events.map(e=>({kind:e.kind,detail:JSON.parse(e.detail),actor:e.actor,at:e.at})).filter(e=>counselRole(actor)||e.kind!=='absorbed'||merged.some(m=>m.id===e.detail.from?.id)),
   mergedFrom:merged.map(m=>({id:m.id,name:m.name,email:m.email,phone:m.phone,summary:m.summary,referralSource:m.referral_source,createdBy:m.created_by,createdAt:m.created_at})),
   duplicates:l.status==='open'?others.map(o=>({id:o.id,name:o.name,reason:duplicateOf(l,o)})).filter(o=>o.reason):[]};
 }

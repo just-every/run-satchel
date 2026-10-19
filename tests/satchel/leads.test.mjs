@@ -78,6 +78,13 @@ test('INTAKE-002 staff qualify, assign and move leads through edited stages, mer
   const nextMatter=await open(h,'Patel property advice','Nadia Patel','Oak Street LLC');
   const raced=await Promise.all([first,second].map(l=>h.request('/api/satchel/leads/'+l.id,{revision:l.revision,matterId:nextMatter.id},h.owner)));
   assert.deepEqual(raced.map(r=>r.status).sort(),[200,409],'Concurrent conversion cannot attach two leads to one matter');
+  const restricted=await h.json('/leads',{name:'James Chen',email:'private-james@example.test',summary:'Confidential duplicate intake',referralSource:'Counsel referral',assignedEmail:'lawyer@example.test'},h.owner);
+  const visibleJames=await h.json('/leads/'+james.id,undefined,assistant);
+  await h.json('/leads/'+restricted.id+'/merge',{revision:restricted.revision,intoId:james.id,intoRevision:visibleJames.revision,reason:'Same prospect, preserve separate source'},lawyer);
+  const ownHistory=await h.json('/leads/'+james.id,undefined,assistant);
+  assert.deepEqual(ownHistory.mergedFrom,[],'Assigned-only visibility also covers merged-source summaries');
+  assert.ok(!JSON.stringify(ownHistory.history).includes(restricted.id),'Immutable history must not expose an unassigned source snapshot');
+  const counselHistory=await h.json('/leads/'+james.id,undefined,lawyer);assert.equal(counselHistory.mergedFrom[0].id,restricted.id);assert.ok(counselHistory.history.some(e=>e.kind==='absorbed'&&e.detail.from.id===restricted.id));
  }finally{await restored?.close();await h.close();}
 });
 
