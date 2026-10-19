@@ -19,7 +19,10 @@ test('MATTER-008 / MOVE-002 matter subset previews without writes, preserves sou
   const h = await harness(); let restored;
   try {
     const before = await archive(h), plan = await preview(h);
-    assert.deepEqual(nativeRows(await archive(h)), nativeRows(before));
+    const after=await archive(h),afterRows=nativeRows(after),priorIds=new Set(nativeRows(before).map(row=>JSON.parse(row).row.id));
+    const custody=afterRows.map(JSON.parse).filter(item=>item.table==='s_audit'&&!priorIds.has(item.row.id));
+    assert.equal(custody.length,1,'The measuring archive adds exactly its export custody action');assert.equal(custody[0].row.action,'firm.archive_exported');assert.equal(JSON.parse(custody[0].row.detail).sha256,createHash('sha256').update(before).digest('hex'));
+    assert.deepEqual(afterRows.filter(row=>JSON.parse(row).row.id!==custody[0].row.id),nativeRows(before),'Preview changes no product row; the separately proven archive custody action is retained');
     assert.equal(plan.summary.pending, 2);
     assert.ok(plan.diagnostics.some(item => item.code === 'UNMAPPED_COLUMNS'));
     await commit(h, plan, plan.rows[0], { fingerprint: 'changed' }, 409);
