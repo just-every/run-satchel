@@ -119,7 +119,7 @@ Principal-created, explicitly scoped integration keys use `/api/satchel/v1`, sep
 
 ## Numbered checks and deposit records (TRUST-009)
 
-Officers read `GET /trust/checks`. `POST /trust/checks` takes `{transactionId,checkNumber,requestKey}` for an approved uncleared check disbursement; reissues also take `{originalCheckId,reason}` and must match the voided original account, ledger, payee and amount. Positive decimal numbers normalize leading zeros and remain unique per account after voids. `GET /trust/checks/:id/print` returns a printable record, never a payment authorization.
+Officers read `GET /trust/checks`. `POST /trust/checks` takes `{transactionId,checkNumber,requestKey}` for an approved uncleared check disbursement; reissues also take `{originalCheckId,reason}` and must match the voided original account, ledger, payee and amount. Check/slip numbers accept 1–12 positive decimal input digits, normalize leading zeros and remain unique per account after voids. `GET /trust/checks/:id/print` returns a printable record, never a payment authorization.
 
 `POST /trust/checks/:id/void` takes `{revision,reason,effectiveDate,documentId}`; `/void/decide` takes `{checkRevision,revision,decision,reviewNote}` for exact append-only reversal review. `/match` takes `{revision,checkNumber,cents,clearedDate,bankReference,documentId}`. A voided/pending-void check cannot clear; a cleared check cannot be voided.
 
