@@ -8,7 +8,7 @@ The principal manages firm archives and document erasure in **Team & safety**. S
 2. Under **Backup & restore**, choose **Download firm archive**.
 3. Keep the downloaded `.rer` archive in your firm's backup storage.
 
-The archive includes domain records, document originals and versions, reviewed bills and approvals, import originals and journals. Sign-in credentials, sessions, agent keys and local outboxes are excluded.
+The archive includes domain records, document originals and versions, R2 intake originals and their receipt/consent provenance, reviewed bills and approvals, import originals and journals. Sign-in credentials, sessions, agent keys and local outboxes are excluded.
 
 From the checkout, the same archive format is available through:
 
@@ -25,7 +25,9 @@ Restore requires an empty destination; it does not merge two firms.
 3. Select the `.rer` file in **Satchel archive**.
 4. Enter `RESTORE` in **Type RESTORE**, then choose **Restore archive**.
 
-For larger archives, use the CLI in the empty destination checkout:
+The screen streams the selected file; native archive transport has no total-byte ceiling. An upload still in progress asks you to retry the archive after it finishes. Temporary intake tokens and network digests are excluded.
+
+You can also use the CLI in the empty destination checkout:
 
 ```sh
 rer import --input exports/firm.rer --yes

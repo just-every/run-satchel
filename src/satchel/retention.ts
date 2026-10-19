@@ -57,7 +57,7 @@ export async function retentionState(db: D1Database, actor: Actor, matterId?: st
  const expired = actor.role === 'owner' ? await rows(db, `SELECT d.id,d.title,d.matter_id,m.title matter_title,r.id retention_id,r.dispose_after,r.basis,${active()} held FROM s_documents d JOIN s_matters m ON m.id=d.matter_id JOIN s_retention r ON r.id=${schedule()} WHERE d.erased_at IS NULL AND r.dispose_after<=?${matterId ? ' AND d.matter_id=?' : ''} ORDER BY r.dispose_after,d.title`, await firmToday(db), ...filter) : [];
  return { holds: holds.map(h => ({ ...h, active: !h.released_at })), schedules, disposals: disposals.map(d => ({ ...d, journal: JSON.parse(d.journal) })), due: expired.filter(d => !d.held), held: expired.filter(d => d.held) };
 }
-export async function disposeDocument(db: D1Database, actor: Actor, documentId: string, body: Data) {
+export async function disposeDocument(db: D1Database, actor: Actor, documentId: string, body: Data, originals:R2Bucket) {
  human(actor); need(actor, 'owner');
  const d = await visibleDocument(db, actor, documentId);
  insist(!d.erased_at, 'This document was already erased', 409);
@@ -68,7 +68,7 @@ export async function disposeDocument(db: D1Database, actor: Actor, documentId: 
  insist(r.dispose_after <= await firmToday(db), `Its retention runs until ${r.dispose_after}`, 409);
  const guards = await refuseHeld(db, d);
  const versions = await rows(db, 'SELECT version,size,sha256 FROM s_document_versions WHERE document_id=? AND content_base64 IS NOT NULL ORDER BY version', d.id);
- const at = now(), service = await createPortability({ db, policy });
+ const at = now(), service = await createPortability({ db, buckets:{originals}, policy });
  // Satchel keeps only original version bytes: it stores no previews, OCR text, search vectors or connector caches.
  const journal = { originals: versions, derivatives: { previews: 0, ocrText: 0, searchVectors: 0, connectorCaches: 0 }, archives: 'earlier archives need this erasure journal to restore', retention: { id: r.id, disposeAfter: r.dispose_after, basis: r.basis } };
  const scheduleGuard = id();

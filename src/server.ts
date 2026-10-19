@@ -1,3 +1,5 @@
+import {recoverIntakeUploads} from './satchel/intake-files'
+import {purgeIntakeSecurity} from './satchel/intake-submissions'
 import {runReminders} from './satchel/reminder-scheduler'
 import { withDemo } from './modules/demo/index.mjs'
 import { seedDemo } from './demo'
@@ -22,7 +24,7 @@ function noTransform(response: Response): Response {
 }
 
 export default withDemo({
-  async scheduled(controller,env) { await runReminders(runtimeBindings(env),controller.scheduledTime) },
+  async scheduled(controller,env) { await Promise.all([runReminders(runtimeBindings(env),controller.scheduledTime),purgeIntakeSecurity(runtimeBindings(env).DB,new Date(controller.scheduledTime).toISOString()),recoverIntakeUploads(runtimeBindings(env),new Date(controller.scheduledTime).toISOString())]) },
   async fetch(request, env, execution) {
     const asset = await staticAssetResponse(request, env)
     if (asset) return asset
@@ -34,6 +36,8 @@ export default withDemo({
     if (state) return state
     const lobby = await lobbyResponse(request, runtimeBindings(env), identity)
     if (lobby) return lobby
-    return rejectedResponse(request, await dispatch(request, () => api.fetch(request, env, execution), async () => noTransform(await start.fetch(request))))
+    const response=await dispatch(request, () => api.fetch(request, env, execution), async () => noTransform(await start.fetch(request)))
+    if(new URL(request.url).pathname.startsWith('/intake/')){response.headers.set('referrer-policy','strict-origin');response.headers.set('cache-control','no-store, no-transform');response.headers.set('x-content-type-options','nosniff');}
+    return rejectedResponse(request,response)
   },
 } satisfies ExportedHandler<Bindings>, { seed: seedDemo })

@@ -16,7 +16,7 @@ export async function harness(options={}){
  const configOptions={...convertV4MiniflareOptions({
   host:'127.0.0.1',port,https:true,modulesRoot:resolve('dist/server'),modules:[config.main,...(await readdir('dist/server/assets')).filter(f=>f.endsWith('.js')).map(f=>'assets/'+f)].map(f=>({type:'ESModule',path:resolve('dist/server',f)})),
   compatibilityDate:config.compatibility_date,compatibilityFlags:config.compatibility_flags,
-  assets:{directory:resolve('dist/client'),routerConfig:{has_user_worker:true}},d1Databases:{DB:'satchel-test'},bindings:vars,
+  assets:{directory:resolve('dist/client'),routerConfig:{has_user_worker:true}},d1Databases:{DB:'satchel-test'},r2Buckets:{ORIGINALS:'satchel-originals-test'},bindings:vars,
   // The only fake is the paid mail-provider boundary; the built app is unchanged.
   outboundService:async request=>{assert.equal(request.url,'https://api.resend.com/emails');const message=await request.json();mails.push(message);return options.mailResponse?options.mailResponse(message,request):Response.json({id:'test-mail-'+mails.length});},
  }),resourcePersistencePath:join(directory,'state')};
@@ -38,7 +38,8 @@ export async function harness(options={}){
   assert.equal((await request('/health')).status,200);
   const boot=await request('/auth/bootstrap',{token:vars.SETUP_TOKEN,displayName:'Principal'});assert.equal(boot.status,303,await boot.text());
   const owner=await login(vars.OWNER_EMAIL);
-  return {origin,owner,request,json,login,mails,scheduled:async at=>(await mf.getWorker()).scheduled({scheduledTime:typeof at==='number'?at:Date.parse(at),cron:'*/15 * * * *'}),restart:async()=>{await mf.dispose();mf=new Miniflare(configOptions);await mf.ready;},close:async()=>{await mf.dispose();await rm(directory,{recursive:true,force:true});}};
+  const raw=async(path,init={},cookie='')=>{const request=new Request(origin+path,{...init,headers:{origin,host:new URL(origin).host,'CF-Connecting-IP':'192.0.2.1',...(cookie?{cookie}:{}),...init.headers}});return mf.dispatchFetch(request.url,{redirect:'manual',method:request.method,headers:Object.fromEntries(request.headers),...(request.body?{body:await request.arrayBuffer()}: {})});};
+  return {origin,owner,request,raw,json,login,mails,scheduled:async at=>(await mf.getWorker()).scheduled({scheduledTime:typeof at==='number'?at:Date.parse(at),cron:'*/15 * * * *'}),restart:async()=>{await mf.dispose();mf=new Miniflare(configOptions);await mf.ready;},close:async()=>{await mf.dispose();await rm(directory,{recursive:true,force:true});}};
  }catch(e){await mf.dispose();await rm(directory,{recursive:true,force:true});throw e;}
 }
 export async function open(h,title='Barton lease review',client='Barton Workshop LLC',adverse='Riverbend Holdings LLC'){

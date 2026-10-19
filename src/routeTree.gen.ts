@@ -10,33 +10,43 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/app'
+import { Route as IntakeFormIdRouteImport } from './routes/intake.$formId'
 
 const AppRoute = AppRouteImport.update({
   id: '/app',
   path: '/app',
   getParentRoute: () => rootRouteImport,
 } as any)
+const IntakeFormIdRoute = IntakeFormIdRouteImport.update({
+  id: '/intake/$formId',
+  path: '/intake/$formId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/app': typeof AppRoute
+  '/intake/$formId': typeof IntakeFormIdRoute
 }
 export interface FileRoutesByTo {
   '/app': typeof AppRoute
+  '/intake/$formId': typeof IntakeFormIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/app': typeof AppRoute
+  '/intake/$formId': typeof IntakeFormIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/app'
+  fullPaths: '/app' | '/intake/$formId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/app'
-  id: '__root__' | '/app'
+  to: '/app' | '/intake/$formId'
+  id: '__root__' | '/app' | '/intake/$formId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRoute
+  IntakeFormIdRoute: typeof IntakeFormIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +58,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/intake/$formId': {
+      id: '/intake/$formId'
+      path: '/intake/$formId'
+      fullPath: '/intake/$formId'
+      preLoaderRoute: typeof IntakeFormIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRoute,
+  IntakeFormIdRoute: IntakeFormIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

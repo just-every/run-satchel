@@ -58,9 +58,9 @@ deadline changes use compare-and-swap guards. An exported package is immutable,
 and a source entry can belong to only one live original bill. Corrections add a
 reviewed delta and preserve the original package.
 
-Document originals are base64, at most 1 MiB each. The restore convenience route
+Matter-document originals are base64, at most 1 MiB each. INTAKE-001 originals use the separate R2 path below, up to 10 MiB each. The restore convenience route
 accepts `{archive,confirm:'RESTORE',journal?}` with up to 24 MB of JSON; the CLI
-supports larger archives. `journal` is the complete newer archive, validated for
+and `Content-Type: application/x-ndjson` with `X-Satchel-Confirm: RESTORE` support streamed archives without a total-byte ceiling. `journal` is the complete newer archive, validated for
 its erasure checkpoint. Import CSV details and fixtures are in IMPORTING.md.
 
 ## Native trust records (TRUST-001, TRUST-002)
@@ -102,3 +102,13 @@ JSONL rows retain actor ID/email/role/channel, object and matter IDs, revision, 
 `POST /contacts` saves `{id?,revision,kind,name,aliases:[],formerNames:[],emails:[],phones:[],addresses:[]}` using the current graph `revision`; `kind` is person or organization. Imported source rows remain intact alongside editable profiles. `/contacts/:id/matter-role` adds `{revision,matterId,role}`; `/relationship` adds `{revision,otherId,relationship}`. Roles are client, adverse, insurer, witness, expert or counsel. `/consent` adds `{revision,channel,decision,evidenceDate,source}` for that exact source identity. Evidence is recorded, not provider-verified; no message sends. The latest recorded decision per identity/channel controls in durable recording order. Any denied identity denies the merged channel; all must allow before it is allowed; otherwise unknown. Evidence dates do not schedule future changes.
 
 `POST /contacts/merge-preview` takes `{survivorId,duplicateId,reason}` and records a same-kind, exact graph review for the current person/role. `/contacts/merge` takes `{previewId}` and applies it once if the graph and authority still match. Source IDs, import provenance, related entities, matter roles, consent history and earlier conflict snapshots remain; historical matter/financial text does not change. Changed graph data requires a new conflict review before opening a matter. Source-import replay reuses its original job; undo preserves graph dependencies. These merge and consent records round-trip in native firm archives.
+
+## Published intake forms (INTAKE-001)
+
+Counsel lists and versions `/api/satchel/intake/forms`. A save takes `id?`, current `revision?`, `title`, `practice`, `firmName`, optional PNG/JPEG `logoDataUrl`, active `assignedEmail`, `consentText`, `published` and `questions`. Each question has a unique `key`, `label`, `type` (`text`, `select`, `date`, `yesno`), `required`, choice `options?` and optional `when:{key,equals}` referring to an earlier choice/yes-no question. Editing publishes a new immutable numbered version; stale edits are refused.
+
+The public page is `/intake/:id`. `GET /api/satchel/intake/public/:id` reads its published definition and issues a hashed, twenty-minute revision-bound submission token. `POST` to the same API path is multipart: `data` is JSON `{token,revision,name,email,phone,summary,answers,consent:true,website:''}`, and up to three `files` are PDF/PNG/JPEG originals of at most 10 MiB each. The upload stream is bounded before parsing at 32 MiB. Conditions and type signatures are checked by the server. Exact Origin and non-cross-site requests are required. A honeypot and ten accepted submissions per form/hour/HMAC-IP limit spam; no raw IP is stored, and hourly digests expire within two hours. The form's current assignee is checked inside the native lead/receipt/provenance transaction.
+
+Success returns only `{receipt,receivedAt}`; token replay returns that receipt while the token remains valid. No mail or anonymous receipt-retrieval door exists. Inquiry-review consent creates no contact identity, channel consent or authority to contact the prospect.
+
+`GET /api/satchel/leads/:id/intake` returns permitted source submissions, recorded consent, answers and original-file metadata. `/intake/files/:id` streams an authenticated attachment after hash and current source/survivor ACL checks. Originals are explicitly **not malware-scanned**. Lead reassignment and merging do not create a second access boundary. Native archives include originals and immutable provenance; ephemeral tokens, network digests and temporary upload reservations are excluded. Unfinished uploads prevent an incomplete archive; expired uncommitted R2 keys are collected through the scheduled/public/backup cleanup paths.

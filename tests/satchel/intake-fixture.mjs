@@ -1,0 +1,9 @@
+import assert from 'node:assert/strict';
+export const formInput={title:'Family law inquiry',practice:'Family law',firmName:'Barton & Lee LLP',assignedEmail:'assistant@example.test',consentText:'I consent to this firm receiving and reviewing my inquiry. This does not authorize automated contact.',published:true,questions:[{key:'children',label:'Are children involved?',type:'yesno',required:true},{key:'ages',label:'Children ages',type:'text',required:true,when:{key:'children',equals:'yes'}},{key:'hearing',label:'Hearing date',type:'date',required:false}]};
+export async function intakeTeam(h){const people={};for(const [email,role] of [['assistant@example.test','assistant'],['lawyer@example.test','lawyer'],['other@example.test','assistant'],['officer@example.test','trust_officer']]){await h.json('/team',{email,name:role,role},h.owner);await h.json('/team/invite',{email},h.owner);people[email]=await h.login(email);}return people;}
+export const inquiry=token=>({token:token.token,revision:token.revision,name:'Elena Rivera',email:'elena@example.test',phone:'(212) 555-0148',summary:'Advice about parenting arrangements',answers:{children:'yes',ages:'5 and 8',hearing:'2026-11-18'},consent:true,website:''});
+export async function sendInquiry(h,form,body,files=[],expected=200,headers={}){
+ const data=new FormData();data.set('data',JSON.stringify(body));for(const file of files)data.append('files',new Blob([file.bytes],{type:file.mime}),file.name);
+ const response=await h.raw('/api/satchel/intake/public/'+form.id,{method:'POST',body:data,headers});const result=await response.json();assert.equal(response.status,expected,JSON.stringify(result));return result;
+}
+export const pdf=(size=4096)=>{const bytes=Buffer.alloc(size,32);bytes.write('%PDF-1.7\n');return {name:'parenting-orders.pdf',mime:'application/pdf',bytes};};

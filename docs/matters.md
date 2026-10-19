@@ -59,3 +59,11 @@ name or number; only matters you can access appear.
 To deduplicate imported aliases, classify both contacts, select the survivor, expand **Merge a duplicate**, choose the duplicate and record why they are the same identity. **Preview contact merge** shows the exact source identities and relationships. **Apply reviewed contact merge** retains both original IDs, source provenance and every existing link. A changed graph needs a new preview. Earlier recorded conflict searches remain unchanged; opening a new matter requires fresh review.
 
 Record communication evidence against its exact source identity and channel, with its evidence date and source reference. Unknown is the default. After a merge any denied identity denies that channel; otherwise every identity must allow before it becomes allowed. The evidence date records what was attested, rather than scheduling a future change. These are evidence records; sending and contact sync require their own explicit authority.
+
+## Publish an intake form
+
+In **Matters → Intake forms**, a principal or lawyer sets the firm's name and optional logo, practice, lead assignee and inquiry-review consent. Add text, date, choice or yes/no questions; a question may depend on an earlier choice or yes/no answer. Create a draft, then **Publish form** and share its `/intake/…` link. Editing saves a new version; unpublishing stops new inquiries without deleting earlier submissions.
+
+Prospects can complete the form on a phone and attach up to three PDF/PNG/JPEG originals, 10 MiB each. Successful submission displays an opaque receipt; it does not send an acknowledgment email. Consent is for receiving and reviewing that inquiry, and does not authorize automated contact.
+
+Open **Lead pipeline → Intake submissions** to read the original answers, receipt and exact consent text/time, and download private originals. Files are not malware-scanned. Assistants see only assigned leads; a merge does not grant access to another lead's original files. Earlier consent and form versions remain unchanged when the form is edited. Closed leads retain their intake history under **Closed leads**.
