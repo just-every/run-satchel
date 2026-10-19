@@ -7,6 +7,7 @@ const form=(p,name)=>p.locator('form',{has:p.getByRole('button',{name,exact:true
 for(const [width,height] of [[1440,1000],[390,844]])test(`MATTER-002 demand-ready evidence blocker, original filing, stage activity and list/kanban filters at ${width}px`,async()=>{
  const h=await harness(),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});
  try{
+  await h.json('/team',{email:'owner@example.test',name:'Principal',role:'trust_officer'},h.owner);
   const m=await open(h,'Harper injury demand','Harper family','Main Street Holdings');await open(h,'Pine estate','Pine family','Elm Trustee');
   const prerequisite=await h.json('/matters/'+m.id+'/tasks',{title:'Collect hospital records',dueDate:'2026-01-02'},h.owner);await h.json('/matters/'+m.id+'/tasks',{title:'Review demand',prerequisites:[prerequisite.id],dueDate:'2026-01-03'},h.owner);
   const context=await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(String(e)));page.setDefaultTimeout(15000);

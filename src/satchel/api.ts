@@ -1,3 +1,4 @@
+import {matterLifecycle,closurePreview,closeMatter,reopenMatter} from './matter-lifecycle';
 import {stageDefinitions,saveStageDefinition,matterBoard,matterStageState,saveStageProfile,transitionMatterStage} from './matter-stages';
 import {contactState,contactDetail,saveContact,contactAction} from './contacts';
 import {previewContactMerge,applyContactMerge} from './contact-merge';
@@ -43,6 +44,10 @@ const as=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>{const result=await f
 const asAgent=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>c.json(await fn(await agent(c.req.raw,c.env),c));
 api.get('/api/satchel/numbering',as((a,c)=>numberSettings(db(c))));
 api.post('/api/satchel/numbering',as(async(a,c)=>saveNumberSettings(db(c),a,await body(c))));
+api.get('/api/satchel/matters/:id/lifecycle',as((a,c)=>matterLifecycle(db(c),a,param(c))));
+api.post('/api/satchel/matters/:id/closure-preview',as(async(a,c)=>closurePreview(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/matters/:id/close',as(async(a,c)=>closeMatter(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/matters/:id/reopen',as(async(a,c)=>reopenMatter(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/state',as((a,c)=>workspace(db(c),a)));
 api.get('/api/satchel/stages',as((a,c)=>stageDefinitions(db(c))));
 api.post('/api/satchel/stages',as(async(a,c)=>saveStageDefinition(db(c),a,await body(c))));
