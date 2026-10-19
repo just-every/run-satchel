@@ -17,6 +17,7 @@ const contexts=[
  record('s_deadline_owners',['id','deadline_id','owner_email','assigned_by','assigned_at'],'(SELECT matter_id FROM s_deadlines WHERE id=x.deadline_id)'),
  record('s_absences',['id','email','start_date','end_date','recorded_by','recorded_at']),
  record('s_absence_coverage',['id','absence_id','covering_email','assigned_by','assigned_at']),
+ record('s_tasks',['id','parent_id','title','priority','due_date','deadline_id','owner_email','recurrence','series_id','status','completed_by','completed_at','completion_evidence'],'x.matter_id','x.revision'),
  record('s_holds',['id','matter_id','document_id','reason','placed_by','placed_at','released_by','released_at','release_reason'],'x.matter_id'),
  record('s_retention',['id','matter_id','document_id','dispose_after','basis','set_by','set_at','superseded_at'],'x.matter_id'),
  record('s_matters',['id','matter_number','client','adverse','conflict_id','review_note','opened_by','opened_at'],'x.id'),
