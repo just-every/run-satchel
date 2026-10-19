@@ -2,11 +2,11 @@ import {useEffect,useState} from 'react';
 import {api,Empty,Field,Form,today,type Row,type Run} from './common';
 import {ContactProfile} from './contact-profile';
 export function Contacts({run,tick}:{run:Run;tick:number}){
- const [state,setState]=useState<Row>(),[selected,setSelected]=useState(''),[query,setQuery]=useState(''),[matches,setMatches]=useState<string[]>(),[preview,setPreview]=useState<Row>();
- useEffect(()=>{let active=true;api('/contacts').then(s=>{if(active){setState(s);}}).catch(e=>{if(active)void run(async()=>{throw e;});});return()=>{active=false;};},[tick]);
+ const [loadedTick,setLoadedTick]=useState(-1),[state,setState]=useState<Row>(),[selected,setSelected]=useState(''),[query,setQuery]=useState(''),[matches,setMatches]=useState<string[]>(),[preview,setPreview]=useState<Row>();
+ useEffect(()=>{let active=true;api('/contacts').then(s=>{if(active){setState(s);setLoadedTick(tick);}}).catch(e=>{if(active)void run(async()=>{throw e;});});return()=>{active=false;};},[tick]);
  const contact=state?.contacts.find((c:Row)=>c.id===selected||c.identityIds.includes(selected));
  const action=(op:string,d:Row,message:string)=>run(()=>api('/contacts/'+contact.id+'/'+op,{...d,revision:state!.revision}),message);
- return <section className="panel"><h2>Legal contacts</h2>{!state?<p>Opening contact graph…</p>:<>
+ return <section className="panel"><h2>Legal contacts</h2>{!state?<p>Opening contact graph…</p>:<fieldset className="content" disabled={loadedTick!==tick} aria-busy={loadedTick!==tick}>
   <p>Search names, former names, aliases, source identities, related entities and permitted matter roles. Conflict review remains a separate counsel decision.</p>
   <Form label="Search contacts" submit={()=>run(async()=>{const found=await api('/contacts?q='+encodeURIComponent(query));setMatches(found.contacts.map((c:Row)=>c.id));},'Contact search complete')}><label>Find a contact<input value={query} onChange={e=>setQuery(e.target.value)}/></label></Form>
   {state.contacts.filter((c:Row)=>!matches||matches.includes(c.id)).map((c:Row)=><button key={c.id} className={'record '+(contact?.id===c.id?'current':'')} onClick={()=>{setSelected(c.id);setPreview(undefined);}}><strong>{c.name}</strong><span>{c.kind} · {c.matterRoles.length} permitted matter roles · {c.identityIds.length} source identities</span></button>)}
@@ -27,5 +27,5 @@ export function Contacts({run,tick}:{run:Run;tick:number}){
    </>}
   </div>}
   {preview&&<div className="review"><h3>Review exact contact merge</h3><p>{preview.duplicate.name} → {preview.survivor.name}</p><p>{preview.reason}</p><p>{preview.survivor.identityIds.length+preview.duplicate.identityIds.length} source identities retained. Every existing relationship, matter role and consent decision is retained. Any denied consent wins; otherwise every identity must allow before a channel is allowed.</p><details><summary>Exact identities and relationships</summary><pre>{JSON.stringify({survivor:preview.survivor,duplicate:preview.duplicate},null,2)}</pre></details><button onClick={()=>run(async()=>{await api('/contacts/merge',{previewId:preview.id});setSelected(preview.survivor.id);setPreview(undefined);},'Contacts merged; source identities and conflict history retained')}>Apply reviewed contact merge</button><button className="quiet" onClick={()=>setPreview(undefined)}>Discard contact merge</button></div>}
- </>}</section>;
+ </fieldset>}</section>;
 }
