@@ -16,7 +16,7 @@ export function documentAccess(actor: Actor, alias = 'd') {
 
 export async function visibleDocument(db: D1Database, actor: Actor, documentId: string) {
  const access = documentAccess(actor);
- const document = await stmt(db, `SELECT d.* FROM s_documents d WHERE d.id=? AND ${access.sql}`, documentId, ...access.params).first<Data>();
+ const document = await stmt(db, `SELECT d.*,(SELECT matter_number FROM s_matters WHERE id=d.matter_id) AS matter_number FROM s_documents d WHERE d.id=? AND ${access.sql}`, documentId, ...access.params).first<Data>();
  insist(document, 'Document not found', 404); return document;
 }
 
@@ -58,13 +58,13 @@ function versionJson(v: Data) {
 }
 
 function documentJson(d: Data, versions: Data[]) {
- return { id: d.id, matterId: d.matter_id, title: d.title, name: d.title, visibility: d.visibility, createdBy: d.created_by, createdAt: d.created_at, currentVersion: d.current_version, revision: d.revision, updatedAt: d.updated_at, erasedAt: d.erased_at, versions: versions.filter(v => v.document_id === d.id).map(versionJson) };
+ return { id: d.id, matterId: d.matter_id, matterNumber:d.matter_number, title: d.title, name: d.title, visibility: d.visibility, createdBy: d.created_by, createdAt: d.created_at, currentVersion: d.current_version, revision: d.revision, updatedAt: d.updated_at, erasedAt: d.erased_at, versions: versions.filter(v => v.document_id === d.id).map(versionJson) };
 }
 
 export async function listDocuments(db: D1Database, actor: Actor, matterId: string) {
  await matter(db, actor, matterId);
  const access = documentAccess(actor);
- const documents = await rows(db, `SELECT d.* FROM s_documents d WHERE d.matter_id=? AND ${access.sql} ORDER BY d.updated_at DESC,d.id`, matterId, ...access.params);
+ const documents = await rows(db, `SELECT d.*,(SELECT matter_number FROM s_matters WHERE id=d.matter_id) AS matter_number FROM s_documents d WHERE d.matter_id=? AND ${access.sql} ORDER BY d.updated_at DESC,d.id`, matterId, ...access.params);
  const versions = await rows(db, `SELECT ${metadata.split(',').map(c => `v.${c}`).join(',')} FROM s_document_versions v JOIN s_documents d ON d.id=v.document_id WHERE d.matter_id=? AND ${access.sql} ORDER BY v.version`, matterId, ...access.params);
  return documents.map(d => documentJson(d, versions));
 }

@@ -29,3 +29,25 @@ Only the principal manages access. First save an active member in **Team & safet
 Use **Remove** beside a person's email to remove that matter assignment. The principal continues to see all matters. Firm membership alone does not give a lawyer or assistant access to every matter.
 
 For access across the whole firm, use **Deactivate** in **Team & safety**. For private document visibility, see [Documents and deadlines](documents-and-deadlines.md).
+
+## Matter numbers
+
+In **Firm → Matter numbering**, the principal chooses a starting sequence,
+minimum digits and a pattern. Use `{sequence}` once, with optional `{year}`,
+`{client}` and `{practice}` tokens and separators. For example,
+`{year}/{practice}/{client}/{sequence}` with a start of 1050 and four digits
+produces a number such as `2026/LIT/BAK/1050`. The year comes from the matter's
+opening date in UTC. Padding is a minimum width; larger sequences grow.
+
+A firm-wide sequence is shared by all clients. To use a separate sequence per
+client, enable that option and include `{client}` in the pattern. Enter a client
+number when opening that client's first matter or let Satchel assign one;
+later matters reuse it. Practice codes come from the firm's configured practice
+areas. A pattern using `{practice}` requires a practice selection.
+
+Allocation, conflict clearance and matter creation commit together. Simultaneous
+openings receive distinct numbers. Imported Clio matters keep their source
+numbers and new allocations skip them. Changing the pattern or starting number
+never renumbers existing matters. The saved number accompanies matter searches,
+documents, calendar records and reviewed bill packages. Search **Matters** by
+name or number; only matters you can access appear.

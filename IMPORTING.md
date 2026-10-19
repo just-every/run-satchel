@@ -1,4 +1,4 @@
-# Move Clio contacts into Satchel
+# Move Clio contacts and matters into Satchel
 
 Only a signed-in human owner can preview, commit, inspect, resume or undo an
 import. Agents, lawyers and assistants cannot use this move-in path.
@@ -84,7 +84,7 @@ Undo may require repeated `undo` calls while its state is `undoing`; `status`
 shows progress and dispositions. A dependency-retained party is a terminal
 retention for that undo, even if its link is removed later.
 
-Imports affect only `s_parties`. Existing party triggers advance the conflict
+Contact imports affect only `s_parties`. Existing party triggers advance the conflict
 revision, invalidating pre-import conflict searches. The importer cannot create
 matters, conflict clearance, access grants, time entries, invoices, trust entries
 or client credentials. A matter must still pass Satchel's ordinary fresh conflict
@@ -100,3 +100,85 @@ Migration `0023_import.sql` is generated from Base's schema exports in
 `initializeD1ImportStorage` order. Satchel supplies only the CSV mapping,
 native-party adapter, incoming-matter dependency observations and owner checks.
 There is no shadow party store or alternate conflict-opening path.
+
+## Import reviewed matters with source numbers
+
+The separate **Clio matters** panel accepts a prepared Satchel CSV subset. This
+is not a claim that every Clio CSV export has these headers. Clio's official
+[API permissions example](https://docs.developers.clio.com/api-docs/clio-manage/permissions/)
+identifies matters by `id` and `display_number`, with a nested client identity;
+its [fields documentation](https://docs.developers.clio.com/api-docs/fields/)
+also identifies a matter's `description`. Prepare those values and the reviewed
+party names in the following exact, case-sensitive columns:
+
+| Required column | Treatment |
+| --- | --- |
+| `id` | Stable original Clio matter ID, at most 300 characters; never inferred from a name or number |
+| `display_number` | Original displayed matter number, at most 200 characters; preserved on the native matter |
+| `description` | Matter title, at most 200 characters |
+| `client` | Client name, at most 200 characters; explicitly flatten Clio's nested client name |
+| `adverse_party` | Satchel input extension: independently reviewed adverse party name, at most 200 characters |
+
+For example:
+
+```csv
+id,display_number,description,client,adverse_party
+842,2019-0042,Lease review,Barton Workshop LLC,Riverbend Holdings LLC
+843,2019-0043,Boundary dispute,Pine Studio,Cedar Property
+```
+
+All five cells are required and must be free of control characters. The file
+limits are 1–1,000 matters and 1 MB of UTF-8 CSV. BOM, LF/CRLF, quoted commas,
+escaped quotes and quoted newlines are parsed; mapped cells still have the
+field restrictions above. Unknown columns are retained in the original and raw
+row provenance, with a preview warning. Source IDs and numbers must be unique
+within the file. Supply a complete, stable source ID from the same Clio account
+for every later export; combining accounts requires deliberate reconciliation.
+
+Preview performs reads only. It returns a SHA-256 fingerprint covering the
+exact uploaded bytes, filename, mapping version, destination and owner role,
+along with normalized rows, diagnostics and each row's pending/imported/conflict
+state. Errors anywhere in the file block commits. An existing source ID with
+different cell content, or a number already held by another native matter,
+requires principal reconciliation; import never overwrites or merges it.
+Raw cells, including unknown fields, determine the source digest. Reordering
+columns alone does not change that digest; changing any cell does.
+
+For each pending row, run its conflict search, review all possible matches,
+record a conclusion and any necessary clearance, and explicitly confirm the
+authority to open it. Import uses the ordinary matter-opening transaction and
+fresh party-revision guard. Searches must belong to the current principal and
+exactly match the row's client and adverse party. Importing one row may invalidate
+other previously run searches, so search and commit one row at a time. The
+importer never treats a source matter or an empty match list as legal clearance.
+
+The original source number is reserved atomically with the native matter,
+access grant, parties, conflict conclusion and source journal. Native numbering
+skips already reserved source numbers. No matter, journal entry or number is
+partially committed on a failure. Exact row replay returns the existing matter;
+concurrent identical commits also converge on that same matter. Changed source
+content is refused even when uploaded in a different file.
+
+| Matter endpoint | Body / result |
+| --- | --- |
+| `GET /api/satchel/matter-import` | `{imports}` with retained files and first-import row counts |
+| `POST /api/satchel/matter-import/preview` | `{csv, filename?}` → `{fingerprint, mappingVersion, rows, diagnostics, summary}` |
+| `POST /api/satchel/matter-import/commit` | `{csv, filename?, fingerprint, sourceId, conflictId, confirmed: true, reviewNote}` → `{matter, replayed, sourceId, fingerprint}` |
+| `POST /api/satchel/matter-import/resume` | Same row contract as commit; exact replay needs no new conflict review |
+| `POST /api/satchel/matter-import/status` | `{fingerprint}` → `{original, rows}` including original CSV bytes as base64 and source/review provenance |
+
+On interruption, use **Resume from original CSV** in the journal. It restores
+the retained bytes and previews again; completed identities remain imported,
+and every remaining row still needs its own human review. The journal counts
+rows first committed from each file; replaying rows originally imported from
+another file does not create another journal row. Files are retained when their
+first row commits, so a preview-only file has no durable journal.
+
+Migration `0028_clio_matters.sql` stores exact originals in
+`s_matter_import_files` and durable unique source IDs, source digests, original
+numbers, native matter IDs, raw cells and human conflict reviews in
+`s_matter_import_rows`. Both tables automatically travel in native backup and
+restore. The restored installation's active principal can inspect and resume
+imports. Matter import has no undo path: a reviewed native matter and its
+provenance remain durable. It imports the fields above only; source status,
+dates, billing, balances, documents and Grow records remain outside this subset.

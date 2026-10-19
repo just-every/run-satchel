@@ -1,0 +1,43 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {harness,open} from './harness.mjs';
+test('MATTER-008 atomic firm and per-client numbers, collision avoidance, fixed records and permissioned search',async()=>{
+ const h=await harness();try{
+  await h.json('/team',{email:'lawyer@example.test',name:'Marcus Lee',role:'lawyer'},h.owner);
+  await h.json('/team/invite',{email:'lawyer@example.test'},h.owner);
+  const lawyer=await h.login('lawyer@example.test');
+  let settings=await h.json('/numbering',undefined,h.owner);
+  await h.json('/numbering',{...settings,pattern:'{year}-{client}-{sequence}',start:1050,padding:4,perClient:false},lawyer,403);
+  for(const bad of [{pattern:'{year}'},{pattern:'{unknown}-{sequence}'},{pattern:'{sequence}',perClient:true},{padding:0}])await h.json('/numbering',{...settings,...bad},h.owner,400);
+  settings=await h.json('/numbering',{...settings,pattern:'{year}-{client}-{sequence}',start:1050,padding:4,perClient:false},h.owner);
+  const first=await open(h,'Lease dispute','Barton Workshop LLC','Riverbend Holdings LLC');
+  const search=()=>h.json('/conflicts',{client:'Barton Workshop LLC',adverse:'Riverbend Holdings LLC'},h.owner);
+  const searches=await Promise.all([search(),search()]);
+  const make=(conflictId,title)=>h.json('/matters',{title,conflictId,confirmed:true,reviewNote:'Reviewed unchanged parties; cleared'},h.owner);
+  const parallel=await Promise.all(searches.map((s,i)=>make(s.id,'Concurrent '+i)));
+  assert.deepEqual(parallel.map(m=>m.number_sequence).sort(),[1051,1052]);
+  assert.equal(new Set(parallel.map(m=>m.matter_number)).size,2);
+  assert.equal(first.matter_number,`${new Date().getUTCFullYear()}-0001-1050`);
+  const entry=await h.json('/matters/'+first.id+'/entries',{kind:'time',date:'2026-10-19',description:'Client advice',minutes:60,rateCents:30000},h.owner);
+  let bill=await h.json('/matters/'+first.id+'/bills',{title:'Legal advice',date:'2026-10-19',entryIds:[entry.id]},h.owner);
+  assert.equal(bill.snapshot.matterNumber,first.matter_number);
+  bill=await h.json('/bills/'+bill.id+'/approve',{revision:bill.revision,reviewNote:'Reviewed exact services'},h.owner);
+  const original=await(await h.request('/api/satchel/bills/'+bill.id+'/export',undefined,h.owner)).text();assert.ok(original.includes(first.matter_number));
+  const doc=await h.json('/matters/'+first.id+'/documents',{name:'Advice.txt',mime:'text/plain',visibility:'matter',contentBase64:Buffer.from('Reviewed advice').toString('base64')},h.owner);
+  const deadline=await h.json('/matters/'+first.id+'/deadlines',{title:'Serve notice',date:'2026-11-20',timezone:'America/New_York',source:'Lease clause 8'},h.owner);
+  settings=await h.json('/numbering',{...settings,pattern:'C{client}/{sequence}',start:1,padding:3,perClient:true},h.owner);
+  const later=await open(h,'Later matter','Barton Workshop LLC','Riverbend Holdings LLC');
+  assert.equal(later.matter_number,'C0001/001');
+  const next=await open(h,'Same client again','Barton Workshop LLC','Riverbend Holdings LLC');assert.equal(next.matter_number,'C0001/002');
+  const otherSearch=await h.json('/conflicts',{client:'Pine Studio',adverse:'Riverbend Holdings LLC'},h.owner);
+  const other=await h.json('/matters',{title:'New client',conflictId:otherSearch.id,confirmed:true,reviewNote:'Reviewed',clientNumber:'PINE'},h.owner);assert.equal(other.matter_number,'CPINE/001');
+  settings=await h.json('/numbering',{...settings,pattern:'C{client}/{sequence}',start:1,padding:3,perClient:true},h.owner);
+  const collision=await open(h,'No reused number','Barton Workshop LLC','Riverbend Holdings LLC');assert.equal(collision.matter_number,'C0001/003');
+  assert.equal((await h.json('/matters/'+first.id,undefined,h.owner)).matter.matter_number,first.matter_number);
+  assert.equal((await h.json('/matters/'+first.id+'/documents',undefined,h.owner)).find(d=>d.id===doc.id).matterNumber,first.matter_number);
+  assert.equal((await h.json('/matters/'+first.id+'/deadlines',undefined,h.owner)).find(d=>d.id===deadline.id).matterNumber,first.matter_number);
+  assert.equal(await(await h.request('/api/satchel/bills/'+bill.id+'/export',undefined,h.owner)).text(),original);
+  assert.ok((await h.json('/state',undefined,h.owner)).matters.some(m=>m.matter_number===first.matter_number));
+  assert.equal((await h.json('/state',undefined,lawyer)).matters.length,0);
+ }finally{await h.close();}
+});

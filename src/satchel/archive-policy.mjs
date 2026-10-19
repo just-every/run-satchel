@@ -3,6 +3,6 @@
 export default {
  product: 'legal/satchel',
  excludeTables: ['s_agent_keys','s_guard'],
- replaceableTables: ['s_meta'],
+ replaceableTables: ['s_meta','s_number_settings'],
  requiredConfiguration: ['OWNER_EMAIL','SESSION_SECRET','SETUP_TOKEN','AUTH_ORIGIN','MAIL_PROVIDER','MAIL_FROM'],
 };

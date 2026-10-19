@@ -41,7 +41,7 @@ function artifact(bill: Data) {
  const s = bill.snapshot;
  return csv([
   ['Satchel bill',bill.id,s.title,s.date,s.currency],
-  ['Matter',s.matterId,s.matterTitle,'Client',s.client],
+  ['Matter',s.matterNumber,s.matterId,s.matterTitle,'Client',s.client],
   ['Corrects bill',s.correctsBillId ?? '', 'Original bill',s.originalBillId ?? bill.id],
   ['Correction reason',s.reason ?? ''],
   ['kind','source id','source revision','date','description','minutes','rate USD cents/hour','amount USD cents','prior USD cents','corrected USD cents','rounding'],
@@ -95,7 +95,7 @@ export async function prepareBill(db: D1Database, actor: Actor, matterId: string
  const entries = await rows(db,`SELECT e.*,s.bill_id FROM s_entries e LEFT JOIN s_billing_sources s ON s.entry_id=e.id WHERE e.matter_id=? AND e.id IN (SELECT value FROM json_each(?)) ORDER BY e.date,e.id`,matterId,JSON.stringify(ids));
  insist(entries.length === ids.length && entries.every(e => !e.bill_id), 'Entries must belong to this matter and be unbilled',409);
  const lines = entries.map(e => ({kind:e.kind,sourceId:e.id,sourceRevision:e.revision,date:e.date,description:e.description,minutes:e.minutes,rateCents:e.rate_cents,amountCents:e.amount_cents,rounding:e.kind === 'time' ? 'minutes × hourly USD cents / 60; half-up to cents' : 'exact USD cents'}));
- return createBill(db,actor,matterId,{title:text(body.title,'Bill title',200),date:date(body.date),currency:'USD',matterId,matterTitle:m.title,client:m.client,lines,totalCents:sum(lines)},lines);
+ return createBill(db,actor,matterId,{title:text(body.title,'Bill title',200),date:date(body.date),currency:'USD',matterId,matterNumber:m.matter_number,matterTitle:m.title,client:m.client,lines,totalCents:sum(lines)},lines);
 }
 
 export async function approveBill(db: D1Database, actor: Actor, billId: string, body: Data) {
@@ -146,7 +146,7 @@ export async function correctBill(db: D1Database, actor: Actor, billId: string, 
  insist(corrected !== prior, 'Correction must change the reviewed amount');
  const {currentAmountCents:_,...line} = source;
  const lines = [{...line,description:reason,amountCents:corrected-prior,priorAmountCents:prior,correctedAmountCents:corrected}];
- return createBill(db,actor,bill.matterId,{title:body.title == null ? `Correction: ${bill.snapshot.title}`.slice(0,200) : text(body.title,'Bill title',200),date:date(body.date),currency:'USD',matterId:bill.matterId,matterTitle:bill.snapshot.matterTitle,client:bill.snapshot.client,correctsBillId:bill.id,originalBillId:review.originalBillId,reason,lines,totalCents:sum(lines)},[],[
+ return createBill(db,actor,bill.matterId,{title:body.title == null ? `Correction: ${bill.snapshot.title}`.slice(0,200) : text(body.title,'Bill title',200),date:date(body.date),currency:'USD',matterId:bill.matterId,matterNumber:bill.snapshot.matterNumber,matterTitle:bill.snapshot.matterTitle,client:bill.snapshot.client,correctsBillId:bill.id,originalBillId:review.originalBillId,reason,lines,totalCents:sum(lines)},[],[
   revisionGuard(db,bill),guard(db,"NOT EXISTS(SELECT 1 FROM s_bills WHERE corrects_bill_id=? AND status<>'void')",bill.id),
  ]);
 }

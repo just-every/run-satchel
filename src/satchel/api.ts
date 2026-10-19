@@ -1,3 +1,5 @@
+import {matterImport,matterImportState} from './imports/matters';
+import {numberSettings,saveNumberSettings} from './numbering';
 import {Hono,type Context} from 'hono';
 import {deploymentHealth} from '../base/deployment-health';
 import {type Bindings,runtimeBindings} from '../auth.server';
@@ -23,6 +25,8 @@ const db=(c:C)=>runtimeBindings(c.env).DB;
 const param=(c:C,key='id')=>c.req.param(key)!;
 const as=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>{const result=await fn(await person(c.req.raw,c.env),c);return result instanceof Response?result:c.json(result);};
 const asAgent=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>c.json(await fn(await agent(c.req.raw,c.env),c));
+api.get('/api/satchel/numbering',as((a,c)=>numberSettings(db(c))));
+api.post('/api/satchel/numbering',as(async(a,c)=>saveNumberSettings(db(c),a,await body(c))));
 api.get('/api/satchel/state',as((a,c)=>workspace(db(c),a)));
 api.post('/api/satchel/conflicts',as(async(a,c)=>conflictSearch(db(c),a,await body(c))));
 api.post('/api/satchel/matters',as(async(a,c)=>openMatter(db(c),a,await body(c))));
@@ -61,6 +65,8 @@ api.post('/api/satchel/proposals/:id/decide',as(async(a,c)=>decideProposal(db(c)
 api.get('/api/satchel/agent/matters/:id',asAgent(async(a,c)=>({billing:await listBilling(db(c),a,param(c)),documents:await listDocuments(db(c),a,param(c)),deadlines:await listDeadlines(db(c),a,param(c))})));
 api.get('/api/satchel/agent/context',asAgent((a,c)=>workspace(db(c),a)));
 api.post('/api/satchel/agent/:command',asAgent(async(a,c)=>propose(db(c),a,param(c,'command').replace(/^prepare-/,''),await body(c))));
+api.get('/api/satchel/matter-import',as((a,c)=>matterImportState(db(c),a)));
+api.post('/api/satchel/matter-import/:op',as(async(a,c)=>matterImport(db(c),a,param(c,'op'),await body(c))));
 api.get('/api/satchel/import',as((a,c)=>importState(db(c),a)));
 api.post('/api/satchel/import/:op',as(async(a,c)=>importAction(db(c),a,param(c,'op'),await body(c))));
 api.get('/api/satchel/backup',as((a,c)=>backup(db(c),a)));

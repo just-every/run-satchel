@@ -20,7 +20,7 @@ function timezone(value: unknown) {
 }
 
 function deadlineJson(d: Data, events: Data[] = []) {
- return { id: d.id, matterId: d.matter_id, title: d.title, date: d.date, timezone: d.timezone, source: d.source, documentId: d.document_id, version: d.document_version, status: d.status, active: d.status === 'confirmed', revision: d.revision, proposedBy: d.proposed_by, proposedChannel: d.proposed_channel, proposedAt: d.proposed_at, confirmedBy: d.confirmed_by, confirmedAt: d.confirmed_at, completedBy: d.completed_by, completedAt: d.completed_at, completionEvidence: d.completion_evidence, events: events.filter(e => e.deadline_id === d.id).map(e => ({ action: e.action, actor: e.actor, channel: e.channel, at: e.at, detail: JSON.parse(e.detail) })) };
+ return { id: d.id, matterId: d.matter_id, matterNumber:d.matter_number, title: d.title, date: d.date, timezone: d.timezone, source: d.source, documentId: d.document_id, version: d.document_version, status: d.status, active: d.status === 'confirmed', revision: d.revision, proposedBy: d.proposed_by, proposedChannel: d.proposed_channel, proposedAt: d.proposed_at, confirmedBy: d.confirmed_by, confirmedAt: d.confirmed_at, completedBy: d.completed_by, completedAt: d.completed_at, completionEvidence: d.completion_evidence, events: events.filter(e => e.deadline_id === d.id).map(e => ({ action: e.action, actor: e.actor, channel: e.channel, at: e.at, detail: JSON.parse(e.detail) })) };
 }
 
 function visibility(actor: Actor) {
@@ -30,7 +30,7 @@ function visibility(actor: Actor) {
 
 async function visibleDeadline(db: D1Database, actor: Actor, deadlineId: string) {
  const access = visibility(actor);
- const deadline = await stmt(db, `SELECT t.* FROM s_deadlines t WHERE t.id=? AND (?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=t.matter_id AND a.email=?)) AND ${access.sql}`, deadlineId, actor.role, actor.email, ...access.params).first<Data>();
+ const deadline = await stmt(db, `SELECT t.*,(SELECT matter_number FROM s_matters WHERE id=t.matter_id) AS matter_number FROM s_deadlines t WHERE t.id=? AND (?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=t.matter_id AND a.email=?)) AND ${access.sql}`, deadlineId, actor.role, actor.email, ...access.params).first<Data>();
  insist(deadline, 'Deadline not found', 404); return deadline;
 }
 
@@ -42,7 +42,7 @@ function event(db: D1Database, actor: Actor, deadline: Data, action: string, at:
 export async function listDeadlines(db: D1Database, actor: Actor, matterId: string) {
  await matter(db, actor, matterId);
  const access = visibility(actor);
- const deadlines = await rows(db, `SELECT t.* FROM s_deadlines t WHERE t.matter_id=? AND (?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=t.matter_id AND a.email=?)) AND ${access.sql} ORDER BY t.date,t.proposed_at,t.id`, matterId, actor.role, actor.email, ...access.params);
+ const deadlines = await rows(db, `SELECT t.*,(SELECT matter_number FROM s_matters WHERE id=t.matter_id) AS matter_number FROM s_deadlines t WHERE t.matter_id=? AND (?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=t.matter_id AND a.email=?)) AND ${access.sql} ORDER BY t.date,t.proposed_at,t.id`, matterId, actor.role, actor.email, ...access.params);
  const events = await rows(db, `SELECT e.* FROM s_deadline_events e JOIN s_deadlines t ON t.id=e.deadline_id WHERE t.matter_id=? AND (?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=t.matter_id AND a.email=?)) AND ${access.sql} ORDER BY e.at,e.id`, matterId, actor.role, actor.email, ...access.params);
  return deadlines.map(d => deadlineJson(d, events));
 }
