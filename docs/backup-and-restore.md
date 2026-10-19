@@ -34,9 +34,19 @@ rer dev
 
 After the move, re-enter private configuration, sign in again and create new agent preparation keys. Check restored matters, document versions, reviewed bill packages and import journals before resuming work.
 
+## Legal holds and retention
+
+Counsel (the principal or a lawyer on the matter) manages holds and schedules in **Documents**, under **Legal holds & retention** for the current matter.
+
+- **Place a legal hold** on the whole matter or one document, with a reason. While a hold is active, Satchel refuses to erase or dispose of the documents it covers.
+- **Release hold** records who released it and why. Released holds stay in the history.
+- **Set a retention schedule** records the date after which the matter's documents, or one document, may be disposed of, and its basis. A newer schedule replaces the older one; a document's own schedule takes precedence over its matter's.
+
+When a schedule passes (in the firm's timezone), the document appears under **Retention disposal** in **Team & safety** for the principal. Documents whose schedule passed while on hold are listed separately and cannot be disposed of. **Approve disposal** removes the bytes of every original version and records a disposal journal of the versions removed. Satchel keeps no previews, OCR text, search indexes or connector caches of documents, so the originals are the only bytes to remove. As with erasure, download a new firm archive afterward.
+
 ## Erase document originals
 
-Erasure removes every version's bytes. Names, hashes and decision history remain, and affected deadlines are invalidated.
+Erasure removes every version's bytes. A document under a legal hold cannot be erased. Names, hashes and decision history remain, and affected deadlines are invalidated.
 
 1. Under **Erase document originals**, choose the **Matter** and expand the document name.
 2. Enter its exact name in **Document name to confirm** and record an **Erasure reason**.

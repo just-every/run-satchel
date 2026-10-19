@@ -437,8 +437,8 @@ Judged from the code and tests at commit `bdde701059f93a1d3756bd8be3f1041f4a8b6f
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 12 | 2 | 0 | 14 |
-| Target and push further | 2 | 22 | 99 | 123 |
-| All | 14 | 24 | 99 | 137 |
+| Target and push further | 3 | 21 | 99 | 123 |
+| All | 15 | 23 | 99 | 137 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -461,7 +461,7 @@ Judged from the code and tests at commit `bdde701059f93a1d3756bd8be3f1041f4a8b6f
 | `FIRM-003` | Enforce ethical walls | target | missing |  | Restricted matters support explicit ethical walls, excluding ordinary administrators and search, exports, notifications, connected repositories and agent context. A designated custodian records exceptional access with reason and an audit entry. |
 | `FIRM-004` | Secure sessions and connected secrets | target | partial | `src/auth.server.ts`; `src/satchel/session.ts`; `src/satchel/archive-policy.mjs` | Native sessions and archive exclusions exist; MFA, SSO and connector credential lifecycle do not. |
 | `FIRM-005` | Export a complete action audit | target | partial | `src/satchel/model.ts`; `src/satchel/team.ts` | Writes record action audit and principal can read recent rows; complete filtered export and provider/policy audit are missing. |
-| `FIRM-006` | Apply retention and legal holds | target | partial | `src/satchel/archive.ts` | Manual original-byte erasure exists; holds, schedules and derivative disposal are absent. |
+| `FIRM-006` | Apply retention and legal holds | target | done | `src/satchel/retention.ts`; `src/satchel/archive.ts`; `src/ui/retention.tsx`; `migrations/core/0026_retention.sql`; `tests/satchel/flows.test.mjs` |  |
 | `FIRM-007` | Operate and recover the owned system | target | partial | `src/satchel/archive.ts`; `src/satchel/archive-policy.mjs`; `README.md` | Current small-file archives restore; large-file, trust and paused provider-job recovery and the named health diagnostics are not implemented. |
 | `FIRM-008` | Define custom roles and rate visibility | target | missing |  | Beyond FIRM-002’s built-in roles, the principal defines custom roles with per-area permissions: billing rates (none, own, all), operating and trust bank accounts (none, balances only, full transactions), reports (none, own matters, firm-wide), contacts, documents, billing and settings. Server-side handlers apply the role to every read, export, search result and report; a role change takes effect on the next request and is audited. Legal approval and trust authorization stay tied to FIRM-002’s lawyer and trust-officer authority, and a custom role cannot confer them. |
 | `BASE-001` | Preserve Base guarantees through replacements | target | done | `src/auth.server.ts`; `src/satchel/archive.ts`; `src/satchel/archive-policy.mjs`; `tests/satchel/flows.test.mjs` |  |
