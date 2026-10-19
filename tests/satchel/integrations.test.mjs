@@ -4,9 +4,10 @@ import {createHmac} from 'node:crypto';
 import {harness,open} from './harness.mjs';
 test('CONNECT-001 scoped versioned integration pages every native resource, prepares once, delivers signed duplicate ids, journals uncertainty and refuses hidden matters, approvals and revocation',async()=>{
  const received=[];let fail=true;
- const h=await harness({webhookResponse:async r=>{received.push({body:await r.text(),headers:Object.fromEntries(r.headers)});return new Response(null,{status:fail?503:204});}});
+ const h=await harness({webhookResponse:async r=>{received.push({body:await r.text(),headers:Object.fromEntries(r.headers)});return new Response(null,{status:fail?302:204,headers:fail?{location:'https://127.0.0.1/private'}:{}});}});
  try{
   const a=await open(h),b=await open(h,'Pine advice','Pine Studio','Oak Estate'),hidden=await open(h,'Private negotiation','Lake Company','East Properties');
+  await h.json('/team',{email:'assistant@example.test',name:'Assigned assistant',role:'assistant'},h.owner);await h.json('/team/invite',{email:'assistant@example.test'},h.owner);const assistant=await h.login('assistant@example.test');await h.json('/integrations',{label:'Cannot grant self access',matterIds:[a.id],scopes:['matters:read'],endpoint:'https://receiver.example.com/events'},assistant,403);
   const create={label:'Counsel docket sync',matterIds:[a.id,b.id],scopes:['matters:read','tasks:read','documents:read','deadlines:read','finance:read','proposals:prepare'],endpoint:'https://receiver.example.com/events',eventTypes:['task.changed','document.changed','deadline.changed','finance.changed','proposal.decided','matter.updated']};
   const i=await h.json('/integrations',create,h.owner),auth={authorization:'Bearer '+i.key};
   const first=await h.json('/v1/matters?limit=1',undefined,'',200,auth),second=await h.json('/v1/matters?limit=1&after='+first.next,undefined,'',200,auth);
@@ -27,7 +28,7 @@ test('CONNECT-001 scoped versioned integration pages every native resource, prep
   assert.equal((await h.request('/api/satchel/agent/context',undefined,'',auth)).status,401);
   await h.json('/proposals/'+p.id+'/decide',{decision:'decline',reason:'Counsel will use the next billing cycle'},h.owner);
   await h.json('/integrations/'+i.id+'/dispatch',{},h.owner);assert.ok(received.length>=5);
-  let journal=await h.json('/integrations/'+i.id+'/journal',undefined,h.owner);assert.ok(journal.attempts.some(x=>x.outcome==='failed'&&x.http_status===503));
+  let journal=await h.json('/integrations/'+i.id+'/journal',undefined,h.owner);assert.ok(journal.attempts.some(x=>x.outcome==='failed'&&x.http_status===302));
   const paused=(await h.json('/integrations',undefined,h.owner)).integrations.find(x=>x.id===i.id);assert.equal(paused.paused,1);const beforeResume=received.length;await h.json('/integrations/'+i.id+'/dispatch',{},h.owner);assert.equal(received.length,beforeResume);fail=false;await h.json('/integrations/'+i.id+'/resume',{},h.owner);await h.restart();await h.scheduled('2026-10-19T20:00:00Z');
   journal=await h.json('/integrations/'+i.id+'/journal',undefined,h.owner);assert.ok(journal.deliveries.every(x=>['delivered','refused'].includes(x.status)));
   const event=JSON.parse(received[0].body),copies=received.filter(x=>JSON.parse(x.body).id===event.id);assert.equal(copies.length,2);

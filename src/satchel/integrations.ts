@@ -13,10 +13,10 @@ export type Integration={record:Data;actor:Actor;scopes:string[];matters:string[
 export function endpoint(value:unknown) {
  try{return validateDestination(text(value,'HTTPS webhook URL',2000)).href;}catch{insist(false,'Use a public HTTPS destination without credentials, fragments or a nonstandard port');}
 }
-export async function integrationState(db:D1Database,actor:Actor,webhookAvailable=false) {
+export async function integrationState(db:D1Database,actor:Actor) {
  human(actor);need(actor,'owner');
  const integrations=await rows(db,'SELECT id,label,owner_id,scopes,matter_ids,endpoint,event_types,revoked,created_at,paused,failure_count,generation FROM s_integrations ORDER BY created_at,id');
- return {integrations:integrations.map(r=>({...r,scopes:JSON.parse(r.scopes),matterIds:JSON.parse(r.matter_ids),eventTypes:JSON.parse(r.event_types)})),scopes:integrationScopes,eventTypes:integrationEvents,webhookAvailable};
+ return {integrations:integrations.map(r=>({...r,scopes:JSON.parse(r.scopes),matterIds:JSON.parse(r.matter_ids),eventTypes:JSON.parse(r.event_types)})),scopes:integrationScopes,eventTypes:integrationEvents};
 }
 export async function createIntegration(env:Bindings,actor:Actor,body:Data) {
  human(actor);need(actor,'owner');
@@ -27,7 +27,6 @@ export async function createIntegration(env:Bindings,actor:Actor,body:Data) {
  insist(Array.isArray(events)&&events.every((e:unknown)=>integrationEvents.includes(String(e))),'Choose supported events');
  for(const e of events)insist(scopes.includes(e.startsWith('proposal.')?'proposals:prepare':e.startsWith('matter.')?'matters:read':e.split('.')[0]+(e.startsWith('finance.')?'':'s')+':read'),'Each event needs its resource capability');
  const destination=body.endpoint?endpoint(body.endpoint):null;insist(destination||events.length===0,'Events need a webhook destination');
- insist(!destination||env.SATCHEL_EGRESS,'Webhook delivery needs an installation-owned enforcing egress service. Create an API-only integration until it is configured.',503);
  const integrationId=id(),token='satchel_integration_'+randomSecret(),secret=destination?randomSecret():null,at=now(),label=text(body.label,'Integration name',80);
  await atomic(env.DB,actor,[stmt(env.DB,'INSERT INTO s_integrations(id,label,owner_id,digest,scopes,matter_ids,endpoint,event_types,secret_sealed,enabled_at,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)',integrationId,label,actor.id,await digest(token),JSON.stringify(scopes),JSON.stringify(matters),destination,JSON.stringify([...new Set(events)]),secret?await seal(secret,env.SESSION_SECRET):null,at,at),audit(env.DB,actor,'integration.created',integrationId,JSON.stringify({label,scopes,matters,destination,events}))]);
  return {id:integrationId,label,key:token,signingSecret:secret};

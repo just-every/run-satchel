@@ -57,7 +57,7 @@ const db=(c:C)=>runtimeBindings(c.env).DB;
 const param=(c:C,key='id')=>c.req.param(key)!;
 const as=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>{const result=await fn(await person(c.req.raw,c.env),c);return result instanceof Response?result:c.json(result);};
 const asAgent=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>c.json(await fn(await agent(c.req.raw,c.env),c));
-api.get('/api/satchel/integrations',as((a,c)=>integrationState(db(c),a,Boolean(runtimeBindings(c.env).SATCHEL_EGRESS))));
+api.get('/api/satchel/integrations',as((a,c)=>integrationState(db(c),a)));
 api.post('/api/satchel/integrations',as(async(a,c)=>createIntegration(runtimeBindings(c.env),a,await body(c))));
 api.post('/api/satchel/integrations/:id/revoke',as((a,c)=>revokeIntegration(db(c),a,param(c))));
 api.post('/api/satchel/integrations/:id/rotate',as((a,c)=>rotateIntegration(runtimeBindings(c.env),a,param(c))));

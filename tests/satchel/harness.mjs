@@ -17,11 +17,9 @@ export async function harness(options={}){
   host:'127.0.0.1',port,https:true,modulesRoot:resolve('dist/server'),modules:[config.main,...(await readdir('dist/server/assets')).filter(f=>f.endsWith('.js')).map(f=>'assets/'+f)].map(f=>({type:'ESModule',path:resolve('dist/server',f)})),
   compatibilityDate:config.compatibility_date,compatibilityFlags:config.compatibility_flags,
   assets:{directory:resolve('dist/client'),routerConfig:{has_user_worker:true}},d1Databases:{DB:'satchel-test'},r2Buckets:{ORIGINALS:'satchel-originals-test'},bindings:vars,
-  serviceBindings:options.webhookResponse?{SATCHEL_EGRESS:{name:'webhook-network',entrypoint:'WebhookEdge'}}:undefined,
   // Only paid/network boundaries are fake; the built application is unchanged.
-  outboundService:async request=>{assert.equal(request.url,'https://api.resend.com/emails');const message=await request.json();mails.push(message);return options.mailResponse?options.mailResponse(message,request):Response.json({id:'test-mail-'+mails.length});},
+  outboundService:async request=>{if(options.webhookResponse&&request.url==='https://receiver.example.com/events')return options.webhookResponse(request);assert.equal(request.url,'https://api.resend.com/emails');const message=await request.json();mails.push(message);return options.mailResponse?options.mailResponse(message,request):Response.json({id:'test-mail-'+mails.length});},
  }),resourcePersistencePath:join(directory,'state')};
- if(options.webhookResponse)configOptions.workers.push(...convertV4MiniflareOptions({name:'webhook-network',scriptPath:resolve('tests/satchel/webhook-edge.mjs'),modules:true,compatibilityDate:config.compatibility_date,compatibilityFlags:config.compatibility_flags,outboundService:options.webhookResponse}).workers);
  let mf=new Miniflare(configOptions);
  const request=(path,body,cookie='',extra={})=>mf.dispatchFetch(origin+path,{redirect:'manual',method:body===undefined?'GET':'POST',headers:{origin,host:new URL(origin).host,'CF-Connecting-IP':'192.0.2.1',...(body===undefined?{}:{'content-type':'application/json'}),...(cookie?{cookie}:{}),...extra},...(body===undefined?{}:{body:JSON.stringify(body)})});
  const json=async(path,body,cookie,expected=200,extra={})=>{const r=await request('/api/satchel'+path,body,cookie,extra);const b=await r.json();assert.equal(r.status,expected,JSON.stringify(b));return b;};
