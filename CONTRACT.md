@@ -434,13 +434,13 @@ Every capability claim in br’s approved homepage register (17 October 2026, 60
 
 Judged from the code and tests at commit `f0039d8cce859a318e2fe12238057ccb098282e8` (19 October 2026).
 
-TIME-004 and INTAKE-001 and their inherited obligations are updated from the code and named tests in this tree; the commit above is the preceding assessment baseline.
+BILL-004, TIME-004 and INTAKE-001 and their inherited obligations are updated from the code and named tests in this tree; the commit above is the preceding assessment baseline.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 13 | 1 | 0 | 14 |
-| Target and push further | 32 | 17 | 74 | 123 |
-| All | 45 | 18 | 74 | 137 |
+| Target and push further | 32 | 18 | 73 | 123 |
+| All | 45 | 19 | 73 | 137 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -530,7 +530,7 @@ TIME-004 and INTAKE-001 and their inherited obligations are updated from the cod
 | `BILL-001` | Run prebill review and batch invoices | target | partial | `src/satchel/billing.ts`; `src/satchel/billing-corrections.ts` | Reviewed single CSV bill packages exist; PDF invoices rendered from recorded template revisions, prebill routing, trust application at approval, batch issuance and the BILL-016 void-and-rebill path are absent. |
 | `BILL-002` | Deliver invoices and payer statements | target | missing |  | Issue and deliver reviewed PDFs plus authenticated online payment links by portal/email with payer details, due dates, matter summaries and trust statements. Each PDF carries the firm’s logo, address and remittance details, the client and matter header, payment terms, a QR code and link to that invoice’s payment page and the trust balance as its BILL-013 template specifies. Track actual provider delivery/failure separately from export or queue success. Once an invoice is voided under BILL-016, its delivered payment link, portal page and QR code refuse payment and name the replacement invoice. |
 | `BILL-003` | Split payers and handle foreign invoices | target | missing |  | Fee agreements allocate fixed or percentage responsibility across clients, insurers and third parties with separate privacy and payment status. USD is the US default; explicitly configured foreign-currency invoices preserve original currency, approved FX rate and USD accounting differences. |
-| `BILL-004` | Calculate US billing tax explicitly | target | missing |  | The firm configures counsel/accountant-reviewed service and expense tax treatment by US jurisdiction, exemptions and rounding, optionally using Avalara for supported calculation. Tax lines preserve calculation inputs and provider result; unknown treatment blocks issuance for review. |
+| `BILL-004` | Calculate US billing tax explicitly | target | partial | `src/satchel/tax-reviews.ts`; `migrations/core/0062_tax_reviews.sql`; `tests/satchel/tax-reviews.test.mjs`; `docs/TAX-REVIEWS.md` | Native reviewed-rule and draft-calculation HTTP doors exist, including two-jurisdiction taxable/exempt provenance. Issuance refusal for unknown treatment, tax-bearing invoice totals/artifacts, corrections, explicit trust eligibility/allocation and per-client LEDES 1998B/XML mapping remain unbuilt; calculation reviews do not issue or change an invoice. No Avalara calculation is claimed. |
 | `BILL-005` | Collect through 8am LawPay | target | missing |  | Connect the firm’s contracted LawPay account for hosted card/eCheck payments, trust or operating destination, saved authorization, payment links, text-to-pay links sent through CLIENT-005 and QR payment links on invoices. Billing staff also take a card or eCheck payment a client authorizes by phone by keying it into LawPay’s hosted virtual-terminal fields inside Satchel, recording the client’s authorization and allocating it to the chosen invoice or trust request in the same step; card and account numbers never reach Satchel’s servers, logs or archives. Optional card surcharging applies only to operating payments by credit card, in US states the firm has enabled it for and within card-network caps, is disclosed before payment and is never added to debit cards or trust deposits. Show pending, cleared, failed and returned states; fees and chargebacks must not invade client trust principal. |
 | `BILL-006` | Collect through Stripe legal configurations | target | missing |  | Stripe is an alternative for firm-approved operating payments and any explicitly supported trust configuration, using hosted tokenization and account verification. Trust collection cannot be enabled until the firm verifies a compliant bank/processor arrangement that protects client principal from fees and chargebacks. |
 | `BILL-007` | Reconcile payments refunds and disputes | target | missing |  | Provider events reconcile invoices, receipts, settlement batches, processor fees, bank deposits, ACH returns, refunds and disputes with stable external IDs. Refunds and write-offs require finance approval and append-only corrections; unknown settlement never appears paid. |

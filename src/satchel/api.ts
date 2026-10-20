@@ -1,3 +1,4 @@
+import {taxRules,saveTaxRule,taxCalculations,calculateBillTax} from './tax-reviews';
 import {feePlans,saveFeePlan} from './fee-plans';
 import {runDueFees} from './fee-scheduler';
 import {assemblyTemplates,saveAssemblyTemplate,assemblyState,prepareAssembly,approveAssembly,assemblyFile,assemblyPreview} from './assembly';
@@ -71,6 +72,10 @@ const db=(c:C)=>runtimeBindings(c.env).DB;
 const param=(c:C,key='id')=>c.req.param(key)!;
 const as=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>{const result=await fn(await person(c.req.raw,c.env),c);return result instanceof Response?result:c.json(result);};
 const asAgent=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>c.json(await fn(await agent(c.req.raw,c.env),c));
+api.get('/api/satchel/matters/:id/tax-rules',as((a,c)=>taxRules(db(c),a,param(c))));
+api.post('/api/satchel/matters/:id/tax-rules',as(async(a,c)=>saveTaxRule(db(c),a,param(c),await body(c))));
+api.get('/api/satchel/bills/:id/tax-reviews',as((a,c)=>taxCalculations(db(c),a,param(c))));
+api.post('/api/satchel/bills/:id/tax-reviews',as(async(a,c)=>calculateBillTax(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/assembly/templates',as((a,c)=>assemblyTemplates(db(c))));
 api.post('/api/satchel/assembly/templates',as(async(a,c)=>saveAssemblyTemplate(db(c),a,await body(c))));
 api.get('/api/satchel/matters/:id/assembly',as((a,c)=>assemblyState(db(c),a,param(c))));
