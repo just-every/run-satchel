@@ -49,7 +49,7 @@ const dollars=(c:number)=>`$${(c/100).toFixed(2)}`;
 // Codes one bill line under the guideline. Returns the LEDES line and every reason it fails.
 export async function codeLine(db:D1Database,g:Guideline,e:Data,override:Data|undefined,lineNumber:number,amountCents:number,description:string) {
  const pick=(kind:string,key:string,current:string|null)=>override&&override[key]!==undefined?codeFormat(kind,override[key]):current;
- const fee=e.kind==='time',coding:Coding={task:fee?pick('task','utbmsTask',e.utbms_task??null):null,activity:fee?pick('activity','utbmsActivity',e.utbms_activity??null):null,expense:fee?null:pick('expense','utbmsExpense',e.utbms_expense??null)};
+ const fee=e.kind==='time'||e.kind==='fee',coding:Coding={task:fee?pick('task','utbmsTask',e.utbms_task??null):null,activity:fee?pick('activity','utbmsActivity',e.utbms_activity??null):null,expense:fee?null:pick('expense','utbmsExpense',e.utbms_expense??null)};
  const problems=await codeProblems(db,coding);
  if(fee&&g.requireTask&&!coding.task)problems.push(`UTBMS task code is required by the ${g.client} guideline`);
  if(fee&&g.requireActivity&&!coding.activity)problems.push(`UTBMS activity code is required by the ${g.client} guideline`);
@@ -62,10 +62,10 @@ export async function codeLine(db:D1Database,g:Guideline,e:Data,override:Data|un
   const tk=await stmt(db,'SELECT * FROM s_ledes_timekeepers WHERE email=?',e.created_by).first<Data>();
   if(!tk)problems.push(`timekeeper ${e.created_by} has no LEDES timekeeper ID`);
   const billed=e.billed_minutes??e.minutes,max=tk?g.maxRates[tk.classification]:undefined;
-  if(max!==undefined&&e.rate_cents>max)problems.push(`rate ${dollars(e.rate_cents)}/h exceeds the guideline's ${dollars(max)}/h for ${tk!.classification}`);
-  if(g.incrementMinutes>0&&billed%g.incrementMinutes!==0)problems.push(`${billed} billed minutes is not a multiple of the guideline's ${g.incrementMinutes}-minute increment`);
-  const units4=unitsOf(billed);
-  line={...line,timekeeperId:tk?.timekeeper_id??null,timekeeperName:tk?.name??null,classification:tk?.classification??null,units4,unitCostCents:e.rate_cents,adjustmentCents:amountCents-baseCents(units4,e.rate_cents)};
+  if(e.kind!=='fee'&&max!==undefined&&e.rate_cents>max)problems.push(`rate ${dollars(e.rate_cents)}/h exceeds the guideline's ${dollars(max)}/h for ${tk!.classification}`);
+  if(e.kind!=='fee'&&g.incrementMinutes>0&&billed%g.incrementMinutes!==0)problems.push(`${billed} billed minutes is not a multiple of the guideline's ${g.incrementMinutes}-minute increment`);
+  const units4=e.kind==='fee'?10000:unitsOf(billed),unitCost=e.kind==='fee'?amountCents:e.rate_cents;
+  line={...line,timekeeperId:tk?.timekeeper_id??null,timekeeperName:tk?.name??null,classification:tk?.classification??null,units4,unitCostCents:unitCost,nonhourly:e.kind==='fee',adjustmentCents:amountCents-baseCents(units4,unitCost)};
  }
  return {line,problems:problems.map(p=>`Line ${lineNumber} (${description.slice(0,40)}): ${p}`)};
 }

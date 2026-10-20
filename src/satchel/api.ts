@@ -1,3 +1,5 @@
+import {feePlans,saveFeePlan} from './fee-plans';
+import {runDueFees} from './fee-scheduler';
 import {assemblyTemplates,saveAssemblyTemplate,assemblyState,prepareAssembly,approveAssembly,assemblyFile,assemblyPreview} from './assembly';
 import {checkState,prepareCheck,requestCheckVoid,decideCheckVoid,matchCheck,prepareDepositSlip} from './trust-checks';
 import {printCheck,printDepositSlip} from './trust-check-print';
@@ -282,3 +284,7 @@ api.post('/api/satchel/trust/matter-transfers',as(async(a,c)=>requestMatterTrans
 api.post('/api/satchel/trust/matter-transfers/:id/decide',as(async(a,c)=>decideMatterTransfer(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/trust/matter-transfers/:id/bank-result',as(async(a,c)=>matterTransferBankResult(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/trust/matter-transfers/:id/reversal',as(async(a,c)=>requestMatterTransfer(db(c),a,await body(c),param(c))));
+
+api.get('/api/satchel/matters/:id/fee-plans',as((a,c)=>feePlans(db(c),a,param(c))));
+api.post('/api/satchel/matters/:id/fee-plans',as(async(a,c)=>saveFeePlan(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/matters/:id/fee-plans/run',as(async(a,c)=>runDueFees(db(c),a,param(c),(await body(c)).asOf)));
