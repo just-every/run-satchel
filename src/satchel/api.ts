@@ -6,7 +6,8 @@ import {matterTransferState,requestMatterTransfer,decideMatterTransfer} from './
 import {matterTransferBankResult} from './trust-matter-transfer-bank';
 import {matterLifecycle,closurePreview,closeMatter,reopenMatter} from './matter-lifecycle';
 import {integrationState,createIntegration,revokeIntegration,rotateIntegration,resumeIntegration,integrationAuth,integrationMatters,integrationMatter,integrationRecords,integrationPrepare,capability} from './integrations';
-import {dispatchIntegration,webhookJournal,integrationEventPage} from './webhooks';
+import {dispatchIntegration,integrationEventPage} from './webhooks';
+import {connectorJournal,reconcileConnector,revokeConnectorMatter} from './integration-journal';
 import {visibleDocument} from './documents';
 import {stageDefinitions,saveStageDefinition,matterBoard,matterStageState,saveStageProfile,transitionMatterStage} from './matter-stages';
 import {contactState,contactDetail,saveContact,contactAction} from './contacts';
@@ -80,7 +81,9 @@ api.post('/api/satchel/integrations',as(async(a,c)=>createIntegration(runtimeBin
 api.post('/api/satchel/integrations/:id/revoke',as((a,c)=>revokeIntegration(db(c),a,param(c))));
 api.post('/api/satchel/integrations/:id/rotate',as((a,c)=>rotateIntegration(runtimeBindings(c.env),a,param(c))));
 api.post('/api/satchel/integrations/:id/resume',as((a,c)=>resumeIntegration(db(c),a,param(c))));
-api.get('/api/satchel/integrations/:id/journal',as((a,c)=>webhookJournal(db(c),a,param(c))));
+api.get('/api/satchel/integrations/:id/journal',as((a,c)=>connectorJournal(db(c),a,param(c))));
+api.post('/api/satchel/integrations/:id/reconcile',as(async(a,c)=>reconcileConnector(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/integrations/:id/matter-access',as(async(a,c)=>revokeConnectorMatter(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/integrations/:id/dispatch',as(async(a,c)=>dispatchIntegration(runtimeBindings(c.env),a,param(c),await body(c))));
 api.get('/api/satchel/v1/matters',async c=>c.json(await integrationMatters(db(c),await integrationAuth(db(c),c.req.raw),c.req.query())));
 api.get('/api/satchel/v1/matters/:id',async c=>{const i=await integrationAuth(db(c),c.req.raw);capability(i,'matters:read');return c.json(await integrationMatter(db(c),i,param(c)));});
