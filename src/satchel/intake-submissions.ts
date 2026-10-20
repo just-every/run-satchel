@@ -18,7 +18,7 @@ export async function publicIntake(env:Bindings,formId:string){
  const token=Array.from(crypto.getRandomValues(new Uint8Array(32)),x=>x.toString(16).padStart(2,'0')).join(''),expiresAt=new Date(Date.now()+20*60*1000).toISOString();
  await Promise.all([purgeIntakeSecurity(env.DB,at),recoverIntakeUploads(env,at)]);
  await env.DB.batch([guard(env.DB,'EXISTS(SELECT 1 FROM s_intake_forms WHERE id=? AND published=1 AND revision=?)',form.id,form.revision),stmt(env.DB,'INSERT INTO s_intake_tokens(token_hash,form_id,revision,expires_at) VALUES(?,?,?,?)',await digest(token),form.id,form.revision,expiresAt)]);
- const {assignedEmail:_,...publicSnapshot}=snapshot;
+ const {assignedEmail:_,practiceCode:__,...publicSnapshot}=snapshot;
  return {...publicSnapshot,id:form.id,revision:form.revision,version:form.version,token,expiresAt};
 }
 async function boundedMultipart(request:Request){
@@ -83,7 +83,7 @@ export async function submitIntake(env:Bindings,formId:string,request:Request){
  const profile={name:text(body.name,'Name',200),email:optional(body.email,'Email',254),phone:optional(body.phone,'Phone',40),summary:text(body.summary,'Inquiry summary',2000)};
  if(profile.email)insist(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email),'Use a valid email address');
  const answers=answerValues(snapshot.questions,body.answers),hour=at.slice(0,13),network=await ipDigest(env,form.id,hour,request),rateExpires=new Date(new Date(hour+':00:00.000Z').getTime()+2*60*60*1000).toISOString();
- const leadId=id(),submissionId=id(),receipt=id(),original={profile,answers,consent:{text:snapshot.consentText,accepted:true,at},form:{id:form.id,revision:form.revision,version:form.version,title:snapshot.title,practice:snapshot.practice}};
+ const leadId=id(),submissionId=id(),receipt=id(),original={profile,answers,consent:{text:snapshot.consentText,accepted:true,at},form:{id:form.id,revision:form.revision,version:form.version,title:snapshot.title,practice:snapshot.practice,practiceCode:snapshot.practiceCode??null}};
  let staged:StagedIntakeFile[]=[];
  try {
   staged=await stageIntakeFiles(env,multipart.getAll('files'));
@@ -93,12 +93,12 @@ export async function submitIntake(env:Bindings,formId:string,request:Request){
    guard(env.DB,activeIntakeAssigneeSql,form.assigned_email,form.assigned_email),
    guard(env.DB,'COALESCE((SELECT accepted FROM s_intake_rate_limits WHERE form_id=? AND hour=? AND ip_digest=?),0)<10',form.id,hour,network),
    stmt(env.DB,'INSERT INTO s_intake_rate_limits(form_id,hour,ip_digest,accepted,expires_at) VALUES(?,?,?,1,?) ON CONFLICT(form_id,hour,ip_digest) DO UPDATE SET accepted=accepted+1',form.id,hour,network,rateExpires),
-   stmt(env.DB,"INSERT INTO s_leads(id,name,email,phone,summary,referral_source,assigned_email,status,revision,created_by,created_at,last_activity_at) VALUES(?,?,?,?,?,?,?,'open',?,?,?,?)",leadId,profile.name,profile.email,profile.phone,profile.summary,`Intake form ${form.id} version ${form.version}`,form.assigned_email,id(),publicActor.email,at,at),
+   stmt(env.DB,"INSERT INTO s_leads(id,name,email,phone,summary,referral_source,practice_code,assigned_email,status,revision,created_by,created_at,last_activity_at) VALUES(?,?,?,?,?,?,?,?,'open',?,?,?,?)",leadId,profile.name,profile.email,profile.phone,profile.summary,`Intake form ${form.id} version ${form.version}`,snapshot.practiceCode??null,form.assigned_email,id(),publicActor.email,at,at),
    stmt(env.DB,'INSERT INTO s_intake_submissions(id,lead_id,form_id,form_version,receipt,submitted_at,original_data) VALUES(?,?,?,?,?,?,?)',submissionId,leadId,form.id,form.version,receipt,at,JSON.stringify(original)),
    ...staged.map(f=>stmt(env.DB,'INSERT INTO s_intake_files(id,submission_id,name,mime,size,sha256,object_key) VALUES(?,?,?,?,?,?,?)',f.id,submissionId,f.name,f.mime,f.size,f.sha256,f.objectKey)),
    ...staged.map(f=>stmt(env.DB,'DELETE FROM s_intake_uploads WHERE object_key=?',f.objectKey)),
    stmt(env.DB,'UPDATE s_intake_tokens SET submission_id=? WHERE token_hash=?',submissionId,hash),
-   stmt(env.DB,'INSERT INTO s_lead_events(id,lead_id,kind,detail,actor,at) VALUES(?,?,?,?,?,?)',id(),leadId,'intake_received',JSON.stringify({submissionId,formId:form.id,formVersion:form.version,assignedEmail:form.assigned_email}),publicActor.email,at),
+   stmt(env.DB,'INSERT INTO s_lead_events(id,lead_id,kind,detail,actor,at) VALUES(?,?,?,?,?,?)',id(),leadId,'intake_received',JSON.stringify({submissionId,formId:form.id,formVersion:form.version,assignedEmail:form.assigned_email,practiceCode:snapshot.practiceCode??null}),publicActor.email,at),
    audit(env.DB,publicActor,'intake.received',submissionId,JSON.stringify({leadId,formId:form.id,formVersion:form.version,receipt,original,files:staged.map(({objectKey:_,...file})=>file)}))
   ]);
  }catch(error){
@@ -122,7 +122,7 @@ export async function leadIntake(db:D1Database,actor:Actor,leadId:string){
  for(const submission of submissions){
   try{await visibleIntakeLeadPath(db,actor,submission.lead_id);}catch(error){if(error instanceof Fault&&error.status===404)continue;throw error;}
   const data=JSON.parse(submission.original_data),snapshot=JSON.parse(submission.snapshot),files=await rows(db,'SELECT * FROM s_intake_files WHERE submission_id=? ORDER BY id',submission.id);
-  visible.push({id:submission.id,formId:submission.form_id,formVersion:submission.form_version,formTitle:snapshot.title,practice:snapshot.practice,receipt:submission.receipt,submittedAt:submission.submitted_at,consent:data.consent,answers:data.answers,files:files.map(f=>({id:f.id,name:f.name,mime:f.mime,size:f.size,sha256:f.sha256,scanStatus:f.scan_status,downloadUrl:`/api/satchel/intake/files/${encodeURIComponent(f.id)}`}))});
+  visible.push({id:submission.id,formId:submission.form_id,formVersion:submission.form_version,formTitle:snapshot.title,practice:snapshot.practice,practiceCode:snapshot.practiceCode??null,receipt:submission.receipt,submittedAt:submission.submitted_at,consent:data.consent,answers:data.answers,files:files.map(f=>({id:f.id,name:f.name,mime:f.mime,size:f.size,sha256:f.sha256,scanStatus:f.scan_status,downloadUrl:`/api/satchel/intake/files/${encodeURIComponent(f.id)}`}))});
  }
  return {submissions:visible};
 }

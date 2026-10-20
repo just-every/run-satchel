@@ -34,6 +34,12 @@ async function assignee(db:D1Database,email:unknown) {
  insist(await stmt(db,"SELECT 1 FROM s_members WHERE email=? AND active=1 AND role IN ('lawyer','assistant') UNION SELECT 1 FROM oa_operators WHERE lower(email)=? AND role='owner'",e,e).first(),'Assign the lead to an active lawyer, assistant or the principal');
  return e;
 }
+export async function leadPractice(db:D1Database,value:unknown) {
+ if(value===undefined||value===null||value==='')return null;
+ const code=text(value,'Practice area code',6).toUpperCase();
+ insist(await stmt(db,'SELECT 1 FROM s_practice_areas WHERE code=?',code).first(),'Choose a configured practice area');
+ return code;
+}
 async function stage(db:D1Database,value:unknown) {
  if(value===undefined||value===null||value==='')return null;
  const s=await stmt(db,'SELECT id FROM s_lead_stages WHERE id=?',text(value,'Lead stage',100)).first<Data>();insist(s,'Lead stage not found',404);return s.id as string;
@@ -54,9 +60,9 @@ export async function saveLeadStage(db:D1Database,actor:Actor,body:Data) {
 export async function createLead(db:D1Database,actor:Actor,body:Data) {
  staff(actor);
  const at=now(),leadId=id(),assigned=counselRole(actor)?await assignee(db,body.assignedEmail):actor.email;
- const lead={name:text(body.name,'Prospect name',200),email:body.email?text(body.email,'Email',254).toLowerCase():'',phone:body.phone?text(body.phone,'Phone',40):'',summary:text(body.summary,'Inquiry summary',2000),referralSource:text(body.referralSource,'Referral source',200),stageId:await stage(db,body.stageId),assigned,nextAction:body.nextAction?text(body.nextAction,'Next action',300):'',nextActionDate:body.nextActionDate?date(body.nextActionDate):null};
- await atomic(db,actor,[stmt(db,"INSERT INTO s_leads(id,name,email,phone,summary,referral_source,stage_id,assigned_email,next_action,next_action_date,status,revision,created_by,created_at,last_activity_at) VALUES(?,?,?,?,?,?,?,?,?,?,'open',?,?,?,?)",leadId,lead.name,lead.email,lead.phone,lead.summary,lead.referralSource,lead.stageId,lead.assigned,lead.nextAction,lead.nextActionDate,id(),actor.email,at,at),
-  ...event(db,actor,leadId,'created',{referralSource:lead.referralSource,assigned:lead.assigned,stageId:lead.stageId},at)]);
+ const lead={name:text(body.name,'Prospect name',200),email:body.email?text(body.email,'Email',254).toLowerCase():'',phone:body.phone?text(body.phone,'Phone',40):'',summary:text(body.summary,'Inquiry summary',2000),referralSource:text(body.referralSource,'Referral source',200),stageId:await stage(db,body.stageId),practiceCode:await leadPractice(db,body.practiceCode),assigned,nextAction:body.nextAction?text(body.nextAction,'Next action',300):'',nextActionDate:body.nextActionDate?date(body.nextActionDate):null};
+ await atomic(db,actor,[stmt(db,"INSERT INTO s_leads(id,name,email,phone,summary,referral_source,stage_id,practice_code,assigned_email,next_action,next_action_date,status,revision,created_by,created_at,last_activity_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,'open',?,?,?,?)",leadId,lead.name,lead.email,lead.phone,lead.summary,lead.referralSource,lead.stageId,lead.practiceCode,lead.assigned,lead.nextAction,lead.nextActionDate,id(),actor.email,at,at),
+  ...event(db,actor,leadId,'created',{referralSource:lead.referralSource,assigned:lead.assigned,stageId:lead.stageId,practiceCode:lead.practiceCode},at)]);
  return leadDetail(db,actor,leadId);
 }
 async function visibleLead(db:D1Database,actor:Actor,leadId:string) {
@@ -67,13 +73,13 @@ export function leadJson(l:Data,stages:Data[],today:string,timezone:string) {
  const inactive=new Date(today+'T00:00:00Z');inactive.setUTCDate(inactive.getUTCDate()-14);
  const activityDate=new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(l.last_activity_at));
  const stalled=l.status!=='open'?[]:[...(l.next_action_date&&l.next_action_date<today?['Next action overdue']:[]),...(activityDate<=inactive.toISOString().slice(0,10)?['No activity for 14 days']:[])];
- return {id:l.id,name:l.name,email:l.email,phone:l.phone,summary:l.summary,referralSource:l.referral_source,stageId:l.stage_id,stageName:stages.find(s=>s.id===l.stage_id)?.name??null,assignedEmail:l.assigned_email,qualification:l.qualification,consultationOutcome:l.consultation_outcome,nextAction:l.next_action,nextActionDate:l.next_action_date,status:l.status,lostReason:l.lost_reason,matterId:l.matter_id,mergedInto:l.merged_into,revision:l.revision,createdBy:l.created_by,createdAt:l.created_at,lastActivityAt:l.last_activity_at,overdue:Boolean(l.status==='open'&&l.next_action_date&&l.next_action_date<today),stalled};
+ return {id:l.id,name:l.name,email:l.email,phone:l.phone,summary:l.summary,referralSource:l.referral_source,practiceCode:l.practice_code??null,stageId:l.stage_id,stageName:stages.find(s=>s.id===l.stage_id)?.name??null,assignedEmail:l.assigned_email,qualification:l.qualification,consultationOutcome:l.consultation_outcome,nextAction:l.next_action,nextActionDate:l.next_action_date,status:l.status,lostReason:l.lost_reason,matterId:l.matter_id,mergedInto:l.merged_into,revision:l.revision,createdBy:l.created_by,createdAt:l.created_at,lastActivityAt:l.last_activity_at,overdue:Boolean(l.status==='open'&&l.next_action_date&&l.next_action_date<today),stalled};
 }
 export async function leadDetail(db:D1Database,actor:Actor,leadId:string) {
  const l=await visibleLead(db,actor,leadId),stages=await leadStages(db),{today,timezone}=await leadCalendar(db);
  const [events,merged,others]=await Promise.all([rows(db,'SELECT * FROM s_lead_events WHERE lead_id=? ORDER BY at,id',leadId),rows(db,`SELECT * FROM s_leads l WHERE l.merged_into=? AND ${visibleLeadSql} ORDER BY l.created_at,l.id`,leadId,...visibleParams(actor)),rows(db,`SELECT * FROM s_leads l WHERE l.status='open' AND ${visibleLeadSql}`,...visibleParams(actor))]);
  return {...leadJson(l,stages,today,timezone),history:events.map(e=>({kind:e.kind,detail:JSON.parse(e.detail),actor:e.actor,at:e.at})).filter(e=>counselRole(actor)||e.kind!=='absorbed'||merged.some(m=>m.id===e.detail.from?.id)),
-  mergedFrom:merged.map(m=>({id:m.id,name:m.name,email:m.email,phone:m.phone,summary:m.summary,referralSource:m.referral_source,createdBy:m.created_by,createdAt:m.created_at})),
+  mergedFrom:merged.map(m=>({id:m.id,name:m.name,email:m.email,phone:m.phone,summary:m.summary,referralSource:m.referral_source,practiceCode:m.practice_code??null,createdBy:m.created_by,createdAt:m.created_at})),
   duplicates:l.status==='open'?others.map(o=>({id:o.id,name:o.name,reason:duplicateOf(l,o)})).filter(o=>o.reason):[]};
 }
 // One reviewed change at a time against the lead's revision. Assistants work their own
@@ -85,6 +91,7 @@ export async function updateLead(db:D1Database,actor:Actor,leadId:string,body:Da
  const next={...l},changes:Data={};
  const set=(key:string,value:unknown)=>{if(value!==l[key]){changes[key]={from:l[key],to:value};next[key]=value;}};
  if(body.stageId!==undefined)set('stage_id',await stage(db,body.stageId));
+ if(body.practiceCode!==undefined)set('practice_code',await leadPractice(db,body.practiceCode));
  if(body.assignedEmail!==undefined){insist(counselRole(actor),'Only the principal or a lawyer reassigns a lead',403);set('assigned_email',await assignee(db,body.assignedEmail));}
  if(body.qualification!==undefined){insist(qualifications.includes(body.qualification),'Choose pending, qualified or not qualified');set('qualification',body.qualification);}
  if(body.consultationOutcome!==undefined)set('consultation_outcome',body.consultationOutcome===''?'':text(body.consultationOutcome,'Consultation outcome',2000));
@@ -95,7 +102,7 @@ export async function updateLead(db:D1Database,actor:Actor,leadId:string,body:Da
  insist(Object.keys(changes).length>0,'Change at least one lead field');
  const at=now(),kind=next.status==='lost'?'lost':next.status==='converted'?'converted':'updated';
  await atomic(db,actor,[guard(db,`EXISTS(SELECT 1 FROM s_leads l WHERE l.id=? AND l.revision=? AND ${visibleLeadSql})`,leadId,l.revision,...visibleParams(actor)),
-  stmt(db,'UPDATE s_leads SET stage_id=?,assigned_email=?,qualification=?,consultation_outcome=?,next_action=?,next_action_date=?,status=?,lost_reason=?,matter_id=?,revision=?,last_activity_at=? WHERE id=?',next.stage_id,next.assigned_email,next.qualification,next.consultation_outcome,next.next_action,next.next_action_date,next.status,next.lost_reason,next.matter_id,id(),at,leadId),
+  stmt(db,'UPDATE s_leads SET stage_id=?,practice_code=?,assigned_email=?,qualification=?,consultation_outcome=?,next_action=?,next_action_date=?,status=?,lost_reason=?,matter_id=?,revision=?,last_activity_at=? WHERE id=?',next.stage_id,next.practice_code,next.assigned_email,next.qualification,next.consultation_outcome,next.next_action,next.next_action_date,next.status,next.lost_reason,next.matter_id,id(),at,leadId),
   ...event(db,actor,leadId,kind,changes,at)]);
  return leadDetail(db,actor,leadId);
 }
@@ -106,7 +113,7 @@ export async function mergeLead(db:D1Database,actor:Actor,leadId:string,body:Dat
  const loser=await visibleLead(db,actor,leadId),survivor=await visibleLead(db,actor,text(body.intoId,'Surviving lead',100));
  insist(body.revision===loser.revision&&body.intoRevision===survivor.revision,'A lead changed. Review both before merging.',409);
  insist(loser.status==='open'&&survivor.status==='open'&&loser.id!==survivor.id,'Merge one open lead into another',409);
- const reason=text(body.reason,'Merge reason',1000),at=now(),snapshot={id:loser.id,name:loser.name,email:loser.email,phone:loser.phone,referralSource:loser.referral_source,createdBy:loser.created_by,createdAt:loser.created_at};
+ const reason=text(body.reason,'Merge reason',1000),at=now(),snapshot={id:loser.id,name:loser.name,email:loser.email,phone:loser.phone,referralSource:loser.referral_source,practiceCode:loser.practice_code??null,createdBy:loser.created_by,createdAt:loser.created_at};
  await atomic(db,actor,[guard(db,'EXISTS(SELECT 1 FROM s_leads WHERE id=? AND revision=?) AND EXISTS(SELECT 1 FROM s_leads WHERE id=? AND revision=?)',loser.id,loser.revision,survivor.id,survivor.revision),
   ...event(db,actor,loser.id,'merged',{into:survivor.id,reason},at),
   stmt(db,"UPDATE s_leads SET status='merged',merged_into=?,revision=?,last_activity_at=? WHERE id=?",survivor.id,id(),at,loser.id),

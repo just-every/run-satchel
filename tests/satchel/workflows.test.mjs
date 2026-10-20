@@ -69,13 +69,13 @@ test('MATTER-004 litigation workflow previews on an existing matter, generates a
   const request=(await h.json(base+'/workflows',undefined,h.owner)).documentRequests[0];assert.equal(request.status,'open');
   const received=await h.json(base+'/documents',{name:'Medical records.txt',mime:'text/plain',contentBase64:Buffer.from('Records').toString('base64'),visibility:'matter'},h.owner);
   await h.json('/document-requests/'+request.id+'/receive',{documentId:received.id},h.owner);p=await pv(decl);assert.ok(!p.checks.some(c=>c.kind==='document-request'));
-  await h.json(base+'/close',{previewId:p.id,digest:p.digest,revision:p.revision,reason:'Litigation concluded',exceptions:p.checks.map(c=>({key:c.key,reason:'Carried by counsel'}))},h.owner);
+  await h.json(base+'/close',{previewId:p.id,digest:p.digest,revision:p.revision,reason:'Litigation concluded',outcome:'won',exceptions:p.checks.map(c=>({key:c.key,reason:'Carried by counsel'}))},h.owner);
   first=(await h.json(base+'/workflows',undefined,h.owner)).runs[0];
   await h.json(base+'/workflow-runs',{workflowId:wf.id,version:2,revision:first.revision,steps:['records']},h.owner,409);
   const closed=await h.json(base+'/lifecycle',undefined,h.owner);assert.ok(closed.workflows.some(w=>w.id==='workflow-run:'+first.id));
   await h.json(base+'/reopen',{revision:closed.revision,reason:'Appeal filed',workflows:[],access:[]},h.owner);
   first=(await h.json(base+'/workflows',undefined,h.owner)).runs[0];assert.equal(first.status,'stopped');assert.deepEqual(first.history.at(-1).detail,{reason:'Not resumed on reopening'});assert.equal(first.generated.length,4);
-  const pv2=await h.json('/matters/'+m2.id+'/closure-preview',decl,h.owner);await h.json('/matters/'+m2.id+'/close',{previewId:pv2.id,digest:pv2.digest,revision:pv2.revision,reason:'Settled',exceptions:pv2.checks.map(c=>({key:c.key,reason:'Carried'}))},h.owner);
+  const pv2=await h.json('/matters/'+m2.id+'/closure-preview',decl,h.owner);await h.json('/matters/'+m2.id+'/close',{previewId:pv2.id,digest:pv2.digest,revision:pv2.revision,reason:'Settled',outcome:'settled',exceptions:pv2.checks.map(c=>({key:c.key,reason:'Carried'}))},h.owner);
   const closed2=await h.json('/matters/'+m2.id+'/lifecycle',undefined,h.owner),live=(await h.json('/matters/'+m2.id+'/workflows',undefined,h.owner)).runs.filter(r=>r.status!=='stopped');
   await h.json('/matters/'+m2.id+'/reopen',{revision:closed2.revision,reason:'Settlement breached',workflows:live.map(r=>'workflow-run:'+r.id),access:[]},h.owner);
   assert.deepEqual((await h.json('/matters/'+m2.id+'/workflows',undefined,h.owner)).runs.map(r=>[r.status,r.history.at(-1).kind]),[['active','resumed'],['proposed','resumed']]);

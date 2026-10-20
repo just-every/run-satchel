@@ -1,10 +1,11 @@
 import {useEffect,useRef,useState} from 'react';
+import {LeadPractice} from './lead-practice';
 import {api,Field,Form,type Row,type Run} from './common';
 
 type Question={key:string;label:string;type:'text'|'select'|'date'|'yesno';required:boolean;options?:string[];when?:{key:string;equals:string}};
-type Draft={id?:string;revision?:string;version?:number;title:string;practice:string;firmName:string;logoDataUrl:string;assignedEmail:string;consentText:string;questions:Question[];published:boolean};
+type Draft={id?:string;revision?:string;version?:number;title:string;practice:string;practiceCode?:string|null;firmName:string;logoDataUrl:string;assignedEmail:string;consentText:string;questions:Question[];published:boolean};
 const consent='I consent to this firm receiving and reviewing this inquiry. This does not authorize automated contact.';
-const blank=(state:Row):Draft=>({title:'',practice:'',firmName:state.firm?.name??'',logoDataUrl:'',assignedEmail:state.actor.email??'',consentText:consent,questions:[],published:false});
+const blank=(state:Row):Draft=>({title:'',practice:'',practiceCode:null,firmName:state.firm?.name??'',logoDataUrl:'',assignedEmail:state.actor.email??'',consentText:consent,questions:[],published:false});
 const newQuestion=():Question=>({key:'q_'+crypto.randomUUID().replaceAll('-',''),label:'',type:'text',required:false});
 
 function QuestionEditor({question,index,earlier,change,remove}:{question:Question;index:number;earlier:Question[];change:(q:Question)=>void;remove:()=>void}){
@@ -54,6 +55,7 @@ export function IntakeAdmin({state,run,tick}:{state:Row;run:Run;tick:number}){
     <legend>{draft.id?'Edit intake form':'New intake form'}</legend>
     <Field label="Form title" name="title"><input required maxLength={160} value={draft.title} onChange={e=>patch({title:e.target.value})}/></Field>
     <Field label="Practice" name="practice"><input required maxLength={160} value={draft.practice} onChange={e=>patch({practice:e.target.value})}/></Field>
+    <LeadPractice areas={state.firm?.practiceAreas??[]} code={draft.practiceCode} onChange={practiceCode=>patch({practiceCode})}/>
     <Field label="Firm name" name="firmName"><input required maxLength={160} value={draft.firmName} onChange={e=>patch({firmName:e.target.value})}/></Field>
     <Field label="Assigned email" name="assignedEmail"><input required type="email" value={draft.assignedEmail} onChange={e=>patch({assignedEmail:e.target.value})}/></Field>
     <Field label="Firm logo (optional PNG or JPEG)" name="logo" required={false}><input key={draft.id??'new'} type="file" accept="image/png,image/jpeg" onChange={e=>{

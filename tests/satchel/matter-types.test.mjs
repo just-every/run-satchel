@@ -69,7 +69,7 @@ test('MATTER-001 versioned litigation and estate types, typed values, imported c
   // A closed matter keeps its recorded type version and values.
   const declarations={clientPromisesReviewed:true,clientPromises:[],originalReturn:{status:'not_held',note:'No originals held'}};
   const p=await h.json('/matters/'+est.id+'/closure-preview',declarations,h.owner);
-  await h.json('/matters/'+est.id+'/close',{previewId:p.id,digest:p.digest,revision:p.revision,reason:'Estate administration complete',exceptions:p.checks.map(c=>({key:c.key,reason:'Carried'}))},h.owner);
+  await h.json('/matters/'+est.id+'/close',{previewId:p.id,digest:p.digest,revision:p.revision,reason:'Estate administration complete',outcome:'transactional_complete',exceptions:p.checks.map(c=>({key:c.key,reason:'Carried'}))},h.owner);
   await h.json('/matter-types',{id:estType.id,revision:estType.revision,name:'Probate estate',practiceCode:'EST',definition:{...estate,fields:[{label:'Decedent date of death',type:'text',required:true},{label:'Probate court',type:'text',required:true}]}},h.owner);
   const closed=await h.json(estBase,undefined,h.owner);assert.equal(closed.lifecycleStatus,'closed');assert.deepEqual(closed.profile,e.profile);assert.equal(closed.type.version,1);assert.equal(closed.type.definition.fields[0].type,'date');assert.equal(closed.latestVersion,2);
   assert.match((await save(estBase,{revision:closed.profile.revision,typeId:estType.id,typeVersion:2,custom:{probate_court:'Surrogate’s Court'}},h.owner,409)).error,/Closed matters keep/);

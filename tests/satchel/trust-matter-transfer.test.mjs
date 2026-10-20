@@ -19,7 +19,7 @@ test('TRUST-010: closed matter $750 allocation preserves bank register, both cli
  const h=await harness();try{
  const f=await setup(h),before=await h.json('/trust',undefined,h.owner);
  const preview=await h.json('/matters/'+f.m.id+'/closure-preview',{clientPromisesReviewed:true,clientPromises:[],originalReturn:{status:'not_held',note:'No paper originals held'}},h.owner);
- await h.json('/matters/'+f.m.id+'/close',{previewId:preview.id,revision:preview.revision,digest:preview.digest,reason:'Advice completed; carry the client-authorized retainer transfer',exceptions:preview.checks.map(c=>({key:c.key,reason:'Transfer remaining retainer with client written authorization'}))},h.owner);
+ await h.json('/matters/'+f.m.id+'/close',{previewId:preview.id,revision:preview.revision,digest:preview.digest,reason:'Advice completed; carry the client-authorized retainer transfer',outcome:'transactional_complete',exceptions:preview.checks.map(c=>({key:c.key,reason:'Transfer remaining retainer with client written authorization'}))},h.owner);
  assert.equal((await h.json('/matters/'+f.m.id+'/lifecycle',undefined,h.owner)).status,'closed');
  let policy=await h.json('/trust/transfer-policy',undefined,h.owner);await h.json('/trust/transfer-policy',{revision:policy.revision,dualAuthorization:true},h.owner);
  const t=await h.json('/trust/matter-transfers',f.body,h.owner);assert.equal(t.required_approvals,2);assert.equal((await h.json('/trust/matter-transfers',f.body,h.owner)).id,t.id);

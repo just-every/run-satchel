@@ -3,23 +3,29 @@ import assert from 'node:assert/strict';
 import {harness,open} from './harness.mjs';
 
 const day=n=>{const d=new Date();d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
-test('INTAKE-002 staff qualify, assign and move leads through edited stages, merge a duplicate with provenance, miss a follow-up into the due queue and report conversion, stalled and lost leads',async()=>{
+test('REPORT-001 / INTAKE-002 staff qualify, assign and move leads through edited stages, merge a duplicate with provenance, miss a follow-up into the due queue and report conversion, stalled and lost leads',async()=>{
  const h=await harness();let restored;
  try{
   const people={};for(const [email,role] of [['lawyer@example.test','lawyer'],['assistant@example.test','assistant'],['trust@example.test','trust_officer']]){await h.json('/team',{email,name:email,role},h.owner);await h.json('/team/invite',{email},h.owner);people[role]=await h.login(email);}
   const {lawyer,assistant,trust_officer:officer}=people,mailCount=h.mails.length;
+  const address={line1:'200 Park Avenue',city:'New York',state:'NY',zip:'10166'};
+  await h.json('/firm',{settings:{name:'Barton & Lee LLP',email:'office@example.test',phone:'212-555-0100',address,timezone:'Etc/UTC',billing:{defaultRateCents:30000,incrementMinutes:6,paymentTermsDays:30},fiscal:{yearStartMonth:1,basis:'cash'},offices:[{name:'Main office',phone:'212-555-0100',timezone:'Etc/UTC',address}],practiceAreas:[{code:'PI',name:'Personal injury'},{code:'EST',name:'Estates'}]}},h.owner);
   await h.json('/lead-stages',{name:'Unauthorized',position:0},assistant,403);
   let stages=await h.json('/lead-stages',{name:'New inquiry',position:0},h.owner);stages=await h.json('/lead-stages',{name:'Consultation booked',position:1},lawyer);
   const renamed=await h.json('/lead-stages',{id:stages[1].id,revision:stages[1].revision,name:'Consultation held',position:1},h.owner);assert.deepEqual(renamed.map(s=>s.name),['New inquiry','Consultation held']);
   const [inquiry,consult]=renamed;
 
   // Assign two prospects; a third arrives as a duplicate of the first.
-  const maria=await h.json('/leads',{name:'Maria Lopez',email:'maria@example.test',phone:'(212) 555-0199',summary:'Slip and fall at a grocery store',referralSource:'Google Ads',stageId:inquiry.id,assignedEmail:'lawyer@example.test',nextAction:'Call back about medical records',nextActionDate:day(-2)},h.owner);
+  const maria=await h.json('/leads',{name:'Maria Lopez',email:'maria@example.test',phone:'(212) 555-0199',summary:'Slip and fall at a grocery store',referralSource:'Google Ads',practiceCode:'PI',stageId:inquiry.id,assignedEmail:'lawyer@example.test',nextAction:'Call back about medical records',nextActionDate:day(-2)},h.owner);
   const james=await h.json('/leads',{name:'James Chen',summary:'Lease dispute with landlord',referralSource:'Referral: Smith & Co',stageId:inquiry.id,assignedEmail:'assistant@example.test',nextAction:'Send intake questionnaire',nextActionDate:day(3)},h.owner);
-  const dup=await h.json('/leads',{name:' maria  LOPEZ',email:'MARIA@example.test',summary:'Website chat about a fall',referralSource:'Website chat',nextAction:'Reply to chat',nextActionDate:day(1)},lawyer);
+  const dup=await h.json('/leads',{name:' maria  LOPEZ',email:'MARIA@example.test',summary:'Website chat about a fall',referralSource:'Website chat',practiceCode:'EST',nextAction:'Reply to chat',nextActionDate:day(1)},lawyer);
   assert.deepEqual(dup.duplicates.map(d=>[d.id,d.reason]),[[maria.id,'same email']]);
   await h.json('/leads',{name:'Bad',summary:'x',referralSource:'x',assignedEmail:'trust@example.test'},h.owner,400);
-  const ellis=await h.json('/leads',{name:'Ellis Park',summary:'Estate question',referralSource:'Google Ads',assignedEmail:'lawyer@example.test'},h.owner);
+  const ellis=await h.json('/leads',{name:'Ellis Park',summary:'Estate question',referralSource:'Google Ads',practiceCode:'EST',assignedEmail:'lawyer@example.test'},h.owner);
+
+  assert.equal(maria.practiceCode,'PI');assert.equal(james.practiceCode,null,'Omitted practice remains in No practice');
+  await h.json('/leads',{name:'Unknown practice',summary:'x',referralSource:'x',practiceCode:'BAD'},h.owner,400);
+  await h.json('/leads/'+james.id,{revision:james.revision,practiceCode:'BAD'},h.owner,400);
 
   // Visibility: assistants work only their own leads; trust officers see none.
   await h.json('/leads',undefined,officer,403);
@@ -37,6 +43,7 @@ test('INTAKE-002 staff qualify, assign and move leads through edited stages, mer
   // Merge the duplicate with preserved provenance.
   m=await h.json('/leads/'+dup.id+'/merge',{revision:dup.revision,intoId:maria.id,intoRevision:m.revision,reason:'Same prospect contacted twice'},lawyer);
   assert.deepEqual(m.mergedFrom.map(x=>[x.id,x.referralSource,x.email,x.createdBy]),[[dup.id,'Website chat','maria@example.test','lawyer@example.test']]);
+  assert.equal(m.practiceCode,'PI');assert.equal(m.mergedFrom[0].practiceCode,'EST');assert.equal(m.history.at(-1).detail.from.practiceCode,'EST');
   assert.equal(m.history.at(-1).kind,'absorbed');assert.equal(m.history.at(-1).detail.from.referralSource,'Website chat');assert.deepEqual(m.duplicates,[]);
   const merged=await h.json('/leads/'+dup.id,undefined,h.owner);assert.deepEqual([merged.status,merged.mergedInto,merged.referralSource],['merged',maria.id,'Website chat']);
   await h.json('/leads/'+dup.id,{revision:merged.revision,nextAction:'x'},h.owner,409);
@@ -46,7 +53,10 @@ test('INTAKE-002 staff qualify, assign and move leads through edited stages, mer
   assert.deepEqual(pipeline.leads.find(l=>l.id===maria.id).stalled,['Next action overdue']);
   assert.deepEqual((await h.json('/leads',undefined,assistant)).dueQueue,[]);
   const jamesNow=(await h.json('/leads',undefined,assistant)).leads.find(l=>l.id===james.id);
-  await h.json('/leads/'+james.id,{revision:jamesNow.revision,nextActionDate:day(0)},assistant);assert.deepEqual((await h.json('/leads',undefined,assistant)).dueQueue.map(l=>[l.id,l.overdue]),[[james.id,false]]);
+  const practiced=await h.json('/leads/'+james.id,{revision:jamesNow.revision,practiceCode:'PI'},assistant);assert.equal(practiced.practiceCode,'PI');
+  const cleared=await h.json('/leads/'+james.id,{revision:practiced.revision,practiceCode:''},assistant);assert.equal(cleared.practiceCode,null);
+  assert.deepEqual(cleared.history.find(e=>e.detail.practice_code?.to===null).detail.practice_code,{from:'PI',to:null});
+  await h.json('/leads/'+james.id,{revision:cleared.revision,nextActionDate:day(0)},assistant);assert.deepEqual((await h.json('/leads',undefined,assistant)).dueQueue.map(l=>[l.id,l.overdue]),[[james.id,false]]);
 
   // Lose a lead with a reason; convert another into a conflict-reviewed matter.
   await h.json('/leads/'+own.id,{revision:own.revision,lostReason:''},assistant,400);
@@ -60,6 +70,8 @@ test('INTAKE-002 staff qualify, assign and move leads through edited stages, mer
   // Conversion report: merged duplicates are not counted; stalled and lost leads carry reasons.
   const report=await h.json('/leads/report',undefined,h.owner);
   assert.deepEqual([report.total,report.converted,report.lost],[4,1,1]);
+  assert.deepEqual(report.byPractice.map(p=>[p.name,p.leads,p.converted,p.lost]),[['EST',1,0,0],['No practice',2,0,1],['PI',1,1,0]]);
+  assert.equal(report.byPractice.reduce((sum,p)=>sum+p.leads,0),report.total,'No practice stays in the conversion denominator');
   assert.deepEqual(report.bySource.map(s=>[s.name,s.leads,s.converted,s.lost]),[['Google Ads',2,1,0],['Referral: Smith & Co',1,0,0],['Walk-in',1,0,1]]);
   assert.deepEqual(report.byStage.map(s=>[s.name,s.leads]),[['Consultation held',1],['New inquiry',1],['No stage',2]]);
   assert.deepEqual(report.stalled,[],'A missing next action alone is not stalled under ct’s approved rule');

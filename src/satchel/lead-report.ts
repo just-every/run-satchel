@@ -20,10 +20,11 @@ export async function leadPipeline(db:D1Database,actor:Actor) {
 // activity for 14 days; lost leads carry their recorded reasons.
 export async function leadReport(db:D1Database,actor:Actor) {
  const [all,stages,{today,timezone}]=await Promise.all([visible(db,actor),leadStages(db),leadCalendar(db)]);
- const counted=all.filter(l=>l.status!=='merged').map(l=>leadJson(l,stages,today,timezone));
+ const allowed=new Set((await rows(db,"SELECT m.id FROM s_matters m WHERE ?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=m.id AND a.email=?)",actor.role,actor.email)).map(m=>m.id));
+ const counted=all.filter(l=>l.status!=='merged'&&(!l.matter_id||allowed.has(l.matter_id))).map(l=>leadJson(l,stages,today,timezone));
  const group=(key:(l:Data)=>string)=>[...new Set(counted.map(key))].sort().map(name=>{const g=counted.filter(l=>key(l)===name);return {name,leads:g.length,open:g.filter(l=>l.status==='open').length,converted:g.filter(l=>l.status==='converted').length,lost:g.filter(l=>l.status==='lost').length};});
  return {today,total:counted.length,converted:counted.filter(l=>l.status==='converted').length,lost:counted.filter(l=>l.status==='lost').length,
-  bySource:group(l=>l.referralSource),byStage:group(l=>l.stageName??'No stage'),
+  bySource:group(l=>l.referralSource),byStage:group(l=>l.stageName??'No stage'),byPractice:group(l=>l.practiceCode??'No practice'),
   stalled:counted.filter(l=>l.stalled.length).map(l=>({id:l.id,name:l.name,assignedEmail:l.assignedEmail,reasons:l.stalled})),
   lostReasons:counted.filter(l=>l.status==='lost').map(l=>({id:l.id,name:l.name,reason:l.lostReason}))};
 }

@@ -4,6 +4,7 @@ import { closureChecks, closureDeclarations, closureSourceGuards, readClosureSou
 import { visibility } from './deadlines';
 import { documentAccess } from './documents';
 import { reopenRunWrites } from './workflow-runs';
+import { outcomeLabels } from './matter-outcomes';
 
 async function counsel(db: D1Database, actor: Actor, matterId: string) {
  human(actor); need(actor, 'owner', 'lawyer');
@@ -11,6 +12,7 @@ async function counsel(db: D1Database, actor: Actor, matterId: string) {
 }
 const previewJson = (p: Data) => ({ id: p.id, matterId: p.matter_id, forEmail: p.for_email, revision: p.revision, digest: p.digest, checks: JSON.parse(p.checks_json), declarations: JSON.parse(p.declarations_json), createdAt: p.created_at });
 const eventJson = (e: Data) => ({ id: e.id, kind: e.kind, reason: e.reason, actor: e.actor, actorId: e.actor_id, at: e.at, revision: e.revision, previousRevision: e.previous_revision, previewId: e.preview_id, snapshot: JSON.parse(e.snapshot), exceptions: JSON.parse(e.exceptions), restoration: JSON.parse(e.restoration) });
+const outcomeJson = (o: Data) => ({ id: o.id, matterId: o.matter_id, eventId: o.event_id, outcome: o.outcome, note: o.note, recordedBy: o.recorded_by, at: o.at });
 async function responseAccess(db: D1Database, actor: Actor, matterId: string) {
  const d = documentAccess(actor), t = visibility(actor);
  const [documents, deadlines] = await Promise.all([
@@ -42,13 +44,13 @@ function publicPreview(p: Data, access: ResponseAccess) {
  const declarations=publicDeclarations(preview.declarations,access);
  return { ...preview, checks, declarations, hasRestrictedItems: checks.some(c => c.restricted)||Boolean(declarations.originalReturn?.restricted)||declarations.clientPromises.some((p:Data)=>p.restricted) };
 }
-function publicEvent(e: Data, access: ResponseAccess) {
+function publicEvent(e: Data, access: ResponseAccess, outcome?: Data) {
  const event = eventJson(e), source = event.snapshot.source;
  const checks = publicChecks(event.snapshot.checks ?? [], access, source);
  const hidden = new Set((event.snapshot.checks??[]).filter((c:Data)=>restrictedCheck(c,access,source)).map((c:Data)=>c.key));
  const declarations=event.snapshot.declarations?publicDeclarations(event.snapshot.declarations,access):null;
  const hiddenEvidence=Boolean(declarations?.originalReturn?.restricted)||Boolean(declarations?.clientPromises.some((p:Data)=>p.restricted));
- return { ...event, reason: hidden.size||hiddenEvidence ? 'Restricted lifecycle decision details' : event.reason,
+ return { ...event, ...(event.kind === 'closed' ? { outcome: outcome ? { ...outcomeJson(outcome), ...(hidden.size||hiddenEvidence ? { note: null, restrictedNote: true } : {}) } : null } : {}), reason: hidden.size||hiddenEvidence ? 'Restricted lifecycle decision details' : event.reason,
   snapshot: { ...(event.snapshot.preview ? { preview: { ...event.snapshot.preview, checks, declarations: publicDeclarations(event.snapshot.declarations, access) } } : {}), checks,
    ...(event.snapshot.declarations ? { declarations: publicDeclarations(event.snapshot.declarations, access) } : {}) },
   exceptions: [...event.exceptions.filter((item:Data)=>!hidden.has(item.key)),...(hidden.size?[{key:'restricted:review',reason:'Restricted item: ask authorized counsel',restricted:true}]:[])] };
@@ -65,16 +67,20 @@ function retainedWorkflows(source: Record<string, Data[]>, access: ResponseAcces
 }
 export async function matterLifecycle(db: D1Database, actor: Actor, matterId: string) {
  const m = await counsel(db, actor, matterId);
- const [source, events, previews] = await Promise.all([
+ const [source, events, previews, outcomes] = await Promise.all([
   readClosureSources(db, matterId), rows(db, 'SELECT * FROM s_matter_lifecycle_events WHERE matter_id=? ORDER BY at,id', matterId),
   rows(db, 'SELECT * FROM s_matter_closure_previews WHERE matter_id=? AND for_email=? ORDER BY created_at DESC,id DESC LIMIT 1', matterId, actor.email),
+  rows(db, 'SELECT * FROM s_matter_outcomes WHERE matter_id=?', matterId),
  ]);
  const access = await responseAccess(db, actor, matterId);
  const declarations = { clientPromisesReviewed: false, clientPromises: [], originalReturn: null };
  const checks = publicChecks(closureChecks(source, declarations), access, source);
+ const history = events.map(e => publicEvent(e, access, outcomes.find(o => o.event_id === e.id)));
+ const latestClosure = history.filter(e => e.kind === 'closed').at(-1);
  return { matterId, status: m.lifecycle_status, revision: m.lifecycle_revision, checks, hasRestrictedItems: checks.some(c => c.restricted), latestPreview: previews.length ? publicPreview(previews[0], access) : null,
+  outcome: latestClosure?.outcome ?? null,
   workflows: retainedWorkflows(source, access),
-  access: source.access.map(a => a.email), history: events.map(e => publicEvent(e, access)) };
+  access: source.access.map(a => a.email), history };
 }
 export async function closurePreview(db: D1Database, actor: Actor, matterId: string, body: Data) {
  const m = await counsel(db, actor, matterId);
@@ -104,14 +110,20 @@ export async function closeMatter(db: D1Database, actor: Actor, matterId: string
  insist(Array.isArray(carried) && carried.length === checks.length, 'Resolve each open item or carry each one with its own reason', 409);
  const exceptions = carried.map((e: Data) => ({ key: text(e?.key, 'Exception item', 200), reason: text(e?.reason, 'Individual exception reason', 2000) }));
  insist(new Set(exceptions.map(e => e.key)).size === checks.length && exceptions.every(e => checks.some((c: Data) => c.key === e.key)), 'Authorize each unresolved item individually from this exact preview', 409);
+ insist(actor.role === 'owner' || await stmt(db, 'SELECT 1 FROM s_matter_stage_profiles WHERE matter_id=? AND lawyer_email=?', matterId, actor.email).first(), 'Only the responsible lawyer or principal may record the legal outcome and close this matter', 403);
+ insist(typeof body.outcome === 'string' && Object.hasOwn(outcomeLabels, body.outcome), 'Choose a legal outcome');
+ const outcome = body.outcome, outcomeNote = body.outcomeNote === undefined || body.outcomeNote === null || body.outcomeNote === '' ? null : text(body.outcomeNote, 'Legal outcome note', 2000);
+ insist(outcome !== 'other' || outcomeNote, 'Other outcome details are required');
  const eventId = id(), revision = id(), at = now();
  const snapshot = { preview: previewJson(p), source, checks, declarations };
  await atomic(db, actor, [accessGuard(db, actor, matterId), revisionGuard(db, matterId, p.revision, 'open'),
+  guard(db, "?='owner' OR EXISTS(SELECT 1 FROM s_matter_stage_profiles WHERE matter_id=? AND lawyer_email=?)", actor.role, matterId, actor.email),
   guard(db, 'EXISTS(SELECT 1 FROM s_matter_closure_previews WHERE id=? AND for_email=? AND digest=? AND revision=?)', p.id, actor.email, p.digest, p.revision),
   ...closureSourceGuards(db, matterId, source),
   stmt(db, 'INSERT INTO s_matter_lifecycle_events(id,matter_id,kind,previous_revision,revision,reason,actor,actor_id,at,preview_id,snapshot,exceptions,restoration) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)', eventId, matterId, 'closed', p.revision, revision, reason, actor.email, actor.id, at, p.id, JSON.stringify(snapshot), JSON.stringify(exceptions), '{}'),
+  stmt(db, 'INSERT INTO s_matter_outcomes(id,matter_id,event_id,outcome,note,recorded_by,at) VALUES(?,?,?,?,?,?,?)', id(), matterId, eventId, outcome, outcomeNote, actor.email, at),
   stmt(db, "UPDATE s_matters SET lifecycle_status='closed',lifecycle_revision=? WHERE id=? AND lifecycle_revision=?", revision, matterId, p.revision),
-  audit(db, actor, 'matter.closed', eventId, JSON.stringify({ matterId, reason, revision, previewId: p.id, digest: p.digest, exceptions }), { snapshot, exceptions }),
+  audit(db, actor, 'matter.closed', eventId, JSON.stringify({ matterId, reason, revision, previewId: p.id, digest: p.digest, exceptions, outcome, outcomeNote }), { snapshot, exceptions }),
  ]);
  return matterLifecycle(db, actor, matterId);
 }

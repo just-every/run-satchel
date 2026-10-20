@@ -1,5 +1,6 @@
 import {atomic,audit,human,id,insist,need,now,rows,stmt,text,type Actor,type Data} from './model';
 import {guard} from './trust-guards';
+import {leadPractice} from './leads';
 
 export type IntakeQuestion={key:string;label:string;type:'text'|'select'|'date'|'yesno';required:boolean;options?:string[];when?:{key:string;equals:string}};
 export const activeIntakeAssigneeSql="(EXISTS(SELECT 1 FROM s_members WHERE email=? AND active=1 AND role IN('lawyer','assistant')) OR EXISTS(SELECT 1 FROM oa_operators WHERE lower(email)=? AND role='owner' AND status='active'))";
@@ -41,7 +42,7 @@ export async function saveIntakeForm(db:D1Database,actor:Actor,body:Data){
  insist(typeof body.published==='boolean','Choose whether the form is published');
  const assignedEmail=text(body.assignedEmail,'Publication assignee',254).toLowerCase();
  insist(await stmt(db,`SELECT 1 WHERE ${activeIntakeAssigneeSql}`,assignedEmail,assignedEmail).first(),'Choose an active lawyer, assistant or principal');
- const snapshot={title:text(body.title,'Form title',160),practice:text(body.practice,'Practice',160),firmName:text(body.firmName,'Firm name',160),logoDataUrl:body.logoDataUrl??'',assignedEmail,consentText:text(body.consentText,'Review consent',2000),questions:questions(body.questions)};
+ const snapshot={title:text(body.title,'Form title',160),practice:text(body.practice,'Practice',160),practiceCode:await leadPractice(db,body.practiceCode),firmName:text(body.firmName,'Firm name',160),logoDataUrl:body.logoDataUrl??'',assignedEmail,consentText:text(body.consentText,'Review consent',2000),questions:questions(body.questions)};
  insist(typeof snapshot.logoDataUrl==='string'&&snapshot.logoDataUrl.length<=300000&&(!snapshot.logoDataUrl||/^data:image\/(?:png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/.test(snapshot.logoDataUrl)),'Use a PNG or JPEG logo up to 300,000 encoded characters');
  const formId=previous?.id??id(),revision=id(),version=(previous?.version??0)+1,at=now(),encoded=JSON.stringify(snapshot);
  await atomic(db,actor,[guard(db,activeIntakeAssigneeSql,assignedEmail,assignedEmail),...(previous?[guard(db,'EXISTS(SELECT 1 FROM s_intake_forms WHERE id=? AND revision=?)',formId,previous.revision)]:[]),

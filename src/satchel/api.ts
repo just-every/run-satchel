@@ -24,6 +24,8 @@ import {numberSettings,saveNumberSettings} from './numbering';
 import {matterTypes,saveMatterType} from './matter-types';
 import {startTimer,timerAction} from './timers';
 import {timesheet,addDraft,reviewDraft,postTime} from './timesheets';
+import {reportState} from './reports';
+import {exportReport} from './report-export';
 import {ledesSettings,saveCode,saveTimekeeper} from './utbms-codes';
 import {matterLedes,saveGuideline} from './ledes-guidelines';
 import {exportLedes,importOutcomes} from './ledes';
@@ -159,6 +161,8 @@ api.get('/api/satchel/bills/:id/export',as((a,c)=>exportBill(db(c),a,param(c))))
 api.get('/api/satchel/bills/:id/ledes-xml',as((a,c)=>exportLedes(db(c),a,param(c),true)));
 api.get('/api/satchel/bills/:id/ledes',as((a,c)=>exportLedes(db(c),a,param(c))));
 api.post('/api/satchel/bills/:id/ledes-outcomes',as(async(a,c)=>importOutcomes(db(c),a,param(c),await body(c))));
+api.get('/api/satchel/reports',as((a,c)=>reportState(db(c),a,c.req.query())));
+api.get('/api/satchel/reports/export',as((a,c)=>exportReport(db(c),a,c.req.query())));
 api.get('/api/satchel/ledes',as(async(a,c)=>{insist(['owner','lawyer'].includes(a.role),'Your role cannot perform this action',403);return ledesSettings(db(c));}));
 api.post('/api/satchel/ledes/codes',as(async(a,c)=>saveCode(db(c),a,await body(c))));
 api.post('/api/satchel/ledes/timekeepers',as(async(a,c)=>saveTimekeeper(db(c),a,await body(c))));
