@@ -1,3 +1,4 @@
+import {assemblyTemplates,saveAssemblyTemplate,assemblyState,prepareAssembly,approveAssembly,assemblyFile,assemblyPreview} from './assembly';
 import {checkState,prepareCheck,requestCheckVoid,decideCheckVoid,matchCheck,prepareDepositSlip} from './trust-checks';
 import {printCheck,printDepositSlip} from './trust-check-print';
 import {prepareOperatingTransaction,decideOperatingTransaction} from './trust-check-operating';
@@ -67,6 +68,13 @@ const db=(c:C)=>runtimeBindings(c.env).DB;
 const param=(c:C,key='id')=>c.req.param(key)!;
 const as=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>{const result=await fn(await person(c.req.raw,c.env),c);return result instanceof Response?result:c.json(result);};
 const asAgent=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>c.json(await fn(await agent(c.req.raw,c.env),c));
+api.get('/api/satchel/assembly/templates',as((a,c)=>assemblyTemplates(db(c))));
+api.post('/api/satchel/assembly/templates',as(async(a,c)=>saveAssemblyTemplate(db(c),a,await body(c))));
+api.get('/api/satchel/matters/:id/assembly',as((a,c)=>assemblyState(db(c),a,param(c))));
+api.post('/api/satchel/matters/:id/assembly',as(async(a,c)=>prepareAssembly(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/assembly/revisions/:id/approve',as(async(a,c)=>approveAssembly(db(c),a,param(c),await body(c))));
+api.get('/api/satchel/assembly/revisions/:id/preview',as((a,c)=>assemblyPreview(db(c),a,param(c),c.req.query('format')??'')));
+api.get('/api/satchel/assembly/revisions/:id/file',as((a,c)=>assemblyFile(db(c),a,param(c),c.req.query('format')??'')));
 api.get('/api/satchel/integrations',as((a,c)=>integrationState(db(c),a)));
 api.post('/api/satchel/integrations',as(async(a,c)=>createIntegration(runtimeBindings(c.env),a,await body(c))));
 api.post('/api/satchel/integrations/:id/revoke',as((a,c)=>revokeIntegration(db(c),a,param(c))));

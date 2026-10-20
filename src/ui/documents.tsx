@@ -1,13 +1,14 @@
 import {useEffect,useState} from 'react';
 import {api,Empty,Field,Form,type Row,type Run} from './common';
 import {MatterRetention} from './retention';
+import {Assembly} from './assembly';
 import {DocumentSets} from './document-sets';
 export function Documents({matterId,actor,run,tick}:{matterId:string;actor:Row;run:Run;tick:number}){
  const [items,setItems]=useState<Row[]>([]),[files,setFiles]=useState<File[]>([]),[versionFor,setVersionFor]=useState<Row>();
  useEffect(()=>{setItems([]);setFiles([]);setVersionFor(undefined);},[matterId]);
  useEffect(()=>{let active=true;if(matterId)api('/matters/'+matterId+'/documents').then(s=>{if(active)setItems(s);}).catch(e=>{if(active)void run(async()=>{throw e;});});return()=>{active=false;};},[matterId,tick]);
  if(!matterId)return <Empty>Choose or open a matter first.</Empty>;
- return <div className="grid"><DocumentSets matterId={matterId} actor={actor} documents={items} run={run} tick={tick}>{(visible,selected,toggle)=><section className="panel"><h2>Originals & versions</h2>{!visible.length&&<Empty>{items.length?'No documents in this view.':'No documents uploaded yet.'}</Empty>}{visible.map(d=><article className="record" key={d.id}>
+ return <><Assembly matterId={matterId} actor={actor} run={run} tick={tick}/><div className="grid"><DocumentSets matterId={matterId} actor={actor} documents={items} run={run} tick={tick}>{(visible,selected,toggle)=><section className="panel"><h2>Originals & versions</h2>{!visible.length&&<Empty>{items.length?'No documents in this view.':'No documents uploaded yet.'}</Empty>}{visible.map(d=><article className="record" key={d.id}>
   {!d.erasedAt&&(actor.role==='owner'||d.createdBy===actor.email)&&<label><input type="checkbox" checked={selected.includes(d.id)} onChange={()=>toggle(d.id)}/>Select {d.title}</label>}
   <strong>{d.title}</strong><small>Matter {d.matterNumber}</small><p><span className="badge">{d.visibility}</span> · {d.erasedAt?'Bytes erased':'Version '+d.currentVersion}</p>
   {(d.documentType||d.tags.length>0)&&<p>{[d.documentType,...d.tags].filter(Boolean).join(' · ')}</p>}
@@ -20,5 +21,5 @@ export function Documents({matterId,actor,run,tick}:{matterId:string;actor:Row;r
   for(const file of files){let raw='';for(const byte of new Uint8Array(await file.arrayBuffer()))raw+=String.fromCharCode(byte);await api('/matters/'+matterId+'/documents',{name:file.name,mime:file.type||'application/octet-stream',contentBase64:btoa(raw),visibility:versionFor?.visibility??d.visibility,documentId:versionFor?.id,revision:versionFor?.revision});}
   setFiles([]);setVersionFor(undefined);
  },'Original saved; version history retained')}><label>Original file<input type="file" required multiple={!versionFor} onChange={e=>setFiles(Array.from(e.target.files??[]))}/></label>{!versionFor&&<Field label="Who can read it" name="visibility"><select name="visibility"><option value="matter">Everyone assigned to this matter</option><option value="private">Uploader and principal only</option></select></Field>}</Form></section>
- {actor.role!=='assistant'&&<MatterRetention matterId={matterId} documents={items} run={run} tick={tick}/>}</div>;
+ {actor.role!=='assistant'&&<MatterRetention matterId={matterId} documents={items} run={run} tick={tick}/>}</div></>;
 }

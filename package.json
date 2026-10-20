@@ -32,9 +32,11 @@
     "test:site": "node --test --test-concurrency=1 tests/site/*.test.mjs"
   },
   "dependencies": {
+    "@pdf-lib/fontkit": "1.1.1",
     "@tanstack/react-router": "1.170.33",
     "@tanstack/react-start": "1.168.50",
     "hono": "4.13.7",
+    "pdf-lib": "1.17.1",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
@@ -49,6 +51,7 @@
     "@types/react-dom": "19.2.7",
     "@vitejs/plugin-react": "6.1.1",
     "marked": "18.1.1",
+    "pdfjs-dist": "^6.4.299",
     "typescript": "5.9.3",
     "vite": "8.2.2",
     "wrangler": "4.129.1"
