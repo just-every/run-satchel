@@ -3,7 +3,7 @@ import {Field,type Row,type Run} from './common';
 
 export function XmlProfileFields({profile}:{profile?:Row|null}){
  const [enabled,setEnabled]=useState(Boolean(profile));
- const input=(label:string,name:string,value?:string,options:{required?:boolean;maxLength?:number;type?:string;pattern?:string}={})=><Field label={label} name={name}><input name={name} type={options.type??'text'} defaultValue={value} required={options.required??true} maxLength={options.maxLength} pattern={options.pattern}/></Field>;
+ const input=(label:string,name:string,value?:string|number,options:{required?:boolean;maxLength?:number;type?:string;pattern?:string}={})=><Field label={label} name={name}><input name={name} type={options.type??'text'} defaultValue={value} required={options.required??true} maxLength={options.maxLength} pattern={options.pattern}/></Field>;
  return <fieldset><legend>Optional LEDES XML profile</legend>
   <label className="check"><input type="checkbox" name="xmlEnabled" checked={enabled} onChange={e=>setEnabled(e.target.checked)}/>Enable LEDES XML 2.1.3 for future bill preparations and revisions</label>
   <p>The firm name, address and phone come from Firm settings when the bill is prepared. Enter the client details and billing contact below.</p>
@@ -19,6 +19,7 @@ export function XmlProfileFields({profile}:{profile?:Row|null}){
    <div className="inline">{input('Billing contact first name','xmlContactFirstName',profile?.billingContact?.firstName)}{input('Billing contact last name','xmlContactLastName',profile?.billingContact?.lastName)}</div>
    {input('Billing contact email','xmlContactEmail',profile?.billingContact?.email,{type:'email'})}
    {input('Expense timekeeper ID (needed for expense-only XML invoices)','xmlExpenseTimekeeperId',profile?.expenseTimekeeperId,{required:false})}
+   {input('Expense timekeeper hourly USD cents (expense-only XML invoices)','xmlExpenseTimekeeperRateCents',profile?.expenseTimekeeperRateCents,{required:false,type:'number'})}
   </fieldset>}
  </fieldset>;
 }
@@ -28,7 +29,7 @@ export function xmlProfileBody(d:Row){
  const value=(key:string)=>String(d[key]??'').trim();
  return {workCountry:value('xmlWorkCountry').toUpperCase(),vendorId:value('xmlVendorId'),clientFirmId:value('xmlClientFirmId'),clientMatterId:value('xmlClientMatterId'),
   clientAddress:{line1:value('xmlClientLine1'),line2:value('xmlClientLine2')||undefined,city:value('xmlClientCity'),state:value('xmlClientState'),zip:value('xmlClientZip'),country:value('xmlClientCountry').toUpperCase(),phone:value('xmlClientPhone')},
-  billingContact:{firstName:value('xmlContactFirstName'),lastName:value('xmlContactLastName'),email:value('xmlContactEmail')},expenseTimekeeperId:value('xmlExpenseTimekeeperId')||undefined};
+  billingContact:{firstName:value('xmlContactFirstName'),lastName:value('xmlContactLastName'),email:value('xmlContactEmail')},expenseTimekeeperId:value('xmlExpenseTimekeeperId')||undefined,expenseTimekeeperRateCents:value('xmlExpenseTimekeeperRateCents')===''?undefined:Number(value('xmlExpenseTimekeeperRateCents'))};
 }
 
 export function XmlProfileSummary({profile}:{profile?:Row|null}){

@@ -163,7 +163,7 @@ test('TIME-007 firm UTBMS code sets and a client guideline code an insurer bill,
   let expenseBill=await h.json('/matters/'+m.id+'/bills',{title:'Certified court copy',date:'2026-11-03',entryIds:[onlyExpense.id]},h.owner);
   expenseBill=await h.json('/bills/'+expenseBill.id+'/approve',{revision:expenseBill.revision,reviewNote:'Receipt reviewed'},h.owner);
   const expenseXml=readXml(await(await h.request('/api/satchel/bills/'+expenseBill.id+'/ledes-xml',undefined,h.owner)).text());
-  assert.equal(expenseXml.fees.length,0);assert.equal(expenseXml.expenses[0].total_amount,'12.50');assert.equal(expenseXml.timekeepers[0].tk_id,'BL-001');
+  assert.equal(expenseXml.fees.length,0);assert.equal(expenseXml.expenses[0].total_amount,'12.50');assert.equal(expenseXml.timekeepers[0].tk_id,'BL-001');assert.equal(expenseXml.timekeepers[0].tk_rate,'300.00');
 
   // An identical client name never fabricates that client's identifier for another matter.
   const sibling=await open(h,'Harbor coverage advice','Harbor Mutual Insurance','Blue Transport');

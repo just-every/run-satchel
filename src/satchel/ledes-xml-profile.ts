@@ -1,5 +1,5 @@
 // TIME-007: explicit XML 2.1.3 billing details, checked before the reviewed snapshot.
-import {insist,stmt,text,type Data} from './model';
+import {insist,integer,stmt,text,type Data} from './model';
 import {firmSettings} from './firm';
 
 export const xmlFormat='LEDES XML 2.1.3';
@@ -21,7 +21,8 @@ export function xmlProfile(value:Data|null|undefined){
  insist(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),'Enter the XML billing contact email');
  const workCountry=xmlText(value.workCountry,'XML work country (ISO alpha-3)',3).toUpperCase();
  insist(/^[A-Z]{3}$/.test(workCountry),'XML work country must be an ISO alpha-3 code');
- return {workCountry,vendorId:xmlText(value.vendorId,'XML firm vendor ID',25),clientFirmId:xmlText(value.clientFirmId,'XML client ID in firm system',20),clientMatterId:xmlText(value.clientMatterId,'XML client matter ID',25),clientAddress:address(value.clientAddress,'XML client'),billingContact:{firstName:xmlText(c?.firstName,'XML billing contact first name',20),lastName:xmlText(c?.lastName,'XML billing contact last name',30),email},expenseTimekeeperId:value.expenseTimekeeperId?xmlText(value.expenseTimekeeperId,'XML expense billing timekeeper ID',10):null};
+ const expenseTimekeeperRateCents=value.expenseTimekeeperRateCents==null?null:integer(value.expenseTimekeeperRateCents,'XML expense billing timekeeper hourly USD cents',0,100000000);
+ return {expenseTimekeeperRateCents,workCountry,vendorId:xmlText(value.vendorId,'XML firm vendor ID',25),clientFirmId:xmlText(value.clientFirmId,'XML client ID in firm system',20),clientMatterId:xmlText(value.clientMatterId,'XML client matter ID',25),clientAddress:address(value.clientAddress,'XML client'),billingContact:{firstName:xmlText(c?.firstName,'XML billing contact first name',20),lastName:xmlText(c?.lastName,'XML billing contact last name',30),email},expenseTimekeeperId:value.expenseTimekeeperId?xmlText(value.expenseTimekeeperId,'XML expense billing timekeeper ID',10):null};
 }
 export function xmlTimekeeper(t:Data){
  const [lastName,...first]=String(t.timekeeperName).split(',');
@@ -37,7 +38,8 @@ export async function snapshotXml(db:D1Database,profile:Data|null,client:string,
  if(!timekeepers.length){
   const t=await stmt(db,'SELECT * FROM s_ledes_timekeepers WHERE timekeeper_id=?',profile.expenseTimekeeperId??'').first<Data>();
   insist(t,'Choose an XML expense billing timekeeper ID for an expense-only invoice',422);
-  timekeepers.push(xmlTimekeeper({timekeeperId:t.timekeeper_id,timekeeperName:t.name,classification:t.classification,unitCostCents:0}));
+  insist(profile.expenseTimekeeperRateCents!==null&&profile.expenseTimekeeperRateCents!==undefined,'Record the XML expense billing timekeeper hourly USD cents for an expense-only invoice',422);
+  timekeepers.push(xmlTimekeeper({timekeeperId:t.timekeeper_id,timekeeperName:t.name,classification:t.classification,unitCostCents:profile.expenseTimekeeperRateCents}));
  }
  for(const l of lines)xmlText(l.description,`XML line ${l.lineNumber} narrative`,15000);
  const {clientMatterIds,...billingProfile}=profile;
