@@ -101,7 +101,7 @@ export async function revokeConnectorMatter(db:D1Database,actor:Actor,integratio
    AND ? IN(SELECT value FROM json_each(matter_ids))) THEN 1 ELSE 0 END`,fence,integrationId,generation,matterId),
   stmt(db,'UPDATE s_integrations SET matter_ids=?,generation=generation+1 WHERE id=? AND generation=?',JSON.stringify(narrowed),integrationId,generation),
   stmt(db,`UPDATE s_webhook_deliveries SET status='refused',claim=NULL,lease_until=NULL WHERE integration_id=?
-   AND status IN('queued','failed','uncertain') AND event_id IN(SELECT id FROM s_integration_events WHERE matter_id=?)`,integrationId,matterId),
+   AND status IN('queued','failed') AND event_id IN(SELECT id FROM s_integration_events WHERE matter_id=?)`,integrationId,matterId),
   audit(db,actor,'integration.matter_revoked',integrationId,JSON.stringify({matterId,generation:generation+1}),{matterId}),
   stmt(db,'DELETE FROM s_guard WHERE id=?',fence),
  ]);

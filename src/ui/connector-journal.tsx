@@ -61,7 +61,7 @@ export function ConnectorJournal({integration,journal,run,reload}:{integration:R
    <Form key={integration.generation} label="Remove matter from integration" submit={data=>run(async()=>{
     await api('/integrations/'+integration.id+'/matter-access',{matterId:data.matterId,generation:integration.generation});await reload();
    },'Matter authorization removed; inspect the updated integration and delivery journal')}>
-    <Field label="Matter to remove" name="matterId"><select required name="matterId" aria-label="Matter to remove" defaultValue=""><option value="">Choose a permitted matter</option>{integration.matterIds.map((matterId:string)=><option key={matterId} value={matterId}>{matterId}</option>)}</select></Field>
+    <Field label="Matter to remove" name="matterId"><select required name="matterId" aria-label="Matter to remove" defaultValue=""><option value="">Choose a permitted matter</option>{integration.matterIds.map((matterId:string)=><option key={matterId} value={matterId}>{integration.matterLabels?.[matterId]??matterId}</option>)}</select></Field>
    </Form>
   </details>}
  </div>;
