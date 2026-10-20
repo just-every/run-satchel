@@ -30,6 +30,8 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`CAL-001 book a recurri
   const firmPanel=page.locator('section',{has:page.getByRole('heading',{name:'Firm calendar',exact:true})});
   await firmPanel.getByLabel('From').fill('2026-10-26');await firmPanel.getByLabel('To').fill('2026-11-09');await firmPanel.getByRole('button',{name:'Show firm calendar'}).click();
   await firmPanel.getByText('Matter '+m.matter_number,{exact:true}).waitFor();
+  // The firm view refreshes after the cancellation; compare once its cancelled occurrence has arrived.
+  await firmPanel.locator('ol.occurrences > li',{hasText:'2026-11-02 10:00'}).locator('.badge',{hasText:'cancelled'}).waitFor();
   const rows=panel=>panel.locator('ol.occurrences > li').evaluateAll(items=>items.map(li=>[li.querySelector('span').textContent,li.querySelector('.badge').textContent]));
   const expected=[['2026-10-26 10:00 America/New_York','scheduled'],['2026-11-02 10:00 America/New_York','cancelled'],['2026-11-09 10:00 America/New_York','scheduled']];
   assert.deepEqual(await rows(matterPanel),expected);assert.deepEqual(await rows(firmPanel),expected,'Firm view matches the matter view');

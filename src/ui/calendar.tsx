@@ -18,7 +18,8 @@ export function Calendar({matterId,actor,firm,run,tick}:{matterId:string;actor:R
  const canChange=['owner','lawyer','assistant'].includes(actor.role);
  useEffect(()=>{setView(undefined);setBusy(undefined);},[matterId]);
  useEffect(()=>{if(matterId)api('/matters/'+matterId+'/calendar').then(setView).catch(e=>run(async()=>{throw e;}));},[matterId,tick]);
- useEffect(()=>{api(`/calendar?from=${range.from}&to=${range.to}`).then(setFirmView).catch(e=>run(async()=>{throw e;}));},[range,tick]);
+ // A late response for an earlier range or refresh must never replace the current one.
+ useEffect(()=>{let active=true;api(`/calendar?from=${range.from}&to=${range.to}`).then(v=>{if(active)setFirmView(v);}).catch(e=>{if(active)void run(async()=>{throw e;});});return()=>{active=false;};},[range,tick]);
  const book=async(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const f=new FormData(e.currentTarget),v=Object.fromEntries(f) as Row;await run(()=>api('/matters/'+matterId+'/appointments',{...v,durationMinutes:Number(v.durationMinutes),interval:Number(v.interval??1),occurrences:Number(v.occurrences??1),attendees:f.getAll('attendees')}),'Appointment booked');setBusy(undefined);};
  const check=async(form:HTMLFormElement|null)=>{if(!form)return;const f=new FormData(form),emails=[actor.email,...f.getAll('attendees')].join(','),day=String(f.get('date')||today());await run(async()=>setBusy(await api(`/availability?from=${day}&to=${plus(day,frequency==='once'?0:90)}&emails=${encodeURIComponent(emails)}`)),'Availability shown');};
  return <div className="grid">
