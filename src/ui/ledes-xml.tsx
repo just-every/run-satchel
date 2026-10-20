@@ -8,7 +8,7 @@ export function XmlProfileFields({profile}:{profile?:Row|null}){
   <label className="check"><input type="checkbox" name="xmlEnabled" checked={enabled} onChange={e=>setEnabled(e.target.checked)}/>Enable LEDES XML 2.1.3 for future bill preparations and revisions</label>
   <p>The firm name, address and phone come from Firm settings when the bill is prepared. Enter the client details and billing contact below.</p>
   {enabled&&<fieldset><legend>XML billing details</legend>
-   <div className="inline">{input('XML vendor ID','xmlVendorId',profile?.vendorId,{maxLength:25})}{input('XML client ID in firm system','xmlClientFirmId',profile?.clientFirmId,{maxLength:20})}</div>
+   <div className="inline">{input('XML firm vendor identifier','xmlVendorId',profile?.vendorId,{maxLength:25})}{input('XML client-assigned firm vendor ID','xmlClientFirmId',profile?.clientFirmId,{maxLength:20})}</div>
    {input('Work country for invoice lines (3-letter ISO code)','xmlWorkCountry',profile?.workCountry,{maxLength:3,pattern:'[A-Za-z]{3}'})}
    {input('XML client matter ID','xmlClientMatterId',profile?.clientMatterId,{maxLength:25})}
    {input('Client address line 1','xmlClientLine1',profile?.clientAddress?.line1)}

@@ -22,7 +22,7 @@ export function xmlProfile(value:Data|null|undefined){
  const workCountry=xmlText(value.workCountry,'XML work country (ISO alpha-3)',3).toUpperCase();
  insist(/^[A-Z]{3}$/.test(workCountry),'XML work country must be an ISO alpha-3 code');
  const expenseTimekeeperRateCents=value.expenseTimekeeperRateCents==null?null:integer(value.expenseTimekeeperRateCents,'XML expense billing timekeeper hourly USD cents',0,100000000);
- return {expenseTimekeeperRateCents,workCountry,vendorId:xmlText(value.vendorId,'XML firm vendor ID',25),clientFirmId:xmlText(value.clientFirmId,'XML client ID in firm system',20),clientMatterId:xmlText(value.clientMatterId,'XML client matter ID',25),clientAddress:address(value.clientAddress,'XML client'),billingContact:{firstName:xmlText(c?.firstName,'XML billing contact first name',20),lastName:xmlText(c?.lastName,'XML billing contact last name',30),email},expenseTimekeeperId:value.expenseTimekeeperId?xmlText(value.expenseTimekeeperId,'XML expense billing timekeeper ID',10):null};
+ return {expenseTimekeeperRateCents,workCountry,vendorId:xmlText(value.vendorId,'XML firm vendor ID',25),clientFirmId:xmlText(value.clientFirmId,'XML client-assigned firm vendor ID',20),clientMatterId:xmlText(value.clientMatterId,'XML client matter ID',25),clientAddress:address(value.clientAddress,'XML client'),billingContact:{firstName:xmlText(c?.firstName,'XML billing contact first name',20),lastName:xmlText(c?.lastName,'XML billing contact last name',30),email},expenseTimekeeperId:value.expenseTimekeeperId?xmlText(value.expenseTimekeeperId,'XML expense billing timekeeper ID',10):null};
 }
 export function xmlTimekeeper(t:Data){
  const [lastName,...first]=String(t.timekeeperName).split(',');
