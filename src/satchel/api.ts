@@ -156,6 +156,7 @@ api.post('/api/satchel/bills/:id/approve',as(async(a,c)=>approveBill(db(c),a,par
 api.post('/api/satchel/bills/:id/void',as(async(a,c)=>voidBill(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/bills/:id/correct',as(async(a,c)=>correctBill(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/bills/:id/export',as((a,c)=>exportBill(db(c),a,param(c))));
+api.get('/api/satchel/bills/:id/ledes-xml',as((a,c)=>exportLedes(db(c),a,param(c),true)));
 api.get('/api/satchel/bills/:id/ledes',as((a,c)=>exportLedes(db(c),a,param(c))));
 api.post('/api/satchel/bills/:id/ledes-outcomes',as(async(a,c)=>importOutcomes(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/ledes',as(async(a,c)=>{insist(['owner','lawyer'].includes(a.role),'Your role cannot perform this action',403);return ledesSettings(db(c));}));

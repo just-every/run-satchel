@@ -1,0 +1,617 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xsd:schema targetNamespace="http://www.ledes.org/ledes213.xsd" xmlns="http://www.ledes.org/ledes213.xsd" xmlns:tns="http://www.ledes.org/ledes213.xsd" xmlns:xsd="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+	<xsd:annotation>
+		<xsd:documentation xml:lang="en">LEDES XML EBilling 2.1.3 Schema</xsd:documentation>
+	</xsd:annotation>
+	<xsd:element name="ledesxmlebilling2.1.3">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="firm" type="firm" minOccurs="1" maxOccurs="1"/>
+				<xsd:element name="tax" type="tax" minOccurs="0" maxOccurs="unbounded"/>
+			</xsd:sequence>
+		</xsd:complexType>
+		<xsd:key name="tax_id_key">
+			<xsd:selector xpath="tns:tax"/>
+			<xsd:field xpath="tns:tx_id"/>
+		</xsd:key>
+		<xsd:keyref name="tax_id_ref" refer="tax_id_key">
+			<xsd:selector xpath=".//*"/>
+			<xsd:field xpath="tns:tx_id"/>
+		</xsd:keyref>
+		<xsd:unique name="file_item_nbr_unique">
+			<xsd:selector xpath=".//*"/>
+			<xsd:field xpath="tns:file_item_nbr"/>
+		</xsd:unique>
+	</xsd:element>
+	<xsd:complexType name="firm">
+		<xsd:sequence>
+			<xsd:element name="lf_vendor_id" type="string25" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="lf_id" type="string20" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="lf_name" type="string120" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="lf_address" type="address_info" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="lf_remit_address" type="address_info" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="lf_billing_contact" type="contact_info" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="source_app" type="string25" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="app_version" type="string10" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="firm_URL" type="string255" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="file_item_nbr" type="xsd:nonNegativeInteger" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="extend_header" type="extend_header" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="client" type="client" minOccurs="1" maxOccurs="unbounded"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="tax">
+		<xsd:sequence>
+			<xsd:element name="tx_id" type="string20" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="tax_id_number" type="string30" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="tax_type" type="string30" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="tax_rate_percent" type="ledes_percent10" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="taxing_jurisdiction_country" type="string3" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="taxing_jurisdiction_locality" type="string40" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="tax_on_tax" type="yes_no_type" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="tax_on_tax_id" type="string20" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="increase_decrease" type="increase_decrease_type" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="file_item_nbr" type="xsd:nonNegativeInteger" minOccurs="1" maxOccurs="1"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="client">
+		<xsd:sequence>
+			<xsd:element name="cl_id" type="string20" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="cl_lf_id" type="string20" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="cl_name" type="string120" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="cl_address" type="address_info" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="client_contact" type="contact_info" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="cl_tax_id" type="string20" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="file_item_nbr" type="xsd:nonNegativeInteger" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="extend_header" type="extend_header" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="invoice" type="invoice" minOccurs="1" maxOccurs="unbounded"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="invoice">
+		<xsd:sequence>
+			<xsd:element name="inv_id" type="string50" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="inv_date" type="xsd:date" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="inv_due_date" type="xsd:date" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="inv_currency" type="string3" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="inv_other_iso" type="string3" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="inv_start_date" type="xsd:date" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="inv_end_date" type="xsd:date" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="inv_desc" type="string2048" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="tax_invoice_cl_name" type="string120" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="tax_invoice_cl_address" type="address_info" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="tax_invoice_cl_id" type="string20" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="bill_to_cl_name" type="string120" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="bill_to_cl_address" type="address_info" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="bill_to_cl_id" type="string20" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="payable_by_cl_name" type="string120" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="payable_by_cl_address" type="address_info" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="payable_by_cl_id" type="string20" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="tax_point_date" type="xsd:date" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="tax_invoice" type="tax_invoice_type" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="credit_note" type="yes_no_type" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="inv_reference" type="string20" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="inv_payment_terms" type="inv_payment_terms" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="inv_total_tax" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="inv_total_tax_other_iso" type="ledes_money" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="inv_total_net_due" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="inv_total_net_due_other_iso" type="ledes_money" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="tax_authority_ref" type="string255" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="inv_image_file_name" type="string255" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="file_item_nbr" type="xsd:nonNegativeInteger" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="extend_header" type="extend_header" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="regulatory_statement" type="regulatory_statement" minOccurs="0" maxOccurs="unbounded"/>
+			<xsd:element name="matter" type="matter" minOccurs="1" maxOccurs="unbounded">
+				<xsd:unique name="tax_summary_id_unique">
+					<xsd:selector xpath="tns:tax_summary"/>
+					<xsd:field xpath="tns:tx_id"/>
+				</xsd:unique>
+			</xsd:element>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="regulatory_statement">
+		<xsd:sequence>
+			<xsd:element name="regulation_heading" type="string500" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="regulatory_statement" type="string2000" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="file_item_nbr" type="xsd:nonNegativeInteger" minOccurs="1" maxOccurs="1"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="matter">
+		<xsd:sequence>
+			<xsd:element name="cl_matter_id" type="string25" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="lf_matter_id" type="string25" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="matter_name" type="string255" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="matter_desc" type="string4096" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="po_number" type="string100" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="account_type" type="account_type" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="lf_managing_contact" type="contact_info" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="lf_contact" type="contact_info" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="cl_contact" type="contact_info" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="matter_billing_type" type="matter_billing_type" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="matter_final_bill" type="matter_final_bill" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="matter_total_detail_fees" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="matter_total_detail_exp" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="matter_disc_credit_fees" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="matter_disc_credit_exp" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="matter_disc_cred_total" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="matter_perc_shar_fees" type="ledes_percent4" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="matter_perc_shar_exp" type="ledes_percent4" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="matter_disc_bill_pct_fees" type="ledes_percent4" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="matter_disc_bill_pct_exp" type="ledes_percent4" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="matter_tax_on_fees" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="matter_tax_on_exp" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="matter_net_fees" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="matter_net_exp" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="matter_funds_applied" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="matter_total_due" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="associated_line_items" type="yes_no_type" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="file_item_nbr" type="xsd:nonNegativeInteger" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="extend_header" type="extend_header" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="tax_summary" type="tax_summary" minOccurs="0" maxOccurs="unbounded"/>
+			<xsd:element name="matter_disc_cred" type="matter_disc_cred" minOccurs="0" maxOccurs="unbounded">
+				<xsd:unique name="tax_matter_disc_cred_id_unique">
+					<xsd:selector xpath="tns:tax_matter_disc_cred"/>
+					<xsd:field xpath="tns:tx_id"/>
+				</xsd:unique>
+			</xsd:element>
+			<xsd:element name="tksum" type="tksum" minOccurs="1" maxOccurs="unbounded"/>
+			<xsd:element name="fee" type="fee" minOccurs="0" maxOccurs="unbounded">
+				<xsd:unique name="tax_item_fee_id_unique">
+					<xsd:selector xpath="tns:tax_item_fee"/>
+					<xsd:field xpath="tns:tx_id"/>
+				</xsd:unique>
+				<xsd:keyref name="tax_summary_exists_fee" refer="tax_summary_id_unique">
+					<xsd:selector xpath="tns:tax_item_fee"/>
+					<xsd:field xpath="tns:tx_id"/>
+				</xsd:keyref>
+			</xsd:element>
+			<xsd:element name="expense" type="expense" minOccurs="0" maxOccurs="unbounded">
+				<xsd:unique name="tax_item_expense_id_unique">
+					<xsd:selector xpath="tns:tax_item_expense"/>
+					<xsd:field xpath="tns:tx_id"/>
+				</xsd:unique>
+				<xsd:keyref name="tax_summary_exists_expense" refer="tax_summary_id_unique">
+					<xsd:selector xpath="tns:tax_item_expense"/>
+					<xsd:field xpath="tns:tx_id"/>
+				</xsd:keyref>
+			</xsd:element>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="tax_summary">
+		<xsd:sequence>
+			<xsd:element name="tx_id" type="string20" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="tax_total_detail_fees" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="total_tax_on_fees" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="tax_total_detail_expense" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="total_tax_on_expense" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="file_item_nbr" type="xsd:nonNegativeInteger" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="extend_header" type="extend_header" minOccurs="0" maxOccurs="1"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="matter_disc_cred">
+		<xsd:sequence>
+			<xsd:element name="disc_cred" type="disc_cred_matter" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="disc_cred_note" type="string255" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="disc_cred_type" type="disc_cred_type" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="disc_cred_category" type="disc_cred_category" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="increase_decrease" type="increase_decrease_type" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="pre_post_split" type="split_type" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="discount_percent" type="ledes_percent4" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="disc_cred_amount" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="file_item_nbr" type="xsd:nonNegativeInteger" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="extend_header" type="extend_header" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="tax_matter_disc_cred" type="tax_matter_disc_cred" minOccurs="0" maxOccurs="unbounded"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="tax_matter_disc_cred">
+		<xsd:sequence>
+			<xsd:element name="tx_id" type="string20" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="file_item_nbr" type="xsd:nonNegativeInteger" minOccurs="1" maxOccurs="1"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="tksum">
+		<xsd:sequence>
+			<xsd:element name="tk_id" type="string10" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="tk_lname" type="string30" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="tk_fname" type="string20" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="tk_level" type="tk_level" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="tk_rate" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="file_item_nbr" type="xsd:nonNegativeInteger" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="extend_header" type="extend_header" minOccurs="0" maxOccurs="1"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="fee">
+		<xsd:sequence>
+			<xsd:element name="charge_date" type="xsd:date" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="tk_id" type="string10" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="tk_level" type="tk_level" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="work_location_country" type="string3" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="work_location_locality" type="string40" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="charge_desc" type="string15000" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="task_code" type="string4" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="task_activity" type="string4" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="charge_type" type="charge_type" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="units" type="ledes_units" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="rate" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="base_amount" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="item_disc_cred_amount" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="total_amount" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="file_item_nbr" type="xsd:nonNegativeInteger" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="extend_header" type="extend_header" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="fee_item_disc_cred" type="fee_item_disc_cred" minOccurs="0" maxOccurs="unbounded"/>
+			<xsd:element name="tax_item_fee" type="tax_item_fee" minOccurs="0" maxOccurs="unbounded"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="fee_item_disc_cred">
+		<xsd:sequence>
+			<xsd:element name="disc_cred" type="disc_cred_fee" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="disc_cred_note" type="string255" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="disc_cred_type" type="disc_cred_type" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="increase_decrease" type="increase_decrease_type" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="discount_percent" type="ledes_percent4" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="disc_cred_amount" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="file_item_nbr" type="xsd:nonNegativeInteger" minOccurs="1" maxOccurs="1"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="tax_item_fee">
+		<xsd:sequence>
+			<xsd:element name="tx_id" type="string20" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="file_item_nbr" type="xsd:nonNegativeInteger" minOccurs="1" maxOccurs="1"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="expense">
+		<xsd:sequence>
+			<xsd:element name="charge_date" type="xsd:date" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="tk_id" type="string10" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="tk_level" type="tk_level" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="work_location_country" type="string3" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="work_location_locality" type="string40" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="charge_desc" type="string15000" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="task_code" type="string4" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="expense_code" type="string4" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="charge_type" type="charge_type" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="units" type="ledes_units" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="rate" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="base_amount" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="item_disc_cred_amount" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="total_amount" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="payee_name" type="string120" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="file_item_nbr" type="xsd:nonNegativeInteger" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="extend_header" type="extend_header" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="expense_item_disc_cred" type="expense_item_disc_cred" minOccurs="0" maxOccurs="unbounded"/>
+			<xsd:element name="tax_item_expense" type="tax_item_expense" minOccurs="0" maxOccurs="unbounded"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="expense_item_disc_cred">
+		<xsd:sequence>
+			<xsd:element name="disc_cred" type="disc_cred_exp" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="disc_cred_note" type="string255" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="disc_cred_type" type="disc_cred_type" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="increase_decrease" type="increase_decrease_type" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="disc_cred_percent" type="ledes_percent4" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="disc_cred_amount" type="ledes_money" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="file_item_nbr" type="xsd:nonNegativeInteger" minOccurs="1" maxOccurs="1"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="tax_item_expense">
+		<xsd:sequence>
+			<xsd:element name="tx_id" type="string20" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="file_item_nbr" type="xsd:nonNegativeInteger" minOccurs="1" maxOccurs="1"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="address_info">
+		<xsd:sequence>
+			<xsd:element name="address_1" type="string60" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="address_2" type="string60" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="address_3" type="string60" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="city" type="string40" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="state_province" type="string40" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="zip_postal_code" type="string20" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="country" type="string3" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="phone" type="string20" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="fax" type="string20" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="file_item_nbr" type="xsd:nonNegativeInteger" minOccurs="1" maxOccurs="1"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="contact_info">
+		<xsd:sequence>
+			<xsd:element name="contact_lname" type="string30" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="contact_fname" type="string20" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="contact_id" type="string15" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="contact_phone" type="string20" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="contact_fax" type="string20" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="contact_email" type="string60" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="file_item_nbr" type="xsd:nonNegativeInteger" minOccurs="1" maxOccurs="1"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="extend_header">
+		<xsd:sequence>
+			<xsd:element name="vendor" type="xsd:string" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="app" type="xsd:string" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="sequence" type="xsd:string" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="date" type="xsd:date" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="extend_data" type="extend_data" minOccurs="1" maxOccurs="unbounded"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="extend_data">
+		<xsd:sequence>
+			<xsd:element name="ext_name" type="xsd:string" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="ext_value" type="xsd:string" minOccurs="1" maxOccurs="1"/>
+			<xsd:element name="file_item_nbr" type="xsd:nonNegativeInteger" minOccurs="1" maxOccurs="1"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:simpleType name="string3">
+		<xsd:restriction base="xsd:string">
+			<xsd:maxLength value="3"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="string4">
+		<xsd:restriction base="xsd:string">
+			<xsd:maxLength value="4"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="string10">
+		<xsd:restriction base="xsd:string">
+			<xsd:maxLength value="10"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="string15">
+		<xsd:restriction base="xsd:string">
+			<xsd:maxLength value="15"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="string20">
+		<xsd:restriction base="xsd:string">
+			<xsd:maxLength value="20"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="string25">
+		<xsd:restriction base="xsd:string">
+			<xsd:maxLength value="25"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="string30">
+		<xsd:restriction base="xsd:string">
+			<xsd:maxLength value="30"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="string40">
+		<xsd:restriction base="xsd:string">
+			<xsd:maxLength value="40"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="string50">
+		<xsd:restriction base="xsd:string">
+			<xsd:maxLength value="50"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="string60">
+		<xsd:restriction base="xsd:string">
+			<xsd:maxLength value="60"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="string100">
+		<xsd:restriction base="xsd:string">
+			<xsd:maxLength value="100"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="string120">
+		<xsd:restriction base="xsd:string">
+			<xsd:maxLength value="120"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="string255">
+		<xsd:restriction base="xsd:string">
+			<xsd:maxLength value="255"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="string500">
+		<xsd:restriction base="xsd:string">
+			<xsd:maxLength value="500"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="string2000">
+		<xsd:restriction base="xsd:string">
+			<xsd:maxLength value="2000"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="string2048">
+		<xsd:restriction base="xsd:string">
+			<xsd:maxLength value="2048"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="string4096">
+		<xsd:restriction base="xsd:string">
+			<xsd:maxLength value="4096"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="string15000">
+		<xsd:restriction base="xsd:string">
+			<xsd:maxLength value="15000"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="ledes_money">
+		<xsd:restriction base="xsd:decimal">
+			<xsd:totalDigits value="20"/>
+			<xsd:fractionDigits value="4"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="ledes_percent10">
+		<xsd:restriction base="xsd:decimal">
+			<xsd:totalDigits value="11"/>
+			<xsd:fractionDigits value="10"/>
+			<xsd:minInclusive value="0"/>
+			<xsd:maxInclusive value="1"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="ledes_percent4">
+		<xsd:restriction base="xsd:decimal">
+			<xsd:totalDigits value="5"/>
+			<xsd:fractionDigits value="4"/>
+			<xsd:minInclusive value="0"/>
+			<xsd:maxInclusive value="1"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="ledes_units">
+		<xsd:restriction base="xsd:decimal">
+			<xsd:totalDigits value="4"/>
+			<xsd:fractionDigits value="2"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="inv_payment_terms">
+		<xsd:restriction base="xsd:string">
+			<xsd:pattern value="[0-9][0-9]\.[0-9][0-9]/[0-9][0-9]"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="matter_billing_type">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value=""/>
+			<xsd:enumeration value="TM"/>
+			<xsd:enumeration value="FF"/>
+			<xsd:enumeration value="CT"/>
+			<xsd:enumeration value="GW"/>
+			<xsd:enumeration value="MPF"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="matter_final_bill">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="Y"/>
+			<xsd:enumeration value="N"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="disc_cred_matter">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="MISF"/>
+			<xsd:enumeration value="MIDB"/>
+			<xsd:enumeration value="MIFF"/>
+			<xsd:enumeration value="MIA"/>
+			<xsd:enumeration value="MIDHR"/>
+			<xsd:enumeration value="MIR"/>
+			<xsd:enumeration value="MICF"/>
+			<xsd:enumeration value="MIB"/>
+			<xsd:enumeration value="MICM"/>
+			<xsd:enumeration value="MIFA"/>
+			<xsd:enumeration value="Other"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="disc_cred_type">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="Percent"/>
+			<xsd:enumeration value="Flat"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="disc_cred_category">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="Fee"/>
+			<xsd:enumeration value="Exp"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="tk_level">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="ADJSTR" />
+			<xsd:enumeration value="ADJSMT" />
+			<xsd:enumeration value="ANALST" />
+			<xsd:enumeration value="ARBITR" />
+			<xsd:enumeration value="ASSOC" />
+			<xsd:enumeration value="TRANEE" />
+			<xsd:enumeration value="AUDITR" />
+			<xsd:enumeration value="CLKSEC" />
+			<xsd:enumeration value="CONSLT" />
+			<xsd:enumeration value="TEMPAT" />
+			<xsd:enumeration value="TEMPOS" />
+			<xsd:enumeration value="CSTCNS" />
+			<xsd:enumeration value="CTRPTR" />
+			<xsd:enumeration value="DSCATT" />
+			<xsd:enumeration value="DSCPMG" />
+			<xsd:enumeration value="DSCANJ" />
+			<xsd:enumeration value="DSCANS" />
+			<xsd:enumeration value="DOCCDR" />
+			<xsd:enumeration value="DOCRAT" />
+			<xsd:enumeration value="DOCRNA" />
+			<xsd:enumeration value="EVDEVL" />
+			<xsd:enumeration value="EXPERT" />
+			<xsd:enumeration value="FLTFEE" />
+			<xsd:enumeration value="FORANL" />
+			<xsd:enumeration value="HLNLPF" />
+			<xsd:enumeration value="INVSTG" />
+			<xsd:enumeration value="IPSVPV" />
+			<xsd:enumeration value="IPAGNT" />
+			<xsd:enumeration value="LGLAST" />
+			<xsd:enumeration value="LGLINT" />
+			<xsd:enumeration value="LGPRMG" />
+			<xsd:enumeration value="LIBRRN" />
+			<xsd:enumeration value="MEDITR" />
+			<xsd:enumeration value="MDRCRV" />
+			<xsd:enumeration value="OFCOUN" />
+			<xsd:enumeration value="NBOTHR" />
+			<xsd:enumeration value="PARALG" />
+			<xsd:enumeration value="PARTNR" />
+			<xsd:enumeration value="RSRCHR" />
+			<xsd:enumeration value="RSPROF" />
+			<xsd:enumeration value="SECNDE" />
+			<xsd:enumeration value="SPAGNT" />
+			<xsd:enumeration value="SOLDSG" />
+			<xsd:enumeration value="STFATT" />
+			<xsd:enumeration value="STFCNS" />
+			<xsd:enumeration value="TPADMN" />
+			<xsd:enumeration value="TRAINR" />
+			<xsd:enumeration value="TRNDEV" />
+			<xsd:enumeration value="TRNFAG" />
+			<xsd:enumeration value="TRANSL" />
+			<xsd:enumeration value="VIDOGR" />
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="charge_type">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="U"/>
+			<xsd:enumeration value="F"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="disc_cred_fee">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="FID"/>
+			<xsd:enumeration value="FIFF"/>
+			<xsd:enumeration value="FIA"/>
+			<xsd:enumeration value="FIDHR"/>
+			<xsd:enumeration value="Other"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="disc_cred_exp">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="EID"/>
+			<xsd:enumeration value="EIFF"/>
+			<xsd:enumeration value="EIA"/>
+			<xsd:enumeration value="EIDHR"/>
+			<xsd:enumeration value="Other"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="yes_no_type">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="Y"/>
+			<xsd:enumeration value="N"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="increase_decrease_type">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="Increase"/>
+			<xsd:enumeration value="Decrease"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="tax_invoice_type">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="This is a Tax Invoice"/>
+			<xsd:enumeration value="This is not a Tax Invoice"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="account_type">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="O"/>
+			<xsd:enumeration value="T"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="split_type">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="Pre-Split"/>
+			<xsd:enumeration value="Post-Split"/>
+			<xsd:enumeration value="NA"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+</xsd:schema>

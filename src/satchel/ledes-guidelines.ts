@@ -1,9 +1,10 @@
 // TIME-007: append-only client billing guidelines (the matter's recorded client name,
 // exact match, as TIME-003) and the per-line checks that code an insurer bill.
 import {atomic,audit,human,id,insist,integer,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
+import {xmlProfile} from './ledes-xml-profile';
 import {classifications,codeFormat,codeProblems,ledesSettings,type Coding} from './utbms-codes';
 
-const guidelineJson=(g:Data)=>({id:g.id,client:g.client,version:g.version,clientLedesId:g.client_ledes_id,lawFirmId:g.law_firm_id,requireTask:g.require_task===1,requireActivity:g.require_activity===1,requireExpense:g.require_expense===1,narrativeMin:g.narrative_min,bannedPhrases:JSON.parse(g.banned_phrases),maxRates:JSON.parse(g.max_rates),incrementMinutes:g.increment_minutes,note:g.note,createdBy:g.created_by,createdAt:g.created_at});
+const guidelineJson=(g:Data)=>({id:g.id,client:g.client,version:g.version,clientLedesId:g.client_ledes_id,lawFirmId:g.law_firm_id,requireTask:g.require_task===1,requireActivity:g.require_activity===1,requireExpense:g.require_expense===1,narrativeMin:g.narrative_min,bannedPhrases:JSON.parse(g.banned_phrases),maxRates:JSON.parse(g.max_rates),incrementMinutes:g.increment_minutes,note:g.note,createdBy:g.created_by,createdAt:g.created_at,xmlProfile:g.xml_profile?JSON.parse(g.xml_profile):null});
 export type Guideline=ReturnType<typeof guidelineJson>;
 
 export async function currentGuideline(db:D1Database,client:string):Promise<Guideline|null> {
@@ -13,7 +14,8 @@ export async function currentGuideline(db:D1Database,client:string):Promise<Guid
 
 export async function matterLedes(db:D1Database,actor:Actor,matterId:string) {
  const m=await matter(db,actor,matterId),history=await rows(db,'SELECT * FROM s_ledes_guidelines WHERE client=? ORDER BY version DESC',m.client);
- return {client:m.client,guideline:history[0]?guidelineJson(history[0]):null,history:history.map(guidelineJson),...await ledesSettings(db)};
+ const visible=(row:Data)=>{const g=guidelineJson(row);if(g.xmlProfile){const {clientMatterIds,...profile}=g.xmlProfile;g.xmlProfile={...profile,clientMatterId:clientMatterIds?.[matterId]??''};}return g;};
+ return {client:m.client,guideline:history[0]?visible(history[0]):null,history:history.map(visible),...await ledesSettings(db)};
 }
 
 const ledesField=(value:unknown,label:string,max:number)=>{const v=text(value,label,max);insist(!/[|]|\[\]/.test(v),`${label} cannot contain | or []`);return v;};
@@ -28,8 +30,12 @@ export async function saveGuideline(db:D1Database,actor:Actor,matterId:string,bo
  const maxRates:Record<string,number>={};
  for(const [k,v] of Object.entries(body.maxRates)){insist(classifications.includes(k),`Choose a LEDES classification (${classifications.join(', ')})`);maxRates[k]=integer(v,`Maximum ${k} hourly rate in USD cents`,0,100000000);}
  const last=await stmt(db,'SELECT COALESCE(MAX(version),0) v FROM s_ledes_guidelines WHERE client=?',m.client).first<Data>(),version=(last!.v as number)+1,guidelineId=id();
- const values=[guidelineId,m.client,version,ledesField(body.clientLedesId,'LEDES client ID',20),ledesField(body.lawFirmId,'LEDES law firm ID',20),flag(body.requireTask,'requires task codes'),flag(body.requireActivity,'requires activity codes'),flag(body.requireExpense,'requires expense codes'),integer(body.narrativeMin,'Minimum narrative length',0,500),JSON.stringify(banned),JSON.stringify(maxRates),integer(body.incrementMinutes,'Required billing increment in minutes (0 for none)',0,60),text(body.note,'Guideline source note',500),actor.email,now()];
- await atomic(db,actor,[stmt(db,'INSERT INTO s_ledes_guidelines(id,client,version,client_ledes_id,law_firm_id,require_task,require_activity,require_expense,narrative_min,banned_phrases,max_rates,increment_minutes,note,created_by,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',...values),
+ const profile=xmlProfile(body.xmlProfile);
+ const previous=await currentGuideline(db,m.client);
+ const xml=profile?{...profile,clientMatterIds:{...previous?.xmlProfile?.clientMatterIds,[matterId]:profile.clientMatterId}}:null;
+ if(xml)delete (xml as Data).clientMatterId;
+ const values=[guidelineId,m.client,version,ledesField(body.clientLedesId,'LEDES client ID',20),ledesField(body.lawFirmId,'LEDES law firm ID',20),flag(body.requireTask,'requires task codes'),flag(body.requireActivity,'requires activity codes'),flag(body.requireExpense,'requires expense codes'),integer(body.narrativeMin,'Minimum narrative length',0,500),JSON.stringify(banned),JSON.stringify(maxRates),integer(body.incrementMinutes,'Required billing increment in minutes (0 for none)',0,60),text(body.note,'Guideline source note',500),actor.email,now(),xml?JSON.stringify(xml):null];
+ await atomic(db,actor,[stmt(db,'INSERT INTO s_ledes_guidelines(id,client,version,client_ledes_id,law_firm_id,require_task,require_activity,require_expense,narrative_min,banned_phrases,max_rates,increment_minutes,note,created_by,created_at,xml_profile) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',...values),
   audit(db,actor,'ledes.guideline.saved',guidelineId,JSON.stringify({client:m.client,version}),{matterId})]);
  return matterLedes(db,actor,matterId);
 }

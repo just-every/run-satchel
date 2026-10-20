@@ -1,6 +1,8 @@
 // TIME-007: LEDES 1998B invoices frozen at approval, their export, and e-billing
 // outcomes imported from the client's vendor file (recorded, never verified with the vendor).
 import {atomic,audit,digest,human,id,insist,need,now,rows,stmt,text,type Actor,type Data} from './model';
+import {ledesXml} from './ledes-xml';
+import {xmlFormat} from './ledes-xml-profile';
 import {accessGuard,guard} from './trust-guards';
 
 const fields=['INVOICE_DATE','INVOICE_NUMBER','CLIENT_ID','LAW_FIRM_MATTER_ID','INVOICE_TOTAL','BILLING_START_DATE','BILLING_END_DATE','INVOICE_DESCRIPTION','LINE_ITEM_NUMBER','EXP/FEE/INV_ADJ_TYPE','LINE_ITEM_NUMBER_OF_UNITS','LINE_ITEM_ADJUSTMENT_AMOUNT','LINE_ITEM_TOTAL','LINE_ITEM_DATE','LINE_ITEM_TASK_CODE','LINE_ITEM_EXPENSE_CODE','LINE_ITEM_ACTIVITY_CODE','TIMEKEEPER_ID','LINE_ITEM_DESCRIPTION','LAW_FIRM_ID','LINE_ITEM_UNIT_COST','TIMEKEEPER_NAME','TIMEKEEPER_CLASSIFICATION','CLIENT_MATTER_ID'];
@@ -26,15 +28,17 @@ export function ledes1998B(bill:Data) {
 export async function freezeLedes(db:D1Database,bill:Data) {
  if(!bill.snapshot.ledes)return [];
  const file=ledes1998B(bill);
- return [stmt(db,'UPDATE s_bill_ledes SET artifact=?,artifact_digest=? WHERE bill_id=? AND artifact IS NULL',file,await digest(file),bill.id),guard(db,'EXISTS(SELECT 1 FROM s_bill_ledes WHERE bill_id=? AND artifact IS NOT NULL)',bill.id)];
+ const xml=bill.snapshot.ledes.xml?ledesXml(bill):null;
+ return [...(xml?[stmt(db,'INSERT INTO s_bill_ledes_xml(bill_id,artifact,artifact_digest) VALUES(?,?,?)',bill.id,xml,await digest(xml))]:[]),stmt(db,'UPDATE s_bill_ledes SET artifact=?,artifact_digest=? WHERE bill_id=? AND artifact IS NULL',file,await digest(file),bill.id),guard(db,'EXISTS(SELECT 1 FROM s_bill_ledes WHERE bill_id=? AND artifact IS NOT NULL)',bill.id)];
 }
 
 // Status follows the latest imported file: rejected if any of its rows rejects, else accepted.
 export async function billLedes(db:D1Database,billId:string) {
  const l=await stmt(db,'SELECT invoice_number,artifact_digest FROM s_bill_ledes WHERE bill_id=?',billId).first<Data>();
  if(!l)return null;
+ const xml=await stmt(db,'SELECT artifact_digest FROM s_bill_ledes_xml WHERE bill_id=?',billId).first<Data>();
  const outcomes=await rows(db,'SELECT * FROM s_ledes_outcomes WHERE bill_id=? ORDER BY at,id',billId),latest=outcomes.at(-1)?.import_id,current=outcomes.filter(o=>o.import_id===latest);
- return {invoiceNumber:l.invoice_number,format:'LEDES 1998B',ready:!!l.artifact_digest,status:!latest?'not reported':current.some(o=>o.status==='rejected')?'rejected':'accepted',
+ return {invoiceNumber:l.invoice_number,format:'LEDES 1998B',xmlFormat,xmlReady:!!xml,ready:!!l.artifact_digest,status:!latest?'not reported':current.some(o=>o.status==='rejected')?'rejected':'accepted',
   rejections:current.filter(o=>o.status==='rejected').map(o=>({lineNumber:o.line_number,reason:o.reason})),
   outcomes:outcomes.map(o=>({importId:o.import_id,status:o.status,lineNumber:o.line_number,reason:o.reason,sourceName:o.source_name,importedBy:o.imported_by,at:o.at}))};
 }
@@ -47,14 +51,16 @@ async function ledesBill(db:D1Database,actor:Actor,billId:string) {
  insist(seen,'Bill not found',404);return bill;
 }
 
-export async function exportLedes(db:D1Database,actor:Actor,billId:string):Promise<Response> {
+export async function exportLedes(db:D1Database,actor:Actor,billId:string,xml=false):Promise<Response> {
  const bill=await ledesBill(db,actor,billId);
  insist(['approved','exported'].includes(bill.status)&&bill.ledes_artifact,'A person must approve this bill before export',409);
- insist(await digest(bill.ledes_artifact)===bill.ledes_digest,'Reviewed LEDES integrity check failed',409);
+ const artifact=xml?await stmt(db,'SELECT artifact,artifact_digest FROM s_bill_ledes_xml WHERE bill_id=?',billId).first<Data>():{artifact:bill.ledes_artifact,artifact_digest:bill.ledes_digest};
+ insist(artifact,'This reviewed bill has no XML profile; record XML billing details before preparing a new bill or a substantive reviewed correction',409);
+ insist(await digest(artifact.artifact)===artifact.artifact_digest,'Reviewed LEDES integrity check failed',409);
  await atomic(db,actor,[accessGuard(db,actor,bill.matter_id),guard(db,'EXISTS(SELECT 1 FROM s_bills WHERE id=? AND revision=?)',bill.id,bill.revision),
   ...(bill.status==='approved'?[stmt(db,"UPDATE s_bills SET status='exported',exported_at=?,revision=? WHERE id=? AND revision=? AND status='approved'",now(),id(),bill.id,bill.revision)]:[]),
-  audit(db,actor,'bill.ledes.exported',bill.id,bill.ledes_digest,{matterId:bill.matter_id})]);
- return new Response(bill.ledes_artifact,{headers:{'Content-Type':'text/plain; charset=utf-8','Content-Disposition':`attachment; filename="${bill.invoice_number}.ledes.txt"`,'Cache-Control':'private, no-store'}});
+  audit(db,actor,'bill.ledes.exported',bill.id,artifact.artifact_digest,{matterId:bill.matter_id,format:xml?xmlFormat:'LEDES 1998B'})]);
+ return new Response(artifact.artifact,{headers:{'Content-Type':xml?'application/xml; charset=utf-8':'text/plain; charset=utf-8','X-Content-Type-Options':'nosniff','Content-Disposition':`attachment; filename="${bill.invoice_number}.ledes.${xml?'xml':'txt'}"`,'Cache-Control':'private, no-store'}});
 }
 
 // Outcome file rows: INVOICE_NUMBER|LINE_ITEM_NUMBER|STATUS|REASON (header optional; a blank

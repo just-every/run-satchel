@@ -7,6 +7,7 @@ import { correctionReview, correctionReviews } from './billing-corrections';
 import { budgetAlerts, loadPricing, price, pricingGuard } from './rates';
 import { checkCodes, utbmsActivity, utbmsExpense, utbmsTask } from './utbms-codes';
 import { baseCents, codeLine, currentGuideline } from './ledes-guidelines';
+import {snapshotXml,xmlText} from './ledes-xml-profile';
 import { billLedes, freezeLedes, nextInvoiceNumber, reserveInvoice } from './ledes';
 
 const maxMoney = 1_000_000_000_000;
@@ -55,6 +56,7 @@ function artifact(bill: Data) {
  ]);
 }
 async function createBill(db: D1Database, actor: Actor, matterId: string, snapshot: Data, sources: Data[], extra: D1PreparedStatement[] = []) {
+ if(snapshot.ledes?.xml)xmlText(snapshot.title,'XML bill title',2048);
  // A LEDES bill reserves its unique invoice number in the same step as the bill.
  const billId = actor.approval?.resultId ?? id(), revision = id(), at = now();
  await atomic(db,actor,[accessGuard(db,actor,matterId),...extra,
@@ -116,6 +118,8 @@ export async function prepareBill(db: D1Database, actor: Actor, matterId: string
   insist(!problems.length, `This bill does not meet the ${g.client} billing guideline: ${problems.join('; ')}`, 422);
   insist(!/[|]|\[\]/.test(title), 'Bill title cannot contain | or []');
   ledes = {format:'LEDES 1998B',guidelineId:g.id,guidelineVersion:g.version,clientId:g.clientLedesId,lawFirmId:g.lawFirmId,invoiceNumber:await nextInvoiceNumber(db,matterId,m.matter_number),lines:coded.map(c => c.line)};
+  if(g.xmlProfile){xmlText(title,'XML bill title',2048);xmlText(g.clientLedesId,'XML client ID',20);xmlText(g.lawFirmId,'XML law firm ID',20);}
+  ledes.xml=await snapshotXml(db,g.xmlProfile,m.client,matterId,m.matter_number,m.title,ledes.invoiceNumber,ledes.lines);
  }
  return createBill(db,actor,matterId,{title,date:billDate,currency:'USD',matterId,matterNumber:m.matter_number,matterTitle:m.title,client:m.client,lines,totalCents:sum(lines),...(ledes ? {ledes} : {})},lines);
 }
@@ -193,5 +197,8 @@ async function ledesReplacement(db: D1Database, bill: Data, source: Data, body: 
  const next: Data = {...line,units4:before.units4,unitCostCents:before.unitCostCents,adjustmentCents:corrected-baseCents(before.units4,before.unitCostCents)};
  const changed = ['task','activity','expense','description'].some(k => next[k] !== before[k]);
  const rejected = (await billLedes(db,bill.id))?.status === 'rejected';
- return {changed,ledes:{...bill.snapshot.ledes,guidelineId:g.id,guidelineVersion:g.version,clientId:g.clientLedesId,lawFirmId:g.lawFirmId,invoiceNumber:await nextInvoiceNumber(db,bill.matterId,bill.snapshot.matterNumber,bill.id),replaces:bill.snapshot.ledes.invoiceNumber,respondsToRejection:rejected,lines:bill.snapshot.ledes.lines.map((l: Data) => l.sourceId === source.sourceId ? next : l)}};
+ const replacement:Data={...bill.snapshot.ledes,guidelineId:g.id,guidelineVersion:g.version,clientId:g.clientLedesId,lawFirmId:g.lawFirmId,invoiceNumber:await nextInvoiceNumber(db,bill.matterId,bill.snapshot.matterNumber,bill.id),replaces:bill.snapshot.ledes.invoiceNumber,respondsToRejection:rejected,lines:bill.snapshot.ledes.lines.map((l: Data) => l.sourceId === source.sourceId ? next : l)};
+ if(g.xmlProfile){xmlText(g.clientLedesId,'XML client ID',20);xmlText(g.lawFirmId,'XML law firm ID',20);}
+ replacement.xml=await snapshotXml(db,g.xmlProfile,bill.snapshot.client,bill.matterId,bill.snapshot.matterNumber,bill.snapshot.matterTitle,replacement.invoiceNumber,replacement.lines);
+ return {changed,ledes:replacement};
 }

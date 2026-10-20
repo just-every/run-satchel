@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readXml,xmlProfile} from './ledes-xml-reader.mjs';
 import {harness,open} from './harness.mjs';
 
 // An independent LEDES 1998B reading: header, 24 pipe fields, [] terminators, YYYYMMDD dates,
@@ -22,7 +23,7 @@ function readLedes(file){
  return lines;
 }
 
-test('TIME-007 firm UTBMS code sets and a client guideline code an insurer bill, refuse a missing activity code, export valid LEDES 1998B and correct an imported rejection through a reviewed revision without duplicate charges',async()=>{
+test('TIME-007 firm UTBMS code sets and a client guideline code an insurer bill, refuse a missing activity code, export valid LEDES 1998B and official-XSD-valid XML 2.1.3 and correct an imported rejection through a reviewed revision without duplicate charges',async()=>{
  const h=await harness();
  try{
   const address={line1:'200 Park Avenue',city:'New York',state:'NY',zip:'10166'};
@@ -43,8 +44,9 @@ test('TIME-007 firm UTBMS code sets and a client guideline code an insurer bill,
   await h.json('/time/drafts',{matterId:m.id,date:'2026-10-14',minutes:12,billable:true,description:'Coverage call',utbmsTask:'L999'},h.owner,400);
 
   // The client's guideline is an append-only version; only the principal records it.
-  const guideline={clientLedesId:'HARBOR01',lawFirmId:'13-1234567',requireTask:true,requireActivity:true,requireExpense:true,narrativeMin:15,bannedPhrases:['Review file'],maxRates:{PT:40000,AS:30000},incrementMinutes:6,note:'Harbor Mutual outside counsel guidelines 2026'};
+  const guideline={clientLedesId:'HARBOR01',lawFirmId:'13-1234567',requireTask:true,requireActivity:true,requireExpense:true,narrativeMin:15,bannedPhrases:['Review file'],maxRates:{PT:40000,AS:30000},incrementMinutes:6,note:'Harbor Mutual outside counsel guidelines 2026',xmlProfile};
   await h.json('/matters/'+m.id+'/ledes-guideline',guideline,lawyer,403);
+  await h.json('/matters/'+m.id+'/ledes-guideline',{...guideline,xmlProfile:{...xmlProfile,clientAddress:{}}},h.owner,400);
   let ledes=await h.json('/matters/'+m.id+'/ledes-guideline',guideline,h.owner);
   assert.deepEqual([ledes.client,ledes.guideline.version,ledes.guideline.bannedPhrases,ledes.guideline.maxRates],['Harbor Mutual Insurance',1,['review file'],{PT:40000,AS:30000}]);
   await h.json('/matters/'+m.id+'/rates',{scope:'matter',effectiveFrom:'2026-01-01',rateCents:30000,incrementMinutes:6,discountBps:1000,billable:true,utbmsTask:'L120',note:'Harbor panel discount on analysis'},h.owner);
@@ -78,10 +80,28 @@ test('TIME-007 firm UTBMS code sets and a client guideline code an insurer bill,
   assert.deepEqual(bill.snapshot.ledes.lines.map(l=>[l.lineNumber,l.type,l.task,l.activity,l.expense,l.timekeeperId,l.units4,l.unitCostCents,l.adjustmentCents,l.totalCents]),[[1,'F','L110','A101',null,'BL-001',9000,30000,0,27000],[2,'F','L120','A103',null,'BL-001',5000,30000,-1500,13500],[3,'E',null,null,'E112',null,10000,40500,0,40500]]);
   await h.json('/bills/'+bill.id+'/ledes-outcomes',{fileName:'early.txt',content:`${invoice}||REJECTED|Too early`},h.owner,409);
   await h.json('/bills/'+bill.id+'/ledes',undefined,h.owner,409);
+  await h.json('/bills/'+bill.id+'/ledes-xml',undefined,h.owner,409);
   bill=await h.json('/bills/'+bill.id+'/approve',{revision:bill.revision,reviewNote:'Coded per Harbor guideline'},h.owner);
   await h.json('/bills/'+bill.id+'/ledes',undefined,assistant,403);
+  await h.json('/bills/'+bill.id+'/ledes-xml',undefined,assistant,403);
+
   const exported=await h.request('/api/satchel/bills/'+bill.id+'/ledes',undefined,h.owner);assert.equal(exported.status,200);
   const file=await exported.text(),lines=readLedes(file);
+  const xmlResponse=await h.request('/api/satchel/bills/'+bill.id+'/ledes-xml',undefined,lawyer);
+  assert.equal(xmlResponse.status,200);assert.match(xmlResponse.headers.get('content-type'),/application\/xml/);
+  assert.equal(xmlResponse.headers.get('content-disposition'),`attachment; filename="${invoice}.ledes.xml"`);
+  const xmlFile=await xmlResponse.text(),xml=readXml(xmlFile);
+  assert.deepEqual([xml.firm.lf_name,xml.firm.lf_vendor_id,xml.client.cl_id,xml.client.cl_lf_id,xml.matter.cl_matter_id,xml.matter.lf_matter_id],['Barton & Lee LLP','BL-HARBOR','HARBOR01','HARBOR-ACCT','HM-2026-142',m.matter_number]);
+  assert.deepEqual([xml.invoice.inv_id,xml.invoice.inv_date,xml.invoice.inv_start_date,xml.invoice.inv_end_date,xml.invoice.inv_total_net_due,xml.matter.matter_total_due],[invoice,'2026-10-31','2026-10-15','2026-10-16','810.00','810.00']);
+  assert.deepEqual(xml.fees.map(l=>[l.file_item_nbr,l.tk_id,l.tk_level,l.task_code,l.task_activity,l.units,l.rate,l.base_amount,l.item_disc_cred_amount,l.total_amount]),[['1','BL-001','PARTNR','L110','A101','0.90','300.00','270.0000','0.0000','270.00'],['2','BL-001','PARTNR','L120','A103','0.50','300.00','150.0000','-15.0000','135.00']]);
+  assert.deepEqual(xml.expenses.map(l=>[l.file_item_nbr,l.expense_code,l.units,l.rate,l.total_amount]),[['3','E112','1.00','405.00','405.00']]);
+  assert.deepEqual(xml.timekeepers.map(t=>[t.tk_id,t.tk_lname,t.tk_fname,t.tk_level]),[['BL-001','Principal','Pat','PARTNR']]);
+  assert.ok(xmlFile.includes('Barton &amp; Lee LLP'));
+  // Changing guidelines and timekeeper details cannot change approval-frozen bytes.
+  await h.json('/matters/'+m.id+'/ledes-guideline',{...guideline,xmlProfile:{...xmlProfile,clientAddress:{...xmlProfile.clientAddress,line1:'200 Insurance Plaza'}}},h.owner);
+  await h.json('/ledes/timekeepers',{email:'owner@example.test',timekeeperId:'BL-001',name:'Principal, Patricia',classification:'PT'},h.owner);
+  assert.equal(await(await h.request('/api/satchel/bills/'+bill.id+'/ledes-xml',undefined,h.owner)).text(),xmlFile);
+
   assert.deepEqual(lines.map(l=>[l.INVOICE_NUMBER,l.CLIENT_ID,l.LAW_FIRM_ID,l.INVOICE_TOTAL,l.LINE_ITEM_NUMBER_OF_UNITS,l.LINE_ITEM_UNIT_COST,l.LINE_ITEM_ADJUSTMENT_AMOUNT,l.LINE_ITEM_TOTAL,l.LINE_ITEM_ACTIVITY_CODE,l.LINE_ITEM_EXPENSE_CODE,l.TIMEKEEPER_CLASSIFICATION]),[
    [invoice,'HARBOR01','13-1234567','810.00','0.9','300.00','0.00','270.00','A101','','PT'],
    [invoice,'HARBOR01','13-1234567','810.00','0.5','300.00','-15.00','135.00','A103','','PT'],
@@ -111,11 +131,16 @@ test('TIME-007 firm UTBMS code sets and a client guideline code an insurer bill,
   await correct({utbmsActivity:'A101'},409);
   revision=await h.json('/bills/'+revision.id+'/approve',{revision:revision.revision,reviewNote:'Recode reviewed against Harbor rejection'},h.owner);
   const replacement=readLedes(await(await h.request('/api/satchel/bills/'+revision.id+'/ledes',undefined,h.owner)).text());
+  const replacementXmlFile=await(await h.request('/api/satchel/bills/'+revision.id+'/ledes-xml',undefined,h.owner)).text(),replacementXml=readXml(replacementXmlFile);
+  assert.equal(replacementXml.invoice.inv_id,invoice+'-R1');assert.equal(replacementXml.invoice.inv_total_net_due,'810.00');
+  assert.deepEqual(replacementXml.fees.map(l=>[l.file_item_nbr,l.task_activity,l.total_amount]),[['1','A101','270.00'],['2','A104','135.00']]);
+  assert.deepEqual(replacementXml.extensions,[{ext_name:'replaces_invoice',ext_value:invoice,file_item_nbr:replacementXml.extensions[0].file_item_nbr}]);
   assert.deepEqual(replacement.map(l=>[l.INVOICE_NUMBER,l.LINE_ITEM_NUMBER,l.LINE_ITEM_ACTIVITY_CODE,l.LINE_ITEM_TOTAL,l.INVOICE_TOTAL]),[[invoice+'-R1','1','A101','270.00','810.00'],[invoice+'-R1','2','A104','135.00','810.00'],[invoice+'-R1','3','','405.00','810.00']]);
   outcome=await h.json('/bills/'+revision.id+'/ledes-outcomes',{fileName:'harbor-accept.txt',content:`${invoice}-R1||ACCEPTED|`},h.owner);
   assert.equal(outcome.status,'accepted');
   // The original export is unchanged and the branch total is the original's: nothing charged twice.
   assert.equal(await(await h.request('/api/satchel/bills/'+bill.id+'/ledes',undefined,h.owner)).text(),file);
+  assert.equal(await(await h.request('/api/satchel/bills/'+bill.id+'/ledes-xml',undefined,h.owner)).text(),xmlFile);
   billing=await h.json('/matters/'+m.id+'/billing',undefined,h.owner);
   assert.equal(billing.bills.filter(b=>b.status!=='void').reduce((n,b)=>n+b.snapshot.totalCents,0),81000);
   assert.deepEqual(billing.bills.map(b=>[b.ledes.invoiceNumber,b.ledes.status]),[[invoice,'rejected'],[invoice+'-R1','accepted']]);
@@ -125,5 +150,32 @@ test('TIME-007 firm UTBMS code sets and a client guideline code an insurer bill,
   const plainBill=await h.json('/matters/'+plain.id+'/bills',{title:'Estate',date:'2026-10-31',entryIds:[other.id]},h.owner);
   assert.equal(plainBill.snapshot.ledes,undefined);await h.json('/bills/'+plainBill.id+'/ledes',undefined,h.owner,404);
   ledes=await h.json('/matters/'+plain.id+'/ledes',undefined,h.owner);assert.equal(ledes.guideline,null);
+  await h.json('/bills/'+plainBill.id+'/ledes-xml',undefined,h.owner,404);
+
+  // XML rounds units to two decimals; its four-decimal adjustment preserves every cent.
+  await h.json('/matters/'+m.id+'/ledes-guideline',{...guideline,incrementMinutes:0},h.owner);
+  const small=await entry({description:'Read client’s email & <coverage> note',minutes:10,rateCents:10001,utbmsTask:'L110',utbmsActivity:'A101'});
+  const prepare=body=>h.json('/matters/'+m.id+'/bills',{title:'Additional & <coverage>',date:'2026-11-03',entryIds:[small.id],...body},h.owner);
+  let rounded=await prepare({});rounded=await h.json('/bills/'+rounded.id+'/approve',{revision:rounded.revision,reviewNote:'Reviewed exact fractional unit adjustment'},h.owner);
+  const fractional=readXml(await(await h.request('/api/satchel/bills/'+rounded.id+'/ledes-xml',undefined,h.owner)).text());
+  assert.deepEqual([fractional.invoice.inv_desc,fractional.fees[0].charge_desc,fractional.fees[0].units,fractional.fees[0].rate,fractional.fees[0].base_amount,fractional.fees[0].item_disc_cred_amount,fractional.fees[0].total_amount],['Additional & <coverage>','Read client’s email & <coverage> note','0.17','100.01','17.0017','-0.3317','16.67']);
+  const onlyExpense=await h.json('/matters/'+m.id+'/entries',{kind:'disbursement',date:'2026-11-03',description:'Certified court copy',amountCents:1250,utbmsExpense:'E112'},h.owner);
+  let expenseBill=await h.json('/matters/'+m.id+'/bills',{title:'Certified court copy',date:'2026-11-03',entryIds:[onlyExpense.id]},h.owner);
+  expenseBill=await h.json('/bills/'+expenseBill.id+'/approve',{revision:expenseBill.revision,reviewNote:'Receipt reviewed'},h.owner);
+  const expenseXml=readXml(await(await h.request('/api/satchel/bills/'+expenseBill.id+'/ledes-xml',undefined,h.owner)).text());
+  assert.equal(expenseXml.fees.length,0);assert.equal(expenseXml.expenses[0].total_amount,'12.50');assert.equal(expenseXml.timekeepers[0].tk_id,'BL-001');
+
+  // An identical client name never fabricates that client's identifier for another matter.
+  const sibling=await open(h,'Harbor coverage advice','Harbor Mutual Insurance','Blue Transport');
+  const siblingEntry=await h.json('/matters/'+sibling.id+'/entries',{kind:'disbursement',date:'2026-11-03',description:'Certified court copy',amountCents:500,utbmsExpense:'E112'},h.owner);
+  await h.json('/matters/'+sibling.id+'/bills',{title:'Copy',date:'2026-11-03',entryIds:[siblingEntry.id]},h.owner,422);
+  await h.json('/matters/'+sibling.id+'/ledes-guideline',{...guideline,xmlProfile:{...xmlProfile,clientMatterId:'HM-2026-143'}},h.owner);
+  assert.equal((await h.json('/matters/'+m.id+'/ledes',undefined,h.owner)).guideline.xmlProfile.clientMatterId,'HM-2026-142');
+  assert.equal((await h.json('/matters/'+sibling.id+'/ledes',undefined,h.owner)).guideline.xmlProfile.clientMatterId,'HM-2026-143');
+
+  // Revoking matter access blocks both immutable export doors immediately.
+  await h.json('/matters/'+m.id+'/access',{email:'lawyer@example.test',remove:true},h.owner);
+  await h.json('/bills/'+bill.id+'/ledes-xml',undefined,lawyer,404);
+
  }finally{await h.close();}
 });

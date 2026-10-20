@@ -2,8 +2,9 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
 import {chromium} from '@playwright/test';
+import {readXml,xmlProfile} from './ledes-xml-reader.mjs';
 import {harness,open} from './harness.mjs';
-test('TIME-007 guideline and code set configured at 1440px, a missing activity code refused, the coded insurer bill exported as LEDES, a rejection imported and corrected by a reviewed revision, inspected at 1440px and 390px',async()=>{
+test('TIME-007 guideline and code set configured at 1440px, a missing activity code refused, the coded insurer bill exported as LEDES 1998B and official-XSD-valid XML 2.1.3, a rejection imported and corrected by a reviewed revision, inspected at 1440px and 390px',async()=>{
  const h=await harness(),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});
  try{
   const address={line1:'200 Park Avenue',city:'New York',state:'NY',zip:'10166'};await h.json('/firm',{settings:{name:'Barton & Lee LLP',email:'office@example.test',phone:'212-555-0100',address,timezone:'America/New_York',billing:{defaultRateCents:30000,incrementMinutes:6,paymentTermsDays:30},fiscal:{yearStartMonth:1,basis:'cash'},offices:[{name:'Main',phone:'212-555-0100',timezone:'America/New_York',address}],practiceAreas:[{code:'LIT',name:'Litigation'}]}},h.owner);
@@ -27,7 +28,9 @@ test('TIME-007 guideline and code set configured at 1440px, a missing activity c
   // The principal adds a firm code and records the insurer's guideline.
   let form=await opened(ledes(),'Add or retire a code');await form.getByLabel('Kind').selectOption('activity');await form.getByLabel('Code',{exact:true}).fill('A104');await form.getByLabel('Code label').fill('Review/analyze');await form.getByRole('button',{name:'Save code'}).click();await done('Code saved');
   await ledes().getByRole('cell',{name:'Review/analyze'}).waitFor();
-  form=await opened(ledes(),'Add a billing guideline');await form.getByLabel('LEDES client ID').fill('HARBOR01');await form.getByLabel('LEDES law firm ID').fill('13-1234567');await form.getByLabel('Minimum narrative length').fill('15');await form.getByLabel('Required increment (minutes, 0 for none)').fill('6');await form.getByLabel('Banned narrative phrases (comma separated)').fill('review file');await form.getByLabel('Maximum hourly rates in USD cents (e.g. PT=40000, AS=30000)').fill('PT=40000');await form.getByLabel('Guideline source').fill('Harbor Mutual outside counsel guidelines 2026');await form.getByRole('button',{name:'Save guideline'}).click();await done('Guideline saved');
+  form=await opened(ledes(),'Add a billing guideline');await form.getByLabel('LEDES client ID').fill('HARBOR01');await form.getByLabel('LEDES law firm ID').fill('13-1234567');await form.getByLabel('Minimum narrative length').fill('15');await form.getByLabel('Required increment (minutes, 0 for none)').fill('6');await form.getByLabel('Banned narrative phrases (comma separated)').fill('review file');await form.getByLabel('Maximum hourly rates in USD cents (e.g. PT=40000, AS=30000)').fill('PT=40000');await form.getByLabel('Enable LEDES XML 2.1.3 for future bill preparations and revisions').check();
+  for(const [label,value] of [['XML vendor ID',xmlProfile.vendorId],['XML client ID in firm system',xmlProfile.clientFirmId],['XML client matter ID',xmlProfile.clientMatterId],['Client address line 1',xmlProfile.clientAddress.line1],['Client city',xmlProfile.clientAddress.city],['Client state or province',xmlProfile.clientAddress.state],['Client postal code',xmlProfile.clientAddress.zip],['Client country (3-letter ISO code)',xmlProfile.clientAddress.country],['Client phone',xmlProfile.clientAddress.phone],['Billing contact first name',xmlProfile.billingContact.firstName],['Billing contact last name',xmlProfile.billingContact.lastName],['Billing contact email',xmlProfile.billingContact.email]])await form.getByLabel(label,{exact:true}).fill(value);
+  await shot('1440-ledes-xml-profile');await form.getByLabel('Guideline source').fill('Harbor Mutual outside counsel guidelines 2026');await form.getByRole('button',{name:'Save guideline'}).click();await done('Guideline saved');
   await ledes().getByRole('article',{name:'Guideline version 1'}).getByText('LEDES 1998B · client ID HARBOR01 · law firm ID 13-1234567',{exact:true}).waitFor();await shot('1440-ledes-guideline');
 
   // Preparing without an activity code on the analysis line is refused with the reason.
@@ -41,6 +44,13 @@ test('TIME-007 guideline and code set configured at 1440px, a missing activity c
   const [download]=await Promise.all([page.waitForEvent('download'),bill().getByRole('button',{name:'Download LEDES 1998B'}).click()]);await done('LEDES invoice exported');
   const chunks=[];for await(const c of await download.createReadStream())chunks.push(c);const file=Buffer.concat(chunks).toString('utf8');
   assert.equal(download.suggestedFilename(),invoice+'.ledes.txt');assert.match(file,/^LEDES1998B\[\]\r\n/);assert.ok(file.includes(`|${invoice}|HARBOR01|`));assert.ok(file.includes('|A103|BL-001|Analyze coverage position letter|13-1234567|300.00|Barton, Avery|PT|[]'));
+
+  const [xmlDownload]=await Promise.all([page.waitForEvent('download'),bill().getByRole('button',{name:'Download LEDES XML 2.1.3'}).click()]);await done('LEDES invoice exported');
+  const xmlChunks=[];for await(const c of await xmlDownload.createReadStream())xmlChunks.push(c);
+  const xmlFile=Buffer.concat(xmlChunks).toString('utf8'),xml=readXml(xmlFile);
+  assert.equal(xmlDownload.suggestedFilename(),invoice+'.ledes.xml');
+  assert.deepEqual([xml.invoice.inv_id,xml.invoice.inv_total_net_due,xml.fees[1].task_activity],[invoice,'420.00','A103']);
+  await shot('1440-ledes-xml-invoice');
 
   // Import the insurer's rejection, then correct the line through a reviewed revision.
   form=await opened(bill(),'Import e-billing outcome');await form.getByLabel('File name').fill('harbor-rejections.txt');await form.getByLabel('Outcome rows (INVOICE_NUMBER|LINE_ITEM_NUMBER|STATUS|REASON)').fill(`${invoice}|2|REJECTED|A103 not allowed on L120 analysis; use A104`);await form.getByRole('button',{name:'Record outcome'}).click();await done('Outcome recorded from the imported file');
@@ -57,6 +67,15 @@ test('TIME-007 guideline and code set configured at 1440px, a missing activity c
   await page.getByRole('heading',{level:1,name:'Matters',exact:true}).waitFor();await tab('Time & bills');await page.getByLabel('Current matter').selectOption(m.id);
   await bill().getByRole('alert').getByText('Rejected line 2: A103 not allowed on L120 analysis; use A104',{exact:true}).waitFor();await bill().getByText('October services · $420.00',{exact:true}).waitFor();
   await revision().getByText(`LEDES 1998B invoice ${invoice}-R1 · replaces ${invoice} · e-billing status: not reported`,{exact:true}).waitFor();await shot('390-ledes-revision');
+  const [phoneXmlDownload]=await Promise.all([page.waitForEvent('download'),revision().getByRole('button',{name:'Download LEDES XML 2.1.3'}).click()]);await done('LEDES invoice exported');
+  const phoneChunks=[];for await(const c of await phoneXmlDownload.createReadStream())phoneChunks.push(c);
+  const phoneXml=readXml(Buffer.concat(phoneChunks).toString('utf8'));
+  assert.equal(phoneXml.invoice.inv_id,invoice+'-R1');assert.equal(phoneXml.invoice.inv_total_net_due,'420.00');assert.equal(phoneXml.fees[1].task_activity,'A104');
+  assert.equal(await(await h.request('/api/satchel/bills/'+(await h.json('/matters/'+m.id+'/billing',undefined,h.owner)).bills[0].id+'/ledes-xml',undefined,h.owner)).text(),xmlFile);
+  const phoneForm=await opened(ledes(),'Record a new guideline version');
+  assert.equal(await phoneForm.getByLabel('XML client matter ID',{exact:true}).inputValue(),xmlProfile.clientMatterId);
+  assert.equal(await phoneForm.getByLabel('Enable LEDES XML 2.1.3 for future bill preparations and revisions').isChecked(),true);
+  await shot('390-ledes-xml-profile');await phoneForm.locator('summary').click();await shot('390-ledes-xml-invoice');
   const billing=await h.json('/matters/'+m.id+'/billing',undefined,h.owner);
   assert.deepEqual(billing.bills.map(b=>[b.status,b.snapshot.totalCents,b.ledes.invoiceNumber]),[['exported',42000,invoice],['exported',0,invoice+'-R1']]);
   assert.deepEqual(billing.bills[1].snapshot.ledes.lines.map(l=>[l.sourceId,l.activity,l.totalCents]),[[discovery.id,'A101',27000],[analysis.id,'A104',15000]]);
