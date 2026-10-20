@@ -55,7 +55,7 @@ export function ConnectorJournal({integration,journal,run,reload}:{integration:R
   {!journal.deliveries.length&&<Empty>No delivery events recorded.</Empty>}
   {journal.deliveries.map((delivery:Row)=><DeliveryRecord key={delivery.event_id} integration={integration} delivery={delivery} reconciliations={journal.reconciliations.filter((record:Row)=>record.event_id===delivery.event_id)} run={run} reload={reload}/>)}
   <h3>Delivery attempts</h3>
-  {!journal.attempts.length?<p>No delivery attempts recorded.</p>:<div className="table-scroll"><table><thead><tr><th>Attempt</th><th>Event ID</th><th>Recorded at</th><th>Outcome</th><th>HTTP status</th></tr></thead><tbody>{journal.attempts.map((attempt:Row)=><tr key={attempt.sequence}><td>{attempt.sequence}</td><td>{attempt.event_id}</td><td>{attempt.at}</td><td>{String(attempt.outcome).replaceAll('_',' ')}</td><td>{attempt.http_status??'No response recorded'}</td></tr>)}</tbody></table></div>}
+  {!journal.attempts.length?<p>No delivery attempts recorded.</p>:journal.attempts.map((attempt:Row)=><div className="record" key={attempt.sequence}><strong>Attempt {attempt.sequence} · {String(attempt.outcome).replaceAll('_',' ')}</strong><p>{attempt.http_status?'HTTP '+attempt.http_status:'No response recorded'} · <time dateTime={attempt.at}>{attempt.at}</time></p><p>Event ID: {attempt.event_id}</p></div>)}
   {!integration.revoked&&integration.matterIds.length>0&&<details><summary>Remove matter authorization</summary>
    <p>Remove the integration’s access to a matter. Information already received remains with the receiver.</p>
    <Form key={integration.generation} label="Remove matter from integration" submit={data=>run(async()=>{
