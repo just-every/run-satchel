@@ -40,6 +40,8 @@ export function periods(p:Data,asOf:string){
 export function periodEnd(period:string){const d=new Date(period+'T00:00:00Z');d.setUTCMonth(d.getUTCMonth()+1);d.setUTCDate(0);return d.toISOString().slice(0,10);}
 export async function earningReview(db:D1Database,actor:Actor,bill:Data,body:Data){
  const p=bill.snapshot.feePlan;if(!p)return [];
+ insist(['on_approval','period_end','milestone'].includes(p.earning),'Unknown earning eligibility: review the recorded fee terms',422);
+ insist(['permitted','prohibited'].includes(p.trustDraw),'Unknown retainer draw-down eligibility: review the recorded fee terms',422);
  insist(body.earnedConfirmed===true,'Unknown earning eligibility: review the fee plan and confirm its earning event',422);
  const evidence=text(body.earningEvidence,'Earning event evidence',2000);
  const timezone=(await stmt(db,'SELECT timezone FROM s_firm WHERE id=1').first<Data>())?.timezone??'UTC';
@@ -74,6 +76,6 @@ export async function feeCorrectionGuards(db:D1Database,bill:Data,body:Data,delt
  const count=await stmt(db,'SELECT COUNT(*) n FROM s_bills WHERE matter_id=?',bill.matterId).first<Data>();
  const totals=await rows(db,"SELECT * FROM s_bills WHERE matter_id=? AND status<>'void'",bill.matterId);
  const used=totals.filter(b=>JSON.parse(b.snapshot).feePlan?.id===p.id).reduce((n,b)=>n+JSON.parse(b.snapshot).lines.filter((l:Data)=>l.kind==='time').reduce((v:number,l:Data)=>v+l.amountCents,0),0);
- insist(used+delta<=p.amountCents,'Correction would exceed the reviewed cap; review a new fee agreement before increasing it',422);
+ insist(used+delta<=p.amountCents,'Correction would exceed the reviewed cap',422);
  return [guard(db,'(SELECT COUNT(*) FROM s_bills WHERE matter_id=?)=?',bill.matterId,count!.n)];
 }

@@ -9,14 +9,17 @@ async function work(h,m,minutes=60,rateCents=30000){return h.json('/matters/'+m.
 async function bill(h,m,entries,extra={}){return h.json('/matters/'+m.id+'/bills',{title:'Reviewed services',date:'2026-09-30',entryIds:entries.map(e=>e.id),...extra},h.owner);}
 test('TIME-004 monthly flat and retainer schedules and milestone fees: once per period across restart, drafts earn nothing, reviewed earning and draw-down, immutable archive',async()=>{
  const h=await harness();try{
+  const address={line1:'200 Park Avenue',city:'New York',state:'NY',zip:'10166'};await h.json('/firm',{settings:{name:'Barton & Lee LLP',email:'office@example.test',phone:'212-555-0100',address,timezone:'America/New_York',billing:{defaultRateCents:30000,incrementMinutes:6,paymentTermsDays:30},fiscal:{yearStartMonth:1,basis:'cash'},offices:[{name:'Main',phone:'212-555-0100',timezone:'America/New_York',address}],practiceAreas:[{code:'LIT',name:'Litigation'}]}},h.owner);
   const f=await foundation(h),path='/matters/'+f.m.id;
   const opening=await h.json('/trust/openings',{accountId:f.account.id,ledgerId:f.ledger.id,cents:200000,statementDate:'2026-08-01',documentId:f.source.id,note:'Client advance remains trust property'},h.owner);await h.json('/trust/openings/'+opening.id+'/approve',{revision:opening.revision,reviewNote:'Statement reconciled'},h.owner);
   await h.json(path+'/fee-plans',terms({earning:'unknown'}),h.owner,422);
   await h.json(path+'/fee-plans',terms({trustDraw:'unknown'}),h.owner,422);
   await h.json(path+'/fee-plans',terms({reviewed:false}),h.owner,422);
+  await h.json(path+'/fee-plans',terms({startDate:'2026-08-02'}),h.owner,400);
   const p=await h.json(path+'/fee-plans',terms(),h.owner);
   const milestone=await h.json(path+'/fee-plans',terms({title:'Demand milestone',kind:'milestone',recurrence:'once',startDate:'2026-09-15',endDate:'2026-09-15',earning:'milestone',amountCents:50000,trustDraw:'prohibited'}),h.owner);
   await h.json(path+'/fee-plans',terms({title:'Ongoing retainer',kind:'retainer',amountCents:10000}),h.owner);
+  await h.scheduled('2026-09-01T00:00:00Z');assert.equal((await h.json(path+'/billing',undefined,h.owner)).bills.length,2,'Firm-local August 31 has no September drafts or milestone');
   await h.scheduled('2026-10-01T12:00:00Z');await h.restart();await h.scheduled('2026-10-01T12:15:00Z');
   const first=await h.json(path+'/fee-plans/run',{asOf:'2026-10-01'},h.owner),second=await h.json(path+'/fee-plans/run',{asOf:'2026-10-01'},h.owner);
   assert.equal(first.bills.length,5);assert.deepEqual(first.bills.map(b=>b.id).sort(),second.bills.map(b=>b.id).sort());
