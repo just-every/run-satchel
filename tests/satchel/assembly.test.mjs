@@ -8,7 +8,7 @@ import {assemblyFoundation,engagement} from './assembly-fixture.mjs';
 const sha=b=>createHash('sha256').update(b).digest('hex');
 async function file(h,id,format,preview=false){const r=await h.request(`/api/satchel/assembly/revisions/${id}/${preview?'preview':'file'}?format=${format}`,undefined,h.owner);assert.equal(r.status,200,r.ok?'file available':await r.text());return Buffer.from(await r.arrayBuffer());}
 function wordText(bytes){return execFileSync('python3',['-c',"import sys,io,zipfile,xml.etree.ElementTree as E;z=zipfile.ZipFile(io.BytesIO(sys.stdin.buffer.read()));assert z.testzip() is None;print('\\n'.join(E.fromstring(z.read('word/document.xml')).itertext()))"],{input:bytes,encoding:'utf8'});}
-async function pdfText(bytes){const doc=await getDocument({data:Uint8Array.from(bytes),useSystemFonts:false}).promise;try{const text=[];for(let n=1;n<=doc.numPages;n++)text.push((await (await doc.getPage(n)).getTextContent()).items.map(i=>i.str).join(' '));return text.join('\n');}finally{await doc.destroy();}}
+async function pdfText(bytes){const task=getDocument({data:Uint8Array.from(bytes),useSystemFonts:false}),doc=await task.promise;try{const text=[];for(let n=1;n<=doc.numPages;n++)text.push((await (await doc.getPage(n)).getTextContent()).items.map(i=>i.str).join(' '));return text.join('\n');}finally{await task.destroy();}}
 test('DOC-006 versioned two-party engagement and court form, exact questionnaire review, conditional/repeating typed fields, revisions and blocked delivery round-trip through public doors',async()=>{
  const h=await harness();let restored;
  try{
@@ -49,5 +49,6 @@ test('DOC-006 versioned two-party engagement and court form, exact questionnaire
   const recovered=await restored.json(base+'/assembly',undefined,restored.owner);assert.deepEqual(recovered,state);assert.deepEqual(await file(restored,r.id,'docx'),previewDocx);assert.deepEqual(await file(restored,r.id,'pdf'),previewPdf);
   await h.json('/documents/'+approved.approved.pdfId+'/erase',{confirm:'Hourly engagement-revision-2.pdf',reason:'Authorized document disposal'},h.owner);
   assert.equal((await h.request('/api/satchel/assembly/revisions/'+r.id+'/file?format=pdf',undefined,h.owner)).status,404);
+  assert.equal((await h.request('/api/satchel/assembly/revisions/'+r.id+'/preview?format=pdf',undefined,h.owner)).status,404);
  }finally{await restored?.close();await h.close();}
 });

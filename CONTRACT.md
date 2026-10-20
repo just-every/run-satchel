@@ -126,7 +126,7 @@ All clauses inherit server-side authorization, matter confidentiality, stable so
 
 - **DOC-005 — Work in Microsoft Word.** Open matter DOCX files in Word through Microsoft 365, preserve tracked changes, comments and original versions, and save a new version back to the correct matter with conflict detection and access revocation. **Acceptance evidence:** Open a matter brief in Word, edit tracked changes, save back, race another save and inspect a visible conflict and both retained versions.
 
-- **DOC-006 — Assemble legal documents and forms.** Versioned Word/PDF templates merge typed matter fields, conditional clauses and repeating parties from approved questionnaires. Staff preview unresolved fields, maintain court-form versions and approve the generated DOCX/PDF before sending. **Acceptance evidence:** Assemble a two-party engagement and a jurisdiction form, change one questionnaire answer, compare revisions and refuse delivery with an unresolved required field.
+- **DOC-006 — Assemble legal documents and forms.** Versioned Word/PDF templates merge typed matter fields, conditional clauses and repeating parties from approved questionnaires. Staff preview unresolved fields, maintain court-form versions and approve the generated DOCX/PDF before sending. Staff maintain immutable numbered templates with jurisdiction and court-form version labels, typed questionnaire fields (text, number, date, exact USD money, choice and yes/no), ordered paragraphs, answer-conditioned paragraphs and repeating matter parties. Merge fields use the matter’s adopted MATTER-001 version and canonical values, never the newest unadopted type; money renders in dollars with two decimals. Every saved questionnaire revision freezes its template version, answers, matter fields and party list and shows missing required or referenced values. Counsel approval covers that exact questionnaire and the generated DOCX/PDF whose hashes match the staff review downloads; incomplete, stale or unapproved final delivery is refused. Changed answers create a new comparable revision without rewriting earlier approvals or files. Approved files enter SAT-007 originals and inherit FIRM-006 retention/holds/erasure and BASE-001 archive recovery. Downloads are files for staff delivery, never a claim that Satchel sent them; CLIENT-006 and DOC-007 inherit exact-version approval before any sending or signing door ships. Jurisdiction and court-form version labels are firm-maintained, never a claim of court certification. **Acceptance evidence:** Assemble a two-party engagement and a jurisdiction form, change one questionnaire answer, compare revisions and refuse delivery with an unresolved required field.
 
 - **DOC-007 — Sign and file matter documents.** DocuSign and Inkwell connectors request ordered or parallel signatures on an approved exact version, remind permitted recipients and retain signed bytes, certificate, provider ID and failure/decline history. Revoking a request never overwrites a signed original. **Acceptance evidence:** Send a settlement release, decline then resend a revised version, complete it and replay the callback; inspect one signed version per completed request.
 
@@ -400,7 +400,7 @@ Every capability claim in br’s approved homepage register (17 October 2026, 60
 | 29 | "5 of 5 deadlines met · 14 exhibits filed" | `SAT-008`, `CAL-009`, `DOC-013` | partial |
 | 30 | "Email files itself to the matter from Outlook or Gmail" | `DOC-008`, `DOC-009` | missing |
 | 31 | "Every scan is searchable" (search hit in the deposition transcript) | `DOC-003` | missing |
-| 32 | "templates fill from the matter" (notice of deposition) | `DOC-006` | missing |
+| 32 | "templates fill from the matter" (notice of deposition) | `DOC-006` | done |
 | 33 | "clients sign online" (bank records authorization) | `DOC-007` | missing |
 | 34 | Matter documents card: folders and counts | `SAT-007`, `DOC-004` | done |
 | 35 | "Satchel drafts time entries from your email, calendar and documents" | `TIME-002` | missing |
@@ -439,8 +439,8 @@ INTAKE-001 and its inherited obligations are updated from the code and named tes
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 13 | 1 | 0 | 14 |
-| Target and push further | 29 | 17 | 77 | 123 |
-| All | 42 | 18 | 77 | 137 |
+| Target and push further | 30 | 17 | 76 | 123 |
+| All | 43 | 18 | 76 | 137 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -490,7 +490,7 @@ INTAKE-001 and its inherited obligations are updated from the code and named tes
 | `DOC-003` | Search OCR and full text | target | missing |  | OCR scanned records and index permitted document text, metadata and email with matter/date/type filters, exact page snippets and index freshness. Search applies matter walls before snippets and includes deletion of all derivatives on disposal. |
 | `DOC-004` | Organize and act on document sets | target | done | `src/satchel/document-sets.ts`; `src/ui/document-sets.tsx`; `tests/satchel/document-sets.test.mjs`; `tests/satchel/document-sets-journey.test.mjs` |  |
 | `DOC-005` | Work in Microsoft Word | target | missing |  | Open matter DOCX files in Word through Microsoft 365, preserve tracked changes, comments and original versions, and save a new version back to the correct matter with conflict detection and access revocation. |
-| `DOC-006` | Assemble legal documents and forms | target | missing |  | Versioned Word/PDF templates merge typed matter fields, conditional clauses and repeating parties from approved questionnaires. Staff preview unresolved fields, maintain court-form versions and approve the generated DOCX/PDF before sending. |
+| `DOC-006` | Assemble legal documents and forms | target | done | `src/satchel/assembly.ts`; `src/satchel/assembly-template.ts`; `src/satchel/assembly-formats.ts`; `src/ui/assembly.tsx`; `tests/satchel/assembly.test.mjs`; `tests/satchel/assembly-journey.test.mjs` |  |
 | `DOC-007` | Sign and file matter documents | target | missing |  | DocuSign and Inkwell connectors request ordered or parallel signatures on an approved exact version, remind permitted recipients and retain signed bytes, certificate, provider ID and failure/decline history. Revoking a request never overwrites a signed original. |
 | `DOC-008` | File Outlook email and attachments | target | missing |  | Microsoft 365/Outlook users file individual messages or approved threads and attachments to matters, retain sender/recipient headers and original .eml, associate sent replies and prevent duplicate filing across staff. Filing never grants a new matter reader. |
 | `DOC-009` | File Gmail email and attachments | target | missing |  | Google Workspace/Gmail users select matter labels or messages for filing, preserve original headers, threads and attachments, associate outbound replies and handle deleted or revoked mail access without losing filed evidence. |
