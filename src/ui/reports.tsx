@@ -36,11 +36,11 @@ export function Reports({run,tick,choose,navigate}:{run:Run;tick:number;choose:(
   <section className="panel"><h2>Report filters</h2>
    <form aria-label="Report filters" onSubmit={apply}>
     <div className="inline">
-     <Field label="Report practice" name="practice"><select name="practice" value={draft.practice} onChange={event=>change('practice',event.target.value)}><option value="">All practices</option><option value="__none__">No practice</option>{view?.options.practices.map(practice=><option key={practice.code} value={practice.code}>{practice.name}</option>)}</select></Field>
-     <Field label="Report owner" name="owner"><select name="owner" value={draft.owner} onChange={event=>change('owner',event.target.value)}><option value="">All owners</option><option value="__none__">Unassigned owner</option>{view?.options.owners.map(owner=><option key={owner.email} value={owner.email}>{owner.name}</option>)}</select></Field>
+     <Field label="Report practice" name="practice"><select name="practice" aria-label="Report practice" value={draft.practice} onChange={event=>change('practice',event.target.value)}><option value="">All practices</option><option value="__none__">No practice</option>{view?.options.practices.map(practice=><option key={practice.code} value={practice.code}>{practice.name}</option>)}</select></Field>
+     <Field label="Report owner" name="owner"><select name="owner" aria-label="Report owner" value={draft.owner} onChange={event=>change('owner',event.target.value)}><option value="">All owners</option><option value="__none__">Unassigned owner</option>{view?.options.owners.map(owner=><option key={owner.email} value={owner.email}>{owner.name}</option>)}</select></Field>
     </div>
     <div className="inline"><label>Opened from<input type="date" name="from" value={draft.from} max={draft.to||undefined} onChange={event=>change('from',event.target.value)}/></label><label>Opened through<input type="date" name="to" value={draft.to} min={draft.from||undefined} onChange={event=>change('to',event.target.value)}/></label></div>
-    <Field label="Report case status" name="status"><select name="status" value={draft.status} onChange={event=>change('status',event.target.value)}><option value="">All case statuses</option><option value="open">Open</option><option value="closed">Closed</option></select></Field>
+    <Field label="Report case status" name="status"><select name="status" aria-label="Report case status" value={draft.status} onChange={event=>change('status',event.target.value)}><option value="">All case statuses</option><option value="open">Open</option><option value="closed">Closed</option></select></Field>
     <button type="submit" disabled={loading}>Apply report filters</button>
    </form>
   </section>

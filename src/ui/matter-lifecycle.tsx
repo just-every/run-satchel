@@ -24,7 +24,7 @@ export function MatterLifecycle({matterId,actor,run,tick}:{matterId:string;actor
     {!preview.hasRestrictedItems&&<Form label="Close reviewed matter" submit={d=>run(async()=>{setState(await api(base+'/close',{previewId:preview.id,digest:preview.digest,revision:preview.revision,reason:d.reason,outcome:d.outcome,outcomeNote:d.outcomeNote,exceptions:preview.checks.map((c:Row)=>({key:c.key,reason:exceptions[c.key]??''}))}));setPreview(undefined);setOutcome('');},'Matter closed with recorded disposition')}>
      {preview.checks.map((c:Row)=><article className="record" key={c.key}><strong>{c.title}</strong><p>{c.kind}{c.state.balanceCents!==undefined?' · USD '+(c.state.balanceCents/100).toFixed(2):''}</p><label>Carry reason for {c.title}<input required value={exceptions[c.key]??''} onChange={e=>setExceptions(x=>({...x,[c.key]:e.target.value}))}/></label></article>)}
      <Field label="Closure reason" name="reason"/>
-     <Field label="Legal outcome" name="outcome"><select name="outcome" required value={outcome} onChange={e=>setOutcome(e.target.value)}><option value="">Choose legal outcome</option>{Object.entries(outcomeLabels).map(([code,label])=><option key={code} value={code}>{label}</option>)}</select></Field>
+     <Field label="Legal outcome" name="outcome"><select name="outcome" aria-label="Legal outcome" required value={outcome} onChange={e=>setOutcome(e.target.value)}><option value="">Choose legal outcome</option>{Object.entries(outcomeLabels).map(([code,label])=><option key={code} value={code}>{label}</option>)}</select></Field>
      <Field label="Other outcome details" name="outcomeNote" required={outcome==='other'}/>
     </Form>}
    </div>}
