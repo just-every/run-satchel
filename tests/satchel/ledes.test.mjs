@@ -176,6 +176,13 @@ test('TIME-007 firm UTBMS code sets and a client guideline code an insurer bill,
   // Revoking matter access blocks both immutable export doors immediately.
   await h.json('/matters/'+m.id+'/access',{email:'lawyer@example.test',remove:true},h.owner);
   await h.json('/bills/'+bill.id+'/ledes-xml',undefined,lawyer,404);
+  const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),target=await harness();
+  try{
+   assert.equal((await target.json('/restore',{archive,confirm:'RESTORE'},target.owner)).phase,'complete');
+   assert.equal(await(await target.request('/api/satchel/bills/'+bill.id+'/ledes-xml',undefined,target.owner)).text(),xmlFile);
+   assert.equal(await(await target.request('/api/satchel/bills/'+revision.id+'/ledes-xml',undefined,target.owner)).text(),replacementXmlFile);
+  }finally{await target.close();}
+
 
  }finally{await h.close();}
 });
