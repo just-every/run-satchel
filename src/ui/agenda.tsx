@@ -11,7 +11,11 @@ function Item({i,actor,staff,run}:{i:Row;actor:Row;staff:Row[];run:Run}){
 }
 export function Agenda({actor,members,run,tick}:{actor:Row;members:Row[];run:Run;tick:number}){
  const [range,setRange]=useState({from:today(),to:plus(today(),60)}),[view,setView]=useState<Row>(),[absences,setAbsences]=useState<Row[]>([]);
- useEffect(()=>{Promise.all([api(`/agenda?from=${range.from}&to=${range.to}`),api('/absences')]).then(([a,b])=>{setView(a);setAbsences(b.absences);}).catch(e=>run(async()=>{throw e;}));},[range,tick]);
+ useEffect(()=>{
+  let active=true;
+  Promise.all([api(`/agenda?from=${range.from}&to=${range.to}`),api('/absences')]).then(([a,b])=>{if(active){setView(a);setAbsences(b.absences);}}).catch(e=>{if(active)void run(async()=>{throw e;});});
+  return()=>{active=false;};
+ },[range,tick]);
  const staff=[{email:actor.role==='owner'?actor.email:'',name:actor.role==='owner'?actor.name:''},...members.filter(m=>m.active)].filter(s=>s.email);
  const people=actor.role==='owner'?staff:[{email:actor.email,name:actor.name}];
  return <div className="grid">

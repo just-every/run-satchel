@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdir,readFile} from 'node:fs/promises';
 import {chromium} from '@playwright/test';
 import {harness,open} from './harness.mjs';
+import {capturePanel} from './browser-shots.mjs';
 const form=(page,name)=>page.locator('form',{has:page.getByRole('button',{name,exact:true})});
 async function notice(page,text){await page.getByRole('status').getByText(text).waitFor();}
 for(const [width,height] of [[1440,1000],[390,844]])test(`CAL-008 view overlapping hearings and an unconfirmed limitation date, assign coverage and export the agenda at ${width}px`,async()=>{
@@ -19,7 +20,7 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`CAL-008 view overlappi
   await h.json('/matters/'+m.id+'/deadlines',{kind:'limitation',title:'Statute of limitations',date:'2027-02-01',timezone:'America/New_York',source:'Injury date 2024-02-01; CPLR 214'},h.owner);
   const filing=await h.json('/matters/'+m.id+'/deadlines',{kind:'filing',title:'File opposition',date:'2026-11-17',timezone:'America/New_York',source:'Scheduling order paragraph 4'},h.owner);await h.json('/deadlines/'+filing.id+'/confirm',{revision:filing.revision,note:'Checked order'},h.owner);
   const context=await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true,acceptDownloads:true}),page=await context.newPage(),errors=[];page.setDefaultTimeout(15000);page.on('pageerror',e=>errors.push(String(e)));
-  async function shot(name){assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0,`${name} fits at ${width}px`);if(process.env.SATCHEL_SCREENSHOTS){await mkdir(process.env.SATCHEL_SCREENSHOTS,{recursive:true});await page.screenshot({path:`${process.env.SATCHEL_SCREENSHOTS}/${width}-${name}.png`,fullPage:true});}}
+  async function shot(name){assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0,`${name} fits at ${width}px`);if(process.env.SATCHEL_SCREENSHOTS){await mkdir(process.env.SATCHEL_SCREENSHOTS,{recursive:true});await capturePanel(page,panel,process.env.SATCHEL_SCREENSHOTS,`${width}-${name}`);await capturePanel(page,page.locator('section.panel',{has:page.getByRole('heading',{name:'Absences',exact:true})}),process.env.SATCHEL_SCREENSHOTS,`${width}-absences`);}}
   await page.goto(h.origin+'/signin');await page.getByLabel('Email').fill('owner@example.test');await page.getByRole('button',{name:'Email a sign-in link'}).click();await page.getByText('a sign-in link is on its way').waitFor();
   const mail=h.mails.toReversed().find(m=>m.to.includes('owner@example.test')),link=(mail.text??mail.html).match(/https:\/\/[^\s"<]+\/auth\/confirm\?token=[^\s"&<]+/)[0];
   await page.goto(link);await page.getByRole('button',{name:'Confirm'}).click();await page.waitForURL(/\/setup|\/app/);if(page.url().includes('/setup')){await page.getByLabel('Your name').fill('Avery Barton');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup'}).click();await page.waitForURL(/\/app/);}
