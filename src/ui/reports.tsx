@@ -11,8 +11,8 @@ type ReportView={
 const initialFilters:Filters={practice:'',owner:'',from:'',to:'',status:''};
 function query(filters:Filters){return new URLSearchParams(filters).toString();}
 
-async function exportReport(dashboard:ReportDashboard,filters:Filters){
- const params=new URLSearchParams(query(filters));params.set('dashboard',dashboard.id);
+async function exportReport(dashboard:ReportDashboard,filters:Filters,view='all'){
+ const params=new URLSearchParams(query(filters));params.set('dashboard',dashboard.id);params.set('view',view);
  const response=await fetch('/api/satchel/reports/export?'+params,{credentials:'same-origin'});
  if(!response.ok){const result=await response.json().catch(()=>({})) as {error?:string};throw new Error(result.error??'The report could not be exported');}
  if(!response.headers.get('content-type')?.includes('text/csv'))throw new Error('The report export did not return CSV');
@@ -22,7 +22,7 @@ async function exportReport(dashboard:ReportDashboard,filters:Filters){
 
 export function Reports({run,tick,choose,navigate}:{run:Run;tick:number;choose:(id:string)=>void;navigate:()=>void}){
  const [draft,setDraft]=useState<Filters>(initialFilters),[filters,setFilters]=useState<Filters>(initialFilters);
- const [view,setView]=useState<ReportView>(),[selected,setSelected]=useState('status'),[loading,setLoading]=useState(true);
+ const [view,setView]=useState<ReportView>(),[selected,setSelected]=useState('status'),[selection,setSelection]=useState('all'),[loading,setLoading]=useState(true);
  useEffect(()=>{
   let active=true;setLoading(true);
   api('/reports?'+query(filters)).then((data:ReportView)=>{if(active){setView(data);setLoading(false);}}).catch(error=>{if(active){setView(undefined);setLoading(false);void run(async()=>{throw error;});}});
@@ -30,7 +30,8 @@ export function Reports({run,tick,choose,navigate}:{run:Run;tick:number;choose:(
  },[filters,tick]);
  const change=(name:keyof Filters,value:string)=>setDraft(previous=>({...previous,[name]:value}));
  const apply=(event:FormEvent<HTMLFormElement>)=>{event.preventDefault();setFilters({...draft});};
- const dashboard=view?.dashboards.find(item=>item.id===selected);
+ const source=view?.dashboards.find(item=>item.id===selected);
+ const dashboard=source&&selection!=='all'?{...source,title:selection==='overdue'?'Overdue '+source.title:'Converted leads',rows:source.rows.filter(r=>selection==='overdue'?r.overdue:r.status==='converted'),count:selection==='overdue'?source.overdueCount??0:source.total??0,total:undefined}:source;
  return <>
   <section className="panel"><h2>Report filters</h2>
    <form aria-label="Report filters" onSubmit={apply}>
@@ -48,8 +49,10 @@ export function Reports({run,tick,choose,navigate}:{run:Run;tick:number;choose:(
    <p>Dates use firm-local matter opening / lead receipt. Unattributed leads remain in conversion totals. Case status applies to matters.</p>
    <div className="grid">{view.dashboards.map(item=><section className="panel" key={item.id} aria-labelledby={`report-${item.id}-heading`}>
     <h2 id={`report-${item.id}-heading`}>{item.title}</h2>
-    <button type="button" className={`record${selected===item.id?' current':''}`} aria-pressed={selected===item.id} aria-label={`Show ${item.title}`} onClick={()=>setSelected(item.id)}><strong>{item.count} records</strong>{item.total!==undefined&&<span>{reportTotal(item)}</span>}<span>Show {item.title}</span></button>
+    <button type="button" className={`record${selected===item.id?' current':''}`} aria-pressed={selected===item.id} aria-label={`Show ${item.title}`} onClick={()=>{setSelected(item.id);setSelection('all');}}><strong>{item.count} records</strong>{item.total!==undefined&&<span>{reportTotal(item)}</span>}<span>Show {item.title}</span></button>
     <div className="actions"><button type="button" className="quiet" onClick={()=>run(()=>exportReport(item,filters),`${item.title} exported`)}>Export {item.title}</button></div>
+    {item.overdueCount!==undefined&&<div className="actions"><button type="button" aria-label={`Show overdue ${item.title}`} onClick={()=>{setSelected(item.id);setSelection('overdue');}}>{item.overdueCount} overdue</button><button type="button" className="quiet" onClick={()=>run(()=>exportReport(item,filters,'overdue'),`Overdue ${item.title} exported`)}>Export overdue {item.title}</button></div>}
+    {item.id==='conversion'&&<div className="actions"><button type="button" aria-label="Show converted leads" onClick={()=>{setSelected(item.id);setSelection('converted');}}>{item.total??0} converted</button><button type="button" className="quiet" onClick={()=>run(()=>exportReport(item,filters,'converted'),'Converted leads exported')}>Export converted leads</button></div>}
    </section>)}</div>
    {dashboard&&<ReportTable dashboard={dashboard} owners={view.options.owners} practices={view.options.practices} openMatter={id=>{choose(id);navigate();}}/>}
   </>}

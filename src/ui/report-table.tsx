@@ -2,9 +2,9 @@ import {Empty} from './common';
 
 export type ReportRow={
  id:string;matterId?:string;leadId?:string;matterNumber?:string;title:string;
- ownerEmail?:string;practiceCode?:string;value:number|null;status?:string;date?:string;detail?:string;
+ ownerEmail?:string;practiceCode?:string;value:number|null;overdue?:boolean;status?:string;date?:string;detail?:string;
 };
-export type ReportDashboard={id:string;title:string;unit:string;rows:ReportRow[];count:number;total?:number};
+export type ReportDashboard={id:string;title:string;unit:string;rows:ReportRow[];count:number;total?:number;overdueCount?:number};
 export const reportNumber=(value:number)=>new Intl.NumberFormat('en-US',{maximumFractionDigits:2}).format(value);
 export const reportTotal=(dashboard:ReportDashboard)=>dashboard.total===undefined?'':dashboard.id==='conversion'?`${reportNumber(dashboard.total)} converted of ${dashboard.count} leads`:`Total: ${reportNumber(dashboard.total)} ${dashboard.unit}`;
 

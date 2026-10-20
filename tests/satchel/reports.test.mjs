@@ -19,6 +19,9 @@ test('REPORT-001 seven filtered dashboards drill and export identical permitted 
    for(const banned of [f.hidden.id,f.hidden.title,f.privateDeadline.title])assert.ok(!text.includes(banned));
   }
   assert.equal((await h.json('/leads/report',undefined,f.lawyer)).converted,1,'The existing conversion report also excludes the inaccessible converted matter');
+  assert.equal(dash('deadlines').overdueCount,1);assert.equal(dash('workload').overdueCount,2);
+  const overdueCsv=csvRows(await(await h.request('/api/satchel/reports/export?'+q+'&dashboard=deadlines&view=overdue',undefined,f.lawyer)).text());assert.deepEqual(overdueCsv.map(r=>r.id),[f.deadline.id]);
+  const convertedCsv=csvRows(await(await h.request('/api/satchel/reports/export?'+q+'&dashboard=conversion&view=converted',undefined,f.lawyer)).text());assert.equal(convertedCsv.length,dash('conversion').total);assert.ok(convertedCsv.every(r=>r.status==='converted'));
   const ownerReport=await h.json('/reports?'+q,undefined,h.owner);assert.deepEqual(ownerReport.dashboards.find(d=>d.id==='evidence').rows.map(r=>r.matterId),[f.closed.id]);
   const local=new Intl.DateTimeFormat('en-CA',{timeZone:report.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(f.active.opened_at));
   assert.equal((await h.json('/reports?'+q+'&from='+local+'&to='+local,undefined,f.lawyer)).cohortCount,2);
