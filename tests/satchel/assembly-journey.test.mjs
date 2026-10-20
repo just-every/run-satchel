@@ -5,7 +5,7 @@ import {chromium} from '@playwright/test';
 import {harness,open} from './harness.mjs';
 import {assemblyFoundation} from './assembly-fixture.mjs';
 import {capturePanel} from './browser-shots.mjs';
-const form=(p,n)=>p.locator('form',{has:p.getByRole('button',{name:n,exact:true})});
+const form=(p,n)=>p.locator('form',{has:p.page().getByRole('button',{name:n,exact:true})});
 const notice=(p,text)=>p.getByRole('status').getByText(text).waitFor();
 for(const [width,height] of [[1440,1000],[390,844]])test(`DOC-006 staff assemble a two-party engagement and court form, review changed answers and exact files at ${width}px`,async()=>{
  const h=await harness(),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});
