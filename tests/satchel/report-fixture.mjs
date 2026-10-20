@@ -2,6 +2,7 @@ export async function reportFoundation(h){
  const address={line1:'200 Park Avenue',city:'New York',state:'NY',zip:'10166'};
  await h.json('/firm',{settings:{name:'Barton & Lee LLP',email:'office@example.test',phone:'212-555-0100',address,timezone:'America/New_York',billing:{defaultRateCents:30000,incrementMinutes:6,paymentTermsDays:30},fiscal:{yearStartMonth:1,basis:'cash'},offices:[{name:'Main',phone:'212-555-0100',timezone:'America/New_York',address}],practiceAreas:[{code:'LIT',name:'Litigation'},{code:'EST',name:'Estates'}]}},h.owner);
  for(const [email,role,name] of [['lawyer@example.test','lawyer','Jordan Lee'],['assistant@example.test','assistant','Case assistant']]){await h.json('/team',{email,name,role},h.owner);await h.json('/team/invite',{email},h.owner);}
+ const today=(await h.json('/reports',undefined,h.owner)).today;const due=n=>{const d=new Date(today+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
  const lawyer=await h.login('lawyer@example.test'),assistant=await h.login('assistant@example.test');
  const make=async(title,client,practiceCode,grant=true)=>{const s=await h.json('/conflicts',{client,adverse:client+' adverse'},h.owner);const m=await h.json('/matters',{title,conflictId:s.id,reviewNote:'Reviewed firm conflict records',confirmed:true,practiceCode},h.owner);if(grant)await h.json('/matters/'+m.id+'/access',{email:'lawyer@example.test'},h.owner);const p=await h.json('/matters/'+m.id+'/stage',undefined,h.owner);await h.json('/matters/'+m.id+'/stage-profile',{revision:p.profile.revision,lawyerEmail:grant?'lawyer@example.test':'owner@example.test'},h.owner);return m;};
  const active=await make('Harper v. Reed','Harbor Mutual','LIT'),closed=await make('Reed settlement','Northfield Works','LIT'),estate=await make('Morgan estate','Morgan family','EST'),hidden=await make('Sealed regulatory matter','Restricted client','LIT',false);
@@ -12,13 +13,13 @@ export async function reportFoundation(h){
  stage=(await h.json('/stages',{id:stage.id,revision:stage.revision,name:'Discovery',requiredTypes:['Medical record']},h.owner)).stages[0];
  let privateDoc=await h.json('/matters/'+active.id+'/documents',{name:'Private medical evidence',mime:'text/plain',visibility:'private',contentBase64:Buffer.from('Private medical record original').toString('base64')},h.owner);
  const set=await h.json('/matters/'+active.id+'/document-sets/preview',{documents:[{id:privateDoc.id,revision:privateDoc.revision}],documentType:'Medical record'},h.owner);await h.json('/matters/'+active.id+'/document-sets/apply',{previewId:set.id},h.owner);
- const deadline=await h.json('/matters/'+active.id+'/deadlines',{title:'Discovery response due',date:'2000-01-03',timezone:'America/New_York',source:'Scheduling order paragraph 4'},h.owner);
- const privateDeadline=await h.json('/matters/'+active.id+'/deadlines',{title:'Private medical review deadline',date:'2000-01-02',timezone:'America/New_York',source:'Private order',documentId:privateDoc.id},h.owner);
+ const deadline=await h.json('/matters/'+active.id+'/deadlines',{title:'Discovery response due',date:due(-2),timezone:'America/New_York',source:'Scheduling order paragraph 4'},h.owner);
+ const privateDeadline=await h.json('/matters/'+active.id+'/deadlines',{title:'Private medical review deadline',date:due(-3),timezone:'America/New_York',source:'Private order',documentId:privateDoc.id},h.owner);
  let publicDoc=await h.json('/matters/'+active.id+'/documents',{name:'Replaced scheduling order',mime:'text/plain',visibility:'matter',contentBase64:Buffer.from('Original scheduling order').toString('base64')},h.owner);
- const superseded=await h.json('/matters/'+active.id+'/deadlines',{title:'Superseded discovery review',date:'2000-01-01',timezone:'America/New_York',source:'Replaced order paragraph 2',documentId:publicDoc.id},h.owner);
+ const superseded=await h.json('/matters/'+active.id+'/deadlines',{title:'Superseded discovery review',date:due(-4),timezone:'America/New_York',source:'Replaced order paragraph 2',documentId:publicDoc.id},h.owner);
  await h.json('/matters/'+active.id+'/documents',{documentId:publicDoc.id,revision:publicDoc.revision,name:'Replacement scheduling order',mime:'text/plain',visibility:'matter',contentBase64:Buffer.from('Replacement scheduling order').toString('base64')},h.owner);
- const task=await h.json('/matters/'+active.id+'/tasks',{title:'Prepare discovery response',dueDate:'2000-01-02',ownerEmail:'lawyer@example.test'},h.owner);
- await h.json('/matters/'+hidden.id+'/tasks',{title:'Restricted enforcement response',dueDate:'2000-01-01',ownerEmail:'owner@example.test'},h.owner);
+ const task=await h.json('/matters/'+active.id+'/tasks',{title:'Prepare discovery response',dueDate:due(-3),ownerEmail:'lawyer@example.test'},h.owner);
+ await h.json('/matters/'+hidden.id+'/tasks',{title:'Restricted enforcement response',dueDate:due(-4),ownerEmail:'owner@example.test'},h.owner);
  const lead=await h.json('/leads',{name:'Ellis litigation inquiry',summary:'Contract dispute',referralSource:'Existing client',practiceCode:'LIT',assignedEmail:'lawyer@example.test'},h.owner);
  await h.json('/leads/'+lead.id,{revision:lead.revision,matterId:active.id},h.owner);
  const unknown=await h.json('/leads',{name:'Dana unclassified inquiry',summary:'Initial legal question',referralSource:'Website',assignedEmail:'lawyer@example.test'},h.owner);
@@ -39,7 +40,8 @@ export async function withoutRecordedOutcomes(archive){
  manifest.tables.find(t=>t.name==='s_matter_outcomes').count=0;
  const {makePart}=await import('@runeditrun/rer/modules/portability');
  const {ArchiveVerifier,ContentVerifier}=await import('../../node_modules/@runeditrun/rer/modules/portability/format.mjs');
+ const groups=records.filter(r=>r.kind==='part').map(p=>p.items.filter(i=>i.kind!=='row'||i.table!=='s_matter_outcomes')).filter(items=>items.length);manifest.partCount=groups.length;
  const integrity=new ArchiveVerifier(manifest),content=new ContentVerifier(manifest),parts=[];
- for(const old of records.filter(r=>r.kind==='part')){const items=old.items.filter(i=>i.kind!=='row'||i.table!=='s_matter_outcomes'),part=await makePart(old.index,items);parts.push(part);integrity.add(part);for(const item of items)content.add(item);}
+ for(const items of groups){const part=await makePart(parts.length,items);parts.push(part);integrity.add(part);for(const item of items)content.add(item);}
  return [manifest,...parts,{kind:'closing',partCount:parts.length,archiveHash:integrity.digest(),contentHash:content.digest()}].map(JSON.stringify).join('\n')+'\n';
 }
