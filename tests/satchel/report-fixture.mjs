@@ -16,7 +16,7 @@ export async function reportFoundation(h){
  const privateDeadline=await h.json('/matters/'+active.id+'/deadlines',{title:'Private medical review deadline',date:'2000-01-02',timezone:'America/New_York',source:'Private order',documentId:privateDoc.id},h.owner);
  let publicDoc=await h.json('/matters/'+active.id+'/documents',{name:'Replaced scheduling order',mime:'text/plain',visibility:'matter',contentBase64:Buffer.from('Original scheduling order').toString('base64')},h.owner);
  const superseded=await h.json('/matters/'+active.id+'/deadlines',{title:'Superseded discovery review',date:'2000-01-01',timezone:'America/New_York',source:'Replaced order paragraph 2',documentId:publicDoc.id},h.owner);
- await h.json('/matters/'+active.id+'/documents',{documentId:publicDoc.id,revision:publicDoc.revision,name:'Replacement scheduling order',mime:'text/plain',contentBase64:Buffer.from('Replacement scheduling order').toString('base64')},h.owner);
+ await h.json('/matters/'+active.id+'/documents',{documentId:publicDoc.id,revision:publicDoc.revision,name:'Replacement scheduling order',mime:'text/plain',visibility:'matter',contentBase64:Buffer.from('Replacement scheduling order').toString('base64')},h.owner);
  const task=await h.json('/matters/'+active.id+'/tasks',{title:'Prepare discovery response',dueDate:'2000-01-02',ownerEmail:'lawyer@example.test'},h.owner);
  await h.json('/matters/'+hidden.id+'/tasks',{title:'Restricted enforcement response',dueDate:'2000-01-01',ownerEmail:'owner@example.test'},h.owner);
  const lead=await h.json('/leads',{name:'Ellis litigation inquiry',summary:'Contract dispute',referralSource:'Existing client',practiceCode:'LIT',assignedEmail:'lawyer@example.test'},h.owner);
