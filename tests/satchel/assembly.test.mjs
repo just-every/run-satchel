@@ -19,6 +19,7 @@ test('DOC-006 versioned two-party engagement and court form, exact questionnaire
   const prepare=(answers,extra={})=>h.json(base+'/assembly',{templateId:template.id,templateVersion:1,answers,...extra},h.owner);
   let r=await prepare({expert:true,retainer:'1500.00'});assert.deepEqual(r.unresolved,['answer.scope']);
   await h.json('/assembly/revisions/'+r.id+'/approve',{sha256:r.sha256},h.owner,409);
+  const audit=(await h.json('/audit?matterId='+m.id+'&action=assembly.approved',undefined,h.owner)).records.find(a=>a.objectId===r.id);assert.equal(audit.revision,String(r.number));assert.equal(audit.evidence.record.sha256,r.sha256);assert.equal(audit.evidence.record.approval.approvedBy,'owner@example.test');assert.equal(audit.evidence.record.snapshot.hashes.pdf,sha(previewPdf));
   assert.equal((await h.request('/api/satchel/assembly/revisions/'+r.id+'/file?format=pdf',undefined,h.owner)).status,409);
   assert.ok(wordText(await file(h,r.id,'docx',true)).includes('[Unresolved: answer.scope]'));
   let state=await h.json(base+'/assembly',undefined,h.owner),assembly=state.assemblies[0];
@@ -31,6 +32,7 @@ test('DOC-006 versioned two-party engagement and court form, exact questionnaire
   await h.json('/assembly/revisions/'+r.id+'/approve',{sha256:'wrong'},h.owner,409);
   const approved=await h.json('/assembly/revisions/'+r.id+'/approve',{sha256:r.sha256},h.owner);assert.equal(approved.approved.by,'owner@example.test');
   await h.json('/assembly/revisions/'+r.id+'/approve',{sha256:r.sha256},h.owner,409);
+  const audit=(await h.json('/audit?matterId='+m.id+'&action=assembly.approved',undefined,h.owner)).records.find(a=>a.objectId===r.id);assert.equal(audit.revision,String(r.number));assert.equal(audit.evidence.record.sha256,r.sha256);assert.equal(audit.evidence.record.approval.approvedBy,'owner@example.test');assert.equal(audit.evidence.record.snapshot.hashes.pdf,sha(previewPdf));
   assert.deepEqual(await file(h,r.id,'docx'),previewDocx);assert.deepEqual(await file(h,r.id,'pdf'),previewPdf);
   const revised=await prepare({scope:'Negotiate settlement only',expert:false,retainer:'1500.00'},{assemblyId:assembly.id,expectedRevision:2});assert.equal(revised.number,3);assert.ok(revised.paragraphs.join('\n').includes('Negotiate settlement only'));assert.ok(!revised.paragraphs.join('\n').includes('An expert will be retained.'));
   await h.json(base+'/assembly',{templateId:template.id,templateVersion:1,answers:{scope:'stale edit',expert:false,retainer:'1500.00'},assemblyId:assembly.id,expectedRevision:2},h.owner,409);
