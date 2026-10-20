@@ -72,7 +72,12 @@ export async function feeAdjustedLines(db:D1Database,actor:Actor,matterId:string
 }
 
 export async function feeCorrectionGuards(db:D1Database,bill:Data,body:Data,delta:number){
- const p=bill.snapshot.feePlan;if(!p||p.kind!=='capped'||delta<=0)return [];
+ const p=bill.snapshot.feePlan;if(!p||delta<=0)return [];
+ if(p.kind!=='capped'){
+  const root=await stmt(db,'SELECT snapshot FROM s_bills WHERE id=? AND matter_id=?',bill.snapshot.originalBillId??bill.id,bill.matterId).first<Data>();
+  const original=root?JSON.parse(root.snapshot).lines.find((l:Data)=>l.sourceId===body.sourceId):null;
+  insist(original&&body.correctedAmountCents<=original.amountCents,'Correction exceeds the reviewed fee amount; record new reviewed terms for an additional fee',422);return [];
+ }
  const count=await stmt(db,'SELECT COUNT(*) n FROM s_bills WHERE matter_id=?',bill.matterId).first<Data>();
  const totals=await rows(db,"SELECT * FROM s_bills WHERE matter_id=? AND status<>'void'",bill.matterId);
  const used=totals.filter(b=>JSON.parse(b.snapshot).feePlan?.id===p.id).reduce((n,b)=>n+JSON.parse(b.snapshot).lines.filter((l:Data)=>l.kind==='time').reduce((v:number,l:Data)=>v+l.amountCents,0),0);
