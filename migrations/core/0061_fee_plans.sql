@@ -18,4 +18,4 @@ CREATE TRIGGER s_fee_occurrences_update BEFORE UPDATE ON s_fee_occurrences BEGIN
 CREATE TRIGGER s_fee_occurrences_delete BEFORE DELETE ON s_fee_occurrences BEGIN SELECT RAISE(ABORT,'fee occurrences are immutable'); END;
 CREATE TRIGGER s_fee_earning_reviews_update BEFORE UPDATE ON s_fee_earning_reviews BEGIN SELECT RAISE(ABORT,'earning reviews are immutable'); END;
 CREATE TRIGGER s_fee_earning_reviews_delete BEFORE DELETE ON s_fee_earning_reviews BEGIN SELECT RAISE(ABORT,'earning reviews are immutable'); END;
-CREATE TABLE s_fee_schedule_errors (id INTEGER PRIMARY KEY AUTOINCREMENT,matter_id TEXT NOT NULL REFERENCES s_matters(id),at TEXT NOT NULL,reason TEXT NOT NULL);
+CREATE TABLE s_fee_schedule_errors (id TEXT PRIMARY KEY,matter_id TEXT NOT NULL REFERENCES s_matters(id),at TEXT NOT NULL,reason TEXT NOT NULL);

@@ -7,7 +7,7 @@ export async function loadFeePlan(db:D1Database,actor:Actor,matterId:string,plan
  await matter(db,actor,matterId);const r=await stmt(db,'SELECT * FROM s_fee_plans WHERE id=? AND matter_id=?',planId,matterId).first<Data>();insist(r,'Fee plan not found',404);return feePlan(r);
 }
 export async function feePlans(db:D1Database,actor:Actor,matterId:string){
- await matter(db,actor,matterId);return {errors:await rows(db,'SELECT at,reason FROM s_fee_schedule_errors WHERE matter_id=? ORDER BY id DESC LIMIT 20',matterId),plans:(await rows(db,'SELECT * FROM s_fee_plans WHERE matter_id=? ORDER BY created_at,id',matterId)).map(feePlan),occurrences:await rows(db,'SELECT o.*,b.status FROM s_fee_occurrences o JOIN s_fee_plans p ON p.id=o.plan_id JOIN s_bills b ON b.id=o.bill_id WHERE p.matter_id=? ORDER BY o.period',matterId)};
+ await matter(db,actor,matterId);return {errors:await rows(db,'SELECT at,reason FROM s_fee_schedule_errors WHERE matter_id=? ORDER BY at DESC,id DESC LIMIT 20',matterId),plans:(await rows(db,'SELECT * FROM s_fee_plans WHERE matter_id=? ORDER BY created_at,id',matterId)).map(feePlan),occurrences:await rows(db,'SELECT o.*,b.status FROM s_fee_occurrences o JOIN s_fee_plans p ON p.id=o.plan_id JOIN s_bills b ON b.id=o.bill_id WHERE p.matter_id=? ORDER BY o.period',matterId)};
 }
 export async function saveFeePlan(db:D1Database,actor:Actor,matterId:string,b:Data){
  human(actor);need(actor,'owner','lawyer');await matter(db,actor,matterId);
