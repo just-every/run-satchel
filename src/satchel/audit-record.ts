@@ -2,6 +2,8 @@
 // Explicit columns exclude credentials and original file bytes.
 const record=(table:string,columns:string[],matter='NULL',revision='NULL',where='x.id=i.object_id',extra:Record<string,string>={})=>`(SELECT json_object('recordType','${table}','matterId',${matter},'revision',${revision},${[...columns.flatMap(c=>[`'${c}'`,`x.${c}`]),...Object.entries(extra).flatMap(([k,v])=>[`'${k}'`,v])].join(',')}) FROM ${table} x WHERE ${where} LIMIT 1)`;
 const contexts=[
+ record('s_tax_rules',['id','terms','reviewed_by','reviewed_at'],'x.matter_id','x.id',"i.action='tax.rule_reviewed' AND x.id=i.object_id"),
+ record('s_tax_calculations',['id','bill_id','bill_revision','snapshot','created_by','created_at'],'x.matter_id','x.bill_revision',"i.action='tax.calculation_reviewed' AND x.id=i.object_id"),
  record('s_fee_plans',['id','terms','created_by','created_at'],'x.matter_id','x.id',"i.action='fee.terms_reviewed' AND x.id=i.object_id"),
  record('s_fee_earning_reviews',['bill_id','earned_cents','trust_eligible','evidence','reviewed_by','reviewed_at'],'(SELECT matter_id FROM s_bills WHERE id=x.bill_id)','(SELECT revision FROM s_bills WHERE id=x.bill_id)',"i.action='fee.earning_reviewed' AND x.bill_id=i.object_id"),
  record('s_fee_schedule_errors',['id','at','reason'],'x.matter_id','x.id',"i.action='fee.schedule_blocked' AND x.id=i.object_id"),
