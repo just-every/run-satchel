@@ -7,8 +7,9 @@ export function XmlProfileFields({profile}:{profile?:Row|null}){
  return <fieldset><legend>Optional LEDES XML profile</legend>
   <label className="check"><input type="checkbox" name="xmlEnabled" checked={enabled} onChange={e=>setEnabled(e.target.checked)}/>Enable LEDES XML 2.1.3 for future bill preparations and revisions</label>
   <p>The firm name, address and phone come from Firm settings when the bill is prepared. Enter the client details and billing contact below.</p>
-  <fieldset disabled={!enabled}><legend>XML billing details</legend>
+  {enabled&&<fieldset><legend>XML billing details</legend>
    <div className="inline">{input('XML vendor ID','xmlVendorId',profile?.vendorId,{maxLength:25})}{input('XML client ID in firm system','xmlClientFirmId',profile?.clientFirmId,{maxLength:20})}</div>
+   {input('Work country for invoice lines (3-letter ISO code)','xmlWorkCountry',profile?.workCountry,{maxLength:3,pattern:'[A-Za-z]{3}'})}
    {input('XML client matter ID','xmlClientMatterId',profile?.clientMatterId,{maxLength:25})}
    {input('Client address line 1','xmlClientLine1',profile?.clientAddress?.line1)}
    {input('Client address line 2 (optional)','xmlClientLine2',profile?.clientAddress?.line2,{required:false})}
@@ -18,14 +19,14 @@ export function XmlProfileFields({profile}:{profile?:Row|null}){
    <div className="inline">{input('Billing contact first name','xmlContactFirstName',profile?.billingContact?.firstName)}{input('Billing contact last name','xmlContactLastName',profile?.billingContact?.lastName)}</div>
    {input('Billing contact email','xmlContactEmail',profile?.billingContact?.email,{type:'email'})}
    {input('Expense timekeeper ID (needed for expense-only XML invoices)','xmlExpenseTimekeeperId',profile?.expenseTimekeeperId,{required:false})}
-  </fieldset>
+  </fieldset>}
  </fieldset>;
 }
 
 export function xmlProfileBody(d:Row){
  if(d.xmlEnabled!=='on')return null;
  const value=(key:string)=>String(d[key]??'').trim();
- return {vendorId:value('xmlVendorId'),clientFirmId:value('xmlClientFirmId'),clientMatterId:value('xmlClientMatterId'),
+ return {workCountry:value('xmlWorkCountry').toUpperCase(),vendorId:value('xmlVendorId'),clientFirmId:value('xmlClientFirmId'),clientMatterId:value('xmlClientMatterId'),
   clientAddress:{line1:value('xmlClientLine1'),line2:value('xmlClientLine2')||undefined,city:value('xmlClientCity'),state:value('xmlClientState'),zip:value('xmlClientZip'),country:value('xmlClientCountry').toUpperCase(),phone:value('xmlClientPhone')},
   billingContact:{firstName:value('xmlContactFirstName'),lastName:value('xmlContactLastName'),email:value('xmlContactEmail')},expenseTimekeeperId:value('xmlExpenseTimekeeperId')||undefined};
 }
