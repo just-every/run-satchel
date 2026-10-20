@@ -37,7 +37,7 @@ export function LedesBill({bill,actor,run}:{bill:Row;actor:Row;run:Run}){
  if(!l)return null;
  return <div className="ledes" aria-label={`LEDES invoice ${l.invoiceNumber}`}><p>LEDES 1998B invoice {l.invoiceNumber}{bill.snapshot.ledes?.replaces?` · replaces ${bill.snapshot.ledes.replaces}`:''} · e-billing status: <span className="badge">{l.status}</span></p>
   {l.rejections.map((r:Row,i:number)=><p className="notice" role="alert" key={i}>Rejected{r.lineNumber?` line ${r.lineNumber}`:' invoice'}: {r.reason}</p>)}
-  {l.outcomes.length>0&&<small>Outcomes are recorded from imported e-billing files; Satchel did not contact the e-billing vendor.</small>}
+  {l.outcomes.length>0&&<small>Imported from the e-billing file, not verified with the vendor.</small>}
   {counsel&&l.ready&&<div className="actions"><button onClick={()=>run(async()=>{const response=await fetch('/api/satchel/bills/'+bill.id+'/ledes');if(!response.ok)throw new Error(((await response.json()) as Row).error);const url=URL.createObjectURL(await response.blob()),a=document.createElement('a');a.href=url;a.download=l.invoiceNumber+'.ledes.txt';a.click();URL.revokeObjectURL(url);},'LEDES invoice exported')}>Download LEDES 1998B</button></div>}
   {counsel&&bill.status==='exported'&&<details><summary>Import e-billing outcome</summary><Form label="Record outcome" submit={d=>run(()=>api('/bills/'+bill.id+'/ledes-outcomes',{fileName:d.fileName,content:d.content}),'Outcome recorded from the imported file')}><Field label="File name" name="fileName"/><Field label="Outcome rows (INVOICE_NUMBER|LINE_ITEM_NUMBER|STATUS|REASON)" name="content"><textarea name="content" required rows={4}/></Field></Form></details>}
  </div>;
