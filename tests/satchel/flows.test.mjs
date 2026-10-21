@@ -267,7 +267,7 @@ test('ethical walls exclude a principal from current doors and require expiring 
   await grant(60);
   current=await w.json('/matters/'+hidden.id+'/wall',{custodianEmail:'outside@example.test',members:['custodian@example.test'],reason:'Handover to inside lawyer',revision:current.revision},custodian);
   await w.json('/matters/'+hidden.id,undefined,w.owner,404);
-  await w.json('/ethical-walls/'+wall.id+'/dissolve',{reason:'Former custodian cannot dissolve',revision:current.revision},custodian,404);
+  await w.json('/ethical-walls/'+wall.id+'/dissolve',{reason:'Former custodian cannot dissolve',revision:current.revision},custodian,404);await w.json('/audit',undefined,custodian,403);assert.equal((await w.json('/state',undefined,custodian)).canInspectAudit,false);
   const pending=await requestAccess(),inactiveGrant=await requestAccess();
   await w.json('/wall-requests/'+inactiveGrant.id+'/decide',{approve:true,note:'Coverage before deactivation',minutes:30},outside);
   await w.json('/team',{email:'outside@example.test',name:'Other lawyer',role:'lawyer',active:false},w.owner);
