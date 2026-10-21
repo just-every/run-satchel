@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {harness,open} from './harness.mjs';
 import {foundation} from './trust-fixture.mjs';
 import {chromium} from '@playwright/test';
-import {capturePanel} from './browser-shots.mjs';
+import {mkdir} from 'node:fs/promises';
 const terms=(state='NY',extra={})=>({state,jurisdiction:state+' reviewed test locality',rounding:'half_up',reference:'Synthetic accountant review fixture; not tax advice',reviewed:true,service:{eligibility:'taxable',ratePpm:50000,reference:'Synthetic service treatment'},expense:{eligibility:'exempt',ratePpm:0,reference:'Synthetic expense exemption'},...extra});
 test('BILL-004 native draft tax review: two jurisdictions, explicit exemptions, exact rounding, immutable provenance, access and archive recovery (calculation-only door)',async()=>{
  const h=await harness();try{
@@ -95,9 +95,10 @@ for(const width of [1440,390])test(`BILL-004 configured tax refusal, exact appro
   const mail=h.mails.at(-1),link=(mail.text??mail.html).match(/https:\/\/[^\s"<]+\/auth\/confirm\?token=[^\s"&<]+/)[0];await page.goto(link);await page.getByRole('button',{name:'Confirm'}).click();await page.waitForURL(/\/setup|\/app/);if(page.url().includes('/setup')){await page.getByLabel('Your name').fill('Avery Barton');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup'}).click();await page.waitForURL(/\/app/);}
   const navigate=async()=>{await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Time & bills',exact:true}).click();await page.getByRole('heading',{level:1,name:'Time & bills',exact:true}).waitFor();await page.getByLabel('Current matter').selectOption(m.id);};
   await navigate();const bill=page.locator('section.bill-packages article.record').filter({hasText:'Reviewed New York tax invoice'});await bill.getByLabel('Review note',{exact:true}).fill('Exact source review');await bill.getByRole('button',{name:'Approve exact bill'}).click();await page.getByRole('alert').getByText(/Unknown tax treatment/).waitFor();
-  if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,page.locator('section.bill-packages'),process.env.SATCHEL_SCREENSHOTS,width+'-tax-refusal');
+  if(process.env.SATCHEL_SCREENSHOTS){await mkdir(process.env.SATCHEL_SCREENSHOTS,{recursive:true});await page.getByRole('alert').scrollIntoViewIfNeeded();await page.screenshot({path:process.env.SATCHEL_SCREENSHOTS+'/'+width+'-tax-error.png'});await bill.scrollIntoViewIfNeeded();await page.screenshot({path:process.env.SATCHEL_SCREENSHOTS+'/'+width+'-tax-refusal-0.png'});}
   await h.json('/bills/'+draft.id+'/approve',{revision:draft.revision,reviewNote:'Exact tax and service calculation reviewed',taxReviewId:review.id},h.owner);await page.reload();await navigate();await bill.getByText('Reviewed New York tax invoice · $105.00',{exact:true}).waitFor();
   const download=page.waitForEvent('download');await bill.getByRole('button',{name:'Download reviewed CSV'}).click();const file=await download;assert.equal(await file.failure(),null);const stream=await file.createReadStream(),chunks=[];for await(const chunk of stream)chunks.push(chunk);assert.match(Buffer.concat(chunks).toString(),/"TAX USD cents","500"/);
-  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);assert.deepEqual(errors,[]);if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,page.locator('section.bill-packages'),process.env.SATCHEL_SCREENSHOTS,width+'-tax-approved');
+  await page.getByRole('status').getByText('Reviewed bill exported',{exact:true}).waitFor();await bill.getByText('exported',{exact:true}).waitFor();await bill.getByText('Reviewed New York tax invoice · $105.00',{exact:true}).waitFor();
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);assert.deepEqual(errors,[]);if(process.env.SATCHEL_SCREENSHOTS){await bill.scrollIntoViewIfNeeded();await page.screenshot({path:process.env.SATCHEL_SCREENSHOTS+'/'+width+'-tax-approved-0.png'});}
  }finally{await browser.close();await h.close();}
 });
