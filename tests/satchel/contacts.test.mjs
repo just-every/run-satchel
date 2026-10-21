@@ -231,12 +231,17 @@ test('whole-firm conflict labels, opaque principal and wall routes, closed dispo
   await h.json('/team',{email:'custodian@example.test',name:'Wall custodian',role:'lawyer'},h.owner);
   const custodianSearch=await h.json('/conflicts',{client:'Restricted client',adverse:'Unrelated'},custodian);
   await h.json('/conflicts/'+custodianSearch.id+'/disposition',{decision:'waiver_recorded',note:'Inside counsel reviews the matched representation',waiver:{...metadata,confirmation:'synthetic-satchel-9'}},custodian);
+  const custodianReview=await h.json('/conflicts/'+custodianSearch.id+'/review',undefined,custodian);for(const route of custodianReview.routes){const referral=await h.json('/conflicts/'+custodianSearch.id+'/referrals',{wallId:route.route},custodian);await h.json('/conflict-referrals/'+referral.id+'/decide',{decision:'no_conflict',note:'Native custodian reviewed separately protected associations'},route.route==='principal'?h.owner:custodian);}
   await h.json('/matters',{title:'Custodian reviewed engagement',conflictId:custodianSearch.id,confirmed:true,reviewNote:'Inside counsel recorded and reviewed waiver'},custodian);
   const screenSearch=await h.json('/conflicts',{client:'Screened new client',adverse:'Unique new adversary'},outside);
   await h.json('/conflicts/'+screenSearch.id+'/disposition',{decision:'restrictions',note:'A screen is required',restrictions:['Principal excluded from this engagement'],excludedStaff:['owner@example.test'],screenCustodian:'custodian@example.test'},outside);
   const screened=await h.json('/matters',{title:'Screen created at opening',conflictId:screenSearch.id,reviewNote:'Screened limited engagement',confirmed:true,restrictionsAcknowledged:true},outside);
   await h.json('/matters/'+screened.id,undefined,h.owner,404);const inside=(await h.json('/ethical-walls',undefined,custodian)).walls.find(w=>w.matter_id===screened.id);assert.ok(inside.custodian);assert.ok(!inside.members.some(m=>m.email==='owner@example.test'));
   for(const path of ['/state','/contacts','/reports','/notifications','/audit'])assert.ok(!JSON.stringify(await h.json(path,undefined,h.owner)).includes(screened.id),path);
+  const defaultScreenSearch=await h.json('/conflicts',{client:'Default screen client',adverse:'Default screen adversary'},outside);
+  await h.json('/conflicts/'+defaultScreenSearch.id+'/disposition',{decision:'restrictions',note:'Recording lawyer takes screen custody',restrictions:['Principal excluded from the screened engagement'],excludedStaff:['owner@example.test'],screenRequired:true},outside);
+  const defaultScreen=await h.json('/matters',{title:'Default lawyer custody screen',conflictId:defaultScreenSearch.id,reviewNote:'Counsel records the screen',confirmed:true,restrictionsAcknowledged:true},outside);
+  assert.equal((await h.json('/ethical-walls',undefined,outside)).walls.find(w=>w.matter_id===defaultScreen.id).custodian_email,'outside@example.test');await h.json('/matters/'+defaultScreen.id,undefined,h.owner,404);
   await h.json('/matters/'+nativeMatter.id+'/restrictions/remove',{email:'assistant@example.test',reason:'Counsel reviewed changed scope'},outside);await h.json('/matters/'+nativeMatter.id+'/access',{email:'assistant@example.test'},h.owner);await h.json('/matters/'+nativeMatter.id,undefined,assistant);
  }finally{await h.close();}
 });
