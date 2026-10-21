@@ -7,7 +7,7 @@ test('TRUST-004 native slice / TRUST-005 inherited reconciliation: exact partial
  const h=await harness();try{
   const f=await foundation(h),o=await h.json('/trust/openings',{accountId:f.account.id,ledgerId:f.ledger.id,cents:150000,statementDate:'2026-10-01',documentId:f.source.id,note:'Opening client funds'},h.owner);await h.json('/trust/openings/'+o.id+'/approve',{revision:o.revision,reviewNote:'Reviewed exact statement'},h.owner);
   const first=await earnedBill(h,f.m,100000,'Earned October advice'),second=await earnedBill(h,f.m,90000,'Earned supplemental advice');let policy=await h.json('/trust/transfer-policy',undefined,h.owner);await h.json('/trust/transfer-policy',{revision:policy.revision,dualAuthorization:true},h.owner);
-  const request=b=>h.json('/trust/transfers',await withTaxAllocation(h,{billId:b.id,ledgerId:f.ledger.id,operatingAccountId:f.operating.id,requestKey:b.id}),h.owner);
+  const request=async b=>h.json('/trust/transfers',await withTaxAllocation(h,{billId:b.id,ledgerId:f.ledger.id,operatingAccountId:f.operating.id,requestKey:b.id}),h.owner);
   const a=await request(first),b=await request(second);assert.deepEqual([a.cents,b.cents,a.required_approvals,b.required_approvals],[100000,50000,2,2]);assert.equal((await request(first)).id,a.id);assert.equal((await h.json('/trust',undefined,h.owner)).ledgers.find(l=>l.id===f.ledger.id).available_cents,0);
   await h.json('/trust/transfers',await withTaxAllocation(h,{billId:second.id,ledgerId:f.ledger.id,operatingAccountId:f.operating.id,requestKey:'overdraw'}),h.owner,409);
   await h.json('/trust/transfers',await withTaxAllocation(h,{billId:first.id,ledgerId:f.otherLedger.id,operatingAccountId:f.operating.id,requestKey:'cross-client'}),h.owner,409);
