@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
 import {chromium,expect} from '@playwright/test';
 import {harness,open} from './harness.mjs';
+import {capturePanel} from './browser-shots.mjs';
 const form=(p,name)=>p.locator('form',{has:p.getByRole('button',{name,exact:true})});
 const notice=(p,text)=>p.getByRole('status').getByText(text).waitFor();
-for(const [width,height] of [[1440,1000],[390,844]])test(`INTAKE-004 maintain and merge imported insurer contacts without losing relationships or source identities at ${width}px`,async()=>{
+for(const [width,height] of [[1440,1000],[390,844]])test(`INTAKE-004 INTAKE-005 maintain merged identities and review a former client conflict at ${width}px`,async()=>{
  const h=await harness(),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});
  try{
   const m1=await open(h,'Harper injury claim','Harper Family','Pine Transport'),m2=await open(h,'Rivera property claim','Rivera Partners','Cedar Property');
@@ -31,6 +32,32 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`INTAKE-004 maintain an
   await page.locator('summary').getByText('Source identities and conflict history',{exact:true}).click();await page.getByText('Contact ID: '+a.id,{exact:true}).waitFor();await page.getByText('Contact ID: '+b.id,{exact:true}).waitFor();await page.getByText('insurer · '+m1.matter_number+' · '+m1.title,{exact:true}).waitFor();await page.getByText('insurer · '+m2.matter_number+' · '+m2.title,{exact:true}).waitFor();
   const consentSection=page.getByRole('heading',{name:'Communication consent',exact:true}).locator('..');assert.ok(await consentSection.getByText('denied',{exact:true}).count());await shot('merged');
   const search=form(page,'Search contacts');for(const query of ['Summit Assurance','Summit Risk','same insurer','901','902']){await search.getByLabel('Find a contact').fill(query);const [response]=await Promise.all([page.waitForResponse(r=>new URL(r.url()).pathname==='/api/satchel/contacts'&&new URL(r.url()).searchParams.get('q')===query),search.getByRole('button',{name:'Search contacts',exact:true}).click()]);const result=await response.json();await notice(page,'Contact search complete');await page.getByRole('button',{name:/^Summit Mutual organization.*2 source identities/}).waitFor();const records=page.locator('section',{has:page.getByRole('heading',{name:'Legal contacts',exact:true})}).locator('button.record');await expect(records).toHaveCount(result.contacts.length);assert.deepEqual((await records.locator('strong').allTextContents()).sort(),result.contacts.map(c=>c.name).sort());}
-  await shot('search');assert.deepEqual(errors,[]);
+  await shot('search');
+  // A real client association and reviewed closure supply former-client context.
+  let graph=await h.json('/contacts',undefined,h.owner);
+  await h.json('/contacts/'+a.id+'/matter-role',{revision:graph.revision,matterId:m1.id,role:'client'},h.owner);
+  const base='/matters/'+m1.id,preview=await h.json(base+'/closure-preview',{clientPromisesReviewed:true,clientPromises:[],originalReturn:{status:'not_held',note:'Counsel confirmed no client originals held'}},h.owner);
+  const closed=await h.json(base+'/close',{previewId:preview.id,digest:preview.digest,revision:preview.revision,reason:'Counsel completed the insurer representation and reviewed every outstanding item',outcome:'settled',exceptions:preview.checks.map(check=>({key:check.key,reason:'Principal retains responsibility for this reviewed continuing item'}))},h.owner);
+  graph=await h.json('/contacts',undefined,h.owner);
+  const searchedContacts=graph.contacts.length,searchedIdentities=graph.contacts.reduce((sum,contact)=>sum+contact.identities.length,0);
+  const conflictForm=form(page,'Run conflict search');await conflictForm.getByLabel('Client name',{exact:true}).fill('Summit Assurance Company');await conflictForm.getByLabel('Adverse party name',{exact:true}).fill('Unrelated prospective enterprise');
+  const [conflictResponse]=await Promise.all([page.waitForResponse(r=>new URL(r.url()).pathname==='/api/satchel/conflicts'&&r.request().method()==='POST'),conflictForm.getByRole('button',{name:'Run conflict search',exact:true}).click()]);
+  const conflict=await conflictResponse.json();assert.equal(conflict.searchedContacts,searchedContacts);assert.equal(conflict.searchedIdentities,searchedIdentities);assert.deepEqual(conflict.matches.map(match=>match.id),[a.id]);
+  const closedYear=new Intl.DateTimeFormat('en-US',{timeZone:conflict.timezone,year:'numeric'}).format(new Date(closed.history.find(event=>event.kind==='closed').at));
+  await notice(page,'Search recorded. Review the results below.');
+  const openingPanel=page.locator('section.panel',{has:page.getByRole('heading',{name:'Open a matter',exact:true})}),results=openingPanel.getByRole('region',{name:'Conflict search results',exact:true});
+  await expect(results.getByRole('heading',{name:'1 possible matches',exact:true})).toBeVisible();await expect(results.getByText(`Searched ${searchedContacts} contacts across ${searchedIdentities} source identities. Closed years use ${conflict.timezone}.`,{exact:true})).toBeVisible();
+  await expect(results.getByText('2 source identities grouped as one contact',{exact:true})).toBeVisible();await expect(results.getByText(new RegExp('Former client · client · Closed '+closedYear))).toBeVisible();
+  const clientContext=results.locator('p').filter({hasText:'Former client · client'});await clientContext.getByRole('button',{name:m1.matter_number+' · '+m1.title,exact:true}).click();
+  const register=page.locator('section.panel',{has:page.getByRole('heading',{name:'Matter register',exact:true})});await expect(register.getByRole('heading',{level:3,name:m1.title,exact:true})).toBeVisible();
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);
+  if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,openingPanel,process.env.SATCHEL_SCREENSHOTS,`${width}-conflicts-former-client`);
+  const reviewed=form(page,'Open reviewed matter');await reviewed.getByLabel('Matter title',{exact:true}).fill('Summit follow-on counsel review');await reviewed.getByLabel('Review conclusion and any conflict clearance').fill('Partner reviewed the former insurer representation and cleared this follow-on engagement.');await reviewed.getByRole('checkbox').check();await reviewed.getByRole('button',{name:'Open reviewed matter',exact:true}).click();await notice(page,'Matter opened with recorded conflict review');
+  await expect(register.getByRole('heading',{level:3,name:'Summit follow-on counsel review',exact:true})).toBeVisible();
+  const recorded=register.locator('details').filter({has:page.locator('summary').getByText('Recorded conflict search',{exact:true})});await recorded.locator('summary').first().click();
+  const history=recorded.getByRole('region',{name:'Conflict search results',exact:true});await expect(history.getByText(`Searched ${searchedContacts} contacts across ${searchedIdentities} source identities. Closed years use ${conflict.timezone}.`,{exact:true})).toBeVisible();await expect(history.getByText(new RegExp('Former client · client · Closed '+closedYear))).toBeVisible();
+  await history.locator('summary').getByText('Source identities and recorded match',{exact:true}).click();await expect(history.locator('pre')).toContainText(a.id);await expect(history.locator('pre')).toContainText(b.id);
+  if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,register,process.env.SATCHEL_SCREENSHOTS,`${width}-conflicts-recorded-clearance`);
+  assert.deepEqual(errors,[]);
  }finally{await browser.close();await h.close();}
 });

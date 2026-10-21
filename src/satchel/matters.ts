@@ -1,5 +1,6 @@
 import {contactState} from './contact-read';
 import {contactMatches} from './contact-graph';
+import {conflictContext,recordedConflict} from './conflict-context';
 import { matterIdentity } from './numbering';
 // Party identity/association and parameterized search adapted from MIT run-orbit
 // src/core/features/records/repository.ts @ 38cef87571a413802dbaa7aa6afbab332d8cd778.
@@ -14,9 +15,10 @@ export async function conflictSearch(db: D1Database, actor: Actor, body: Data) {
  // Scan every party, including aliases. There is no hidden first-page result cap.
  // This is a firm-record search, not a guarantee that conflicts do not exist.
  const graph=await contactState(db,actor);
- const matches=graph.contacts.filter(p=>queries.some(q=>contactMatches(p,q,graph.contacts))).map(p=>({...p,aliases:p.aliases.join('; '),matter_ids:p.matterRoles.map(r=>r.matter_id).join(',')}));
- const conflict={id:id(),client,adverse,queries,matches,partyRevision:graph.revision,actor:actor.email,at:now()};
- await atomic(db,actor,[stmt(db,'INSERT INTO s_conflicts VALUES(?,?,?,?,?,?,?,?)',conflict.id,client,adverse,JSON.stringify(queries),JSON.stringify(matches),conflict.partyRevision,actor.email,conflict.at),audit(db,actor,'conflict.searched',conflict.id)]);
+ const {summary,context}=await conflictContext(db,actor,graph.contacts);
+ const matches=graph.contacts.filter(p=>queries.some(q=>contactMatches(p,q,graph.contacts))).map(p=>({...p,aliases:p.aliases.join('; '),matter_ids:p.matterRoles.map(r=>r.matter_id).join(','),matterContext:context(p)}));
+ const conflict={id:id(),client,adverse,queries,matches,...summary,partyRevision:graph.revision,actor:actor.email,at:now()};
+ await atomic(db,actor,[stmt(db,'INSERT INTO s_conflicts(id,client,adverse,queries,matches,party_revision,actor,at,search_summary) VALUES(?,?,?,?,?,?,?,?,?)',conflict.id,client,adverse,JSON.stringify(queries),JSON.stringify(matches),conflict.partyRevision,actor.email,conflict.at,JSON.stringify(summary)),audit(db,actor,'conflict.searched',conflict.id)]);
  return conflict;
 }
 export async function openMatter(db: D1Database, actor: Actor, body: Data, fixedId?: string, imported?: {number:string;statements:D1PreparedStatement[]}) {
@@ -49,7 +51,8 @@ export async function workspace(db: D1Database, actor: Actor) {
 }
 export async function matterDetail(db: D1Database, actor: Actor, matterId: string) {
  const m=await matter(db,actor,matterId);
- return {matter:m,conflict:await stmt(db,'SELECT * FROM s_conflicts WHERE id=?',m.conflict_id).first(),access:await rows(db,'SELECT email FROM s_matter_access WHERE matter_id=?',matterId)};
+ const conflict=(await stmt(db,'SELECT * FROM s_conflicts WHERE id=?',m.conflict_id).first<Data>())!;
+ return {matter:m,conflict:await recordedConflict(db,actor,conflict),access:await rows(db,'SELECT email FROM s_matter_access WHERE matter_id=?',matterId)};
 }
 export async function grantMatter(db:D1Database,actor:Actor,matterId:string,body:Data) {
  human(actor); need(actor,'owner'); await matter(db,actor,matterId);

@@ -48,7 +48,7 @@ const contexts=[
  record('s_entries',['id','kind','date','description','minutes','rate_cents','amount_cents'],'x.matter_id','x.revision'),
  record('s_documents',['id','title','visibility','current_version','erased_at','folder_id','document_type','tags'],'x.matter_id','x.revision',undefined,{saveOutcome:"(SELECT json_object('conflictId',c.id,'sha256',c.sha256,'baseRevision',c.base_revision) FROM s_document_conflicts c WHERE c.id=json_extract(CASE WHEN json_valid(i.detail) THEN i.detail ELSE '{}' END,'$.attemptId'))",originals:"(SELECT json_group_array(json_object('version',v.version,'sha256',v.sha256,'size',v.size)) FROM s_document_versions v WHERE v.document_id=x.id)"}),
  record('s_deadlines',['id','title','kind','owner_email','date','timezone','source','document_id','document_version','status','confirmed_by','confirmed_at','completed_by','completed_at','completion_evidence'],'x.matter_id','x.revision'),
- record('s_conflicts',['id','client','adverse','queries','matches','party_revision','actor','at'],'NULL','CAST(x.party_revision AS TEXT)'),
+ record('s_conflicts',['id','client','adverse','queries','matches','party_revision','actor','at','search_summary'],'NULL','CAST(x.party_revision AS TEXT)'),
  record('s_parties',['id','name','aliases','email','source'],'NULL','x.revision'),
  record('s_proposals',['id','kind','payload','for_email','agent_label','status','result_id','decided_by','decided_at'],'json_extract(x.payload,\'$.matterId\')'),
  record('s_members',['email','name','role','active'],'NULL','NULL','x.email=i.object_id'),

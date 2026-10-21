@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {harness,open} from './harness.mjs';
 
-test('INTAKE-004 imported insurer aliases retain every source, relationship, matter role, consent and conflict snapshot through reviewed merge and restore',async()=>{
+test('INTAKE-004 INTAKE-005 imported insurer aliases retain every source, relationship, matter role, consent and conflict snapshot through reviewed merge and restore',async()=>{
  const h=await harness();let target;
  try{
   const m1=await open(h,'Harper injury claim','Harper Family','Pine Transport'),m2=await open(h,'Rivera property claim','Rivera Partners','Cedar Property');
@@ -62,8 +62,42 @@ test('INTAKE-004 imported insurer aliases retain every source, relationship, mat
   await h.json('/matters/'+m1.id+'/access',{email:'reader@example.test',remove:true},h.owner);assert.equal((await h.json('/contacts',undefined,reader)).contacts.length,0);await h.json('/contacts/'+b.id,undefined,reader,404);assert.ok(!JSON.stringify(await h.json('/contacts',undefined,lawyer)).includes(m2.title));
   // Undo cannot remove either merged source or the native graph using it.
   await h.json('/import/undo',{id:imported.job.id},h.owner);assert.ok((await h.json('/contacts',undefined,h.owner)).contacts.find(c=>c.id===a.id).identityIds.includes(b.id));
+  // Search the whole imported register, retaining each merged physical identity.
+  const importedNames=Array.from({length:125},(_,i)=>'Exhaustive Registry '+(i+1));
+  const many='id,first_name,last_name,company,email_address,aliases\n'+importedNames.map((name,i)=>`${2000+i},,,${name},,Registry alias ${i+1}`).join('\n')+'\n';
+  const manyPreview=await h.json('/import/preview',{csv:many,filename:'whole-register.csv'},h.owner);
+  await h.json('/import/commit',{csv:many,filename:'whole-register.csv',fingerprint:manyPreview.fingerprint},h.owner);
+  const completeGraph=await h.json('/contacts',undefined,h.owner),completeSearch=await h.json('/conflicts',{client:'Exhaustive Registry',adverse:'No matching adverse name'},h.owner);
+  assert.deepEqual(completeSearch.matches.map(c=>c.name).sort(),[...importedNames].sort(),'Every imported contact is searched without a hidden first page');
+  assert.equal(completeSearch.searchedContacts,completeGraph.contacts.length);
+  assert.equal(completeSearch.searchedIdentities,completeGraph.contacts.reduce((sum,c)=>sum+c.identities.length,0));
+  assert.equal(completeSearch.searchedIdentities-completeSearch.searchedContacts,1,'Merged physical identities remain in the search population');
+  await act(a.id,'matter-role',{matterId:m1.id,role:'client'});
+  let clientSearch=await h.json('/conflicts',{client:'Summit Assurance',adverse:'No matching adverse name'},h.owner);
+  assert.equal(clientSearch.matches.find(c=>c.id===a.id).matterContext.find(c=>c.matterId===m1.id&&c.role==='client').classification,'current_client');
+  const closePreview=await h.json('/matters/'+m1.id+'/closure-preview',{clientPromisesReviewed:true,clientPromises:[],originalReturn:{status:'not_held',note:'No client originals held'}},h.owner);
+  const closed=await h.json('/matters/'+m1.id+'/close',{previewId:closePreview.id,digest:closePreview.digest,revision:closePreview.revision,reason:'Representation completed after counsel review',outcome:'settled',exceptions:closePreview.checks.map(c=>({key:c.key,reason:'Reviewed continuing responsibility'}))},h.owner);
+  clientSearch=await h.json('/conflicts',{client:'Summit Assurance',adverse:'No matching adverse name'},h.owner);
+  const former=clientSearch.matches.find(c=>c.id===a.id).matterContext.find(c=>c.matterId===m1.id&&c.role==='client');
+  assert.equal(former.classification,'former_client');assert.equal(former.status,'closed');assert.equal(former.closedAt,closed.history.find(e=>e.kind==='closed').at);
+  assert.equal(former.closedYear,new Intl.DateTimeFormat('en-US',{timeZone:clientSearch.timezone,year:'numeric'}).format(new Date(former.closedAt)));assert.equal(former.number,m1.matter_number);
+  assert.ok(clientSearch.matches.find(c=>c.id===a.id).matterContext.filter(c=>c.role!=='client').every(c=>c.classification===null),'An insurer association never invents a client relationship');
+  const cleared=await h.json('/matters',{title:'Partner cleared former-client follow-on',conflictId:clientSearch.id,confirmed:true,reviewNote:'Partner reviewed each source identity and former matter; cleared this engagement'},h.owner);
+  const recorded=(await h.json('/matters/'+cleared.id,undefined,h.owner)).conflict;
+  assert.deepEqual(JSON.parse(recorded.search_summary),{searchedContacts:clientSearch.searchedContacts,searchedIdentities:clientSearch.searchedIdentities,timezone:clientSearch.timezone});
+  assert.deepEqual(JSON.parse(recorded.matches),clientSearch.matches);
+  await h.json('/matters/'+cleared.id+'/access',{email:'lawyer@example.test'},h.owner);
+  const restricted=(await h.json('/matters/'+cleared.id,undefined,lawyer)).conflict;
+  for(const hidden of [m1.id,m1.title,m2.id,m2.title,former.closedAt])assert.ok(!restricted.matches.includes(hidden),'Recorded conflict associations reapply current access: '+hidden);
+  const scopedSearch=await h.json('/conflicts',{client:'Summit Assurance',adverse:'No matching adverse name'},lawyer);
+  assert.ok(scopedSearch.matches.some(c=>c.id===a.id),'Firm contact review does not grant confidential matter context');
+  assert.ok(scopedSearch.matches.find(c=>c.id===a.id).matterContext.every(c=>c.matterId===cleared.id));
+  await h.json('/matters/'+m1.id+'/reopen',{revision:closed.revision,reason:'Additional instructions received',workflows:[],access:[]},h.owner);
+  const reopenedSearch=await h.json('/conflicts',{client:'Summit Assurance',adverse:'No matching adverse name'},h.owner);
+  const current=reopenedSearch.matches.find(c=>c.id===a.id).matterContext.find(c=>c.matterId===m1.id&&c.role==='client');assert.equal(current.classification,'current_client');assert.equal(current.closedAt,null);assert.equal(current.closedYear,null);
+  assert.deepEqual((await h.json('/matters/'+cleared.id,undefined,h.owner)).conflict,recorded,'Reopening never rewrites the reviewed search or its clearance evidence');
   const audit=await h.json('/audit?action=contact.merged',undefined,h.owner);assert.equal(audit.records[0].evidence.record.recordType,'s_contact_merges');assert.equal(audit.records[0].evidence.record.survivor_id,a.id);
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();target=await harness();assert.equal((await target.json('/restore',{archive,confirm:'RESTORE'},target.owner)).phase,'complete');
-  assert.deepEqual(await target.json('/contacts',undefined,target.owner),await h.json('/contacts',undefined,h.owner));assert.equal((await target.json('/matters/'+historic.id,undefined,target.owner)).conflict.matches,historicMatches);
+  assert.deepEqual(await target.json('/contacts',undefined,target.owner),await h.json('/contacts',undefined,h.owner));assert.equal((await target.json('/matters/'+historic.id,undefined,target.owner)).conflict.matches,historicMatches);assert.deepEqual((await target.json('/matters/'+cleared.id,undefined,target.owner)).conflict,recorded);await target.restart();assert.deepEqual((await target.json('/matters/'+cleared.id,undefined,target.owner)).conflict,recorded);
  }finally{await target?.close();await h.close();}
 });
