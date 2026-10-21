@@ -66,7 +66,8 @@ test('INTAKE-004 INTAKE-005 imported insurer aliases retain every source, relati
   const importedNames=Array.from({length:125},(_,i)=>'Exhaustive Registry '+(i+1));
   const many='id,first_name,last_name,company,email_address,aliases\n'+importedNames.map((name,i)=>`${2000+i},,,${name},,Registry alias ${i+1}`).join('\n')+'\n';
   const manyPreview=await h.json('/import/preview',{csv:many,filename:'whole-register.csv'},h.owner);
-  await h.json('/import/commit',{csv:many,filename:'whole-register.csv',fingerprint:manyPreview.fingerprint},h.owner);
+  let manyJob=(await h.json('/import/commit',{csv:many,filename:'whole-register.csv',fingerprint:manyPreview.fingerprint},h.owner)).job;
+  while(manyJob.state!=='completed'){const previous=manyJob.checkpoint;manyJob=(await h.json('/import/resume',{id:manyJob.id},h.owner)).job;assert.notDeepEqual(manyJob.checkpoint,previous,'Resuming the reviewed import advances its public checkpoint');}
   const completeGraph=await h.json('/contacts',undefined,h.owner),completeSearch=await h.json('/conflicts',{client:'Exhaustive Registry',adverse:'No matching adverse name'},h.owner);
   assert.deepEqual(completeSearch.matches.map(c=>c.name).sort(),[...importedNames].sort(),'Every imported contact is searched without a hidden first page');
   assert.equal(completeSearch.searchedContacts,completeGraph.contacts.length);
