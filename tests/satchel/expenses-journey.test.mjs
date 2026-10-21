@@ -27,7 +27,7 @@ for(const width of [1440,390])test(`TIME-006 record a receipt-backed expense and
   const [file]=await Promise.all([page.waitForEvent('download'),panel.getByRole('link',{name:'Download receipt · version 1',exact:true}).click()]);const chunks=[];for await(const c of await file.createReadStream())chunks.push(c);assert.deepEqual(Buffer.concat(chunks),receipt);
   // The unchanged source reference reconciles to the same entry, even from UI.
   await Promise.all([page.waitForResponse(r=>r.url().endsWith('/billing')&&r.status()===200),form.getByRole('button',{name:'Record entry',exact:true}).click()]);
-  assert.equal(await panel.locator('article.record').count(),1);
+  await panel.getByText('Estate filing advanced by firm · $125.00',{exact:true}).waitFor();assert.equal(await panel.locator('article.record').count(),1);
   await form.getByLabel('Expense category').selectOption('overhead');await form.getByLabel('Description',{exact:true}).fill('Office stationery');await form.getByLabel('Imported reference ID (optional)').fill('office-120');await form.getByLabel('Receipt (optional)').selectOption('');
   await form.getByRole('button',{name:'Record entry',exact:true}).click();await panel.getByText('Office stationery · $125.00',{exact:true}).waitFor();
   const unbilled=page.locator('section.panel',{has:page.getByRole('heading',{name:'Unbilled work',exact:true})});assert.equal(await unbilled.getByRole('row').count(),2);await unbilled.getByText('Estate filing advanced by firm',{exact:true}).waitFor();assert.equal(await unbilled.getByText('Office stationery',{exact:true}).count(),0);
