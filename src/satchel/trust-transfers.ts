@@ -25,6 +25,7 @@ export async function requestTransfer(db:D1Database,actor:Actor,b:Data){
  const key=text(b.requestKey,'Request reference',100),prior=await stmt(db,'SELECT * FROM s_trust_transfers WHERE request_key=?',key).first<Data>();if(prior){insist(prior.bill_id===bill.id&&prior.ledger_id===ledger.id&&prior.operating_account_id===operating,'Request reference already names another application',409);const a=await stmt(db,'SELECT * FROM s_tax_trust_allocations WHERE transfer_id=?',prior.id).first<Data>();if(a)insist(b.allocation?.earnedCents===a.earned_cents&&b.allocation?.taxCents===a.tax_cents&&b.allocation?.reference===a.reference,'Request reference already retains a different tax allocation',409);return prior;}
  const approval=await stmt(db,'SELECT snapshot FROM s_bill_tax_approvals WHERE bill_id=?',bill.id).first<Data>(),snapshot=JSON.parse(approval?.snapshot??bill.snapshot);
  if(snapshot.feePlan){const review=await stmt(db,'SELECT * FROM s_fee_earning_reviews WHERE bill_id=?',bill.id).first<Data>();insist(review,'Unknown fee earning eligibility: counsel must review the earning event',422);insist(review.trust_eligible===1,'Reviewed fee terms prohibit retainer draw-down from trust',422);}
+ insist(approval,'Unknown reviewed tax trust eligibility and allocation: invoice has no retained reviewed tax treatment',422);
  let allocation:Data|null=null;
  if(approval){
   const eligibility=snapshot.taxReview.snapshot.rule.trust;

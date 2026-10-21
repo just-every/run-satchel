@@ -174,10 +174,14 @@ test('BILL-004 mandatory legacy review, explicit client LEDES mapping, tax trust
   await h.json(base+'/ledes-guideline',{clientLedesId:'TAX-CLIENT',lawFirmId:'FIRM-TEST',requireTask:false,requireActivity:false,requireExpense:false,narrativeMin:0,bannedPhrases:[],maxRates:{},incrementMinutes:0,note:'Synthetic reviewed tax client guideline',xmlProfile},h.owner);
   const entry=await h.json(base+'/entries',{kind:'time',date:'2026-10-01',description:'Taxable legal work',minutes:60,rateCents:10000},h.owner),expense=await h.json(base+'/entries',{kind:'disbursement',date:'2026-10-01',description:'Taxable expense',amountCents:2000,utbmsExpense:'E101'},h.owner),draft=await h.json(base+'/bills',{title:'Taxed LEDES and trust',date:'2026-10-01',entryIds:[entry.id,expense.id]},h.owner);
   const mapping={clientLedesId:'TAX-CLIENT',expenseCode:'E999',taxIdNumber:'SYNTHETIC-TAX-ID',taxType:'Sales',reference:'Synthetic client counsel reviewed both tax export formats'};
+  await h.json(base+'/tax-rules',terms('NY',{ledesMapping:{...mapping,taxType:'Invalid\u0000XML'}}),h.owner,400);
   const extra={trust:{eligibility:'permitted',reference:'Synthetic counsel-reviewed tax draw-down authority'},ledesMapping:mapping,expense:{eligibility:'taxable',ratePpm:80000,reference:'Synthetic expense treatment'}};
   const wrong=await h.json(base+'/tax-rules',terms('NY',{...extra,ledesMapping:{...mapping,clientLedesId:'WRONG-CLIENT'}}),h.owner),badReview=await h.json('/bills/'+draft.id+'/tax-reviews',{revision:draft.revision,ruleId:wrong.id},h.owner);
   await h.json('/bills/'+draft.id+'/approve',{revision:draft.revision,reviewNote:'Client mismatch must refuse',taxReviewId:badReview.id},h.owner,422);
   const rule=await h.json(base+'/tax-rules',terms('NY',extra),h.owner),review=await h.json('/bills/'+draft.id+'/tax-reviews',{revision:draft.revision,ruleId:rule.id},h.owner);
+  await h.json('/ledes/codes',{kind:'expense',code:'E999',label:'Client-reviewed tax',active:false},h.owner);
+  await h.json('/bills/'+draft.id+'/approve',{revision:draft.revision,reviewNote:'Retired mapped tax code refuses',taxReviewId:review.id},h.owner,422);
+  await h.json('/ledes/codes',{kind:'expense',code:'E999',label:'Client-reviewed tax',active:true},h.owner);await h.json('/ledes/codes',{kind:'expense',code:'E101',label:'Reviewed source expense',active:true},h.owner);
   const approved=await h.json('/bills/'+draft.id+'/approve',{revision:draft.revision,reviewNote:'Reviewed exact base, tax and client mapping',taxReviewId:review.id},h.owner);
   assert.deepEqual([approved.snapshot.subtotalCents,approved.snapshot.taxCents,approved.snapshot.totalCents],[12000,660,12660]);
   const path='/api/satchel/bills/'+draft.id,files={};

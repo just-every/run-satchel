@@ -12,7 +12,9 @@ export async function fixtureBill(h,path){
 export async function exemptTaxReview(h,path){
  const b=await fixtureBill(h,path);
  if(b.snapshot.taxBasis)return (await h.json('/bills/'+b.id+'/tax-reviews',{revision:b.revision},h.owner)).id;
- const rule=await h.json('/matters/'+b.matterId+'/tax-rules',{state:'NY',jurisdiction:'Synthetic New York exemption fixture',rounding:'half_up',reference:'Counsel-reviewed synthetic exemption for this financial journey; not tax advice',reviewed:true,service:{eligibility:'exempt',ratePpm:0,reference:'Synthetic reviewed service exemption'},expense:{eligibility:'exempt',ratePpm:0,reference:'Synthetic reviewed expense exemption'},trust:{eligibility:'permitted',reference:'Synthetic reviewed tax draw-down authority'},...(b.snapshot.ledes?{ledesMapping:{clientLedesId:b.snapshot.ledes.clientId,expenseCode:'E999',taxIdNumber:'SYNTHETIC-TAX',taxType:'Sales',reference:'Synthetic client-reviewed tax mapping'}}:{})},h.owner);
+ const settings=b.snapshot.ledes?await h.json('/matters/'+b.matterId+'/ledes',undefined,h.owner):null;
+ const expenseCode=settings?.codes.find(c=>c.kind==='expense'&&c.active)?.code??'E999';
+ const rule=await h.json('/matters/'+b.matterId+'/tax-rules',{state:'NY',jurisdiction:'Synthetic New York exemption fixture',rounding:'half_up',reference:'Counsel-reviewed synthetic exemption for this financial journey; not tax advice',reviewed:true,service:{eligibility:'exempt',ratePpm:0,reference:'Synthetic reviewed service exemption'},expense:{eligibility:'exempt',ratePpm:0,reference:'Synthetic reviewed expense exemption'},trust:{eligibility:'permitted',reference:'Synthetic reviewed tax draw-down authority'},...(b.snapshot.ledes?{ledesMapping:{clientLedesId:b.snapshot.ledes.clientId,expenseCode,taxIdNumber:'SYNTHETIC-TAX',taxType:'Sales',reference:'Synthetic client-reviewed tax mapping'}}:{})},h.owner);
  return (await h.json('/bills/'+b.id+'/tax-reviews',{revision:b.revision,ruleId:rule.id},h.owner)).id;
 }
 export async function withTaxAllocation(h,body){
