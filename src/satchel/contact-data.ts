@@ -19,10 +19,11 @@ export async function contactData(db:D1Database){
  stmt(db,'SELECT r.*,m.title,m.matter_number FROM s_contact_matter_roles r JOIN s_matters m ON m.id=r.matter_id ORDER BY r.id'),stmt(db,'SELECT * FROM s_contact_consents ORDER BY sequence'),
  stmt(db,'SELECT * FROM s_contact_merges ORDER BY merged_at,losing_id'),
  stmt(db,'SELECT p.*,m.title,m.matter_number FROM s_matter_parties p JOIN s_matters m ON m.id=p.matter_id ORDER BY p.matter_id,p.party_id'),
- stmt(db,"SELECT target_id,source_identity,job_id,record_json FROM ik_provenance WHERE target_kind='party' ORDER BY id")
+ stmt(db,"SELECT target_id,source_identity,job_id,record_json FROM ik_provenance WHERE target_kind='party' ORDER BY id"),
+ stmt(db,'SELECT * FROM s_contact_classifications ORDER BY at,id')
  ]);
- const [revision,parties,profiles,relationships,roles,consents,merges,matterLinks,sources]=result.map(r=>r.results as Data[]);
- return {revision:Number(revision[0].party_revision),parties,profiles,relationships,roles,consents,merges,matterLinks,sources};
+ const [revision,parties,profiles,relationships,roles,consents,merges,matterLinks,sources,classifications]=result.map(r=>r.results as Data[]);
+ return {revision:Number(revision[0].party_revision),parties,profiles,relationships,roles,consents,merges,matterLinks,sources,classifications};
 }
 export type ContactData=Awaited<ReturnType<typeof contactData>>;
 export function contactRevisionGuard(db:D1Database,revision:unknown){

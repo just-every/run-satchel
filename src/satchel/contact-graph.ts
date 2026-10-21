@@ -17,7 +17,7 @@ export function contactGraph(data:ContactData){
   }));
   const matterRoles=[...data.matterLinks.map(l=>({id:'native:'+l.matter_id+':'+l.party_id,party_id:l.party_id,matter_id:l.matter_id,role:l.relation,title:l.title,matter_number:l.matter_number})),...data.roles].filter(l=>identityIds.includes(l.party_id));
   const relationships=data.relationships.filter(r=>identityIds.includes(r.from_id)||identityIds.includes(r.to_id)).map(r=>({...r,fromId:canonical(r.from_id),toId:canonical(r.to_id)}));
-  return {id:contactId,name:profile?.display_name??survivor.name,kind:profile?.kind??'unclassified',aliases:unique([...parties.flatMap(p=>[p.name,...p.aliases.split(';').map((v:string)=>v.trim())]),...field('aliases')]),formerNames:field('former_names'),emails:unique([...parties.map(p=>p.email),...field('emails')]),phones:field('phones'),addresses:field('addresses'),identities,identityIds,matterRoles,relationships,consents,effectiveConsent,merges:data.merges.filter(m=>canonical(m.survivor_id)===contactId)};
+  return {id:contactId,name:profile?.display_name??survivor.name,kind:profile?.kind??'unclassified',aliases:unique([...parties.flatMap(p=>[p.name,...p.aliases.split(';').map((v:string)=>v.trim())]),...field('aliases')]),formerNames:field('former_names'),emails:unique([...parties.map(p=>p.email),...field('emails')]),phones:field('phones'),addresses:field('addresses'),identities,identityIds,matterRoles,relationships,classifications:data.classifications.filter(c=>identityIds.includes(c.party_id)),consents,effectiveConsent,merges:data.merges.filter(m=>canonical(m.survivor_id)===contactId)};
  });
  return {contacts,canonical,revision:data.revision};
 }

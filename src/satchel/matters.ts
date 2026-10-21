@@ -1,3 +1,4 @@
+import {gateEngagement} from './conflict-dispositions';
 import {matterScope} from './matter-scope';
 import {contactData} from './contact-data';
 import {contactGraph} from './contact-graph';
@@ -33,9 +34,10 @@ export async function openMatter(db: D1Database, actor: Actor, body: Data, fixed
  insist(body.confirmed===true,'Confirm that you reviewed the search and are authorized to open this matter');
  const conflict=await stmt(db,'SELECT * FROM s_conflicts WHERE id=? AND actor=?',text(body.conflictId,'Conflict search'),actor.email).first<Data>();
  insist(conflict,'Run and review a conflict search first',404);
+ const clearance=await gateEngagement(db,actor,conflict);insist(!clearance.restrictions.length||body.restrictionsAcknowledged===true,'Acknowledge the recorded engagement restrictions before opening',409);
  const matterId=fixedId??actor.approval?.resultId??id(), time=now();
- const identity=await matterIdentity(db,body,conflict.client,!!imported);
- const statements=[stmt(db,'INSERT INTO s_guard VALUES(?,CASE WHEN EXISTS(SELECT 1 FROM s_number_settings WHERE id=1 AND revision=?) THEN 1 ELSE 0 END)', 'number:'+matterId,identity.settingsRevision),stmt(db,'DELETE FROM s_guard WHERE id=?','number:'+matterId),stmt(db,'INSERT OR IGNORE INTO s_number_clients(client_key,number) VALUES(?,?)',identity.clientKey,identity.clientNumber),stmt(db,"UPDATE s_number_clients SET number=printf('%04d',id) WHERE client_key=? AND number IS NULL",identity.clientKey),
+ const identity=await matterIdentity(db,body,conflict.client,!!imported);const dispositionId=clearance.reviewId??id();
+ const statements=[stmt(db,'INSERT INTO s_guard VALUES(?,CASE WHEN (SELECT id FROM s_conflict_reviews WHERE search_id=? ORDER BY sequence DESC LIMIT 1) IS ? THEN 1 ELSE 0 END)','conflict-review:'+matterId,conflict.id,clearance.reviewId),stmt(db,'DELETE FROM s_guard WHERE id=?','conflict-review:'+matterId),...(!clearance.reviewId?[stmt(db,'INSERT INTO s_conflict_reviews(id,search_id,actor,decision,note,restrictions,waiver_id,created_at,sequence) VALUES(?,?,?,?,?,?,?,?,1)',dispositionId,conflict.id,actor.email,'cleared',note,'[]',null,time),audit(db,actor,'conflict.disposition_recorded',dispositionId,JSON.stringify({searchId:conflict.id,decision:'cleared',note,restrictions:[]}))]:[]),stmt(db,'INSERT INTO s_guard VALUES(?,CASE WHEN EXISTS(SELECT 1 FROM s_number_settings WHERE id=1 AND revision=?) THEN 1 ELSE 0 END)', 'number:'+matterId,identity.settingsRevision),stmt(db,'DELETE FROM s_guard WHERE id=?','number:'+matterId),stmt(db,'INSERT OR IGNORE INTO s_number_clients(client_key,number) VALUES(?,?)',identity.clientKey,identity.clientNumber),stmt(db,"UPDATE s_number_clients SET number=printf('%04d',id) WHERE client_key=? AND number IS NULL",identity.clientKey),
  stmt(db,'INSERT INTO s_guard VALUES(?,CASE WHEN ? IS NULL OR EXISTS(SELECT 1 FROM s_number_clients WHERE client_key=? AND number=?) THEN 1 ELSE 0 END)',matterId,identity.clientNumber,identity.clientKey,identity.clientNumber),
  stmt(db,'INSERT INTO s_matters(id,title,client,adverse,conflict_id,review_note,opened_by,opened_at,matter_number,client_number,practice_code) VALUES(?,?,?,?,?,?,?,?,?,(SELECT number FROM s_number_clients WHERE client_key=?),?)',matterId,title,conflict.client,conflict.adverse,conflict.id,note,actor.email,time,imported?.number??null,identity.clientKey,identity.practice),stmt(db,'DELETE FROM s_guard WHERE id=?',matterId),stmt(db,'INSERT INTO s_matter_access VALUES(?,?)',matterId,actor.email),...(imported?.statements??[])];
  // Existing exact identities are reused so imported-party undo sees native use.
@@ -44,6 +46,7 @@ export async function openMatter(db: D1Database, actor: Actor, body: Data, fixed
   if(!old) statements.push(stmt(db,"INSERT INTO s_parties VALUES(?,?,?,'','native',?)",partyId,name,'',id()));
   statements.push(stmt(db,'INSERT OR IGNORE INTO s_matter_parties VALUES(?,?,?)',matterId,partyId,relation));
  }
+ statements.push(stmt(db,'INSERT INTO s_matter_conflict_terms VALUES(?,?,?,?,?)',matterId,dispositionId,JSON.stringify(clearance.restrictions),actor.email,time));
  statements.push(audit(db,actor,'matter.opened',matterId,`Conflict ${conflict.id}; ${note}`));
  // MATTER-004: opening after conflict review ends intake; imported matters propose nothing.
  if(!imported)statements.push(...await proposeRuns(db,actor,matterId,'opening',null,time));
@@ -58,7 +61,8 @@ export async function workspace(db: D1Database, actor: Actor) {
 export async function matterDetail(db: D1Database, actor: Actor, matterId: string) {
  const m=await matter(db,actor,matterId);
  const conflict=(await stmt(db,'SELECT * FROM s_conflicts WHERE id=?',m.conflict_id).first<Data>())!;
- return {matter:m,conflict:await recordedConflict(db,actor,conflict),access:await rows(db,'SELECT email FROM s_matter_access WHERE matter_id=?',matterId)};
+ const terms=await stmt(db,'SELECT * FROM s_matter_conflict_terms WHERE matter_id=?',matterId).first<Data>();
+ return {matter:m,conflictTerms:terms?{...terms,restrictions:JSON.parse(terms.restrictions)}:null,conflict:await recordedConflict(db,actor,conflict),access:await rows(db,'SELECT email FROM s_matter_access WHERE matter_id=?',matterId)};
 }
 export async function grantMatter(db:D1Database,actor:Actor,matterId:string,body:Data) {
  human(actor); need(actor,'owner'); await matter(db,actor,matterId);

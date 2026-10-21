@@ -2,6 +2,10 @@
 // Explicit columns exclude credentials and original file bytes.
 const record=(table:string,columns:string[],matter='NULL',revision='NULL',where='x.id=i.object_id',extra:Record<string,string>={})=>`(SELECT json_object('recordType','${table}','matterId',${matter},'revision',${revision},${[...columns.flatMap(c=>[`'${c}'`,`x.${c}`]),...Object.entries(extra).flatMap(([k,v])=>[`'${k}'`,v])].join(',')}) FROM ${table} x WHERE ${where} LIMIT 1)`;
 const contexts=[
+ record('s_contact_classifications',['id','party_id','classification','note','actor','at']),
+ record('s_conflict_reviews',['id','search_id','actor','decision','note','restrictions','waiver_id','created_at'],'NULL','x.id'),
+ record('s_conflict_referral_decisions',['id','referral_id','wall_revision','decision','note','waiver_id','actor','created_at'],'(SELECT w.matter_id FROM s_conflict_referrals r JOIN s_ethical_walls w ON w.id=r.wall_id WHERE r.id=x.referral_id)','x.wall_revision'),
+ record('s_conflict_waivers',['id','search_id','wall_id','name','mime','size','sha256','created_by','created_at'],'(SELECT matter_id FROM s_ethical_walls WHERE id=x.wall_id)'),
  record('s_ethical_walls',['id','matter_id','custodian_email','revision','reason','updated_by','updated_at'],'x.matter_id','x.revision',"x.id=i.object_id AND i.action IN('wall.created','wall.updated')"),
  record('s_wall_requests',['id','wall_id','matter_id','requester_email','reason','status','decision_note','decided_by','decided_at','expires_at','revoked_at','revoke_reason'],'x.matter_id','NULL',"x.id=i.object_id AND i.action LIKE 'wall.access_%'"),
  record('s_entry_edits',['id','entry_id','previous_revision','revision','changes','reason','actor','at'],"(SELECT matter_id FROM s_entries WHERE id=x.entry_id)",'x.revision',"i.action='billing.entry.edited' AND x.id=i.object_id"),
