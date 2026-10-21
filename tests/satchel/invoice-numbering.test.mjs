@@ -6,7 +6,7 @@ import {harness,open} from './harness.mjs';
 import {createHash} from 'node:crypto';
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 import {scheme,draft,reviewed,insurer} from './invoice-numbering-fixture.mjs';
-test('BILL-015 prospective numbering: exact approved issue, tax gate, batch rollback, collision refusal, import floor, replay, retained void number and full archive continuation',async()=>{
+test('BILL-015 BILL-016 prospective numbering and append-only native void/rebill: exact approved issue, tax gate, batch rollback, collision refusal, import floor, replay, retained void number and full archive continuation',async()=>{
  const h=await harness();let target;try{
   const m=await open(h),base='/matters/'+m.id;
   const legacyMatter=await open(h,'Legacy insurer review','Harbor Insurance','Legacy opponent');
@@ -68,6 +68,40 @@ test('BILL-015 prospective numbering: exact approved issue, tax gate, batch roll
   target=await harness();await target.json('/restore',{archive:await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),confirm:'RESTORE'},target.owner);
   assert.deepEqual(await target.json('/invoice-numbering',undefined,target.owner),await h.json('/invoice-numbering',undefined,h.owner));assert.deepEqual(Buffer.from(await(await target.request('/api/satchel/bills/'+first.id+'/invoice.pdf',undefined,target.owner)).arrayBuffer()),pdf);
   const third=await reviewed(target,m,await draft(target,m,'Recovered continuation'));const continuation=await target.json('/invoices/issue',{bills:[{id:third.id,revision:third.revision}]},target.owner);assert.equal(continuation.issues[0].number,'NEW.00105');
+  // BILL-016: void a real two-entry invoice, retain its files and rebill once.
+  const work=await h.json(base+'/entries',{kind:'time',date:'2026-10-03',description:'Reviewed closing advice',minutes:60,rateCents:25000},h.owner);
+  const cost=await h.json(base+'/entries',{kind:'disbursement',date:'2026-10-03',description:'Courier advanced cost',amountCents:2500},h.owner);
+  let native=await h.json(base+'/bills',{title:'Native invoice to void',date:'2026-10-03',entryIds:[work.id,cost.id]},h.owner);native=await reviewed(h,m,native);
+  const nativeRequest={bills:[{id:native.id,revision:native.revision}]},nativeIssue=(await h.json('/invoices/issue',nativeRequest,h.owner)).issues[0];
+  const nativePdf=Buffer.from(await(await h.request('/api/satchel/bills/'+native.id+'/invoice.pdf',undefined,h.owner)).arrayBuffer()),nativeCsv=await(await h.request('/api/satchel/bills/'+native.id+'/export',undefined,h.owner)).text();
+  native=(await h.json(base+'/billing',undefined,h.owner)).bills.find(b=>b.id===native.id);
+  const voidPayload={revision:native.revision,reason:'Counsel voids the reviewed invoice so the work can be rebilled once'};
+  await h.json('/invoices/'+native.id+'/void',voidPayload,assistant,403);
+  const key=await h.json('/keys',{label:'No invoice void authority'},h.owner);
+  await h.json('/invoices/'+native.id+'/void',voidPayload,'',401,{authorization:'Bearer '+key.key});
+  await h.json('/invoices/'+native.id+'/void',{...voidPayload,revision:'stale'},h.owner,409);
+  await h.json('/invoices/'+native.id+'/void',{...voidPayload,reason:'   '},h.owner,400);
+  const countBeforeVoid=(await h.json('/invoice-numbering',undefined,h.owner)).counter.next_number;
+  const voids=await Promise.all([h.json('/invoices/'+native.id+'/void',voidPayload,h.owner),h.json('/invoices/'+native.id+'/void',voidPayload,h.owner)]);assert.deepEqual(voids[0],voids[1]);
+  assert.deepEqual(await h.json('/invoices/'+native.id+'/void',voidPayload,h.owner),voids[0]);
+  await h.json('/invoices/'+native.id+'/void',{...voidPayload,reason:'Different request'},h.owner,409);
+  let nativeState=await h.json(base+'/billing',undefined,h.owner),voided=nativeState.bills.find(b=>b.id===native.id);
+  assert.equal(voided.status,'void');assert.deepEqual(voided.invoiceVoid,voids[0]);assert.deepEqual(voided.snapshot,native.snapshot);assert.equal(voided.artifact,native.artifact);assert.equal(voided.approvedBy,native.approvedBy);assert.equal(voided.approvedAt,native.approvedAt);assert.deepEqual(voided.issue,nativeIssue);
+  assert.equal(voided.trustPayment.status,'void');assert.equal(voided.trustPayment.due_cents,0);
+  assert.ok(nativeState.entries.filter(e=>[work.id,cost.id].includes(e.id)).every(e=>e.reservedBy===null));
+  assert.equal((await h.json('/invoice-numbering',undefined,h.owner)).counter.next_number,countBeforeVoid);
+  assert.deepEqual((await h.json('/invoices/issue',nativeRequest,h.owner)).issues[0],nativeIssue,'Replaying the historical issue cannot restore a void');
+  assert.equal((await h.json(base+'/billing',undefined,h.owner)).bills.find(b=>b.id===native.id).status,'void');
+  const billAgain={title:'Replacement for native void',date:'2026-10-03',entryIds:[work.id,cost.id]};
+  let replacement=await h.json(base+'/bills',billAgain,h.owner);await h.json(base+'/bills',billAgain,h.owner,409);
+  replacement=await reviewed(h,m,replacement);const replacementIssue=(await h.json('/invoices/issue',{bills:[{id:replacement.id,revision:replacement.revision}]},h.owner)).issues[0];
+  assert.notEqual(replacementIssue.number,nativeIssue.number);assert.equal((await h.json('/invoice-numbering',undefined,h.owner)).counter.next_number,countBeforeVoid+1);
+  nativeState=await h.json(base+'/billing',undefined,h.owner);assert.ok(nativeState.entries.filter(e=>[work.id,cost.id].includes(e.id)).every(e=>e.reservedBy===replacement.id));
+  assert.equal(nativeState.bills.filter(b=>b.status!=='void'&&b.snapshot.lines.some(l=>l.sourceId===work.id)).length,1);assert.equal(nativeState.bills.filter(b=>b.status!=='void'&&b.snapshot.lines.some(l=>l.sourceId===cost.id)).length,1);
+  const voidAudit=await h.json('/audit?action=invoice.voided&matterId='+m.id,undefined,h.owner);assert.equal(voidAudit.records.length,1);assert.equal(voidAudit.records[0].evidence.record.recordType,'s_invoice_voids');assert.equal(voidAudit.records[0].evidence.record.reviewed_revision,native.revision);
+  await target.close();target=await harness();await target.json('/restore',{archive:await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),confirm:'RESTORE'},target.owner);await target.restart();
+  for(const source of [h,target]){assert.deepEqual((await source.json(base+'/billing',undefined,source.owner)).bills.find(b=>b.id===native.id).invoiceVoid,voids[0]);assert.deepEqual(Buffer.from(await(await source.request('/api/satchel/bills/'+native.id+'/invoice.pdf',undefined,source.owner)).arrayBuffer()),nativePdf);assert.equal(await(await source.request('/api/satchel/bills/'+native.id+'/export',undefined,source.owner)).text(),nativeCsv);assert.deepEqual(await source.json('/invoices/'+native.id+'/void',voidPayload,source.owner),voids[0]);}
+
  }finally{await target?.close();await h.close();}
 });
 
@@ -121,6 +155,9 @@ test('BILL-015 and TIME-007 issue legacy and prospective LEDES/XML, retain corre
   const race=await Promise.all([h.request('/api/satchel/invoices/issue',{bills:[{id:raced.id,revision:raced.revision}]},h.owner),h.request('/api/satchel/bills/'+raced.id+'/void',{revision:raced.revision,reason:'Discard only if still unissued'},h.owner)]);
   assert.ok(race.every(r=>[200,409].includes(r.status)));assert.equal(race.filter(r=>r.status===200).length,1);
   const final=(await h.json(base+'/billing',undefined,h.owner)).bills.find(b=>b.id===raced.id);assert.ok(final.issue?final.status==='approved':final.status==='void');
+  // A void keeps every issued insurer format downloadable without a new number.
+  const original=(await h.json(base+'/billing',undefined,h.owner)).bills.find(b=>b.id===issued[0].id);
+  await h.json('/invoices/'+original.id+'/void',{revision:original.revision,reason:'Counsel reviewed insurer invoice void without deleting any files'},h.owner);
   await h.restart();restored=await harness();await restored.json('/restore',{archive:await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),confirm:'RESTORE'},restored.owner);
   for(const target of [h,restored])for(const original of issued)for(const [format,bytes] of Object.entries(original.files))assert.deepEqual(Buffer.from(await(await target.request('/api/satchel/bills/'+original.id+'/'+format,undefined,target.owner)).arrayBuffer()),bytes);
   assert.deepEqual(await restored.json('/invoice-numbering',undefined,restored.owner),await h.json('/invoice-numbering',undefined,h.owner));

@@ -2,6 +2,7 @@
 // outcomes imported from the client's vendor file (recorded, never verified with the vendor).
 import {atomic,audit,digest,human,id,insist,need,now,rows,stmt,text,type Actor,type Data} from './model';
 import {invoiceCounter} from './invoice-schemes';
+import {getInvoiceVoid} from './invoice-void';
 import {ledesXml} from './ledes-xml';
 import {xmlFormat} from './ledes-xml-profile';
 import {accessGuard,guard} from './trust-guards';
@@ -57,7 +58,7 @@ async function ledesBill(db:D1Database,actor:Actor,billId:string) {
 
 export async function exportLedes(db:D1Database,actor:Actor,billId:string,xml=false):Promise<Response> {
  const bill=await ledesBill(db,actor,billId);
- insist(['approved','exported'].includes(bill.status)&&bill.ledes_artifact,'A person must approve this bill before export',409);
+ insist((['approved','exported'].includes(bill.status)||(bill.status==='void'&&await getInvoiceVoid(db,bill.id)))&&bill.ledes_artifact,'A person must approve this bill before export',409);
  const artifact=xml?await stmt(db,'SELECT artifact,artifact_digest FROM s_bill_ledes_xml WHERE bill_id=?',billId).first<Data>():{artifact:bill.ledes_artifact,artifact_digest:bill.ledes_digest};
  insist(artifact,'This reviewed bill has no XML profile; record XML billing details before preparing a new bill or a substantive reviewed correction',409);
  insist(await digest(artifact.artifact)===artifact.artifact_digest,'Reviewed LEDES integrity check failed',409);

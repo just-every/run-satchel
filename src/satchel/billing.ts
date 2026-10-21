@@ -1,6 +1,7 @@
 import {expenseInput,expenseInsert,expenseReplay,expenseReceipt,expenseDetails} from './expenses';
 import {invoiceCounter} from './invoice-schemes';
 import {invoiceIssue} from './invoice-issue';
+import {getInvoiceVoid} from './invoice-void';
 import {approvalTax,taxCalculations} from './tax-reviews';
 import {feeAdjustedLines,feeCorrectionGuards,earningReview,loadFeePlan,periods} from './fee-plans';
 import {invoiceFunds} from './trust-transfers';
@@ -120,7 +121,7 @@ export async function listBilling(db: D1Database, actor: Actor, matterId: string
   matterBills(db,matterId),
  ]);
  const expenses=await expenseDetails(db,actor,entries.map(e=>e.id));
- return {entries:entries.map(e=>({...entryRow(e),expense:expenses.get(e.id)??null})),bills:await Promise.all(bills.map(async b=>({...b,taxReviews:b.status==='draft'?(await taxCalculations(db,actor,b.id)).calculations:[],issue:await invoiceIssue(db,b.id),trustPayment:await invoiceFunds(db,b.id),ledes:await billLedes(db,b.id),earningReview:await stmt(db,'SELECT * FROM s_fee_earning_reviews WHERE bill_id=?',b.id).first<Data>()}))),correctionReviews:correctionReviews(bills)};
+ return {entries:entries.map(e=>({...entryRow(e),expense:expenses.get(e.id)??null})),bills:await Promise.all(bills.map(async b=>({...b,taxReviews:b.status==='draft'?(await taxCalculations(db,actor,b.id)).calculations:[],issue:await invoiceIssue(db,b.id),invoiceVoid:await getInvoiceVoid(db,b.id),trustPayment:await invoiceFunds(db,b.id),ledes:await billLedes(db,b.id),earningReview:await stmt(db,'SELECT * FROM s_fee_earning_reviews WHERE bill_id=?',b.id).first<Data>()}))),correctionReviews:correctionReviews(bills)};
 }
 
 export async function prepareBill(db: D1Database, actor: Actor, matterId: string, body: Data) {
@@ -176,8 +177,9 @@ export async function approveBill(db: D1Database, actor: Actor, billId: string, 
 
 export async function exportBill(db: D1Database, actor: Actor, billId: string): Promise<Response> {
  need(actor,'owner','lawyer'); human(actor); const bill = await getBill(db,actor,billId);
- insist(['approved','exported'].includes(bill.status) && bill.approvedBy && bill.artifact, 'A person must approve this bill before export',409);
- if(bill.snapshot.numberingCutover)insist(await invoiceIssue(db,bill.id),'Issue the approved bill before exporting',409);
+ const retainedVoid=bill.status==='void'?await getInvoiceVoid(db,bill.id):null;
+ insist((['approved','exported'].includes(bill.status)||retainedVoid) && bill.approvedBy && bill.artifact, 'A person must approve this bill before export',409);
+ if(bill.snapshot.numberingCutover&&!retainedVoid)insist(await invoiceIssue(db,bill.id),'Issue the approved bill before exporting',409);
  insist(await digest(bill.artifact) === bill.artifactDigest, 'Reviewed artifact integrity check failed',409);
  await atomic(db,actor,[accessGuard(db,actor,bill.matterId),revisionGuard(db,bill),
   ...(bill.status === 'approved' ? [stmt(db,"UPDATE s_bills SET status='exported',exported_at=?,revision=? WHERE id=? AND revision=? AND status='approved'",now(),id(),bill.id,bill.revision)] : []),

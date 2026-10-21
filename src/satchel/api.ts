@@ -1,6 +1,7 @@
 import {documentReview,annotateDocument,conflictFile,resolveConflict} from './document-review';
 import {invoiceSettings,saveInvoiceScheme,registerImportedNumbers} from './invoice-schemes';
 import {issueInvoices,invoiceFile} from './invoice-issue';
+import {voidInvoice} from './invoice-void';
 import {taxRules,saveTaxRule,taxCalculations,calculateBillTax} from './tax-reviews';
 import {feePlans,saveFeePlan} from './fee-plans';
 import {runDueFees} from './fee-scheduler';
@@ -79,6 +80,7 @@ api.get('/api/satchel/invoice-numbering',as((a,c)=>invoiceSettings(db(c),a)));
 api.post('/api/satchel/invoice-numbering',as(async(a,c)=>saveInvoiceScheme(db(c),a,await body(c))));
 api.post('/api/satchel/invoice-numbering/import',as(async(a,c)=>registerImportedNumbers(db(c),a,await body(c))));
 api.post('/api/satchel/invoices/issue',as(async(a,c)=>issueInvoices(db(c),a,await body(c))));
+api.post('/api/satchel/invoices/:id/void',as(async(a,c)=>voidInvoice(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/bills/:id/invoice.pdf',as((a,c)=>invoiceFile(db(c),a,param(c))));
 api.get('/api/satchel/matters/:id/tax-rules',as((a,c)=>taxRules(db(c),a,param(c))));
 api.post('/api/satchel/matters/:id/tax-rules',as(async(a,c)=>saveTaxRule(db(c),a,param(c),await body(c))));
