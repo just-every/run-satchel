@@ -4,7 +4,7 @@ CREATE TABLE s_conflict_waiver_chunks(waiver_id TEXT NOT NULL REFERENCES s_confl
 CREATE TABLE s_conflict_reviews(id TEXT PRIMARY KEY,search_id TEXT NOT NULL REFERENCES s_conflicts(id),actor TEXT NOT NULL,decision TEXT NOT NULL CHECK(decision IN('cleared','declined')),note TEXT NOT NULL,restrictions TEXT NOT NULL CHECK(json_valid(restrictions) AND json_type(restrictions)='array'),waiver_id TEXT REFERENCES s_conflict_waivers(id),created_at TEXT NOT NULL,sequence INTEGER NOT NULL CHECK(sequence>0),UNIQUE(search_id,sequence));
 CREATE INDEX s_conflict_review_search ON s_conflict_reviews(search_id);
 CREATE TABLE s_conflict_referrals(id TEXT PRIMARY KEY,search_id TEXT NOT NULL REFERENCES s_conflicts(id),wall_id TEXT NOT NULL REFERENCES s_ethical_walls(id),requester_email TEXT NOT NULL,created_at TEXT NOT NULL,UNIQUE(search_id,wall_id));
-CREATE TABLE s_conflict_referral_decisions(id TEXT PRIMARY KEY,referral_id TEXT NOT NULL REFERENCES s_conflict_referrals(id),wall_revision TEXT NOT NULL,decision TEXT NOT NULL CHECK(decision IN('cleared','declined')),note TEXT NOT NULL,waiver_id TEXT REFERENCES s_conflict_waivers(id),actor TEXT NOT NULL,created_at TEXT NOT NULL,sequence INTEGER NOT NULL CHECK(sequence>0),UNIQUE(referral_id,sequence));
+CREATE TABLE s_conflict_referral_decisions(id TEXT PRIMARY KEY,referral_id TEXT NOT NULL REFERENCES s_conflict_referrals(id),wall_revision TEXT NOT NULL,decision TEXT NOT NULL CHECK(decision IN('cleared','declined')),note TEXT NOT NULL,restrictions TEXT NOT NULL CHECK(json_valid(restrictions) AND json_type(restrictions)='array'),waiver_id TEXT REFERENCES s_conflict_waivers(id),actor TEXT NOT NULL,created_at TEXT NOT NULL,sequence INTEGER NOT NULL CHECK(sequence>0),UNIQUE(referral_id,sequence));
 CREATE INDEX s_conflict_referral_decision ON s_conflict_referral_decisions(referral_id);
 CREATE TRIGGER s_conflict_waivers_immutable_update BEFORE UPDATE ON s_conflict_waivers BEGIN SELECT RAISE(ABORT,'Original conflict waivers are immutable'); END;
 CREATE TRIGGER s_conflict_waivers_immutable_delete BEFORE DELETE ON s_conflict_waivers BEGIN SELECT RAISE(ABORT,'Original conflict waivers are immutable'); END;
@@ -26,7 +26,7 @@ CREATE TRIGGER s_matter_conflict_disposition BEFORE INSERT ON s_matters WHEN
    OR NOT EXISTS(
     SELECT 1 FROM s_conflict_referrals r JOIN s_ethical_walls w ON w.id=r.wall_id
     JOIN s_conflict_referral_decisions d ON d.id=(SELECT id FROM s_conflict_referral_decisions WHERE referral_id=r.id ORDER BY sequence DESC LIMIT 1)
-    WHERE r.search_id=c.id AND r.wall_id=json_extract(route.value,'$.route') AND d.decision='cleared' AND d.wall_revision=w.revision
+    WHERE r.search_id=c.id AND r.wall_id=json_extract(route.value,'$.route') AND d.decision='cleared' AND json_array_length(d.restrictions)=0 AND d.wall_revision=w.revision
    )
   )
  ) BEGIN SELECT RAISE(ABORT,'stale conflict disposition'); END;

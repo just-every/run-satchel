@@ -14,17 +14,17 @@ function CustodianReview({referral,run}:{referral:Row;run:Run}){
    <h4>Private recorded decision</h4>
    {referral.status==='pending'&&<p>This earlier decision does not clear the current wall revision. Review the request again.</p>}
    <p>{referral.decision.decision}</p>
-   <p>{referral.decision.note}</p>
+   <p>{referral.decision.note}</p><ul>{referral.restrictions.map((r:string,i:number)=><li key={i}>{r}</li>)}</ul>{referral.restrictions.length>0&&<p>Conditional restricted clearance is withheld from engagement.</p>}
    <WaiverOriginal waiver={referral.waiver}/>
   </section>}
   <section aria-label="Record private custodian decision">
-   <p>Clear only when the engagement can proceed unconditionally for this restricted match. Decline if conditions or restrictions are needed. Your decision note and waiver remain private to the custodian.</p>
+   <p>Record any private conditions. An engagement outside this wall stays withheld until the custodian records unconditional clearance. Your decision note and waiver remain private to the custodian.</p>
    <Form label="Record custodian decision" submit={data=>run(async()=>{
-    await api('/conflict-referrals/'+referral.id+'/decide',{decision:data.decision,note:data.note,waiver:await originalWaiver(waiver)});
+    await api('/conflict-referrals/'+referral.id+'/decide',{decision:data.decision,note:data.note,restrictions:data.restrictions.split(/\r?\n/).map((v:string)=>v.trim()).filter(Boolean),waiver:await originalWaiver(waiver)});
    },'Private custodian decision recorded')}>
     <Field label="Custodian conflict decision" name="decision"><select name="decision" aria-label="Custodian conflict decision" defaultValue="" required><option value="">Choose a decision</option><option value="cleared">Cleared unconditionally</option><option value="declined">Declined</option></select></Field>
     <Field label="Private custodian note" name="note"><textarea name="note" aria-label="Private custodian note" required rows={4}/></Field>
-    <WaiverUpload label="Private custodian waiver original (optional)" onChange={setWaiver}/>
+    <Field label="Private engagement restrictions" name="restrictions"><textarea name="restrictions" aria-label="Private engagement restrictions" rows={3}/></Field><WaiverUpload label="Private custodian waiver original (optional)" onChange={setWaiver}/>
    </Form>
   </section>
  </article>;
