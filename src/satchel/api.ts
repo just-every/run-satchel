@@ -1,3 +1,5 @@
+import {invoiceSettings,saveInvoiceScheme,registerImportedNumbers} from './invoice-schemes';
+import {issueInvoices,invoiceFile} from './invoice-issue';
 import {taxRules,saveTaxRule,taxCalculations,calculateBillTax} from './tax-reviews';
 import {feePlans,saveFeePlan} from './fee-plans';
 import {runDueFees} from './fee-scheduler';
@@ -72,6 +74,11 @@ const db=(c:C)=>runtimeBindings(c.env).DB;
 const param=(c:C,key='id')=>c.req.param(key)!;
 const as=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>{const result=await fn(await person(c.req.raw,c.env),c);return result instanceof Response?result:c.json(result);};
 const asAgent=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>c.json(await fn(await agent(c.req.raw,c.env),c));
+api.get('/api/satchel/invoice-numbering',as((a,c)=>invoiceSettings(db(c),a)));
+api.post('/api/satchel/invoice-numbering',as(async(a,c)=>saveInvoiceScheme(db(c),a,await body(c))));
+api.post('/api/satchel/invoice-numbering/import',as(async(a,c)=>registerImportedNumbers(db(c),a,await body(c))));
+api.post('/api/satchel/invoices/issue',as(async(a,c)=>issueInvoices(db(c),a,await body(c))));
+api.get('/api/satchel/bills/:id/invoice.pdf',as((a,c)=>invoiceFile(db(c),a,param(c))));
 api.get('/api/satchel/matters/:id/tax-rules',as((a,c)=>taxRules(db(c),a,param(c))));
 api.post('/api/satchel/matters/:id/tax-rules',as(async(a,c)=>saveTaxRule(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/bills/:id/tax-reviews',as((a,c)=>taxCalculations(db(c),a,param(c))));

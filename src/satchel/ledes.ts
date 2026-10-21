@@ -1,6 +1,7 @@
 // TIME-007: LEDES 1998B invoices frozen at approval, their export, and e-billing
 // outcomes imported from the client's vendor file (recorded, never verified with the vendor).
 import {atomic,audit,digest,human,id,insist,need,now,rows,stmt,text,type Actor,type Data} from './model';
+import {invoiceCounter} from './invoice-schemes';
 import {ledesXml} from './ledes-xml';
 import {xmlFormat} from './ledes-xml-profile';
 import {accessGuard,guard} from './trust-guards';
@@ -13,6 +14,7 @@ const units=(u4:number)=>`${Math.floor(u4/10000)}.${String(u4%10000).padStart(4,
 // The invoice number is reserved at preparation: <matter number>-<n> for a first bill,
 // <original number>-R<k> for the k-th replacement in a correction branch.
 export async function nextInvoiceNumber(db:D1Database,matterId:string,matterNumber:string,corrects?:string) {
+ if(await invoiceCounter(db))return '';
  if(corrects){const prior=await stmt(db,'SELECT invoice_number FROM s_bill_ledes WHERE bill_id=?',corrects).first<Data>();insist(prior,'The corrected bill has no LEDES invoice',409);const [,base,k]=String(prior.invoice_number).match(/^(.*?)(?:-R(\d+))?$/)!;return `${base}-R${Number(k??0)+1}`;}
  const n=await stmt(db,'SELECT COUNT(*) n FROM s_bill_ledes l JOIN s_bills b ON b.id=l.bill_id WHERE b.matter_id=? AND b.corrects_bill_id IS NULL',matterId).first<Data>();
  return `${matterNumber}-${(n!.n as number)+1}`;
