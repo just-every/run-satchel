@@ -40,9 +40,10 @@ still needs TIME-004's separate event review; tax never supplies that evidence.
 
 This is an interim integration, not completed BILL-004. Matters with no reviewed
 tax rules still use the legacy approval door without a mandatory tax review;
-that remains an explicit issuance gap. The current screen does not select a tax
-calculation: it displays the approval refusal and the final approved total;
-review and selection use the authenticated HTTP doors documented above.
+that remains an explicit issuance gap. The billing screen lists retained calculations for the exact draft revision,
+requires an explicit selection when tax rules are configured, and displays
+subtotal, tax, jurisdiction and review reference after approval. Creating rules
+and calculating drafts still use the authenticated HTTP doors documented above.
 
 Tax-reviewed invoices cannot yet receive corrections or trust applications,
 because tax deltas and explicitly reviewed trust eligibility/allocation are
@@ -52,7 +53,7 @@ silently omit the selected tax. These refusals preserve the original rather than
 fabricating an allocation, exemption or mapping. Existing untaxed invoices and
 artifacts remain unchanged. No Avalara calculation is claimed.
 
-Complete the unconfigured-matter issuance gate, tax UI, correction deltas,
+Complete the unconfigured-matter issuance gate, tax setup/calculation UI, correction deltas,
 reviewed trust eligibility/allocation and reviewed client mappings, and prove all
 acceptance points, before marking BILL-004 done. Native rules and calculations
 continue to restore with firm archives. Voided drafts cannot get new reviews.

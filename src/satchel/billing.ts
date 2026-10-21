@@ -1,4 +1,4 @@
-import {approvalTax} from './tax-reviews';
+import {approvalTax,taxCalculations} from './tax-reviews';
 import {feeAdjustedLines,feeCorrectionGuards,earningReview,loadFeePlan,periods} from './fee-plans';
 import {invoiceFunds} from './trust-transfers';
 // Adapted from just-every/run-gauge src/gauge/{billing,time,model}.ts (MIT):
@@ -105,7 +105,7 @@ export async function listBilling(db: D1Database, actor: Actor, matterId: string
   rows(db,'SELECT e.*,s.bill_id FROM s_entries e LEFT JOIN s_billing_sources s ON s.entry_id=e.id WHERE e.matter_id=? ORDER BY e.date,e.created_at,e.id',matterId),
   matterBills(db,matterId),
  ]);
- return {entries:entries.map(entryRow),bills:await Promise.all(bills.map(async b=>({...b,trustPayment:await invoiceFunds(db,b.id),ledes:await billLedes(db,b.id),earningReview:await stmt(db,'SELECT * FROM s_fee_earning_reviews WHERE bill_id=?',b.id).first<Data>()}))),correctionReviews:correctionReviews(bills)};
+ return {entries:entries.map(entryRow),bills:await Promise.all(bills.map(async b=>({...b,taxReviews:b.status==='draft'?(await taxCalculations(db,actor,b.id)).calculations:[],trustPayment:await invoiceFunds(db,b.id),ledes:await billLedes(db,b.id),earningReview:await stmt(db,'SELECT * FROM s_fee_earning_reviews WHERE bill_id=?',b.id).first<Data>()}))),correctionReviews:correctionReviews(bills)};
 }
 
 export async function prepareBill(db: D1Database, actor: Actor, matterId: string, body: Data) {

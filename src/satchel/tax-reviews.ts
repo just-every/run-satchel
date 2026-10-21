@@ -59,7 +59,7 @@ export async function calculateBillTax(db:D1Database,actor:Actor,billId:string,b
 export async function approvalTax(db:D1Database,actor:Actor,bill:Data,body:Data,approvedAt:string){
  const configured=await stmt(db,'SELECT 1 FROM s_tax_rules WHERE matter_id=? LIMIT 1',bill.matterId).first();
  if(!body.taxReviewId){
-  insist(!configured,'Unknown tax treatment: select the exact draft calculation with taxReviewId before approval',422);
+  insist(!configured,'Unknown tax treatment: review and select the exact draft tax calculation before approval',422);
   return {snapshot:bill.snapshot,guards:[guard(db,'NOT EXISTS(SELECT 1 FROM s_tax_rules WHERE matter_id=?)',bill.matterId)]};
  }
  insist(!bill.correctsBillId,'Tax correction review is not implemented; this correction cannot be approved',422);
