@@ -55,7 +55,7 @@ async function waiver(db:D1Database,actor:Actor,s:Data,wallId:string[]|null,b:Da
  const bytes=Uint8Array.from(atob(contentBase64),c=>c.charCodeAt(0));insist(bytes.length>0&&bytes.length<=5242880,'Waiver must be between 1 byte and 5 MB');
  const fileId=id(),wall=wallId?.length?await stmt(db,'SELECT id FROM s_ethical_walls WHERE matter_id=?',wallId[0]).first<Data>():null;
  const writes=[stmt(db,'INSERT INTO s_conflict_waivers VALUES(?,?,?,?,?,?,?,?,?)',fileId,s.id,wall?.id??null,name,mime,bytes.length,await digest(bytes),actor.email,now()),stmt(db,'INSERT INTO s_conflict_waiver_details VALUES(?,?,?,?,?,?,?)',fileId,JSON.stringify(parties),waiverDate,scope,matchId,confirmation,'practitioner-recorded, not signed through Satchel')];
- writes.push(...([...affected] as string[]).map(matterId=>stmt(db,'INSERT INTO s_conflict_waiver_matters VALUES(?,?)',fileId,matterId)));
+ writes.push(...([...affected] as string[]).map(matterId=>stmt(db,'INSERT INTO s_conflict_waiver_matters VALUES(?,?)',fileId,matterId)),audit(db,actor,'conflict.waiver_recorded',fileId,JSON.stringify({searchId:s.id,sha256:await digest(bytes),label:'practitioner-recorded, not signed through Satchel'}),{matterId:wallId?.[0]??null}));
  for(let offset=0;offset<contentBase64.length;offset+=524288)writes.push(stmt(db,'INSERT INTO s_conflict_waiver_chunks VALUES(?,?,?)',fileId,offset/524288,contentBase64.slice(offset,offset+524288)));
  return {id:fileId,writes};
 }
@@ -104,6 +104,8 @@ export async function waiverFile(db:D1Database,actor:Actor,waiverId:string){
  human(actor);need(actor,'owner','lawyer');const f=await stmt(db,'SELECT * FROM s_conflict_waivers WHERE id=?',waiverId).first<Data>();insist(f&&!await stmt(db,'SELECT 1 FROM s_conflict_disposals WHERE waiver_id=?',waiverId).first(),'Waiver not found',404);
  const route=await stmt(db,'SELECT r.route_id,c.party_revision FROM s_conflict_route_decisions d JOIN s_conflict_routes r ON r.id=d.referral_id JOIN s_conflicts c ON c.id=r.search_id WHERE d.waiver_id=?',f.id).first<Data>();
  if(route)insist((await routeAuthority(db,route.route_id,route.party_revision)).custodian_email===actor.email,'Waiver not found',404);else{insist(f.created_by===actor.email,'Waiver not found',404);await ownSearch(db,actor,f.search_id);}
+ insist(!await stmt(db,`SELECT 1 FROM s_conflict_waiver_matters wm WHERE wm.waiver_id=? AND NOT ${matterScope('wm.matter_id')}`,f.id,actor.role,actor.email).first(),'Waiver not found',404);
+ if(route)insist(!await stmt(db,'SELECT 1 FROM s_ethical_walls w JOIN s_conflict_waiver_matters wm ON wm.matter_id=w.matter_id WHERE wm.waiver_id=? AND w.custodian_email<>?',f.id,actor.email).first(),'Waiver not found',404);
  const graph=await contactState(db,actor),details=await waiverInfo(db,f.id);insist(!details?.match_id||graph.contacts.some(c=>c.identityIds.includes(details.match_id)),'Waiver not found',404);
  const chunks=await rows(db,'SELECT content_base64 FROM s_conflict_waiver_chunks WHERE waiver_id=? ORDER BY position',f.id),bytes=Uint8Array.from(atob(chunks.map(c=>c.content_base64).join('')),c=>c.charCodeAt(0));insist(bytes.length===f.size&&await digest(bytes)===f.sha256,'Original waiver failed its integrity check',503);
  await atomic(db,actor,[audit(db,actor,'conflict.waiver_downloaded',f.id,JSON.stringify({searchId:f.search_id,sha256:f.sha256}))]);
