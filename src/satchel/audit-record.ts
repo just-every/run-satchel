@@ -2,6 +2,7 @@
 // Explicit columns exclude credentials and original file bytes.
 const record=(table:string,columns:string[],matter='NULL',revision='NULL',where='x.id=i.object_id',extra:Record<string,string>={})=>`(SELECT json_object('recordType','${table}','matterId',${matter},'revision',${revision},${[...columns.flatMap(c=>[`'${c}'`,`x.${c}`]),...Object.entries(extra).flatMap(([k,v])=>[`'${k}'`,v])].join(',')}) FROM ${table} x WHERE ${where} LIMIT 1)`;
 const contexts=[
+ record('s_entry_edits',['id','entry_id','previous_revision','revision','changes','reason','actor','at'],"(SELECT matter_id FROM s_entries WHERE id=x.entry_id)",'x.revision',"i.action='billing.entry.edited' AND x.id=i.object_id"),
  record('s_invoice_voids',['bill_id','reviewed_revision','reason','actor','at'],'(SELECT matter_id FROM s_bills WHERE id=x.bill_id)','x.reviewed_revision',"i.action='invoice.voided' AND x.bill_id=i.object_id"),
  record('s_document_annotations',['id','document_id','version','page','created_by','created_at'],'(SELECT matter_id FROM s_documents WHERE id=x.document_id)','CAST(x.version AS TEXT)',"i.action='document.annotated' AND x.id=i.object_id"),
  record('s_document_conflicts',['id','document_id','base_revision','sha256','size','created_by','created_at','resolved_version','resolved_by','resolved_at'],'(SELECT matter_id FROM s_documents WHERE id=x.document_id)','x.base_revision',"x.id=i.object_id AND i.action LIKE 'document.conflict_%'"),

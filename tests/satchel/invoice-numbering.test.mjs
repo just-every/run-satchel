@@ -71,6 +71,7 @@ test('BILL-015 BILL-016 prospective numbering and append-only native void/rebill
   // BILL-016: void a real two-entry invoice, retain its files and rebill once.
   const work=await h.json(base+'/entries',{kind:'time',date:'2026-10-03',description:'Reviewed closing advice',minutes:60,rateCents:25000},h.owner);
   const cost=await h.json(base+'/entries',{kind:'disbursement',date:'2026-10-03',description:'Courier advanced cost',amountCents:2500},h.owner);
+  await h.json('/entries/'+work.id+'/edit',{revision:work.revision,description:'Not yet released',reason:'Cannot edit original work here'},h.owner,409);
   let native=await h.json(base+'/bills',{title:'Native invoice to void',date:'2026-10-03',entryIds:[work.id,cost.id]},h.owner);native=await reviewed(h,m,native);
   const nativeRequest={bills:[{id:native.id,revision:native.revision}]},nativeIssue=(await h.json('/invoices/issue',nativeRequest,h.owner)).issues[0];
   const nativePdf=Buffer.from(await(await h.request('/api/satchel/bills/'+native.id+'/invoice.pdf',undefined,h.owner)).arrayBuffer()),nativeCsv=await(await h.request('/api/satchel/bills/'+native.id+'/export',undefined,h.owner)).text();
@@ -92,12 +93,44 @@ test('BILL-015 BILL-016 prospective numbering and append-only native void/rebill
   assert.equal((await h.json('/invoice-numbering',undefined,h.owner)).counter.next_number,countBeforeVoid);
   assert.deepEqual((await h.json('/invoices/issue',nativeRequest,h.owner)).issues[0],nativeIssue,'Replaying the historical issue cannot restore a void');
   assert.equal((await h.json(base+'/billing',undefined,h.owner)).bills.find(b=>b.id===native.id).status,'void');
-  const billAgain={title:'Replacement for native void',date:'2026-10-03',entryIds:[work.id,cost.id]};
+  const other=await open(h,'Barton second matter',m.client,'Harbor Landlord'),unrelated=await open(h,'Different client matter','Different client','Different adverse');
+  const editPayload={revision:work.revision,description:'Corrected closing advice narrative',rateCents:30001,utbmsTask:'L120',utbmsActivity:'A101',reason:'Counsel reviewed the narrative, explicit rate and task coding'};
+  await h.json('/entries/'+work.id+'/edit',editPayload,assistant,403);
+  await h.json('/entries/'+work.id+'/edit',editPayload,'',401,{authorization:'Bearer '+key.key});
+  await h.json('/entries/'+work.id+'/edit',{...editPayload,revision:'stale'},h.owner,409);
+  await h.json('/entries/'+work.id+'/edit',{...editPayload,rateCents:0.5},h.owner,400);
+  const edits=await Promise.all([h.json('/entries/'+work.id+'/edit',editPayload,h.owner),h.json('/entries/'+work.id+'/edit',editPayload,h.owner)]);assert.equal(edits[0].revision,edits[1].revision);
+  await h.json('/entries/'+work.id+'/edit',editPayload,h.owner);
+  await h.json('/entries/'+work.id+'/edit',{...editPayload,description:'Different retry'},h.owner,409);
+  await h.json('/entries/'+cost.id+'/edit',{revision:cost.revision,matterId:unrelated.id,reason:'Wrong client move'},h.owner,409);
+  const move={revision:cost.revision,matterId:other.id,utbmsExpense:'E107',reason:'Courier cost belongs to the second matter for the same client'};
+  const moved=await h.json('/entries/'+cost.id+'/edit',move,h.owner);await h.json('/entries/'+cost.id+'/edit',move,h.owner);
+  nativeState=await h.json(base+'/billing',undefined,h.owner);const edited=nativeState.entries.find(e=>e.id===work.id);
+  assert.equal(edited.description,editPayload.description);assert.equal(edited.amountCents,30001);assert.equal(edited.utbmsTask,'L120');assert.equal(edited.utbmsActivity,'A101');assert.equal(edited.createdBy,work.createdBy);assert.equal(edited.createdAt,work.createdAt);assert.equal(edited.minutes,work.minutes);
+  assert.equal(edited.editHistory.length,1);assert.deepEqual(edited.editHistory[0].changes.description,{before:work.description,after:editPayload.description});assert.deepEqual(edited.editHistory[0].changes.rateCents,{before:25000,after:30001});assert.equal(edited.editHistory[0].actor,'owner@example.test');assert.equal(edited.editHistory[0].reason,editPayload.reason);
+  assert.ok(!nativeState.entries.some(e=>e.id===cost.id));const otherBase='/matters/'+other.id;
+  const movedEntry=(await h.json(otherBase+'/billing',undefined,h.owner)).entries.find(e=>e.id===cost.id);assert.equal(movedEntry.revision,moved.revision);assert.equal(movedEntry.editHistory.length,1);assert.deepEqual(movedEntry.editHistory[0].changes.matterId,{before:m.id,after:other.id});assert.equal(movedEntry.amountCents,cost.amountCents);assert.equal(movedEntry.utbmsExpense,'E107');
+  await h.json('/team',{email:'move-lawyer@example.test',name:'Matter counsel',role:'lawyer'},h.owner);await h.json('/team/invite',{email:'move-lawyer@example.test'},h.owner);const mover=await h.login('move-lawyer@example.test');
+  await h.json(base+'/access',{email:'move-lawyer@example.test'},h.owner);
+  await h.json('/entries/'+work.id+'/edit',{revision:edited.revision,matterId:other.id,reason:'Target requires current access'},mover,404);
+  await h.json(otherBase+'/billing',undefined,mover,404);
+  assert.ok(!(await h.json(base+'/billing',undefined,mover)).entries.some(e=>e.id===cost.id),'The source matter no longer exposes moved work or its history');
+  await h.json(otherBase+'/access',{email:'move-lawyer@example.test'},h.owner);
+  assert.deepEqual((await h.json(otherBase+'/billing',undefined,mover)).entries.find(e=>e.id===cost.id).editHistory,movedEntry.editHistory);
+  await h.json(otherBase+'/access',{email:'move-lawyer@example.test',remove:true},h.owner);await h.json('/entries/'+cost.id+'/edit',{revision:moved.revision,description:'Revoked access',reason:'Current target access is required'},mover,404);
+  const billAgain={title:'Replacement for native void',date:'2026-10-03',entryIds:[work.id]};
   let replacement=await h.json(base+'/bills',billAgain,h.owner);await h.json(base+'/bills',billAgain,h.owner,409);
+  await h.json('/entries/'+work.id+'/edit',{revision:edited.revision,description:'Reserved edit',reason:'Cannot change reserved work'},h.owner,409);
   replacement=await reviewed(h,m,replacement);const replacementIssue=(await h.json('/invoices/issue',{bills:[{id:replacement.id,revision:replacement.revision}]},h.owner)).issues[0];
-  assert.notEqual(replacementIssue.number,nativeIssue.number);assert.equal((await h.json('/invoice-numbering',undefined,h.owner)).counter.next_number,countBeforeVoid+1);
-  nativeState=await h.json(base+'/billing',undefined,h.owner);assert.ok(nativeState.entries.filter(e=>[work.id,cost.id].includes(e.id)).every(e=>e.reservedBy===replacement.id));
-  assert.equal(nativeState.bills.filter(b=>b.status!=='void'&&b.snapshot.lines.some(l=>l.sourceId===work.id)).length,1);assert.equal(nativeState.bills.filter(b=>b.status!=='void'&&b.snapshot.lines.some(l=>l.sourceId===cost.id)).length,1);
+  assert.equal(replacement.snapshot.totalCents,30001);assert.notEqual(replacementIssue.number,nativeIssue.number);
+  let secondReplacement=await h.json(otherBase+'/bills',{title:'Moved cost replacement',date:'2026-10-03',entryIds:[cost.id]},h.owner);secondReplacement=await reviewed(h,other,secondReplacement);
+  const secondIssue=(await h.json('/invoices/issue',{bills:[{id:secondReplacement.id,revision:secondReplacement.revision}]},h.owner)).issues[0];assert.notEqual(secondIssue.number,replacementIssue.number);assert.notEqual(secondIssue.number,nativeIssue.number);
+  assert.equal((await h.json('/invoice-numbering',undefined,h.owner)).counter.next_number,countBeforeVoid+2);
+  nativeState=await h.json(base+'/billing',undefined,h.owner);assert.equal(nativeState.entries.find(e=>e.id===work.id).reservedBy,replacement.id);
+  const otherState=await h.json(otherBase+'/billing',undefined,h.owner);assert.equal(otherState.entries.find(e=>e.id===cost.id).reservedBy,secondReplacement.id);
+  for(const [state,entry] of [[nativeState,work],[otherState,cost]])assert.equal(state.bills.filter(b=>b.status!=='void'&&b.snapshot.lines.some(l=>l.sourceId===entry.id)).length,1);
+  await h.json(otherBase+'/bills',{title:'Duplicate moved work',date:'2026-10-03',entryIds:[cost.id]},h.owner,409);
+  const editAudit=await h.json('/audit?action=billing.entry.edited',undefined,h.owner);assert.equal(editAudit.records.length,2);assert.ok(editAudit.records.every(a=>a.evidence.record.recordType==='s_entry_edits'));
   const voidAudit=await h.json('/audit?action=invoice.voided&matterId='+m.id,undefined,h.owner);assert.equal(voidAudit.records.length,1);assert.equal(voidAudit.records[0].evidence.record.recordType,'s_invoice_voids');assert.equal(voidAudit.records[0].evidence.record.reviewed_revision,native.revision);
   const unissued=await reviewed(h,m,await draft(h,m,'Approved but not issued void'));
   await h.json('/team',{email:'lawyer@example.test',name:'Responsible counsel',role:'lawyer'},h.owner);await h.json('/team/invite',{email:'lawyer@example.test'},h.owner);const lawyer=await h.login('lawyer@example.test');
@@ -105,8 +138,9 @@ test('BILL-015 BILL-016 prospective numbering and append-only native void/rebill
   await h.json('/invoices/'+unissued.id+'/void',{revision:unissued.revision,reason:'Counsel withdraws approval before issue'},lawyer);
   assert.equal(await(await h.request('/api/satchel/bills/'+unissued.id+'/export',undefined,lawyer)).text(),unissued.artifact);
   await h.json('/invoices/issue',{bills:[{id:unissued.id,revision:unissued.revision}]},h.owner,409);
-  assert.equal((await h.json('/invoice-numbering',undefined,h.owner)).counter.next_number,countBeforeVoid+1,'Unissued void consumes no number');
+  assert.equal((await h.json('/invoice-numbering',undefined,h.owner)).counter.next_number,countBeforeVoid+2,'Unissued void consumes no number');
   await target.close();target=await harness();await target.json('/restore',{archive:await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),confirm:'RESTORE'},target.owner);await target.restart();
+  for(const recovered of [h,target]){assert.deepEqual((await recovered.json(base+'/billing',undefined,recovered.owner)).entries.find(e=>e.id===work.id).editHistory,edited.editHistory);assert.deepEqual((await recovered.json(otherBase+'/billing',undefined,recovered.owner)).entries.find(e=>e.id===cost.id).editHistory,movedEntry.editHistory);}
   for(const source of [h,target]){assert.deepEqual((await source.json(base+'/billing',undefined,source.owner)).bills.find(b=>b.id===native.id).invoiceVoid,voids[0]);assert.deepEqual(Buffer.from(await(await source.request('/api/satchel/bills/'+native.id+'/invoice.pdf',undefined,source.owner)).arrayBuffer()),nativePdf);assert.equal(await(await source.request('/api/satchel/bills/'+native.id+'/export',undefined,source.owner)).text(),nativeCsv);assert.deepEqual(await source.json('/invoices/'+native.id+'/void',voidPayload,source.owner),voids[0]);}
 
  }finally{await target?.close();await h.close();}

@@ -1,3 +1,4 @@
+import {entryEdits,releasedSql} from './released-entries';
 import {expenseInput,expenseInsert,expenseReplay,expenseReceipt,expenseDetails} from './expenses';
 import {invoiceCounter} from './invoice-schemes';
 import {invoiceIssue} from './invoice-issue';
@@ -117,11 +118,11 @@ export async function addEntry(db: D1Database, actor: Actor, matterId: string, b
 export async function listBilling(db: D1Database, actor: Actor, matterId: string) {
  await matter(db,actor,matterId);
  const [entries,bills] = await Promise.all([
-  rows(db,'SELECT e.*,s.bill_id FROM s_entries e LEFT JOIN s_billing_sources s ON s.entry_id=e.id WHERE e.matter_id=? ORDER BY e.date,e.created_at,e.id',matterId),
+  rows(db,`SELECT e.*,s.bill_id,${releasedSql} released FROM s_entries e LEFT JOIN s_billing_sources s ON s.entry_id=e.id WHERE e.matter_id=? ORDER BY e.date,e.created_at,e.id`,matterId),
   matterBills(db,matterId),
  ]);
- const expenses=await expenseDetails(db,actor,entries.map(e=>e.id));
- return {entries:entries.map(e=>({...entryRow(e),expense:expenses.get(e.id)??null})),bills:await Promise.all(bills.map(async b=>({...b,taxReviews:b.status==='draft'?(await taxCalculations(db,actor,b.id)).calculations:[],issue:await invoiceIssue(db,b.id),invoiceVoid:await getInvoiceVoid(db,b.id),trustPayment:await invoiceFunds(db,b.id),ledes:await billLedes(db,b.id),earningReview:await stmt(db,'SELECT * FROM s_fee_earning_reviews WHERE bill_id=?',b.id).first<Data>()}))),correctionReviews:correctionReviews(bills)};
+ const expenses=await expenseDetails(db,actor,entries.map(e=>e.id)),edits=await entryEdits(db,entries.map(e=>e.id));
+ return {entries:entries.map(e=>({...entryRow(e),expense:expenses.get(e.id)??null,released:Boolean(e.released),editHistory:edits.get(e.id)??[]})),bills:await Promise.all(bills.map(async b=>({...b,taxReviews:b.status==='draft'?(await taxCalculations(db,actor,b.id)).calculations:[],issue:await invoiceIssue(db,b.id),invoiceVoid:await getInvoiceVoid(db,b.id),trustPayment:await invoiceFunds(db,b.id),ledes:await billLedes(db,b.id),earningReview:await stmt(db,'SELECT * FROM s_fee_earning_reviews WHERE bill_id=?',b.id).first<Data>()}))),correctionReviews:correctionReviews(bills)};
 }
 
 export async function prepareBill(db: D1Database, actor: Actor, matterId: string, body: Data) {
