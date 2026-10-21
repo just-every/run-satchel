@@ -42,5 +42,9 @@ test('TIME-006 native expense receipts, source-charge reconciliation, overhead e
   assert.equal((await restored.json(base+'/entries',payload,restored.owner)).id,charge.id);
   assert.equal(await(await restored.request('/api/satchel/documents/'+receipt.id+'/file?version=1',undefined,restored.owner)).text(),bytes);
   assert.equal(await(await restored.request('/api/satchel/bills/'+bill.id+'/export',undefined,restored.owner)).text(),exported);
+  await restored.json('/documents/'+receipt.id+'/erase',{confirm:receipt.title,reason:'Counsel-authorized receipt disposal'},restored.owner);
+  assert.deepEqual((await restored.json(base+'/billing',undefined,restored.owner)).entries.find(e=>e.id===charge.id).expense.receipt,{unavailable:true});
+  assert.equal((await restored.request('/api/satchel/documents/'+receipt.id+'/file?version=1',undefined,restored.owner)).status,404);
+  assert.equal(await(await restored.request('/api/satchel/bills/'+bill.id+'/export',undefined,restored.owner)).text(),exported);
  }finally{await restored?.close();await h.close();}
 });
