@@ -1,3 +1,4 @@
+import {approvalTax} from './tax-reviews';
 import {feeAdjustedLines,feeCorrectionGuards,earningReview,loadFeePlan,periods} from './fee-plans';
 import {invoiceFunds} from './trust-transfers';
 // Adapted from just-every/run-gauge src/gauge/{billing,time,model}.ts (MIT):
@@ -24,13 +25,13 @@ function revisionGuard(db: D1Database, bill: Data) {
  return guard(db, 'EXISTS(SELECT 1 FROM s_bills WHERE id=? AND revision=? AND status=?)', bill.id, bill.revision, bill.status);
 }
 const entryRow = (r: Data) => ({id:r.id,matterId:r.matter_id,revision:r.revision,kind:r.kind,date:r.date,description:r.description,minutes:r.minutes,rateCents:r.rate_cents,amountCents:r.amount_cents,currency:r.currency,createdBy:r.created_by,createdAt:r.created_at,reservedBy:r.bill_id ?? null,billable:r.billable!==0,utbmsTask:r.utbms_task??null,utbmsActivity:r.utbms_activity??null,utbmsExpense:r.utbms_expense??null,billedMinutes:r.billed_minutes??null,discountBps:r.discount_bps??null,rateSource:r.rate_source??null,rateRuleId:r.rate_rule_id??null});
-const billRow = (r: Data) => ({id:r.id,matterId:r.matter_id,revision:r.revision,status:r.status,snapshot:JSON.parse(r.snapshot),correctsBillId:r.corrects_bill_id,artifact:r.artifact,artifactDigest:r.artifact_digest,approvedBy:r.approved_by,approvedAt:r.approved_at,reviewNote:r.review_note,exportedAt:r.exported_at,voidReason:r.void_reason,voidedBy:r.voided_by,voidedAt:r.voided_at,createdBy:r.created_by,createdAt:r.created_at});
+const billRow = (r: Data) => ({id:r.id,matterId:r.matter_id,revision:r.revision,status:r.status,snapshot:JSON.parse(r.tax_snapshot??r.snapshot),correctsBillId:r.corrects_bill_id,artifact:r.artifact,artifactDigest:r.artifact_digest,approvedBy:r.approved_by,approvedAt:r.approved_at,reviewNote:r.review_note,exportedAt:r.exported_at,voidReason:r.void_reason,voidedBy:r.voided_by,voidedAt:r.voided_at,createdBy:r.created_by,createdAt:r.created_at});
 async function getBill(db: D1Database, actor: Actor, billId: string) {
- const bill = await stmt(db, 'SELECT * FROM s_bills WHERE id=?', billId).first<Data>();
+ const bill = await stmt(db, 'SELECT b.*,t.snapshot tax_snapshot FROM s_bills b LEFT JOIN s_bill_tax_approvals t ON t.bill_id=b.id WHERE b.id=?', billId).first<Data>();
  insist(bill, 'Bill not found', 404); await matter(db,actor,bill.matter_id); return billRow(bill);
 }
 async function matterBills(db: D1Database, matterId: string) {
- return (await rows(db,'SELECT * FROM s_bills WHERE matter_id=? ORDER BY created_at,id',matterId)).map(billRow);
+ return (await rows(db,'SELECT b.*,t.snapshot tax_snapshot FROM s_bills b LEFT JOIN s_bill_tax_approvals t ON t.bill_id=b.id WHERE b.matter_id=? ORDER BY b.created_at,b.id',matterId)).map(billRow);
 }
 function reviewedRevision(bill: Data, body: Data) {
  insist(text(body.revision,'Reviewed revision',100) === bill.revision, 'Bill changed; review the current revision', 409);
@@ -53,6 +54,14 @@ function artifact(bill: Data) {
   ['Correction reason',s.reason ?? ''],
   ['kind','source id','source revision','date','description','minutes','rate USD cents/hour','amount USD cents','prior USD cents','corrected USD cents','rounding'],
   ...s.lines.map((l: Data) => [l.kind,l.sourceId,l.sourceRevision,l.date,l.description,l.minutes,l.rateCents,l.amountCents,l.priorAmountCents,l.correctedAmountCents,l.rounding]),
+  ...(s.taxReview ? [
+   ['SUBTOTAL USD cents',s.subtotalCents],
+   ['Tax calculation ID',s.taxReview.id,'Reviewed bill revision',s.taxReview.billRevision],
+   ['Tax provenance',JSON.stringify(s.taxReview)],
+   ['Tax source ID','Base USD cents','Eligibility','Rate parts per million','Tax USD cents','Treatment reference'],
+   ...s.taxReview.snapshot.lines.map((l:Data)=>[l.sourceId,l.baseCents,l.eligibility,l.ratePpm,l.taxCents,l.reference]),
+   ['TAX USD cents',s.taxCents],
+  ] : []),
   ['TOTAL','','','','','','',s.totalCents],['Approved by',bill.approvedBy,bill.approvedAt,bill.reviewNote],
  ]);
 }
@@ -131,11 +140,11 @@ export async function approveBill(db: D1Database, actor: Actor, billId: string, 
  const bill = await getBill(db,actor,billId); reviewedRevision(bill,body);
  insist(bill.status === 'draft', 'Only a draft can be approved',409);
  const reviewNote = text(body.reviewNote,'Review note',2000), at = now();
- const feeReview=await earningReview(db,actor,bill,body);
- const approved = {...bill,approvedBy:actor.email,approvedAt:at,reviewNote}, exportedArtifact = artifact(approved);
+ const feeReview=await earningReview(db,actor,bill,body),tax=await approvalTax(db,actor,bill,body,at);
+ const approved = {...bill,snapshot:tax.snapshot,approvedBy:actor.email,approvedAt:at,reviewNote}, exportedArtifact = artifact(approved);
  const checks = bill.correctsBillId ? [guard(db,"EXISTS(SELECT 1 FROM s_bills WHERE id=? AND status='exported')",bill.correctsBillId)]
   : [guard(db,`NOT EXISTS(SELECT 1 FROM json_each(?) l WHERE NOT EXISTS(SELECT 1 FROM s_billing_sources s JOIN s_entries e ON e.id=s.entry_id WHERE s.entry_id=json_extract(l.value,'$.sourceId') AND s.bill_id=? AND s.source_revision=json_extract(l.value,'$.sourceRevision') AND e.revision=s.source_revision))`,JSON.stringify(bill.snapshot.lines.filter((l:Data)=>l.kind!=='fee')),bill.id)];
- await atomic(db,actor,[accessGuard(db,actor,bill.matterId),revisionGuard(db,bill),...checks,...feeReview,
+ await atomic(db,actor,[accessGuard(db,actor,bill.matterId),revisionGuard(db,bill),...checks,...feeReview,...tax.guards,
   stmt(db,"UPDATE s_bills SET status='approved',revision=?,artifact=?,artifact_digest=?,approved_by=?,approved_at=?,review_note=? WHERE id=? AND revision=? AND status='draft'",id(),exportedArtifact,await digest(exportedArtifact),actor.email,at,reviewNote,bill.id,bill.revision),
   ...await freezeLedes(db,bill),
   audit(db,actor,'bill.approved',bill.id,reviewNote),
@@ -170,6 +179,7 @@ export async function voidBill(db: D1Database, actor: Actor, billId: string, bod
 export async function correctBill(db: D1Database, actor: Actor, billId: string, body: Data) {
  need(actor,'owner','lawyer'); const bill = await getBill(db,actor,billId); reviewedRevision(bill,body);
  insist(bill.status === 'exported', 'Export the approved bill before preparing its correction',409);
+ insist(!bill.snapshot.taxReview,'Tax correction review is not implemented; preserve this original until reviewed tax deltas are supported',422);
  const review = correctionReview(await matterBills(db,bill.matterId),bill), sourceId = text(body.sourceId,'Source entry ID',100);
  const source = review.sources.find(s => s.sourceId === sourceId);
  insist(source, 'Choose an original source entry from this correction branch');

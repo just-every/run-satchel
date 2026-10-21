@@ -40,7 +40,7 @@ const contexts=[
  record('s_holds',['id','matter_id','document_id','reason','placed_by','placed_at','released_by','released_at','release_reason'],'x.matter_id'),
  record('s_retention',['id','matter_id','document_id','dispose_after','basis','set_by','set_at','superseded_at'],'x.matter_id'),
  record('s_matters',['id','matter_number','client','adverse','conflict_id','review_note','opened_by','opened_at'],'x.id'),
- record('s_bills',['id','status','snapshot','artifact_digest','approved_by','approved_at','review_note','corrects_bill_id','void_reason'],'x.matter_id','x.revision'),
+ record('s_bills',['id','status','snapshot','artifact_digest','approved_by','approved_at','review_note','corrects_bill_id','void_reason'],'x.matter_id','x.revision',undefined,{taxApproval:"(SELECT json_object('calculationId',t.calculation_id,'snapshot',json(t.snapshot),'approvedBy',t.approved_by,'approvedAt',t.approved_at) FROM s_bill_tax_approvals t WHERE t.bill_id=x.id)"}),
  record('s_entries',['id','kind','date','description','minutes','rate_cents','amount_cents'],'x.matter_id','x.revision'),
  record('s_documents',['id','title','visibility','current_version','erased_at','folder_id','document_type','tags'],'x.matter_id','x.revision',undefined,{originals:"(SELECT json_group_array(json_object('version',v.version,'sha256',v.sha256,'size',v.size)) FROM s_document_versions v WHERE v.document_id=x.id)"}),
  record('s_deadlines',['id','title','kind','owner_email','date','timezone','source','document_id','document_version','status','confirmed_by','confirmed_at','completed_by','completed_at','completion_evidence'],'x.matter_id','x.revision'),

@@ -53,3 +53,19 @@ export async function calculateBillTax(db:D1Database,actor:Actor,billId:string,b
  const calcId=id();await atomic(db,actor,[accessGuard(db,actor,b.matter_id),guard(db,"EXISTS(SELECT 1 FROM s_bills WHERE id=? AND revision=? AND status='draft')",b.id,b.revision),stmt(db,'INSERT INTO s_tax_calculations VALUES(?,?,?,?,?,?,?)',calcId,b.id,b.matter_id,b.revision,JSON.stringify(snapshot),actor.email,now()),audit(db,actor,'tax.calculation_reviewed',calcId,JSON.stringify({ruleId:t.id,billId:b.id}),{matterId:b.matter_id})]);
  return calculation((await stmt(db,'SELECT * FROM s_tax_calculations WHERE id=?',calcId).first<Data>())!);
 }
+
+// Interim BILL-004 integration: configured matters cannot silently bypass tax review.
+// Unconfigured matters retain the legacy billing door until the full clause ships.
+export async function approvalTax(db:D1Database,actor:Actor,bill:Data,body:Data,approvedAt:string){
+ const configured=await stmt(db,'SELECT 1 FROM s_tax_rules WHERE matter_id=? LIMIT 1',bill.matterId).first();
+ if(!body.taxReviewId){
+  insist(!configured,'Unknown tax treatment: select the exact draft calculation with taxReviewId before approval',422);
+  return {snapshot:bill.snapshot,guards:[guard(db,'NOT EXISTS(SELECT 1 FROM s_tax_rules WHERE matter_id=?)',bill.matterId)]};
+ }
+ insist(!bill.correctsBillId,'Tax correction review is not implemented; this correction cannot be approved',422);
+ const r=await stmt(db,'SELECT * FROM s_tax_calculations WHERE id=? AND bill_id=? AND matter_id=? AND bill_revision=?',text(body.taxReviewId,'Reviewed tax calculation ID',100),bill.id,bill.matterId,bill.revision).first<Data>();
+ insist(r,'Unknown or stale tax calculation: review this exact bill revision',422);
+ insist(!bill.snapshot.ledes,'Missing reviewed per-client LEDES 1998B/XML tax mapping; this bill cannot be approved',422);
+ const review=calculation(r),t=review.snapshot,snapshot={...bill.snapshot,subtotalCents:t.subtotalCents,taxCents:t.taxCents,totalCents:t.totalCents,taxReview:review};
+ return {snapshot,guards:[guard(db,'EXISTS(SELECT 1 FROM s_tax_calculations WHERE id=? AND bill_id=? AND bill_revision=?)',r.id,bill.id,bill.revision),stmt(db,'INSERT INTO s_bill_tax_approvals VALUES(?,?,?,?,?)',bill.id,r.id,JSON.stringify(snapshot),actor.email,approvedAt)]};
+}
