@@ -20,10 +20,10 @@ export async function visibleDocument(db: D1Database, actor: Actor, documentId: 
  insist(document, 'Document not found', 404); return document;
 }
 
-export function documentGuard(db: D1Database, actor: Actor, document: Data, editing = false) {
+export function documentGuard(db: D1Database, actor: Actor, document: Data, editing = false, exactRevision = true) {
  const access = documentAccess(actor);
  const guard = id();
- return [stmt(db, `INSERT INTO s_guard(id,ok) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM s_documents d WHERE d.id=? AND d.revision=? AND d.erased_at IS NULL AND ${access.sql} AND (?=0 OR d.created_by=? OR ?='owner')) THEN 1 ELSE 0 END`, guard, document.id, document.revision, ...access.params, editing ? 1 : 0, actor.email, actor.role), stmt(db, 'DELETE FROM s_guard WHERE id=?', guard)];
+ return [stmt(db, `INSERT INTO s_guard(id,ok) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM s_documents d WHERE d.id=? AND (?=0 OR d.revision=?) AND d.erased_at IS NULL AND ${access.sql} AND (?=0 OR d.created_by=? OR ?='owner')) THEN 1 ELSE 0 END`, guard, document.id, exactRevision ? 1 : 0, document.revision, ...access.params, editing ? 1 : 0, actor.email, actor.role), stmt(db, 'DELETE FROM s_guard WHERE id=?', guard)];
 }
 
 export function matterGuard(db: D1Database, actor: Actor, matterId: string) {
@@ -31,7 +31,7 @@ export function matterGuard(db: D1Database, actor: Actor, matterId: string) {
  return [stmt(db, `INSERT INTO s_guard(id,ok) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM s_matters m WHERE m.id=? AND (?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=m.id AND a.email=?))) THEN 1 ELSE 0 END`, guard, matterId, actor.role, actor.email), stmt(db, 'DELETE FROM s_guard WHERE id=?', guard)];
 }
 
-function decode(value: unknown) {
+export function decode(value: unknown) {
  insist(typeof value === 'string' && value.length > 0 && value.length <= Math.ceil(documentByteLimit / 3) * 4 && !/[^A-Za-z0-9+/=]/.test(value), 'Supply a base64 original file of at most 1 MiB');
  let binary = ''; try { binary = atob(value); } catch { insist(false, 'Invalid base64 file'); }
  insist(btoa(binary) === value, 'Use canonical base64 without a data URL prefix');
@@ -39,7 +39,7 @@ function decode(value: unknown) {
  return Uint8Array.from(binary, c => c.charCodeAt(0));
 }
 
-function mediaType(bytes: Uint8Array) {
+export function mediaType(bytes: Uint8Array) {
  const prefix = new TextDecoder().decode(bytes.slice(0, 1024));
  if (prefix.startsWith('%PDF-')) return 'application/pdf';
  if (bytes.slice(0, 8).join(',') === '137,80,78,71,13,10,26,10') return 'image/png';
@@ -91,7 +91,7 @@ function duplicateIndex(documents:Data[],versions:Data[]) {
  return result;
 }
 
-export async function saveDocument(db: D1Database, actor: Actor, matterId: string, body: Data) {
+export async function saveDocument(db: D1Database, actor: Actor, matterId: string, body: Data, resolving?: string) {
  await matter(db, actor, matterId);
  const name = text(body.name, 'Filename', 240);
  insist(!/[\x00-\x1f\x7f/\\]/.test(name), 'Filename cannot contain paths or control characters');
@@ -105,21 +105,33 @@ export async function saveDocument(db: D1Database, actor: Actor, matterId: strin
   insist(!existing.erased_at, 'An erased document cannot receive new versions', 409);
   insist(actor.role === 'owner' || existing.created_by === actor.email, 'Only the document author or owner can append versions', 403);
   insist(body.visibility === existing.visibility, 'Appending a version cannot change document visibility');
-  insist(body.revision === undefined || body.revision === existing.revision, 'The document changed. Refresh before appending.', 409);
+
  }
- const documentId = existing?.id ?? id(), version = Number(existing?.current_version ?? 0) + 1, revision = id(), at = now();
+ const documentId = existing?.id ?? id(), revision = id(), at = now(), attemptId=id();
+ const baseRevision=body.revision===undefined?existing?.revision:text(body.revision,'Base revision',100);
  const writes = [...matterGuard(db, actor, matterId)];
- if (existing) writes.push(...documentGuard(db, actor, existing, true));
- else writes.push(stmt(db, 'INSERT INTO s_documents(id,matter_id,title,visibility,created_by,created_at,current_version,revision,updated_by,updated_channel,updated_at) VALUES(?,?,?,?,?,?,0,?,?,?,?)', documentId, matterId, name, body.visibility, actor.email, at, revision, actor.email, actor.channel, at));
- writes.push(stmt(db, 'INSERT INTO s_document_versions(document_id,version,name,mime,declared_mime,size,sha256,content_base64,created_by,created_channel,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)', documentId, version, name, mime, declaredMime, bytes.length, sha256, body.contentBase64, actor.email, actor.channel, at));
- writes.push(stmt(db, 'UPDATE s_documents SET current_version=?,revision=?,updated_by=?,updated_channel=?,updated_at=? WHERE id=?', version, revision, actor.email, actor.channel, at, documentId));
- writes.push(audit(db, actor, existing ? 'document.version' : 'document.upload', documentId, JSON.stringify({ matterId, version, sha256, size: bytes.length, source: 'original-upload', channel: actor.channel, supersedesEarlierDeadlineSources: Boolean(existing) })));
- // Readback integrity is checked inside the same transaction before publishing.
+ if (existing) {
+  writes.push(...documentGuard(db, actor, existing, true, Boolean(resolving)));
+  if(resolving){
+   insist(baseRevision===existing.revision,'The document changed. Compare again before resolving.',409);
+   const fence=id();writes.push(stmt(db,"INSERT INTO s_guard(id,ok) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM s_document_conflicts WHERE id=? AND document_id=? AND resolved_at IS NULL AND content_base64 IS NOT NULL) THEN 1 ELSE 0 END",fence,resolving,documentId),stmt(db,'DELETE FROM s_guard WHERE id=?',fence));
+  }
+  // Conditions run inside the same transaction, including when two requests
+  // read the same revision. A losing save retains its bytes without publishing.
+  writes.push(stmt(db,`INSERT INTO s_document_conflicts(id,document_id,base_revision,name,mime,declared_mime,size,sha256,content_base64,created_by,created_channel,created_at)
+   SELECT ?,?,?,?,?,?,?,?,?,?,?,? FROM s_documents WHERE id=? AND revision<>?`,attemptId,documentId,baseRevision,name,mime,declaredMime,bytes.length,sha256,body.contentBase64,actor.email,actor.channel,at,documentId,baseRevision));
+ } else writes.push(stmt(db, 'INSERT INTO s_documents(id,matter_id,title,visibility,created_by,created_at,current_version,revision,updated_by,updated_channel,updated_at) VALUES(?,?,?,?,?,?,0,?,?,?,?)', documentId, matterId, name, body.visibility, actor.email, at, revision, actor.email, actor.channel, at));
+ writes.push(stmt(db, `INSERT INTO s_document_versions(document_id,version,name,mime,declared_mime,size,sha256,content_base64,created_by,created_channel,created_at)
+  SELECT id,current_version+1,?,?,?,?,?,?,?,?,? FROM s_documents WHERE id=? AND NOT EXISTS(SELECT 1 FROM s_document_conflicts WHERE id=?)`,name,mime,declaredMime,bytes.length,sha256,body.contentBase64,actor.email,actor.channel,at,documentId,attemptId));
+ writes.push(stmt(db, 'UPDATE s_documents SET current_version=current_version+1,revision=?,updated_by=?,updated_channel=?,updated_at=? WHERE id=? AND NOT EXISTS(SELECT 1 FROM s_document_conflicts WHERE id=?)', revision, actor.email, actor.channel, at, documentId,attemptId));
+ if(resolving)writes.push(stmt(db,'UPDATE s_document_conflicts SET resolved_version=(SELECT current_version FROM s_documents WHERE id=?),resolved_by=?,resolved_at=? WHERE id=?',documentId,actor.email,at,resolving));
+ writes.push(audit(db, actor, existing ? 'document.save_received' : 'document.upload', documentId, JSON.stringify({ matterId, attemptId, baseRevision:baseRevision??null, sha256, size: bytes.length, source: 'original-upload', channel: actor.channel, resolving:resolving??null })));
  const integrityGuard = id();
- writes.push(stmt(db, 'INSERT INTO s_guard(id,ok) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM s_document_versions WHERE document_id=? AND version=? AND sha256=? AND size=? AND content_base64=?) THEN 1 ELSE 0 END', integrityGuard, documentId, version, sha256, bytes.length, body.contentBase64), stmt(db, 'DELETE FROM s_guard WHERE id=?', integrityGuard));
+ writes.push(stmt(db, `INSERT INTO s_guard(id,ok) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM s_document_versions WHERE document_id=? AND sha256=? AND size=? AND content_base64=?) OR EXISTS(SELECT 1 FROM s_document_conflicts WHERE id=? AND sha256=? AND size=? AND content_base64=?) THEN 1 ELSE 0 END`, integrityGuard, documentId, sha256, bytes.length, body.contentBase64,attemptId,sha256,bytes.length,body.contentBase64), stmt(db, 'DELETE FROM s_guard WHERE id=?', integrityGuard));
  await atomic(db, actor, writes);
- const document = await visibleDocument(db, actor, documentId);
- return (await listDocuments(db, actor, matterId)).find(d => d.id === document.id)!;
+ const document=(await listDocuments(db, actor, matterId)).find(d => d.id === documentId)!;
+ const conflict=await stmt(db,'SELECT id FROM s_document_conflicts WHERE id=?',attemptId).first();
+ return {...document,saveOutcome:conflict?'conflict':'published',conflictId:conflict?attemptId:null};
 }
 
 export async function documentFile(db: D1Database, actor: Actor, documentId: string, version?: number): Promise<Response> {

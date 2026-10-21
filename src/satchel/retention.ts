@@ -1,3 +1,4 @@
+import {eraseDocumentReview} from './document-review';
 // FIRM-006: counsel's legal holds and retention schedules; the principal approves expired disposal.
 import { createPortability } from '@runeditrun/rer/modules/portability';
 import policy from './archive-policy.mjs';
@@ -69,12 +70,12 @@ export async function disposeDocument(db: D1Database, actor: Actor, documentId: 
  const guards = await refuseHeld(db, d);
  const versions = await rows(db, 'SELECT version,size,sha256 FROM s_document_versions WHERE document_id=? AND content_base64 IS NOT NULL ORDER BY version', d.id);
  const at = now(), service = await createPortability({ db, buckets:{originals}, policy });
- // Satchel keeps only original version bytes: it stores no previews, OCR text, search vectors or connector caches.
- const journal = { originals: versions, derivatives: { previews: 0, ocrText: 0, searchVectors: 0, connectorCaches: 0 }, archives: 'earlier archives need this erasure journal to restore', retention: { id: r.id, disposeAfter: r.dispose_after, basis: r.basis } };
+ const reviewCounts=await stmt(db,'SELECT (SELECT COUNT(*) FROM s_document_annotations WHERE document_id=? AND note IS NOT NULL) annotations,(SELECT COUNT(*) FROM s_document_conflicts WHERE document_id=? AND content_base64 IS NOT NULL) conflicts',d.id,d.id).first<Data>();
+ const journal = { originals: versions, derivatives: { previews: 0, ocrText: 0, searchVectors: 0, connectorCaches: 0, annotations:reviewCounts!.annotations, conflictOriginals:reviewCounts!.conflicts }, archives: 'earlier archives need this erasure journal to restore', retention: { id: r.id, disposeAfter: r.dispose_after, basis: r.basis } };
  const scheduleGuard = id();
  await atomic(db, actor, [...documentGuard(db, actor, d, true), ...guards,
   stmt(db, `INSERT INTO s_guard(id,ok) SELECT ?,CASE WHEN ${schedule()}=? THEN 1 ELSE 0 END FROM s_documents d WHERE d.id=?`, scheduleGuard, r.id, d.id), stmt(db, 'DELETE FROM s_guard WHERE id=?', scheduleGuard),
-  stmt(db, 'UPDATE s_document_versions SET content_base64=NULL WHERE document_id=?', d.id),
+  stmt(db, 'UPDATE s_document_versions SET content_base64=NULL WHERE document_id=?', d.id), ...eraseDocumentReview(db,d.id),
   stmt(db, 'UPDATE s_documents SET erased_at=?,revision=?,updated_by=?,updated_channel=?,updated_at=? WHERE id=?', at, id(), actor.email, actor.channel, at, d.id),
   ...await service.redactionStatements(), ...await service.invalidateTransfersStatements(),
   stmt(db, 'INSERT INTO s_disposals VALUES(?,?,?,?,?,?,?,?)', id(), d.id, d.matter_id, r.id, reason, JSON.stringify(journal), actor.email, at),

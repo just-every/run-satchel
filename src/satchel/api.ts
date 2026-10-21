@@ -1,3 +1,4 @@
+import {documentReview,annotateDocument,conflictFile,resolveConflict} from './document-review';
 import {invoiceSettings,saveInvoiceScheme,registerImportedNumbers} from './invoice-schemes';
 import {issueInvoices,invoiceFile} from './invoice-issue';
 import {taxRules,saveTaxRule,taxCalculations,calculateBillTax} from './tax-reviews';
@@ -198,6 +199,10 @@ api.get('/api/satchel/matters/:id/document-sets',as((a,c)=>documentSetState(db(c
 api.post('/api/satchel/matters/:id/document-sets/:op',as(async(a,c)=>documentSetAction(db(c),a,param(c),param(c,'op'),await body(c))));
 api.post('/api/satchel/matters/:id/documents',as(async(a,c)=>saveDocument(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/documents/:id/file',as((a,c)=>documentFile(db(c),a,param(c),c.req.query('version')?Number(c.req.query('version')):undefined)));
+api.get('/api/satchel/documents/:id/review',as((a,c)=>documentReview(db(c),a,param(c))));
+api.post('/api/satchel/documents/:id/annotations',as(async(a,c)=>annotateDocument(db(c),a,param(c),await body(c))));
+api.get('/api/satchel/documents/:id/conflicts/:conflictId/file',as((a,c)=>conflictFile(db(c),a,param(c),c.req.param('conflictId')!)));
+api.post('/api/satchel/documents/:id/conflicts/:conflictId/resolve',as(async(a,c)=>resolveConflict(db(c),a,param(c),c.req.param('conflictId')!,await body(c))));
 api.post('/api/satchel/documents/:id/erase',as(async(a,c)=>eraseDocument(db(c),a,param(c),await body(c),c.env.ORIGINALS)));
 api.get('/api/satchel/matters/:id/calendar',as((a,c)=>matterCalendar(db(c),a,param(c))));
 api.post('/api/satchel/matters/:id/appointments',as(async(a,c)=>bookAppointment(db(c),a,param(c),await body(c))));
