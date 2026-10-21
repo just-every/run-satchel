@@ -1,3 +1,5 @@
+import {matterScope} from './matter-scope';
+import {opaqueMatches} from './contact-walls';
 import {rows,stmt,type Actor,type Data} from './model';
 
 // These are associations recorded at search time, not a legal conclusion that
@@ -8,7 +10,7 @@ export async function conflictContext(db:D1Database,actor:Actor,contacts:Data[])
   stmt(db,`SELECT m.id,m.title,m.matter_number,m.lifecycle_status,e.at closed_at
    FROM s_matters m LEFT JOIN s_matter_lifecycle_events e
     ON e.matter_id=m.id AND e.revision=m.lifecycle_revision AND e.kind='closed'
-   WHERE ?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=m.id AND a.email=?)`,actor.role,actor.email),
+   WHERE ${matterScope('m.id')}`,actor.role,actor.email),
  ]);
  const timezone=(result[0].results[0] as Data|undefined)?.timezone??'UTC';
  const matters=new Map((result[1].results as Data[]).map(m=>[m.id,m]));
@@ -25,11 +27,11 @@ export async function conflictContext(db:D1Database,actor:Actor,contacts:Data[])
 // Preserve the recorded evidence in storage; each read intersects its matter
 // associations with current grants, including access removed after the search.
 export async function recordedConflict(db:D1Database,actor:Actor,conflict:Data){
- const permitted=new Set((await rows(db,"SELECT id FROM s_matters WHERE ?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=s_matters.id AND a.email=?)",actor.role,actor.email)).map(m=>m.id));
+ const permitted=new Set((await rows(db,`SELECT id FROM s_matters WHERE ${matterScope('s_matters.id')}`,actor.role,actor.email)).map(m=>m.id));
  const matches=(JSON.parse(conflict.matches) as Data[]).map(c=>{
   const matterRoles=(c.matterRoles??[]).filter((r:Data)=>permitted.has(r.matter_id));
   return {...c,matterRoles,matter_ids:matterRoles.map((r:Data)=>r.matter_id).join(','),
    ...(c.matterContext?{matterContext:c.matterContext.filter((m:Data)=>permitted.has(m.matterId))}:{})};
  });
- return {...conflict,matches:JSON.stringify(matches)};
+ return {...conflict,matches:JSON.stringify(await opaqueMatches(db,actor,matches))};
 }

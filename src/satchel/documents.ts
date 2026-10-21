@@ -1,3 +1,4 @@
+import {matterScope} from './matter-scope';
 /* Adapted from just-every/run-chest access.ts, documents.ts and blobs.ts,
  * commit 7bf6e3eff153323fedfdd2ef6abb7bfd0222419a.
  * MIT License, Copyright (c) 2026 Run Edit Run. See LICENSE for permission
@@ -11,7 +12,7 @@ export const documentByteLimit = 1024 * 1024;
 const metadata = 'document_id,version,name,mime,declared_mime,size,sha256,created_by,created_channel,created_at';
 
 export function documentAccess(actor: Actor, alias = 'd') {
- return { sql: `(?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=${alias}.matter_id AND a.email=?)) AND (${alias}.visibility='matter' OR ${alias}.created_by=? OR ?='owner')`, params: [actor.role, actor.email, actor.email, actor.role] };
+ return { sql: `(${matterScope(alias+'.matter_id', actor.channel === 'agent' ? "'agent'" : "'person'")}) AND (${alias}.visibility='matter' OR ${alias}.created_by=? OR ?='owner')`, params: [actor.role, actor.email, actor.email, actor.role] };
 }
 
 export async function visibleDocument(db: D1Database, actor: Actor, documentId: string) {
@@ -28,7 +29,7 @@ export function documentGuard(db: D1Database, actor: Actor, document: Data, edit
 
 export function matterGuard(db: D1Database, actor: Actor, matterId: string) {
  const guard = id();
- return [stmt(db, `INSERT INTO s_guard(id,ok) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM s_matters m WHERE m.id=? AND (?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=m.id AND a.email=?))) THEN 1 ELSE 0 END`, guard, matterId, actor.role, actor.email), stmt(db, 'DELETE FROM s_guard WHERE id=?', guard)];
+ return [stmt(db, `INSERT INTO s_guard(id,ok) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM s_matters m WHERE m.id=? AND (${matterScope('m.id', actor.channel === 'agent' ? "'agent'" : "'person'")})) THEN 1 ELSE 0 END`, guard, matterId, actor.role, actor.email), stmt(db, 'DELETE FROM s_guard WHERE id=?', guard)];
 }
 
 export function decode(value: unknown) {

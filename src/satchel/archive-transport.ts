@@ -1,3 +1,4 @@
+import {requireWholeFirmWallAccess} from './wall-doors';
 // Stream native archives, including R2 intake originals, without a total-byte ceiling.
 import {recoverIntakeUploads} from './intake-files';
 import {stmt} from './model';
@@ -7,7 +8,7 @@ import policy from './archive-policy.mjs';
 import {atomic,audit,human,insist,need,text,type Actor,type Data} from './model';
 const serviceFor=(db:D1Database,originals:R2Bucket)=>createPortability({db,buckets:{originals},policy});
 export async function backup(db:D1Database,actor:Actor,originals:R2Bucket) {
- human(actor);need(actor,'owner');
+ human(actor);need(actor,'owner');await requireWholeFirmWallAccess(db,actor);
  await recoverIntakeUploads({DB:db,ORIGINALS:originals});
  insist(!(await stmt(db,'SELECT 1 FROM s_intake_uploads LIMIT 1').first()),'An intake upload is in progress. Retry the archive after it finishes.',409);
  const service=await serviceFor(db,originals),job=await service.exports.create(actor.id);
@@ -15,7 +16,7 @@ export async function backup(db:D1Database,actor:Actor,originals:R2Bucket) {
   let status=await service.exports.advance(job);while(status.phase!=='complete')status=await service.exports.advance(job);
   const reader=(await service.exports.download(job)).getReader(),hash=createHash('sha256');let bytes=0;
   const stream=new ReadableStream<Uint8Array>({async pull(controller){
-   try{const next=await reader.read();if(next.done){await atomic(db,actor,[audit(db,actor,'firm.archive_exported','firm',JSON.stringify({exportId:job,sha256:hash.digest('hex'),bytes}))]);await service.exports.abort(job);controller.close();}
+   try{await requireWholeFirmWallAccess(db,actor);const next=await reader.read();if(next.done){await atomic(db,actor,[audit(db,actor,'firm.archive_exported','firm',JSON.stringify({exportId:job,sha256:hash.digest('hex'),bytes}))]);await service.exports.abort(job);controller.close();}
     else{bytes+=next.value.byteLength;hash.update(next.value);controller.enqueue(next.value);}}
    catch(error){await service.exports.abort(job);controller.error(error);}
   },async cancel(reason){await reader.cancel(reason);await service.exports.abort(job);}});

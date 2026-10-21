@@ -19,6 +19,11 @@ test('TRUST-001 reviewed source openings maintain separate bank, client/matter a
   await h.json('/team',{email:'assistant@example.test',name:'Case assistant',role:'assistant'},h.owner);await h.json('/team/invite',{email:'assistant@example.test'},h.owner);const assistant=await h.login('assistant@example.test');await h.json('/trust',undefined,assistant,403);await h.json('/trust/openings/'+pending.id+'/approve',{revision:pending.revision,reviewNote:'No authority'},assistant,403);
   await h.json('/team',{email:'officer@example.test',name:'Trust officer',role:'trust_officer'},h.owner);await h.json('/team/invite',{email:'officer@example.test'},h.owner);const officer=await h.login('officer@example.test');await h.json('/conflicts',{client:'A',adverse:'B'},officer,403);await h.json('/trust/ledgers',{accountId:f.account.id,matterId:f.m.id},officer,404);assert.equal((await h.json('/trust',undefined,officer)).ledgers.length,0);await h.json('/trust/openings/'+pending.id+'/approve',{revision:pending.revision,reviewNote:'No matter access'},officer,404);
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),target=await harness();try{await target.json('/restore',{archive,confirm:'RESTORE'},target.owner);assert.deepEqual(await target.json('/trust',undefined,target.owner),s);}finally{await target.close();}
+  await h.json('/team',{email:'custodian@example.test',name:'Ethics custodian',role:'lawyer'},h.owner);
+  await h.json('/matters/'+f.m.id+'/wall',{custodianEmail:'custodian@example.test',members:[],reason:'Adverse representation wall',revision:null},h.owner);
+  const screened=await h.json('/trust',undefined,h.owner);assert.ok(!screened.accounts.some(a=>a.id===f.account.id||a.id===f.operating.id));assert.deepEqual(screened.ledgers.map(l=>l.id),[f.otherLedger.id]);assert.ok(!screened.entries.some(e=>e.source_id===pending.id||e.ledger_id===f.ledger.id||e.account_id===f.operating.id));
+  await h.json('/trust/openings/'+pending.id+'/approve',{revision:pending.revision,reviewNote:'Old approval is not authority'},h.owner,404);
+
  }finally{await h.close();}
 });
 test('TRUST-002 records source-backed retainer, check, wire, disbursement and unidentified suspense; only bank evidence clears funds and replay posts once',async()=>{

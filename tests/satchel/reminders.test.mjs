@@ -48,6 +48,13 @@ test('CAL-007 reassignment, quiet hours, acknowledgment and access revocation fe
   assert.equal((await state(h,revoked)).deliveries[0].status,'cancelled');await h.json('/deadlines/'+revoked.id+'/reminders',undefined,nora,404);
   await h.json('/deadlines/'+revoked.id+'/reminders',rule(revoked),marcus);
   const active=(await state(h,revoked)).rules.find(r=>r.status==='active');await h.json('/reminders/rules/'+active.id+'/cancel',{reason:'Counsel rescheduled service'},marcus);await h.scheduled('2026-11-15T14:15:00Z');assert.equal(reminders(h).length,1);
+  const recipientScreen=await deadline(h,m.id,'Screened recipient reminder','2026-11-24'),sponsorScreen=await deadline(h,m.id,'Screened sponsor reminder','2026-11-24');
+  await h.json('/deadlines/'+recipientScreen.id+'/reminders',rule(recipientScreen,{recipient:'owner@example.test',backup:'marcus@example.test',channels:['email','workspace']}),marcus);
+  await h.json('/deadlines/'+sponsorScreen.id+'/reminders',rule(sponsorScreen,{channels:['email','workspace']}),h.owner);
+  await h.json('/matters/'+m.id+'/wall',{custodianEmail:'marcus@example.test',members:[],reason:'Screen adverse work before scheduled delivery',revision:null},h.owner);
+  await h.scheduled('2026-11-17T14:00:00Z');assert.equal(reminders(h).length,1,'Neither an excluded recipient nor an excluded scheduling principal can cause a send');
+  for(const screened of [recipientScreen,sponsorScreen]){await h.json('/deadlines/'+screened.id+'/reminders',undefined,h.owner,404);assert.ok((await state(h,screened,marcus)).deliveries.every(delivery=>delivery.status==='cancelled'));}
+
  }finally{await h.close();}
 });
 test('CAL-007 uncertain provider outcomes remain visible and need evidence; assistants cannot schedule or resolve',async()=>{

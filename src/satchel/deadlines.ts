@@ -1,3 +1,4 @@
+import {matterScope} from './matter-scope';
 /* Adapted from just-every/run-locket obligations.ts,
  * commit 82478229f356d017bda62b4944b584138ef9671c.
  * MIT License, Copyright (c) 2026 Run Edit Run. See LICENSE for permission
@@ -32,7 +33,7 @@ export function visibility(actor: Actor) {
 
 export async function visibleDeadline(db: D1Database, actor: Actor, deadlineId: string) {
  const access = visibility(actor);
- const deadline = await stmt(db, `SELECT t.*,(SELECT matter_number FROM s_matters WHERE id=t.matter_id) AS matter_number FROM s_deadlines t WHERE t.id=? AND (?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=t.matter_id AND a.email=?)) AND ${access.sql}`, deadlineId, actor.role, actor.email, ...access.params).first<Data>();
+ const deadline = await stmt(db, `SELECT t.*,(SELECT matter_number FROM s_matters WHERE id=t.matter_id) AS matter_number FROM s_deadlines t WHERE t.id=? AND (${matterScope('t.matter_id', actor.channel === 'agent' ? "'agent'" : "'person'")}) AND ${access.sql}`, deadlineId, actor.role, actor.email, ...access.params).first<Data>();
  insist(deadline, 'Deadline not found', 404); return deadline;
 }
 
@@ -44,8 +45,8 @@ function event(db: D1Database, actor: Actor, deadline: Data, action: string, at:
 export async function listDeadlines(db: D1Database, actor: Actor, matterId: string) {
  await matter(db, actor, matterId);
  const access = visibility(actor);
- const deadlines = await rows(db, `SELECT t.*,(SELECT matter_number FROM s_matters WHERE id=t.matter_id) AS matter_number FROM s_deadlines t WHERE t.matter_id=? AND (?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=t.matter_id AND a.email=?)) AND ${access.sql} ORDER BY t.date,t.proposed_at,t.id`, matterId, actor.role, actor.email, ...access.params);
- const events = await rows(db, `SELECT e.* FROM s_deadline_events e JOIN s_deadlines t ON t.id=e.deadline_id WHERE t.matter_id=? AND (?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=t.matter_id AND a.email=?)) AND ${access.sql} ORDER BY e.at,e.id`, matterId, actor.role, actor.email, ...access.params);
+ const deadlines = await rows(db, `SELECT t.*,(SELECT matter_number FROM s_matters WHERE id=t.matter_id) AS matter_number FROM s_deadlines t WHERE t.matter_id=? AND (${matterScope('t.matter_id', actor.channel === 'agent' ? "'agent'" : "'person'")}) AND ${access.sql} ORDER BY t.date,t.proposed_at,t.id`, matterId, actor.role, actor.email, ...access.params);
+ const events = await rows(db, `SELECT e.* FROM s_deadline_events e JOIN s_deadlines t ON t.id=e.deadline_id WHERE t.matter_id=? AND (${matterScope('t.matter_id', actor.channel === 'agent' ? "'agent'" : "'person'")}) AND ${access.sql} ORDER BY e.at,e.id`, matterId, actor.role, actor.email, ...access.params);
  return deadlines.map(d => deadlineJson(d, events));
 }
 

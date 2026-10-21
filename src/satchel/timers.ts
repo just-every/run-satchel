@@ -1,3 +1,4 @@
+import {matterScope} from './matter-scope';
 // TIME-001: server-side timers, so a timer started on one device resumes on another.
 // One running timer per person; starting or resuming another pauses it visibly.
 import {atomic,audit,human,id,insist,matter,now,rows,stmt,text,type Actor,type Data} from './model';
@@ -21,7 +22,7 @@ async function closeInterval(db:D1Database,actor:Actor,timer:Data,reason:string,
  return [stmt(db,'UPDATE s_timer_intervals SET ended_at=?,ended_reason=? WHERE id=? AND ended_at IS NULL',at,reason,open.id),
   stmt(db,"INSERT INTO s_time_drafts(id,owner_email,matter_id,date,minutes,rate_cents,description,billable,source,interval_id,status,revision,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,'timer',?,'draft',?,?,?)",id(),actor.email,timer.matter_id,localDate(open.started_at,clock.timezone),Math.min(elapsed,1440),clock.rateCents,description,timer.billable,open.id,id(),at,at)];
 }
-const running=(db:D1Database,actor:Actor)=>stmt(db,"SELECT t.*,m.matter_number FROM s_timers t JOIN s_matters m ON m.id=t.matter_id WHERE t.owner_email=? AND t.status='running'",actor.email).first<Data>();
+const running=(db:D1Database,actor:Actor)=>stmt(db,`SELECT t.*,m.matter_number FROM s_timers t JOIN s_matters m ON m.id=t.matter_id WHERE t.owner_email=? AND t.status='running' AND ${matterScope('t.matter_id')}`,actor.email,actor.role,actor.email).first<Data>();
 async function switchFrom(db:D1Database,actor:Actor,exceptId:string|null,at:string) {
  const current=await running(db,actor);
  if(!current||current.id===exceptId)return {writes:[] as D1PreparedStatement[],paused:null};
@@ -32,7 +33,7 @@ function openInterval(db:D1Database,actor:Actor,timerId:string,at:string) {
 }
 
 export async function timers(db:D1Database,actor:Actor) {
- const list=await rows(db,"SELECT t.*,m.matter_number,m.title AS matter_title,(SELECT started_at FROM s_timer_intervals i WHERE i.timer_id=t.id AND i.ended_at IS NULL) AS running_since FROM s_timers t JOIN s_matters m ON m.id=t.matter_id WHERE t.owner_email=? AND t.status<>'stopped' AND (?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=t.matter_id AND a.email=?)) ORDER BY t.created_at,t.id",actor.email,actor.role,actor.email);
+ const list=await rows(db,`SELECT t.*,m.matter_number,m.title AS matter_title,(SELECT started_at FROM s_timer_intervals i WHERE i.timer_id=t.id AND i.ended_at IS NULL) AS running_since FROM s_timers t JOIN s_matters m ON m.id=t.matter_id WHERE t.owner_email=? AND t.status<>'stopped' AND (${matterScope('t.matter_id', actor.channel === 'agent' ? "'agent'" : "'person'")}) ORDER BY t.created_at,t.id`,actor.email,actor.role,actor.email);
  return list.map(t=>({id:t.id,matterId:t.matter_id,matterNumber:t.matter_number,matterTitle:t.matter_title,description:t.description,billable:!!t.billable,status:t.status,revision:t.revision,runningSince:t.running_since??null}));
 }
 

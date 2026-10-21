@@ -1,3 +1,4 @@
+import {matterScope} from './matter-scope';
 // INTAKE-002: a lead pipeline for prospective clients. The principal and lawyers see and
 // maintain every lead; an assistant sees and works only leads assigned to them; trust
 // officers see none. History is append-only and a merge keeps the duplicate as provenance.
@@ -13,8 +14,8 @@ const qualifications=['pending','qualified','not_qualified'];
 export const counselRole=(actor:Actor)=>['owner','lawyer'].includes(actor.role);
 export function staff(actor:Actor) {human(actor);need(actor,'owner','lawyer','assistant');}
 function counsel(actor:Actor) {human(actor);need(actor,'owner','lawyer');}
-export const visibleLeadSql="(?='owner' OR ?='lawyer' OR l.assigned_email=?)";
-const visibleParams=(actor:Actor)=>[actor.role,actor.role,actor.email];
+export const visibleLeadSql=`(?='owner' OR ?='lawyer' OR l.assigned_email=?) AND NOT EXISTS(WITH RECURSIVE lead_path(id,merged_into,matter_id) AS (SELECT l.id,l.merged_into,l.matter_id UNION SELECT next.id,next.merged_into,next.matter_id FROM s_leads next JOIN lead_path prior ON next.id=prior.merged_into) SELECT 1 FROM lead_path wall_lead WHERE wall_lead.matter_id IS NOT NULL AND NOT (${matterScope('wall_lead.matter_id')}))`;
+const visibleParams=(actor:Actor)=>[actor.role,actor.role,actor.email,actor.role,actor.email];
 // Duplicates: another open lead with the same email (case-insensitive), the same phone
 // digits (at least 7) or the same name (case- and space-insensitive).
 const norm={name:(v:string)=>v.toLowerCase().replace(/\s+/g,' ').trim(),email:(v:string)=>v.toLowerCase().trim(),phone:(v:string)=>v.replace(/\D/g,'')};

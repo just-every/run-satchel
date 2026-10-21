@@ -13,7 +13,9 @@ export async function previewContactMerge(db:D1Database,actor:Actor,body:Data){
 export async function applyContactMerge(db:D1Database,actor:Actor,body:Data){
  contactAuthority(actor);const p=await stmt(db,'SELECT * FROM s_contact_merge_previews WHERE id=? AND for_email=? AND role=?',text(body.previewId,'Merge preview',150),actor.email,actor.role).first<Data>();
  insist(p,'Merge preview not found',404);insist(!p.applied_at,'This merge preview has already been applied',409);
- const snapshot=JSON.parse(p.snapshot),at=now(),fence=id(),writes=contactRevisionGuard(db,p.graph_revision);
+ const snapshot=JSON.parse(p.snapshot),current=await contactState(db,actor);
+ insist([snapshot.survivor.id,snapshot.duplicate.id].every(id=>current.contacts.some(c=>c.id===id)),'Contact not found',404);
+ const at=now(),fence=id(),writes=contactRevisionGuard(db,p.graph_revision);
  writes.push(stmt(db,'INSERT INTO s_guard VALUES(?,CASE WHEN EXISTS(SELECT 1 FROM s_contact_merge_previews WHERE id=? AND applied_at IS NULL) THEN 1 ELSE 0 END)',fence,p.id));
  // Retain every physical party, import identity, link and historic search.
  for(const partyId of [...snapshot.survivor.identityIds,...snapshot.duplicate.identityIds])writes.push(stmt(db,'UPDATE s_parties SET revision=? WHERE id=?',id(),partyId));

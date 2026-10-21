@@ -1,3 +1,4 @@
+import {matterScope,wallAllows} from './matter-scope';
 // CAL-008: firm and matter agenda with owners, conflicts, unconfirmed dates and
 // absence coverage. Coverage grants no matter access; absence reasons stay with
 // the principal and the absent person. A proposed date is always unconfirmed.
@@ -6,7 +7,7 @@ import { calendarDate, visibleDeadline } from './deadlines';
 import { firmCalendar } from './appointments';
 
 const activeStaff = `SELECT o.email,o.display_name name,o.role FROM oa_operators o LEFT JOIN s_members m ON m.email=o.email WHERE o.email=? AND o.status='active' AND (o.role='owner' OR m.active=1)`;
-const sees = `SELECT 1 FROM oa_operators o WHERE o.email=? AND o.status='active' AND (o.role='owner' OR EXISTS(SELECT 1 FROM s_members m JOIN s_matter_access a ON a.email=m.email WHERE m.email=o.email AND m.active=1 AND a.matter_id=?))`;
+const sees = `SELECT 1 FROM oa_operators o WHERE o.email=? AND o.status='active' AND EXISTS(SELECT 1 FROM s_matters scope_matter WHERE scope_matter.id=? AND ${wallAllows('scope_matter.id','o.email')} AND (o.role='owner' OR EXISTS(SELECT 1 FROM s_members m JOIN s_matter_access a ON a.email=m.email WHERE m.email=o.email AND m.active=1 AND a.matter_id=scope_matter.id)))`;
 async function staff(db: D1Database, email: unknown, label: string) {
  const s = await stmt(db, activeStaff, text(email, label, 254).toLowerCase()).first<Data>();
  insist(s, `${label} must be active staff`, 400); return s;
@@ -70,7 +71,7 @@ export async function agenda(db: D1Database, actor: Actor, query: { from?: strin
  for (const item of items) delete item.people;
  const scoped = query.matterId ? items.filter(i => i.matterId === query.matterId) : items;
  scoped.sort((x, y) => (x.date + (x.time || '00:00')).localeCompare(y.date + (y.time || '00:00')) || x.title.localeCompare(y.title));
- const limitations = await rows(db, `SELECT t.id,t.title,t.date,t.timezone,t.status,t.owner_email owner,m.matter_number matterNumber,m.id matterId FROM s_deadlines t JOIN s_matters m ON m.id=t.matter_id WHERE t.kind='limitation' AND t.status IN ('proposed','confirmed') AND t.date>=? AND (?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=t.matter_id AND a.email=?)) ${query.matterId ? 'AND t.matter_id=?' : ''} ORDER BY t.date,t.id`, calendar.from, actor.role, actor.email, ...(query.matterId ? [query.matterId] : []));
+ const limitations = await rows(db, `SELECT t.id,t.title,t.date,t.timezone,t.status,t.owner_email owner,m.matter_number matterNumber,m.id matterId FROM s_deadlines t JOIN s_matters m ON m.id=t.matter_id WHERE t.kind='limitation' AND t.status IN ('proposed','confirmed') AND t.date>=? AND (${matterScope('t.matter_id', actor.channel === 'agent' ? "'agent'" : "'person'")}) ${query.matterId ? 'AND t.matter_id=?' : ''} ORDER BY t.date,t.id`, calendar.from, actor.role, actor.email, ...(query.matterId ? [query.matterId] : []));
  return { from: calendar.from, to: calendar.to, items: scoped, limitations: limitations.map(l => ({ ...l, confirmation: l.status === 'proposed' ? 'unconfirmed' : 'confirmed' })), absences: out.map(a => absenceJson(a, actor)) };
 }
 

@@ -1,3 +1,4 @@
+import {matterScope} from './matter-scope';
 import {auditQuery,type AuditActor} from './audit-record';
 export type Data = Record<string, any>;
 export type Actor = { id: string; email: string; name: string; role: 'owner' | 'lawyer' | 'assistant' | 'trust_officer'; channel: 'person' | 'agent'; approval?: {id: string; resultId: string} };
@@ -13,7 +14,7 @@ export function human(actor: Actor) { insist(actor.channel === 'person', 'A pers
 export const stmt = (db: D1Database, sql: string, ...values: any[]) => db.prepare(sql).bind(...values);
 export async function rows(db: D1Database, sql: string, ...values: any[]) { return (await stmt(db, sql, ...values).all<Data>()).results; }
 export async function matter(db: D1Database, actor: Actor, matterId: string) {
- const m = await stmt(db, `SELECT * FROM s_matters WHERE id=? AND (?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=s_matters.id AND a.email=?))`, matterId, actor.role, actor.email).first<Data>();
+ const m = await stmt(db, `SELECT * FROM s_matters WHERE id=? AND ${matterScope('s_matters.id',actor.channel==="agent"?"'agent'":"'person'")}`, matterId, actor.role, actor.email).first<Data>();
  insist(m, 'Matter not found', 404); return m;
 }
 export function authority(actor: Actor) {

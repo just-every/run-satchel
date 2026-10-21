@@ -1,3 +1,4 @@
+import {wallAllows} from './matter-scope';
 // MATTER-002: evidence gates are human decisions against exact reviewed records.
 import {atomic,audit,date,Fault,human,id,insist,integer,matter,need,now,stmt,text,type Actor,type Data} from './model';
 import {documentGuard,matterGuard,visibleDocument} from './documents';
@@ -6,7 +7,7 @@ import {proposeRuns} from './workflow-runs';
 import {matterStageState,missingTypes,readStageProfile,stageDefinitions} from './matter-stage-state';
 export {matterBoard,matterStageState,stageDefinitions} from './matter-stage-state';
 
-const lawyerCanSee=`EXISTS(SELECT 1 FROM oa_operators o LEFT JOIN s_members m ON m.email=o.email WHERE o.email=? AND o.status='active' AND (o.role='owner' OR (m.active=1 AND m.role='lawyer' AND EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=? AND a.email=o.email))))`;
+const lawyerCanSee=`EXISTS(SELECT 1 FROM oa_operators o LEFT JOIN s_members m ON m.email=o.email WHERE o.email=? AND o.status='active' AND EXISTS(SELECT 1 FROM s_matters scope_matter WHERE scope_matter.id=? AND ${wallAllows('scope_matter.id','o.email')} AND (o.role='owner' OR (m.active=1 AND m.role='lawyer' AND EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=scope_matter.id AND a.email=o.email)))))`;
 function counsel(actor:Actor) {human(actor);need(actor,'owner','lawyer');}
 function profileGuard(db:D1Database,matterId:string,revision:string|null) {
  return guard(db,'(? IS NULL AND NOT EXISTS(SELECT 1 FROM s_matter_stage_profiles WHERE matter_id=?)) OR EXISTS(SELECT 1 FROM s_matter_stage_profiles WHERE matter_id=? AND revision=?)',revision,matterId,matterId,revision);

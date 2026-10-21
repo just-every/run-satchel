@@ -1,3 +1,4 @@
+import {wallState,saveWall,requestWallAccess,decideWallAccess,revokeWallAccess} from './ethical-walls';
 import {editReleasedEntry} from './released-entries';
 import {documentReview,annotateDocument,conflictFile,resolveConflict} from './document-review';
 import {invoiceSettings,saveInvoiceScheme,registerImportedNumbers} from './invoice-schemes';
@@ -77,6 +78,11 @@ const db=(c:C)=>runtimeBindings(c.env).DB;
 const param=(c:C,key='id')=>c.req.param(key)!;
 const as=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>{const result=await fn(await person(c.req.raw,c.env),c);return result instanceof Response?result:c.json(result);};
 const asAgent=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>c.json(await fn(await agent(c.req.raw,c.env),c));
+api.get('/api/satchel/ethical-walls',as((a,c)=>wallState(db(c),a)));
+api.post('/api/satchel/matters/:id/wall',as(async(a,c)=>saveWall(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/ethical-walls/:id/requests',as(async(a,c)=>requestWallAccess(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/wall-requests/:id/decide',as(async(a,c)=>decideWallAccess(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/wall-emergencies/:id/revoke',as(async(a,c)=>revokeWallAccess(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/invoice-numbering',as((a,c)=>invoiceSettings(db(c),a)));
 api.post('/api/satchel/invoice-numbering',as(async(a,c)=>saveInvoiceScheme(db(c),a,await body(c))));
 api.post('/api/satchel/invoice-numbering/import',as(async(a,c)=>registerImportedNumbers(db(c),a,await body(c))));

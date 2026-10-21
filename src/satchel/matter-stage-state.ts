@@ -1,3 +1,4 @@
+import {matterScope} from './matter-scope';
 // Read models share the existing matter/document boundaries. Historical evidence
 // is retained in storage; each response reapplies today's document permissions.
 import {insist,matter,rows,stmt,type Actor,type Data} from './model';
@@ -57,7 +58,7 @@ export async function matterBoard(db:D1Database,actor:Actor,filters:Data={}) {
  const allowed=['lawyer','practice','stage','risk','milestone'];
  for(const k of allowed)insist(filters[k]===undefined||typeof filters[k]==='string'&&filters[k].length<=300,'Use valid board filters');
  const [matters,{stages},clock]=await Promise.all([
-  rows(db,"SELECT m.*,p.lawyer_email,p.stage_id,p.risk,p.milestone FROM s_matters m LEFT JOIN s_matter_stage_profiles p ON p.matter_id=m.id WHERE ?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=m.id AND a.email=?) ORDER BY m.opened_at DESC,m.id",actor.role,actor.email),stageDefinitions(db),stageClock(db)
+  rows(db,`SELECT m.*,p.lawyer_email,p.stage_id,p.risk,p.milestone FROM s_matters m LEFT JOIN s_matter_stage_profiles p ON p.matter_id=m.id WHERE ${matterScope('m.id', actor.channel === 'agent' ? "'agent'" : "'person'")} ORDER BY m.opened_at DESC,m.id`,actor.role,actor.email),stageDefinitions(db),stageClock(db)
  ]);
  const eq=(filter:string|undefined,value:unknown)=>!filter||(filter==='unassigned'?!value:filter===value);
  const selected=matters.filter(m=>eq(filters.lawyer,m.lawyer_email)&&eq(filters.practice,m.practice_code)&&eq(filters.stage,m.stage_id)&&eq(filters.risk,m.risk)&&(!filters.milestone||String(m.milestone??'').toLocaleLowerCase().includes(filters.milestone.toLocaleLowerCase())));

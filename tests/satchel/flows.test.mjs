@@ -205,3 +205,39 @@ test('FIRM-001 and archive integrity: empty destination, later erasure journal, 
   const restoredArchive=await(await target.request('/api/satchel/backup',undefined,target.owner)).text();assert.ok(restoredArchive.includes(sourceDoc.id));
  }finally{await target.close();}
 });
+
+test('ethical walls exclude a principal from current doors and require expiring audited custodian access',async()=>{
+ const w=await harness();try{
+  const hidden=await open(w,'Adverse merger strategy','Juniper confidential client','Sealed adverse affiliate');
+  await w.json('/team',{email:'custodian@example.test',name:'Wall custodian',role:'lawyer'},w.owner);await w.json('/team/invite',{email:'custodian@example.test'},w.owner);const custodian=await w.login('custodian@example.test');
+  await w.json('/team',{email:'outside@example.test',name:'Other lawyer',role:'lawyer'},w.owner);await w.json('/team/invite',{email:'outside@example.test'},w.owner);const outside=await w.login('outside@example.test');
+  const doc=await w.json('/matters/'+hidden.id+'/documents',{name:'Sealed instructions',mime:'text/plain',visibility:'matter',contentBase64:Buffer.from('Confidential merger strategy').toString('base64')},w.owner);
+  await w.json('/matters/'+hidden.id+'/access',{email:'custodian@example.test'},w.owner);
+  const ownerTask=await w.json('/matters/'+hidden.id+'/tasks',{title:'Review sealed strategy',ownerEmail:'owner@example.test'},custodian);assert.ok((await w.json('/notifications',undefined,w.owner)).some(n=>n.taskId===ownerTask.id));
+  const feed=await w.json('/integrations',{label:'Sealed repository feed',matterIds:[hidden.id],scopes:['matters:read','documents:read','tasks:read','proposals:prepare']},w.owner),feedAuth={authorization:'Bearer '+feed.key};
+  const key=await w.json('/keys',{label:'Principal assistant'},w.owner),auth={authorization:'Bearer '+key.key};
+  const old=await w.json('/conflicts',{client:'Juniper',adverse:'Other'},w.owner);
+  const wall=await w.json('/matters/'+hidden.id+'/wall',{custodianEmail:'custodian@example.test',members:[],reason:'Adverse representation ethical screen',revision:null},w.owner);
+  const visible=await open(w,'Public lease advice','Open Workshop','Other Holdings');
+  assert.ok(!(await w.json('/state',undefined,w.owner)).matters.some(m=>m.id===hidden.id));
+  for(const path of ['/matters/'+hidden.id,'/matters/'+hidden.id+'/billing','/matters/'+hidden.id+'/documents','/matters/'+hidden.id+'/deadlines','/matters/'+hidden.id+'/tasks','/documents/'+doc.id+'/file'])await w.json(path,undefined,w.owner,404);
+  await w.json('/matters/'+hidden.id+'/access',{email:'outside@example.test'},w.owner,404);
+  await w.json('/matters/'+hidden.id+'/wall',{custodianEmail:'outside@example.test',members:[],reason:'Bypass',revision:wall.revision},w.owner,403);
+  const result=await w.json('/conflicts',{client:'Juniper',adverse:'Other'},w.owner),restricted=result.matches.find(c=>c.restricted);assert.deepEqual(Object.keys(restricted).sort(),['custodianRoutes','restricted']);assert.deepEqual(restricted.custodianRoutes,[{route:wall.id,custodian:'custodian@example.test'}]);
+  for(const path of ['/contacts','/reports','/matter-board','/notifications','/agenda?from=2026-10-01&to=2026-12-01','/audit','/workload','/handoffs','/integrations']){const response=await w.json(path,undefined,w.owner);assert.ok(!JSON.stringify(response).includes(hidden.id),path);assert.ok(!JSON.stringify(response).includes('Juniper'),path);}
+  assert.ok(!(await(await w.request('/api/satchel/reports/export?dashboard=status',undefined,w.owner)).text()).includes(hidden.id));
+  await w.json('/backup',undefined,w.owner,403);await w.json('/integrations/'+feed.id+'/journal',undefined,w.owner,404);assert.deepEqual((await w.json('/v1/matters',undefined,'',200,feedAuth)).items,[]);await w.json('/v1/matters/'+hidden.id,undefined,'',404,feedAuth);await w.json('/v1/documents/'+doc.id+'/file',undefined,'',404,feedAuth);await w.json('/agent/matters/'+hidden.id,undefined,'',404,auth);assert.ok(!JSON.stringify(await w.json('/agent/context',undefined,'',200,auth)).includes(hidden.id));
+  const request=await w.json('/ethical-walls/'+wall.id+'/requests',{reason:'Urgent coverage needed for filing today'},w.owner);
+  await w.json('/wall-requests/'+request.id+'/decide',{approve:true,note:'Self approval',minutes:30},w.owner,404);
+  await w.json('/wall-requests/'+request.id+'/decide',{approve:true,note:'Other lawyer',minutes:30},outside,404);
+  await w.json('/wall-requests/'+request.id+'/decide',{approve:true,note:'Documented emergency coverage reviewed',minutes:61},custodian,400);
+  const decision=await w.json('/wall-requests/'+request.id+'/decide',{approve:true,note:'Documented emergency coverage reviewed',minutes:30},custodian);assert.ok(Date.parse(decision.expires_at)>Date.now());
+  assert.equal((await w.json('/matters/'+hidden.id,undefined,w.owner)).matter.id,hidden.id);
+  await w.json('/agent/matters/'+hidden.id,undefined,'',404,auth);assert.ok(!JSON.stringify(await w.json('/agent/context',undefined,'',200,auth)).includes(hidden.id));
+  const custodyTrail=await w.json('/audit?matterId='+hidden.id,undefined,custodian);assert.ok(custodyTrail.records.some(r=>r.action==='wall.access_approved'));
+  const trail=await w.json('/audit?matterId='+hidden.id,undefined,w.owner);assert.ok(trail.records.some(r=>r.action==='wall.access_approved'&&r.detail.note==='Documented emergency coverage reviewed'&&r.actor.email==='custodian@example.test'));
+  const archive=await(await w.request('/api/satchel/backup',undefined,w.owner)).text();const restored=await harness();try{await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);assert.equal((await restored.json('/ethical-walls',undefined,restored.owner)).requests[0].reason,'Urgent coverage needed for filing today');}finally{await restored.close();}
+  await w.json('/wall-emergencies/'+request.id+'/revoke',{reason:'Coverage complete'},custodian);await w.json('/matters/'+hidden.id,undefined,w.owner,404);await w.restart();await w.json('/matters/'+hidden.id,undefined,w.owner,404);
+  assert.equal((await w.json('/matters/'+visible.id,undefined,w.owner)).matter.id,visible.id);
+ }finally{await w.close();}
+});

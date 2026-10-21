@@ -2,6 +2,8 @@
 // Explicit columns exclude credentials and original file bytes.
 const record=(table:string,columns:string[],matter='NULL',revision='NULL',where='x.id=i.object_id',extra:Record<string,string>={})=>`(SELECT json_object('recordType','${table}','matterId',${matter},'revision',${revision},${[...columns.flatMap(c=>[`'${c}'`,`x.${c}`]),...Object.entries(extra).flatMap(([k,v])=>[`'${k}'`,v])].join(',')}) FROM ${table} x WHERE ${where} LIMIT 1)`;
 const contexts=[
+ record('s_ethical_walls',['id','matter_id','custodian_email','revision','reason','updated_by','updated_at'],'x.matter_id','x.revision',"x.id=i.object_id AND i.action IN('wall.created','wall.updated')"),
+ record('s_wall_requests',['id','wall_id','matter_id','requester_email','reason','status','decision_note','decided_by','decided_at','expires_at','revoked_at','revoke_reason'],'x.matter_id','NULL',"x.id=i.object_id AND i.action LIKE 'wall.access_%'"),
  record('s_entry_edits',['id','entry_id','previous_revision','revision','changes','reason','actor','at'],"(SELECT matter_id FROM s_entries WHERE id=x.entry_id)",'x.revision',"i.action='billing.entry.edited' AND x.id=i.object_id"),
  record('s_invoice_voids',['bill_id','reviewed_revision','reason','actor','at'],'(SELECT matter_id FROM s_bills WHERE id=x.bill_id)','x.reviewed_revision',"i.action='invoice.voided' AND x.bill_id=i.object_id"),
  record('s_document_annotations',['id','document_id','version','page','created_by','created_at'],'(SELECT matter_id FROM s_documents WHERE id=x.document_id)','CAST(x.version AS TEXT)',"i.action='document.annotated' AND x.id=i.object_id"),

@@ -24,7 +24,7 @@ export async function createTrustPeriod(db:D1Database,actor:Actor,b:Data){
  const prior=await stmt(db,'SELECT * FROM s_trust_periods WHERE account_id=? AND start_date=? AND end_date=?',account.id,start,end).first<Data>();
  if(prior){insist(prior.closing_balance_cents===cents&&prior.source_document_id===source.id&&prior.source_version===source.version&&prior.source_digest===source.digest,'This statement period already has a different immutable original',409);return prior;}
  const periodId=id();
- await atomic(db,actor,[officerGuard(db,actor),accountTrustGuard(db,actor,account.id),sourceGuard(db,source),evidenceAccessGuard(db,actor,source.id),
+ await atomic(db,actor,[officerGuard(db,actor),accountTrustGuard(db,actor,account.id),sourceGuard(db,source,actor),evidenceAccessGuard(db,actor,source.id),
   stmt(db,'INSERT INTO s_trust_periods VALUES(?,?,?,?,?,?,?,?,?,?)',periodId,account.id,start,end,cents,source.id,source.version,source.digest,actor.email,now()),
   audit(db,actor,'trust.statement_imported',periodId,JSON.stringify({accountId:account.id,startDate:start,endDate:end,closingBalanceCents:cents,source}))]);
  return stmt(db,'SELECT * FROM s_trust_periods WHERE id=?',periodId).first<Data>();
@@ -65,7 +65,7 @@ export async function signTrustPeriod(db:D1Database,actor:Actor,periodId:string,
  const version=count!.version;
  const snapshot=JSON.stringify({...built.report,reportDigest:reviewed,packetId,version,correctionNote,
   signature:{actor:actor.email,name:actor.name,at:signedAt,source}}),hash=await digest(snapshot);
- await atomic(db,actor,[officerGuard(db,actor),accountTrustGuard(db,actor,p.account_id),sourceGuard(db,source),
+ await atomic(db,actor,[officerGuard(db,actor),accountTrustGuard(db,actor,p.account_id),sourceGuard(db,source,actor),
   reportStateGuard(db,p.account_id,built.stateToken),
   guard(db,"COALESCE((SELECT kind FROM s_trust_period_events WHERE period_id=? ORDER BY sequence DESC LIMIT 1),'reopened')='reopened'",p.id),
   stmt(db,'INSERT INTO s_trust_packets VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',packetId,p.id,version,snapshot,hash,reviewed,built.report.balanced?1:0,correctionNote,actor.email,signedAt,source.id,source.version,source.digest),
@@ -83,7 +83,7 @@ export async function reopenTrustPeriod(db:D1Database,actor:Actor,periodId:strin
  }
  insist(!b.packetId||b.packetId===last.packet_id,'Review the latest signed packet before reopening',409);
  const eventId=id();
- await atomic(db,actor,[officerGuard(db,actor),accountTrustGuard(db,actor,p.account_id),sourceGuard(db,source),evidenceAccessGuard(db,actor,source.id),
+ await atomic(db,actor,[officerGuard(db,actor),accountTrustGuard(db,actor,p.account_id),sourceGuard(db,source,actor),evidenceAccessGuard(db,actor,source.id),
   guard(db,'(SELECT sequence FROM s_trust_period_events WHERE period_id=? ORDER BY sequence DESC LIMIT 1)=?',p.id,last.sequence),
   stmt(db,"INSERT INTO s_trust_period_events(id,period_id,packet_id,kind,actor,at,reason,source_document_id,source_version,source_digest) VALUES(?,?,?,'reopened',?,?,?,?,?,?)",eventId,p.id,last.packet_id,actor.email,now(),reason,source.id,source.version,source.digest),
   audit(db,actor,'trust.period_reopened',eventId,JSON.stringify({periodId:p.id,packetId:last.packet_id,reason,source}))]);

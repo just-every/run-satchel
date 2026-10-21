@@ -5,7 +5,7 @@ import {guard} from './trust-guards';
 
 export const intakeFileLimit=10*1024*1024;
 export type StagedIntakeFile={id:string;name:string;mime:string;size:number;sha256:string;objectKey:string};
-const visibleParams=(actor:Actor)=>[actor.role,actor.role,actor.email];
+const visibleParams=(actor:Actor)=>[actor.role,actor.role,actor.email,actor.role,actor.email];
 // Every original lead and every surviving lead on the current merge path must be visible.
 export async function visibleIntakeLeadPath(db:D1Database,actor:Actor,sourceId:string){
  staff(actor);

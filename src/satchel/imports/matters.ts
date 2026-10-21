@@ -1,3 +1,4 @@
+import {requireWholeFirmWallAccess} from '../wall-doors';
 import { Buffer } from 'node:buffer';
 import { openMatter } from '../matters';
 import { caseNumber, importedCaseNumber } from '../matter-fields';
@@ -12,7 +13,7 @@ type Diagnostic = { severity: 'error' | 'warning'; code: string; message: string
 type ImportRow = { sourceId: string; number: string; caseNumber: string; title: string; client: string; adverse: string; line: number; digest: string; raw: Record<string, string>; status: string; matterId?: string };
 
 async function owner(db: D1Database, actor: Actor) {
-  human(actor); need(actor, 'owner');
+  human(actor); need(actor, 'owner');await requireWholeFirmWallAccess(db,actor);
   insist(await stmt(db, "SELECT 1 FROM oa_operators WHERE id=? AND email=? AND role='owner' AND status='active'", actor.id, actor.email).first(), 'Only the active principal can import matters', 403);
 }
 

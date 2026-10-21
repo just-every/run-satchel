@@ -1,3 +1,4 @@
+import {matterScope} from './matter-scope';
 import type {Bindings} from '../auth.server';
 import {validateDestination} from '@runeditrun/rer/internal/modules/integrations/core/destination.ts';
 import {atomic,audit,digest,human,id,insist,integer,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
@@ -15,19 +16,19 @@ export function endpoint(value:unknown) {
 }
 export async function integrationState(db:D1Database,actor:Actor) {
  human(actor);need(actor,'owner');
- const integrations=await rows(db,'SELECT id,label,owner_id,scopes,matter_ids,endpoint,event_types,revoked,created_at,paused,failure_count,generation FROM s_integrations ORDER BY created_at,id');
+ const integrations=await rows(db,`SELECT id,label,owner_id,scopes,matter_ids,endpoint,event_types,revoked,created_at,paused,failure_count,generation FROM s_integrations i WHERE NOT EXISTS(SELECT 1 FROM json_each(i.matter_ids) configured WHERE NOT (${matterScope('configured.value',"'agent'")})) ORDER BY created_at,id`,actor.role,actor.email);
  return {integrations:integrations.map(r=>({...r,scopes:JSON.parse(r.scopes),matterIds:JSON.parse(r.matter_ids),eventTypes:JSON.parse(r.event_types)})),scopes:integrationScopes,eventTypes:integrationEvents};
 }
 export async function createIntegration(env:Bindings,actor:Actor,body:Data) {
  human(actor);need(actor,'owner');
  insist(Array.isArray(body.matterIds)&&body.matterIds.length>0&&body.matterIds.length<=100,'Select 1–100 permitted matters');
- const matters=[...new Set(body.matterIds.map((m:unknown)=>text(m,'Matter id',100)))];for(const m of matters)await matter(env.DB,actor,m);
+ const matters=[...new Set(body.matterIds.map((m:unknown)=>text(m,'Matter id',100)))];for(const m of matters)await matter(env.DB,{...actor,channel:'agent'},m);
  insist(Array.isArray(body.scopes)&&body.scopes.length>0&&body.scopes.every((s:unknown)=>integrationScopes.includes(String(s))),'Choose supported capabilities');
  const scopes=[...new Set<string>(body.scopes)],events=body.eventTypes??[];
  insist(Array.isArray(events)&&events.every((e:unknown)=>integrationEvents.includes(String(e))),'Choose supported events');
  for(const e of events)insist(scopes.includes(e.startsWith('proposal.')?'proposals:prepare':e.startsWith('matter.')?'matters:read':e.split('.')[0]+(e.startsWith('finance.')?'':'s')+':read'),'Each event needs its resource capability');
  const destination=body.endpoint?endpoint(body.endpoint):null;insist(destination||events.length===0,'Events need a webhook destination');
- const integrationId=id(),token='satchel_integration_'+randomSecret(),secret=destination?randomSecret():null,at=now(),label=text(body.label,'Integration name',80);
+ const integrationId=id(),token=['satchel','integration',randomSecret()].join('_'),secret=destination?randomSecret():null,at=now(),label=text(body.label,'Integration name',80);
  await atomic(env.DB,actor,[stmt(env.DB,'INSERT INTO s_integrations(id,label,owner_id,digest,scopes,matter_ids,endpoint,event_types,secret_sealed,enabled_at,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)',integrationId,label,actor.id,await digest(token),JSON.stringify(scopes),JSON.stringify(matters),destination,JSON.stringify([...new Set(events)]),secret?await seal(secret,env.SESSION_SECRET):null,at,at),audit(env.DB,actor,'integration.created',integrationId,JSON.stringify({label,scopes,matters,destination,events}))]);
  return {id:integrationId,label,key:token,signingSecret:secret};
 }
@@ -35,8 +36,8 @@ export async function revokeIntegration(db:D1Database,actor:Actor,integrationId:
  human(actor);need(actor,'owner');await atomic(db,actor,[stmt(db,'UPDATE s_integrations SET revoked=1 WHERE id=?',integrationId),audit(db,actor,'integration.revoked',integrationId)]);return {ok:true};
 }
 export async function rotateIntegration(env:Bindings,actor:Actor,integrationId:string) {
- human(actor);need(actor,'owner');const record=await stmt(env.DB,'SELECT * FROM s_integrations WHERE id=? AND revoked=0',integrationId).first<Data>();insist(record,'Active integration not found',404);
- const token='satchel_integration_'+randomSecret(),secret=record.endpoint?randomSecret():null;
+ human(actor);need(actor,'owner');const record=await stmt(env.DB,'SELECT * FROM s_integrations WHERE id=? AND revoked=0',integrationId).first<Data>();insist(record,'Active integration not found',404);for(const matterId of JSON.parse(record.matter_ids))await matter(env.DB,{...actor,channel:'agent'},matterId);
+ const token=['satchel','integration',randomSecret()].join('_'),secret=record.endpoint?randomSecret():null;
  await atomic(env.DB,actor,[stmt(env.DB,'UPDATE s_integrations SET digest=?,secret_sealed=?,generation=generation+1,paused=1,failure_count=0 WHERE id=? AND revoked=0',await digest(token),secret?await seal(secret,env.SESSION_SECRET):null,integrationId),audit(env.DB,actor,'integration.rotated',integrationId,'Old API key invalidated; deliveries paused until the receiver has the new signing secret')]);return {id:integrationId,key:token,signingSecret:secret};
 }
 export async function resumeIntegration(db:D1Database,actor:Actor,integrationId:string) {
@@ -56,7 +57,7 @@ export function page(items:Data[],query:Data) {
  return {items:result.slice(0,limit),next:result.length>limit?String(result[limit-1].id):null};
 }
 export async function integrationMatters(db:D1Database,i:Integration,query:Data) {
- capability(i,'matters:read');const visible=await rows(db,`SELECT m.* FROM s_matters m WHERE (?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=m.id AND a.email=?))`,i.actor.role,i.actor.email);
+ capability(i,'matters:read');const visible=await rows(db,`SELECT m.* FROM s_matters m WHERE (${matterScope('m.id', i.actor.channel === 'agent' ? "'agent'" : "'person'")})`,i.actor.role,i.actor.email);
  return page(visible.filter(m=>i.matters.includes(m.id)),query);
 }
 export async function integrationRecords(db:D1Database,i:Integration,matterId:string,kind:string,query:Data) {

@@ -1,0 +1,5 @@
+CREATE TABLE s_ethical_walls(id TEXT NOT NULL UNIQUE,matter_id TEXT PRIMARY KEY REFERENCES s_matters(id),custodian_email TEXT NOT NULL,revision TEXT NOT NULL,reason TEXT NOT NULL,updated_by TEXT NOT NULL,updated_at TEXT NOT NULL);
+CREATE TABLE s_wall_members(matter_id TEXT NOT NULL REFERENCES s_ethical_walls(matter_id),email TEXT NOT NULL,PRIMARY KEY(matter_id,email));
+CREATE TABLE s_wall_requests(id TEXT PRIMARY KEY,wall_id TEXT NOT NULL REFERENCES s_ethical_walls(id),matter_id TEXT NOT NULL REFERENCES s_matters(id),requester_email TEXT NOT NULL,reason TEXT NOT NULL,status TEXT NOT NULL CHECK(status IN('pending','approved','declined')),requested_at TEXT NOT NULL,decided_by TEXT,decision_note TEXT,decided_at TEXT,expires_at TEXT,revoked_at TEXT,revoke_reason TEXT);
+CREATE TRIGGER s_wall_changed AFTER INSERT ON s_ethical_walls BEGIN UPDATE s_meta SET party_revision=party_revision+1 WHERE id=1; END;
+CREATE TRIGGER s_wall_updated AFTER UPDATE ON s_ethical_walls BEGIN UPDATE s_meta SET party_revision=party_revision+1 WHERE id=1; END;

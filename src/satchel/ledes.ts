@@ -1,3 +1,4 @@
+import {matterScope} from './matter-scope';
 // TIME-007: LEDES 1998B invoices frozen at approval, their export, and e-billing
 // outcomes imported from the client's vendor file (recorded, never verified with the vendor).
 import {atomic,audit,digest,human,id,insist,need,now,rows,stmt,text,type Actor,type Data} from './model';
@@ -52,7 +53,7 @@ async function ledesBill(db:D1Database,actor:Actor,billId:string) {
  need(actor,'owner','lawyer');human(actor);
  const bill=await stmt(db,'SELECT b.*,l.invoice_number,l.artifact AS ledes_artifact,l.artifact_digest AS ledes_digest FROM s_bills b JOIN s_bill_ledes l ON l.bill_id=b.id WHERE b.id=?',billId).first<Data>();
  insist(bill,'This bill has no LEDES invoice',404);
- const seen=await stmt(db,"SELECT 1 FROM s_matters m WHERE m.id=? AND (?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=m.id AND a.email=?))",bill.matter_id,actor.role,actor.email).first();
+ const seen=await stmt(db,`SELECT 1 FROM s_matters m WHERE m.id=? AND (${matterScope('m.id', actor.channel === 'agent' ? "'agent'" : "'person'")})`,bill.matter_id,actor.role,actor.email).first();
  insist(seen,'Bill not found',404);return bill;
 }
 

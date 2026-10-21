@@ -1,3 +1,4 @@
+import {matterScope} from './matter-scope';
 // MATTER-004: reviewed workflow runs on one matter. Counsel previews a version, approves
 // selected steps, stops or restarts the run; each approved step creates its record once.
 import {atomic,audit,date,digest,id,insist,matter,now,rows,stmt,text,type Actor,type Data} from './model';
@@ -13,7 +14,7 @@ export function runEvent(db:D1Database,actor:Actor,runId:string,matterId:string,
  return [stmt(db,'INSERT INTO s_workflow_run_events(id,run_id,kind,detail,actor,at) VALUES(?,?,?,?,?,?)',eventId,runId,kind,JSON.stringify(detail),actor.email,at),audit(db,actor,`workflow.run_${kind}`,runId,JSON.stringify({matterId,...detail}),{matterId})];
 }
 export async function liveRuns(db:D1Database,actor:Actor,workflowId:string) {
- return rows(db,"SELECT r.*,m.matter_number,m.title FROM s_workflow_runs r JOIN s_matters m ON m.id=r.matter_id WHERE r.workflow_id=? AND r.status IN ('proposed','active') AND m.lifecycle_status='open' AND (?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=m.id AND a.email=?)) ORDER BY m.matter_number,m.id",workflowId,actor.role,actor.email);
+ return rows(db,`SELECT r.*,m.matter_number,m.title FROM s_workflow_runs r JOIN s_matters m ON m.id=r.matter_id WHERE r.workflow_id=? AND r.status IN ('proposed','active') AND m.lifecycle_status='open' AND (${matterScope('m.id', actor.channel === 'agent' ? "'agent'" : "'person'")}) ORDER BY m.matter_number,m.id`,workflowId,actor.role,actor.email);
 }
 // Dates count from the firm's local date when the step is generated. Generated
 // appointments use the firm timezone and invite nobody; drafts are matter-visible text.

@@ -1,3 +1,4 @@
+import {allWallsAllow} from './wall-doors';
 import { applyD1ImportBatches, createD1ImportJob, planD1Import, readD1ImportJob, readD1ImportOriginals, readD1ImportUndoReport, resumeD1Import, undoD1Import, type D1ImportContext } from '../modules/import-kit/src/d1/index';
 import { atomic, audit, Fault, human, insist, integer, need, stmt, text, type Actor, type Data } from './model';
 import { clioSource, MAPPING_VERSION, NAMESPACE } from './imports/clio';
@@ -5,7 +6,7 @@ import { auditedPartyTargets } from './imports/target';
 
 function authority(actor: Actor) {
   need(actor, 'owner'); human(actor);
-  return { sql: "EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND email=? AND role='owner' AND status='active')", params: [actor.id, actor.email] };
+  return { sql: `EXISTS(SELECT 1 FROM oa_operators bulk_operator WHERE id=? AND email=? AND role='owner' AND status='active' AND ${allWallsAllow('bulk_operator.email')})`, params: [actor.id, actor.email] };
 }
 function context(db: D1Database, actor: Actor): D1ImportContext {
   const guard = authority(actor);

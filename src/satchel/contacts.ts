@@ -8,6 +8,7 @@ export async function saveContact(db:D1Database,actor:Actor,body:Data){
  contactAuthority(actor);const data=await contactData(db),graph=contactGraph(data),profile=contactProfile(body);
  const partyId=body.id?text(body.id,'Contact ID',150):id(),existing=data.parties.find(p=>p.id===partyId);
  insist(!body.id||existing,'Contact not found',404);insist(!existing||graph.canonical(partyId)===partyId,'Use the surviving contact to edit this profile',409);
+ if(existing)insist((await contactState(db,actor)).contacts.some(c=>c.identityIds.includes(partyId)),'Contact not found',404);
  const at=now(),revision=id(),writes=contactRevisionGuard(db,body.revision);
  if(!existing)writes.push(stmt(db,'INSERT INTO s_parties(id,name,aliases,email,source,revision) VALUES(?,?,?,?,?,?)',partyId,profile.name,profile.aliases.join('; '),profile.emails[0]??'','native',revision));
  else writes.push(stmt(db,'UPDATE s_parties SET revision=? WHERE id=?',revision,partyId));
@@ -16,10 +17,10 @@ export async function saveContact(db:D1Database,actor:Actor,body:Data){
 }
 export async function contactAction(db:D1Database,actor:Actor,partyId:string,op:string,body:Data){
  contactAuthority(actor);const data=await contactData(db),graph=contactGraph(data),contact=graph.contacts.find(c=>c.identityIds.includes(partyId));
- insist(contact,'Contact not found',404);const at=now(),objectId=id(),writes=contactRevisionGuard(db,body.revision);
+ insist(contact&&(await contactState(db,actor)).contacts.some(c=>c.id===contact.id),'Contact not found',404);const at=now(),objectId=id(),writes=contactRevisionGuard(db,body.revision);
  if(op==='relationship'){
   const otherId=text(body.otherId,'Related contact',150),other=graph.contacts.find(c=>c.id===otherId);
-  insist(other,'Related contact not found',404);insist(other.id!==contact.id,'Choose a different contact');
+  insist(other&&(await contactState(db,actor)).contacts.some(c=>c.id===other.id),'Related contact not found',404);insist(other.id!==contact.id,'Choose a different contact');
   const relationship=text(body.relationship,'Relationship',120);
   writes.push(stmt(db,'INSERT INTO s_contact_relationships VALUES(?,?,?,?,?,?)',objectId,contact.id,other.id,relationship,actor.email,at),stmt(db,'UPDATE s_parties SET revision=? WHERE id IN (?,?)',id(),contact.id,other.id),audit(db,actor,'contact.relationship_added',objectId,JSON.stringify({fromId:contact.id,toId:other.id,relationship})));
  }else if(op==='matter-role'){

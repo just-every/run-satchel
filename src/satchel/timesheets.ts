@@ -1,3 +1,4 @@
+import {matterScope} from './matter-scope';
 // TIME-001: weekly timesheets of draft entries. A timekeeper edits durations,
 // billability and UTBMS codes, rejects drafts, and posts a day or week once.
 import {atomic,audit,date,id,insist,integer,matter,now,rows,stmt,text,type Actor,type Data} from './model';
@@ -23,7 +24,7 @@ export async function timesheet(db:D1Database,actor:Actor,week?:string) {
  timekeeper(actor);
  const clock=await firmClock(db),start=monday(week?date(week):localDate(now(),clock.timezone)),end=addDays(start,6);
  const pricing=await loadPricing(db);
- const drafts=(await rows(db,"SELECT d.*,m.matter_number,m.client,e.minutes AS entry_minutes,e.rate_cents AS entry_rate,e.billed_minutes AS entry_billed,e.amount_cents AS entry_amount,e.billable AS entry_billable,e.rate_source AS entry_source FROM s_time_drafts d JOIN s_matters m ON m.id=d.matter_id LEFT JOIN s_entries e ON e.id=d.entry_id WHERE d.owner_email=? AND d.date BETWEEN ? AND ? AND (?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=d.matter_id AND a.email=?)) ORDER BY d.date,d.created_at,d.id",actor.email,start,end,actor.role,actor.email)).map(d=>draftJson(pricing,d));
+ const drafts=(await rows(db,`SELECT d.*,m.matter_number,m.client,e.minutes AS entry_minutes,e.rate_cents AS entry_rate,e.billed_minutes AS entry_billed,e.amount_cents AS entry_amount,e.billable AS entry_billable,e.rate_source AS entry_source FROM s_time_drafts d JOIN s_matters m ON m.id=d.matter_id LEFT JOIN s_entries e ON e.id=d.entry_id WHERE d.owner_email=? AND d.date BETWEEN ? AND ? AND (${matterScope('d.matter_id', actor.channel === 'agent' ? "'agent'" : "'person'")}) ORDER BY d.date,d.created_at,d.id`,actor.email,start,end,actor.role,actor.email)).map(d=>draftJson(pricing,d));
  const days=Array.from({length:7},(_,i)=>{const day=addDays(start,i),own=drafts.filter(d=>d.date===day);return {date:day,drafts:own,totals:totals(own)};});
  return {timezone:clock.timezone,defaultRateCents:clock.rateCents,week:{start,end,totals:totals(drafts)},days,timers:await timers(db,actor)};
 }
@@ -58,7 +59,7 @@ export async function reviewDraft(db:D1Database,actor:Actor,draftId:string,body:
 export async function postTime(db:D1Database,actor:Actor,body:Data) {
  timekeeper(actor);
  const from=date(body.from),to=date(body.to);insist(from<=to&&to<=addDays(from,6),'Post one day or one week at a time');
- const live=await stmt(db,"SELECT t.description,m.matter_number FROM s_timers t JOIN s_matters m ON m.id=t.matter_id WHERE t.owner_email=? AND t.status='running'",actor.email).first<Data>();
+ const live=await stmt(db,`SELECT t.description,m.matter_number FROM s_timers t JOIN s_matters m ON m.id=t.matter_id WHERE t.owner_email=? AND t.status='running' AND ${matterScope('t.matter_id')}`,actor.email,actor.role,actor.email).first<Data>();
  insist(!live,`Pause or stop your running timer (${live?.matter_number} · ${live?.description}) before posting`,409);
  const drafts=await rows(db,"SELECT d.*,m.client FROM s_time_drafts d JOIN s_matters m ON m.id=d.matter_id WHERE d.owner_email=? AND d.status='draft' AND d.date BETWEEN ? AND ? ORDER BY d.date,d.created_at,d.id",actor.email,from,to);
  const pricing=await loadPricing(db),at=now(),writes:D1PreparedStatement[]=[guard(db,"NOT EXISTS(SELECT 1 FROM s_timers WHERE owner_email=? AND status='running')",actor.email),pricingGuard(db,pricing)],posted:string[]=[],last=new Map<string,string>();

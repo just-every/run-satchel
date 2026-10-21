@@ -1,3 +1,4 @@
+import {matterScope,wallAllows} from './matter-scope';
 // CAL-001: matter appointments, kept apart from legal deadlines. A series repeats
 // at the same local wall-clock time in its own IANA timezone, so the UTC instant
 // moves across daylight saving. Cancelling or moving one occurrence appends history.
@@ -7,9 +8,9 @@ import { calendarDate, timezone, visibility } from './deadlines';
 import { clock, localInstant } from './reminder-time';
 
 const gap = 'An occurrence falls on a local time that does not exist because of a timezone transition; choose another start time';
-const seeable = (matterSql: string) => `(?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=${matterSql} AND a.email=?))`;
+const seeable = (matterSql: string) => matterScope(matterSql);
 // Attendees are active staff who can already see the matter; an invitation grants nothing.
-const attendable = (email = '?') => `EXISTS(SELECT 1 FROM oa_operators o LEFT JOIN s_members m ON m.email=o.email WHERE o.email=${email} AND o.status='active' AND (o.role='owner' OR (m.active=1 AND EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=? AND a.email=o.email))))`;
+const attendable = (email = '?') => `EXISTS(SELECT 1 FROM oa_operators o LEFT JOIN s_members m ON m.email=o.email WHERE o.email=${email} AND o.status='active' AND EXISTS(SELECT 1 FROM s_matters scope_matter WHERE scope_matter.id=? AND ${wallAllows('scope_matter.id','o.email')} AND (o.role='owner' OR (m.active=1 AND EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=scope_matter.id AND a.email=o.email)))))`;
 const iso = (at: number) => new Date(at).toISOString();
 function addDays(day: string, days: number) { const d = new Date(day + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + days); return d.toISOString().slice(0, 10); }
 const changeJson = (c: Data) => ({ id: c.id, kind: c.kind, date: c.new_date, time: c.new_time, reason: c.reason, by: c.changed_by, at: c.changed_at });
@@ -101,7 +102,7 @@ export async function availability(db: D1Database, actor: Actor, query: { from?:
  const result = [];
  for (const email of emails) {
   insist(await stmt(db, `SELECT 1 FROM oa_operators o LEFT JOIN s_members m ON m.email=o.email WHERE o.email=? AND o.status='active' AND (o.role='owner' OR m.active=1)`, email).first(), `${email} is not active staff`, 404);
-  const list = await load(db, 'p.created_by=? OR EXISTS(SELECT 1 FROM s_appointment_attendees x WHERE x.appointment_id=p.id AND x.email=?)', email, email);
+  const list = await load(db, `(p.created_by=? OR EXISTS(SELECT 1 FROM s_appointment_attendees x WHERE x.appointment_id=p.id AND x.email=?)) AND EXISTS(SELECT 1 FROM oa_operators viewer WHERE viewer.id=? AND ${wallAllows('p.matter_id','viewer.email')})`, email, email, actor.id);
   const visible = new Set((await rows(db, `SELECT m.id FROM s_matters m WHERE ${seeable('m.id')}`, actor.role, actor.email)).map(m => m.id));
   const busy = list.flatMap(a => a.occurrences.filter(o => o.status !== 'cancelled' && o.date >= r.from && o.date <= r.to).map(o => visible.has(a.matterId) ? { start: o.start, end: o.end, title: a.title, matterId: a.matterId, matterNumber: a.matterNumber } : { start: o.start, end: o.end })).sort((x, y) => x.start.localeCompare(y.start));
   result.push({ email, busy });

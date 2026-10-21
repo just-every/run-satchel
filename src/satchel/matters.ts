@@ -1,3 +1,7 @@
+import {matterScope} from './matter-scope';
+import {contactData} from './contact-data';
+import {contactGraph} from './contact-graph';
+import {opaqueMatches} from './contact-walls';
 import {contactState} from './contact-read';
 import {contactMatches} from './contact-graph';
 import {conflictContext,recordedConflict} from './conflict-context';
@@ -14,9 +18,11 @@ export async function conflictSearch(db: D1Database, actor: Actor, body: Data) {
  const queries=[client,adverse,...aliases.split(';').map(v=>v.trim()).filter(Boolean)];
  // Scan every party, including aliases. There is no hidden first-page result cap.
  // This is a firm-record search, not a guarantee that conflicts do not exist.
- const graph=await contactState(db,actor);
+ const graph=contactGraph(await contactData(db));
  const {summary,context}=await conflictContext(db,actor,graph.contacts);
- const matches=graph.contacts.filter(p=>queries.some(q=>contactMatches(p,q,graph.contacts))).map(p=>({...p,aliases:p.aliases.join('; '),matter_ids:p.matterRoles.map(r=>r.matter_id).join(','),matterContext:context(p)}));
+ const scoped=await contactState(db,actor);
+ const rawMatches=graph.contacts.filter(p=>{const safe=scoped.contacts.find(c=>c.id===p.id);return queries.some(q=>contactMatches(safe??p,q,safe?scoped.contacts:graph.contacts));}).map(p=>{const safe=scoped.contacts.find(c=>c.id===p.id)??p;return {...safe,aliases:safe.aliases.join('; '),matter_ids:safe.matterRoles.map((r:Data)=>r.matter_id).join(','),matterContext:context(p)};});
+ const matches=await opaqueMatches(db,actor,rawMatches);
  const conflict={id:id(),client,adverse,queries,matches,...summary,partyRevision:graph.revision,actor:actor.email,at:now()};
  await atomic(db,actor,[stmt(db,'INSERT INTO s_conflicts(id,client,adverse,queries,matches,party_revision,actor,at,search_summary) VALUES(?,?,?,?,?,?,?,?,?)',conflict.id,client,adverse,JSON.stringify(queries),JSON.stringify(matches),conflict.partyRevision,actor.email,conflict.at,JSON.stringify(summary)),audit(db,actor,'conflict.searched',conflict.id)]);
  return conflict;
@@ -44,9 +50,9 @@ export async function openMatter(db: D1Database, actor: Actor, body: Data, fixed
  await atomic(db,actor,statements); return (await stmt(db,'SELECT *,matter_number AS number FROM s_matters WHERE id=?',matterId).first<Data>())!;
 }
 export async function workspace(db: D1Database, actor: Actor) {
- const matters=await rows(db,"SELECT m.* FROM s_matters m WHERE ?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=m.id AND a.email=?) ORDER BY opened_at DESC",actor.role,actor.email);
+ const matters=await rows(db,`SELECT m.* FROM s_matters m WHERE ${matterScope('m.id',actor.channel==='agent'?"'agent'":"'person'")} ORDER BY opened_at DESC`,actor.role,actor.email);
  const members=await rows(db,'SELECT email,name,role,active FROM s_members ORDER BY name');
- const proposals=await rows(db,'SELECT * FROM s_proposals WHERE for_email=? ORDER BY created_at DESC',actor.email);
+ const proposals=await rows(db,`SELECT p.* FROM s_proposals p WHERE p.for_email=? AND (json_extract(p.payload,'$.matterId') IS NULL OR ${matterScope("json_extract(p.payload,'$.matterId')",actor.channel==='agent'?"'agent'":"'person'")}) ORDER BY created_at DESC`,actor.email,actor.role,actor.email);
  return {actor,matters,members,proposals:proposals.map(p=>({...p,payload:JSON.parse(p.payload)})),firm:(await firmSettings(db)).settings};
 }
 export async function matterDetail(db: D1Database, actor: Actor, matterId: string) {
@@ -56,6 +62,8 @@ export async function matterDetail(db: D1Database, actor: Actor, matterId: strin
 }
 export async function grantMatter(db:D1Database,actor:Actor,matterId:string,body:Data) {
  human(actor); need(actor,'owner'); await matter(db,actor,matterId);
+ const wall=await stmt(db,'SELECT custodian_email FROM s_ethical_walls WHERE matter_id=?',matterId).first<Data>();
+ insist(!wall||wall.custodian_email===actor.email,'Only the custodian may change walled matter access',403);
  const email=text(body.email,'Team member email',254).toLowerCase();
  insist(await stmt(db,"SELECT 1 FROM s_members WHERE email=? AND active=1",email).first(),'Add this person to the firm first');
  await atomic(db,actor,[body.remove?stmt(db,'DELETE FROM s_matter_access WHERE matter_id=? AND email=?',matterId,email):stmt(db,'INSERT OR IGNORE INTO s_matter_access VALUES(?,?)',matterId,email),audit(db,actor,body.remove?'matter.access_removed':'matter.access_granted',matterId,email)]);

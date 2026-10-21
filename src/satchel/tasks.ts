@@ -1,3 +1,4 @@
+import {wallAllows,matterScope} from './matter-scope';
 // MATTER-003: dependent matter work. A task linked to a legal deadline takes its date
 // from that deadline; reassignment, coverage and bulk updates never change a deadline.
 import { atomic, audit, human, id, insist, integer, matter, need, now, rows, stmt, text, type Actor, type Data } from './model';
@@ -6,7 +7,7 @@ import { matterGuard } from './documents';
 import { firmToday } from './retention';
 
 const priorities = ['low', 'normal', 'high', 'urgent'], recurrences = ['none', 'daily', 'weekly', 'monthly'];
-const sees = `EXISTS(SELECT 1 FROM oa_operators o LEFT JOIN s_members m ON m.email=o.email WHERE o.email=? AND o.status='active' AND (o.role='owner' OR (m.active=1 AND EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=? AND a.email=o.email))))`;
+const sees = `EXISTS(SELECT 1 FROM oa_operators o LEFT JOIN s_members m ON m.email=o.email WHERE o.email=? AND o.status='active' AND EXISTS(SELECT 1 FROM s_matters scope_matter WHERE scope_matter.id=? AND ${wallAllows('scope_matter.id','o.email')} AND (o.role='owner' OR (m.active=1 AND EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=scope_matter.id AND a.email=o.email)))))`;
 function fence(db: D1Database, sql: string, ...params: unknown[]) { const g = id(); return [stmt(db, `INSERT INTO s_guard(id,ok) SELECT ?,CASE WHEN ${sql} THEN 1 ELSE 0 END`, g, ...params), stmt(db, 'DELETE FROM s_guard WHERE id=?', g)]; }
 const event = (db: D1Database, actor: Actor, taskId: string, kind: string, detail: Data) => stmt(db, 'INSERT INTO s_task_events VALUES(?,?,?,?,?,?)', id(), taskId, kind, JSON.stringify(detail), actor.email, now());
 const notify = (db: D1Database, taskId: string, recipient: string, message: string) => stmt(db, 'INSERT INTO s_task_notifications(id,task_id,recipient,message,created_at) VALUES(?,?,?,?,?)', id(), taskId, recipient, message, now());
@@ -132,11 +133,11 @@ export async function bulkTasks(db: D1Database, actor: Actor, matterId: string, 
 
 export async function myNotifications(db: D1Database, actor: Actor) {
  human(actor);
- const list = await rows(db, `SELECT n.*,t.matter_id,t.title task_title FROM s_task_notifications n JOIN s_tasks t ON t.id=n.task_id WHERE n.recipient=? AND (?='owner' OR EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=t.matter_id AND a.email=?)) ORDER BY n.created_at DESC,n.id`, actor.email, actor.role, actor.email);
+ const list = await rows(db, `SELECT n.*,t.matter_id,t.title task_title FROM s_task_notifications n JOIN s_tasks t ON t.id=n.task_id WHERE n.recipient=? AND (${matterScope('t.matter_id', actor.channel === 'agent' ? "'agent'" : "'person'")}) ORDER BY n.created_at DESC,n.id`, actor.email, actor.role, actor.email);
  return list.map(n => ({ id: n.id, taskId: n.task_id, matterId: n.matter_id, message: n.message, createdAt: n.created_at, readAt: n.read_at }));
 }
 export async function readNotification(db: D1Database, actor: Actor, notificationId: string) {
  human(actor);
- await atomic(db, actor, [...fence(db, 'EXISTS(SELECT 1 FROM s_task_notifications WHERE id=? AND recipient=? AND read_at IS NULL)', notificationId, actor.email), stmt(db, 'UPDATE s_task_notifications SET read_at=? WHERE id=? AND recipient=?', now(), notificationId, actor.email)]);
+ await atomic(db, actor, [...fence(db, `EXISTS(SELECT 1 FROM s_task_notifications n JOIN s_tasks t ON t.id=n.task_id WHERE n.id=? AND n.recipient=? AND n.read_at IS NULL AND ${matterScope('t.matter_id')})`, notificationId, actor.email,actor.role,actor.email), stmt(db, 'UPDATE s_task_notifications SET read_at=? WHERE id=? AND recipient=?', now(), notificationId, actor.email)]);
  return { id: notificationId, read: true };
 }

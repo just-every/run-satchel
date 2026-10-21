@@ -1,5 +1,6 @@
+import {wallAllows} from './matter-scope';
 import type {Bindings} from '../auth.server';
-import {audit,human,id,insist,need,now,rows,stmt,text,type Actor,type Data} from './model';
+import {audit,human,id,insist,need,matter,now,rows,stmt,text,type Actor,type Data} from './model';
 import {integrationMatter,capability,page,type Integration} from './integrations';
 import {visibleDocument} from './documents';
 import {visibleDeadline} from './deadlines';
@@ -46,7 +47,7 @@ export async function dispatchWebhooks(env:Bindings,only?:string,replayEvent?:st
    if(fresh?.paused||fresh?.generation!==record.generation)break;
    if(!current||!await visible(db,current,e)) {await stmt(db,"UPDATE s_webhook_deliveries SET status='refused' WHERE integration_id=? AND event_id=?",record.id,e.id).run();continue;}
    const claim=id(),lease=new Date(Date.now()+60000).toISOString();
-   const claimed=await stmt(db,`UPDATE s_webhook_deliveries SET status='sending',claim=?,lease_until=? WHERE integration_id=? AND event_id=? AND status IN('queued','failed') AND EXISTS(SELECT 1 FROM s_integrations i JOIN oa_operators o ON o.id=i.owner_id WHERE i.id=? AND i.revoked=0 AND i.paused=0 AND i.generation=? AND o.status='active' AND (o.role='owner' OR EXISTS(SELECT 1 FROM s_members m WHERE m.email=o.email AND m.active=1)))`,claim,lease,record.id,e.id,record.id,record.generation).run();if(!claimed.meta.changes)continue;
+   const claimed=await stmt(db,`UPDATE s_webhook_deliveries SET status='sending',claim=?,lease_until=? WHERE integration_id=? AND event_id=? AND status IN('queued','failed') AND EXISTS(SELECT 1 FROM s_integrations i JOIN oa_operators o ON o.id=i.owner_id WHERE i.id=? AND i.revoked=0 AND i.paused=0 AND i.generation=? AND o.status='active' AND EXISTS(SELECT 1 FROM s_integration_events claim_event WHERE claim_event.id=? AND ${wallAllows('claim_event.matter_id','o.email',"'agent'")}) AND (o.role='owner' OR EXISTS(SELECT 1 FROM s_members m WHERE m.email=o.email AND m.active=1)))`,claim,lease,record.id,e.id,record.id,record.generation,e.id).run();if(!claimed.meta.changes)continue;
    await stmt(db,"INSERT INTO s_webhook_attempts(integration_id,event_id,at,outcome) VALUES(?,?,?,'sending')",record.id,e.id,now()).run();
    let outcome='uncertain',status:number|null=null;
    try {
@@ -59,5 +60,10 @@ export async function dispatchWebhooks(env:Bindings,only?:string,replayEvent?:st
  }return {attempted};
 }
 export async function dispatchIntegration(env:Bindings,actor:Actor,integrationId:string,body:Data) {
- human(actor);need(actor,'owner');return dispatchWebhooks(env,integrationId,body.eventId===undefined?undefined:text(body.eventId,'Event ID',100));
+ human(actor);need(actor,'owner');
+ const record=await stmt(env.DB,'SELECT matter_ids FROM s_integrations WHERE id=?',integrationId).first<Data>();insist(record,'Integration not found',404);
+ const delegated={...actor,channel:'agent' as const};for(const matterId of JSON.parse(record.matter_ids))await matter(env.DB,delegated,matterId);
+ const eventId=body.eventId===undefined?undefined:text(body.eventId,'Event ID',100);
+ if(eventId){const event=await stmt(env.DB,'SELECT matter_id FROM s_integration_events WHERE id=?',eventId).first<Data>();insist(event,'Event not found',404);await matter(env.DB,delegated,event.matter_id);}
+ return dispatchWebhooks(env,integrationId,eventId);
 }

@@ -1,9 +1,10 @@
-import {atomic,audit,human,id,insist,integer,need,now,rows,stmt,text,type Actor,type Data} from './model';
+import {matterScope} from './matter-scope';
+import {atomic,audit,human,id,insist,integer,need,matter,now,rows,stmt,text,type Actor,type Data} from './model';
 
 function principal(actor:Actor) {human(actor);need(actor,'owner');}
-async function connector(db:D1Database,integrationId:string) {
+async function connector(db:D1Database,actor:Actor,integrationId:string) {
  const record=await stmt(db,'SELECT id,matter_ids,event_types,enabled_at,endpoint,revoked,paused,generation FROM s_integrations WHERE id=?',integrationId).first<Data>();
- insist(record,'Integration not found',404);return record;
+ insist(record,'Integration not found',404);for(const matterId of JSON.parse(record.matter_ids))await matter(db,{...actor,channel:'agent'},matterId);return record;
 }
 function currentStatus(delivery:Data,at:string) {
  return delivery.status==='sending'&&(!delivery.lease_until||delivery.lease_until<=at)?'uncertain':delivery.status;
@@ -22,14 +23,14 @@ function action(status:string,record:Data) {
 /** Read-only projection of durable source events, delivery state and human evidence. */
 export async function connectorJournal(db:D1Database,actor:Actor,integrationId:string) {
  principal(actor);
- const record=await connector(db,integrationId),at=now(),allowed=new Set<string>(JSON.parse(record.matter_ids));
+ const record=await connector(db,actor,integrationId),at=now(),allowed=new Set<string>(JSON.parse(record.matter_ids));
  const [attempts,reconciliations,sources]=await Promise.all([
-  rows(db,`SELECT a.*,e.kind,e.matter_id,e.object_id FROM s_webhook_attempts a LEFT JOIN s_integration_events e ON e.id=a.event_id WHERE a.integration_id=? ORDER BY a.sequence`,integrationId),
-  rows(db,'SELECT * FROM s_connector_reconciliations WHERE integration_id=? ORDER BY recorded_at,attempt_sequence',integrationId),
+  rows(db,`SELECT a.*,e.kind,e.matter_id,e.object_id FROM s_webhook_attempts a JOIN s_integration_events e ON e.id=a.event_id WHERE a.integration_id=? AND ${matterScope('e.matter_id')} ORDER BY a.sequence`,integrationId,actor.role,actor.email),
+  rows(db,`SELECT r.* FROM s_connector_reconciliations r JOIN s_integration_events e ON e.id=r.event_id WHERE r.integration_id=? AND ${matterScope('e.matter_id')} ORDER BY r.recorded_at,r.attempt_sequence`,integrationId,actor.role,actor.email),
   rows(db,`SELECT e.id event_id,e.kind,e.matter_id,e.object_id,e.sequence source_sequence,e.at source_at,
    d.status,d.lease_until FROM s_integration_events e LEFT JOIN s_webhook_deliveries d ON d.event_id=e.id AND d.integration_id=?
-   WHERE d.event_id IS NOT NULL OR (? IS NOT NULL AND e.at>=? AND e.kind IN(SELECT value FROM json_each(?))) ORDER BY e.sequence`,
-   integrationId,record.endpoint,record.enabled_at,record.event_types),
+   WHERE (d.event_id IS NOT NULL OR (? IS NOT NULL AND e.at>=? AND e.kind IN(SELECT value FROM json_each(?)))) AND ${matterScope('e.matter_id')} ORDER BY e.sequence`,
+   integrationId,record.endpoint,record.enabled_at,record.event_types,actor.role,actor.email),
  ]);
  const latest=new Map<string,Data>(),confirmation=new Map<string,Data>();
  for(const attempt of attempts)latest.set(attempt.event_id,attempt);
@@ -62,10 +63,11 @@ export async function reconcileConnector(db:D1Database,actor:Actor,integrationId
  const eventId=text(body.eventId,'Source event ID',100),attemptSequence=integer(body.attemptSequence,'Attempt sequence',1,Number.MAX_SAFE_INTEGER);
  insist(body.decision==='received'||body.decision==='not_received','Choose received or not_received');
  const decision=body.decision as 'received'|'not_received',externalReference=text(body.externalReference,'External reference',1000),evidence=text(body.evidence,'Human confirmation evidence',4000);
- await connector(db,integrationId);
+ await connector(db,actor,integrationId);
  const at=now(),delivery=await stmt(db,`SELECT d.*,e.matter_id,
   (SELECT MAX(sequence) FROM s_webhook_attempts WHERE integration_id=d.integration_id AND event_id=d.event_id) last_sequence
   FROM s_webhook_deliveries d JOIN s_integration_events e ON e.id=d.event_id WHERE d.integration_id=? AND d.event_id=?`,integrationId,eventId).first<Data>();
+ if(delivery)await matter(db,actor,delivery.matter_id);
  insist(delivery&&delivery.last_sequence===attemptSequence&&currentStatus(delivery,at)==='uncertain','The delivery or attempt changed. Refresh before recording confirmation.',409);
  const fence=id();
  const reconciliation={integration_id:integrationId,event_id:eventId,attempt_sequence:attemptSequence,decision,external_reference:externalReference,evidence,evidence_source:'principal-recorded',recorded_by:actor.email,recorded_at:at};
@@ -92,8 +94,8 @@ export async function reconcileConnector(db:D1Database,actor:Actor,integrationId
 /** Narrow the existing explicit allowlist without rotating credentials or adding permissions. */
 export async function revokeConnectorMatter(db:D1Database,actor:Actor,integrationId:string,body:Data) {
  principal(actor);
- const matterId=text(body.matterId,'Matter ID',100),generation=integer(body.generation,'Integration generation',1,Number.MAX_SAFE_INTEGER);
- const record=await connector(db,integrationId),matterIds=JSON.parse(record.matter_ids) as string[];
+ const matterId=text(body.matterId,'Matter ID',100);await matter(db,actor,matterId);const generation=integer(body.generation,'Integration generation',1,Number.MAX_SAFE_INTEGER);
+ const record=await connector(db,actor,integrationId),matterIds=JSON.parse(record.matter_ids) as string[];
  insist(record.generation===generation&&matterIds.includes(matterId),'The permitted matters changed. Refresh before removing access.',409);
  const narrowed=matterIds.filter(value=>value!==matterId),fence=id();
  await atomic(db,actor,[

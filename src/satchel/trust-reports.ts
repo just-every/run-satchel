@@ -1,3 +1,4 @@
+import {matterScope} from './matter-scope';
 import {digest,insist,stmt,text,type Actor,type Data} from './model';
 import {guard} from './trust-guards';
 import {trustOfficer} from './trust';
@@ -7,9 +8,9 @@ const sourceIds=`SELECT s.source_document_id FROM s_trust_entry_sources s JOIN s
  UNION SELECT c.source_document_id FROM s_trust_clearings c JOIN s_trust_entries e ON e.id=c.entry_id WHERE e.account_id=?
  UNION SELECT source_document_id FROM s_trust_periods WHERE account_id=?
  UNION SELECT x.source_document_id FROM s_trust_period_events x JOIN s_trust_periods p ON p.id=x.period_id WHERE p.account_id=?`;
-const accessSql=`?='owner' OR (NOT EXISTS(SELECT 1 FROM s_trust_ledgers l WHERE l.account_id=? AND NOT EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=l.matter_id AND a.email=?))
- AND NOT EXISTS(SELECT 1 FROM s_documents d WHERE d.id IN(${sourceIds}) AND (NOT EXISTS(SELECT 1 FROM s_matter_access a WHERE a.matter_id=d.matter_id AND a.email=?) OR (d.visibility<>'matter' AND d.created_by<>?))))`;
-function accessValues(actor:Actor,accountId:string){return [actor.role,accountId,actor.email,accountId,accountId,accountId,accountId,actor.email,actor.email];}
+const accessSql=`NOT EXISTS(SELECT 1 FROM s_trust_ledgers l WHERE l.account_id=? AND NOT (${matterScope('l.matter_id')}))
+ AND NOT EXISTS(SELECT 1 FROM s_documents d WHERE d.id IN(${sourceIds}) AND (NOT (${matterScope('d.matter_id')}) OR (d.visibility<>'matter' AND d.created_by<>? AND ?<>'owner')))`;
+function accessValues(actor:Actor,accountId:string){return [accountId,actor.role,actor.email,accountId,accountId,accountId,accountId,actor.role,actor.email,actor.email,actor.role];}
 export function accountTrustGuard(db:D1Database,actor:Actor,accountId:string){return guard(db,accessSql,...accessValues(actor,accountId));}
 export async function accountTrustAccess(db:D1Database,actor:Actor,accountId:string){
  await trustOfficer(db,actor);
