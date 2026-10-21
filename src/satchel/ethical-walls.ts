@@ -67,3 +67,16 @@ export async function dissolveWall(db:D1Database,actor:Actor,wallId:string,b:Dat
   audit(db,actor,'wall.dissolved',w.id,reason,{matterId:w.matter_id,revision}),stmt(db,'DELETE FROM s_guard WHERE id=?',fence)]);
  return {id:w.id,dissolved:true};
 }
+
+// Expiry is enforced in read predicates at the instant of access. Record its
+// single audit event on the next native request, even when no scheduler ran.
+export async function recordWallExpiries(db:D1Database,actor:Actor){
+ for(const r of await rows(db,"SELECT r.* FROM s_wall_requests r WHERE r.status='approved' AND r.revoked_at IS NULL AND r.expires_at<=? AND NOT EXISTS(SELECT 1 FROM s_wall_expiries e WHERE e.request_id=r.id) AND (r.requester_email=? OR EXISTS(SELECT 1 FROM s_ethical_walls w WHERE w.id=r.wall_id AND w.custodian_email=?))",now(),actor.email,actor.email)){
+  await atomic(db,actor,[stmt(db,'INSERT OR IGNORE INTO s_wall_expiries VALUES(?,?)',r.id,now()),
+   stmt(db,"INSERT INTO s_audit(id,actor,action,object_id,detail,at,actor_id,role,channel,matter_id,revision,evidence) SELECT ?,?,'wall.access_expired',?,?,?, ?,?,'person',?,NULL,? WHERE changes()=1",id(),actor.email,r.id,JSON.stringify({expiresAt:r.expires_at}),now(),actor.id,actor.role,r.matter_id,JSON.stringify({grantId:r.id,expiresAt:r.expires_at}))]);
+ }
+}
+export async function auditWallReads(db:D1Database,actor:Actor,path:string){
+ const grants=await rows(db,`SELECT r.* FROM s_wall_requests r WHERE r.requester_email=? AND r.status='approved' AND r.revoked_at IS NULL AND r.expires_at>? AND NOT EXISTS(SELECT 1 FROM s_wall_members m WHERE m.matter_id=r.matter_id AND m.email=?) AND ${matterScope('r.matter_id')}`,actor.email,now(),actor.email,actor.role,actor.email);
+ if(grants.length)await atomic(db,actor,grants.map(r=>audit(db,actor,'wall.access_read',r.id,JSON.stringify({path,grantId:r.id,expiresAt:r.expires_at}),{matterId:r.matter_id})));
+}

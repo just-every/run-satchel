@@ -241,7 +241,7 @@ test('ethical walls exclude a principal from current doors and require expiring 
   const decision=await w.json('/wall-requests/'+request.id+'/decide',{approve:true,note:'Documented emergency coverage reviewed',minutes:30},custodian);assert.ok(Date.parse(decision.expires_at)>Date.now());
   assert.equal((await w.json('/matters/'+hidden.id,undefined,w.owner)).matter.id,hidden.id);
   await w.json('/agent/matters/'+hidden.id,undefined,'',404,auth);assert.ok(!JSON.stringify(await w.json('/agent/context',undefined,'',200,auth)).includes(hidden.id));
-  const custodyTrail=await w.json('/audit?matterId='+hidden.id,undefined,custodian);assert.ok(custodyTrail.records.some(r=>r.action==='wall.access_approved'));
+  const custodyTrail=await w.json('/audit?matterId='+hidden.id,undefined,custodian);assert.ok(custodyTrail.records.some(r=>r.action==='wall.access_approved'));assert.ok(custodyTrail.records.some(r=>r.action==='wall.access_read'&&r.detail.path==='/api/satchel/matters/'+hidden.id));
   const trail=await w.json('/audit?matterId='+hidden.id,undefined,w.owner);assert.ok(trail.records.some(r=>r.action==='wall.access_approved'&&r.detail.note==='Documented emergency coverage reviewed'&&r.actor.email==='custodian@example.test'));
   await w.json('/backup',undefined,w.owner,403);
   let archiveWall=await w.json('/matters/'+hidden.id+'/wall',{custodianEmail:'custodian@example.test',members:['owner@example.test'],reason:'Principal admitted as a member for archive custody',revision:wall.revision},custodian);
@@ -256,6 +256,7 @@ test('ethical walls exclude a principal from current doors and require expiring 
   await new Promise(resolve=>setTimeout(resolve,61000));
   await w.json('/matters/'+hidden.id,undefined,w.owner,404);
   assert.ok((await w.json('/ethical-walls',undefined,w.owner)).requests.some(r=>r.id===short.id&&Date.parse(r.expires_at)<=Date.now()));
+  assert.ok((await w.json('/audit?matterId='+hidden.id,undefined,custodian)).records.some(r=>r.action==='wall.access_expired'&&r.objectId===short.id));
   const membershipGrant=await grant(60);
   const full=(await w.json('/ethical-walls',undefined,w.owner)).requests.find(r=>r.id===membershipGrant.id);assert.ok(Date.parse(full.expires_at)-Date.now()<=3600000);
   await w.json('/backup',undefined,w.owner,403);

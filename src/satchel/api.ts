@@ -1,6 +1,6 @@
 import {disposeConflictWaiver} from './conflict-custody';
 import {conflictReview,saveConflictReview,routeConflictMatch,listConflictReferrals,decideConflictReferral,waiverFile,savedConflictSearches,removeEngagementExclusion} from './conflict-dispositions';
-import {wallState,saveWall,requestWallAccess,decideWallAccess,revokeWallAccess,takeWallCustody,dissolveWall} from './ethical-walls';
+import {wallState,saveWall,requestWallAccess,decideWallAccess,revokeWallAccess,takeWallCustody,dissolveWall,recordWallExpiries,auditWallReads} from './ethical-walls';
 import {editReleasedEntry} from './released-entries';
 import {documentReview,annotateDocument,conflictFile,resolveConflict} from './document-review';
 import {invoiceSettings,saveInvoiceScheme,registerImportedNumbers} from './invoice-schemes';
@@ -78,7 +78,7 @@ api.onError((e,c)=>{if(e instanceof Fault)return c.json({error:e.message},e.stat
 async function body(c:C):Promise<Data>{const raw=await c.req.text();insist(raw.length<=24_000_000,'Request too large',413);const b=JSON.parse(raw);insist(b&&typeof b==='object'&&!Array.isArray(b),'Supply a JSON object');return b;}
 const db=(c:C)=>runtimeBindings(c.env).DB;
 const param=(c:C,key='id')=>c.req.param(key)!;
-const as=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>{const result=await fn(await person(c.req.raw,c.env),c);return result instanceof Response?result:c.json(result);};
+const as=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>{const actor=await person(c.req.raw,c.env);await recordWallExpiries(db(c),actor);const result=await fn(actor,c);if(c.req.method==='GET'&&(!(result instanceof Response)||result.ok))await auditWallReads(db(c),actor,c.req.path);return result instanceof Response?result:c.json(result);};
 const asAgent=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>c.json(await fn(await agent(c.req.raw,c.env),c));
 api.post('/api/satchel/ethical-walls/:id/take-custody',as(async(a,c)=>takeWallCustody(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/ethical-walls/:id/dissolve',as(async(a,c)=>dissolveWall(db(c),a,param(c),await body(c))));
