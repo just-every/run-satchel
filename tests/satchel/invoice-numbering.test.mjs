@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {getDocument} from 'pdfjs-dist/legacy/build/pdf.mjs';
 import assert from 'node:assert/strict';
 import {harness,open} from './harness.mjs';
 import {createHash} from 'node:crypto';
@@ -39,6 +40,7 @@ test('BILL-015 prospective numbering: exact approved issue, tax gate, batch roll
   const audit=await h.json('/audit?matterId='+m.id+'&action=invoice.issued',undefined,h.owner);assert.equal(audit.records.length,1);assert.equal(audit.records[0].revision,approved.revision);assert.equal(audit.records[0].evidence.record.pdf_digest,one.pdf_digest);
   assert.deepEqual(await h.json('/invoices/issue',payload,h.owner),issued);assert.equal((await h.json('/invoice-numbering',undefined,h.owner)).counter.next_number,101);
   const pdf=Buffer.from(await(await h.request('/api/satchel/bills/'+first.id+'/invoice.pdf',undefined,h.owner)).arrayBuffer());assert.match(pdf.toString('ascii',0,8),/^%PDF-/);assert.equal(hash(pdf),one.pdf_digest);
+  const parsed=getDocument({data:Uint8Array.from(pdf),useSystemFonts:false});try{const document=await parsed.promise,text=[];for(let n=1;n<=document.numPages;n++)text.push((await(await document.getPage(n)).getTextContent()).items.map(i=>i.str).join(' '));const rendered=text.join(' ');assert.ok(rendered.includes('Invoice '+one.number));assert.ok(rendered.includes('Total USD 375.00'));assert.ok(rendered.includes(approved.artifactDigest));}finally{await parsed.destroy();}
   assert.equal((await h.request('/api/satchel/bills/'+first.id+'/invoice.pdf',undefined,assistant)).status,403);assert.equal((await h.request('/api/satchel/bills/'+first.id+'/invoice.pdf')).status,401);
   assert.equal(await(await h.request('/api/satchel/bills/'+first.id+'/export',undefined,h.owner)).text(),approved.artifact);
   const latest=(await h.json(base+'/billing',undefined,h.owner)).bills.find(b=>b.id===first.id);await h.json('/bills/'+first.id+'/void',{revision:latest.revision,reason:'Issued numbers must remain reserved'},h.owner,409);
