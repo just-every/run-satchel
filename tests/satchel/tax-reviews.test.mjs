@@ -52,7 +52,6 @@ test('BILL-004 native draft tax review: two jurisdictions, explicit exemptions, 
 test('BILL-004 configured-matter approval freezes exact two-jurisdiction tax provenance and CSV totals; unknown, stale, cross-bill, LEDES and trust gaps refuse; additive corrections retain rounded original treatment',async()=>{
  const h=await harness();try{
   const f=await foundation(h),base='/matters/'+f.m.id;
-  await h.json('/invoice-numbering',scheme(),h.owner);
   const make=async title=>{const ids=[];for(const [kind,cents] of [['time',101],['disbursement',219]]){const e=await h.json(base+'/entries',{kind,date:'2026-10-01',description:title+' '+kind,...(kind==='time'?{minutes:60,rateCents:cents}:{amountCents:cents})},h.owner);ids.push(e.id);}return h.json(base+'/bills',{title,date:'2026-10-01',entryIds:ids},h.owner);};
   const ny=await h.json(base+'/tax-rules',terms(),h.owner),ca=await h.json(base+'/tax-rules',terms('CA',{service:{eligibility:'exempt',ratePpm:0,reference:'Synthetic service exemption'},expense:{eligibility:'taxable',ratePpm:72500,reference:'Synthetic expense rate'}}),h.owner);
   const first=await make('New York reviewed invoice'),second=await make('California reviewed invoice');
@@ -64,6 +63,9 @@ test('BILL-004 configured-matter approval freezes exact two-jurisdiction tax pro
   await h.json('/team',{email:'assistant@example.test',name:'Assistant',role:'assistant'},h.owner);await h.json('/team/invite',{email:'assistant@example.test'},h.owner);const assistant=await h.login('assistant@example.test');await h.json(base+'/access',{email:'assistant@example.test'},h.owner);
   await h.json('/bills/'+first.id+'/approve',{revision:first.revision,reviewNote:'No legal authority',taxReviewId:a.id},assistant,403);
   const before=(await h.json(base+'/billing',undefined,h.owner)).bills;assert.ok(before.every(v=>v.status==='draft'&&v.artifact===null&&v.snapshot.totalCents===320));
+  await h.json(base+'/ledes-guideline',{clientLedesId:'TAX-CLIENT',lawFirmId:'FIRM-TEST',requireTask:false,requireActivity:false,requireExpense:false,narrativeMin:0,bannedPhrases:[],maxRates:{},incrementMinutes:0,note:'Synthetic client guideline without reviewed tax mapping'},h.owner);
+  const expense=await h.json(base+'/entries',{kind:'disbursement',date:'2026-10-02',description:'LEDES tax mapping cannot be inferred',amountCents:100},h.owner),coded=await h.json(base+'/bills',{title:'Missing tax mapping',date:'2026-10-02',entryIds:[expense.id]},h.owner),codedReview=await h.json('/bills/'+coded.id+'/tax-reviews',{revision:coded.revision,ruleId:ca.id},h.owner);
+  await h.json('/invoice-numbering',scheme(),h.owner);
   const originals=[],corrections=[];
   for(const [draft,review,tax,total] of [[first,a,5,325],[second,b,16,336]]){
    const approved=await approve(draft,review.id);assert.deepEqual([approved.snapshot.subtotalCents,approved.snapshot.taxCents,approved.snapshot.totalCents],[320,tax,total]);assert.deepEqual(approved.snapshot.taxReview,review);
@@ -97,8 +99,6 @@ test('BILL-004 configured-matter approval freezes exact two-jurisdiction tax pro
    assert.match((await h.json('/trust/transfers',{billId:draft.id,ledgerId:f.ledger.id,operatingAccountId:f.operating.id,requestKey:draft.id},h.owner,422)).error,/tax trust eligibility and allocation/);
    await h.json('/bills/'+draft.id+'/approve',{revision:draft.revision,reviewNote:'Replay',taxReviewId:review.id},h.owner,409);
   }
-  await h.json(base+'/ledes-guideline',{clientLedesId:'TAX-CLIENT',lawFirmId:'FIRM-TEST',requireTask:false,requireActivity:false,requireExpense:false,narrativeMin:0,bannedPhrases:[],maxRates:{},incrementMinutes:0,note:'Synthetic client guideline without reviewed tax mapping'},h.owner);
-  const expense=await h.json(base+'/entries',{kind:'disbursement',date:'2026-10-02',description:'LEDES tax mapping cannot be inferred',amountCents:100},h.owner),coded=await h.json(base+'/bills',{title:'Missing tax mapping',date:'2026-10-02',entryIds:[expense.id]},h.owner),codedReview=await h.json('/bills/'+coded.id+'/tax-reviews',{revision:coded.revision,ruleId:ca.id},h.owner);
   assert.match((await h.json('/bills/'+coded.id+'/approve',{revision:coded.revision,reviewNote:'Must retain tax in every format',taxReviewId:codedReview.id},h.owner,422)).error,/LEDES 1998B\/XML tax mapping/);
   assert.equal((await h.request('/api/satchel/bills/'+coded.id+'/ledes',undefined,h.owner)).status,409);
   assert.equal((await h.json(base+'/billing',undefined,h.owner)).bills.length,7,'Only reviewed additive corrections and the refused LEDES draft exist');

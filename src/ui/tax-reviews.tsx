@@ -9,7 +9,7 @@ function RuleDetails({rule}:{rule:Row}){
 function TreatmentFields({kind}:{kind:'service'|'expense'}){
  const label=kind==='service'?'Services':'Expenses';
  return <fieldset><legend>{label}</legend>
-  <Field label={label+' reviewed treatment'} name={kind+'Eligibility'}><select name={kind+'Eligibility'} required defaultValue=""><option value="" disabled>Select reviewed treatment</option><option value="taxable">Taxable</option><option value="exempt">Exempt</option></select></Field>
+  <Field label={label+' reviewed treatment'} name={kind+'Eligibility'}><select name={kind+'Eligibility'} aria-label={label+' reviewed treatment'} required defaultValue=""><option value="" disabled>Select reviewed treatment</option><option value="taxable">Taxable</option><option value="exempt">Exempt</option></select></Field>
   <Field label={label+' rate (exact parts per million)'} name={kind+'RatePpm'}><input name={kind+'RatePpm'} type="number" min="0" max="1000000" step="1" required/></Field>
   <Field label={label+' treatment or exemption reference'} name={kind+'Reference'}/>
  </fieldset>;
@@ -29,7 +29,7 @@ export function TaxRules({matterId,actor,run,rules}:{matterId:string;actor:Row;r
    <Field label="Counsel/accountant review reference" name="reference"/>
    <TreatmentFields kind="service"/><TreatmentFields kind="expense"/>
    <small>Enter rates as exact integer parts per million: 7.25% = 72500. An exempt treatment requires an explicit zero rate.</small>
-   <Field label="Reviewed per-line rounding" name="rounding"><select name="rounding" required defaultValue=""><option value="" disabled>Select reviewed rounding</option><option value="half_up">Half up</option><option value="half_even">Half even</option><option value="down">Down</option></select></Field>
+   <Field label="Reviewed per-line rounding" name="rounding"><select name="rounding" aria-label="Reviewed per-line rounding" required defaultValue=""><option value="" disabled>Select reviewed rounding</option><option value="half_up">Half up</option><option value="half_even">Half even</option><option value="down">Down</option></select></Field>
    <label><input type="checkbox" name="reviewed" value="yes" required/> I confirm counsel or an accountant reviewed this exact jurisdiction, service and expense treatment, rates, references and per-line rounding.</label>
   </Form></details>}
  </section>;
@@ -41,7 +41,7 @@ export function TaxCalculation({bill,rules,run,pinnedRule}:{bill:Row;rules:Row[]
  return <details><summary>Review exact tax calculation</summary>
   {correction&&<><p>This correction uses the original bill's immutable reviewed tax rule.</p>{pinnedRule?<RuleDetails rule={pinnedRule}/>:<p>The original reviewed tax rule is unavailable. Calculation requires its original review.</p>}</>}
   {(!correction||pinnedRule)&&<Form label="Calculate tax for this revision" submit={data=>run(()=>api('/bills/'+bill.id+'/tax-reviews',{revision:bill.revision,...(correction?{}:{ruleId:data.ruleId})}),'Tax calculation saved for this exact bill revision')}>
-   {!correction&&<Field label="Immutable reviewed tax rule" name="ruleId"><select name="ruleId" required defaultValue=""><option value="" disabled>Select an exact reviewed rule</option>{rules.map(rule=><option key={rule.id} value={rule.id}>{rule.jurisdiction} · {rule.reviewedBy} · {rule.reviewedAt} · {rule.id}</option>)}</select></Field>}
+   {!correction&&<Field label="Immutable reviewed tax rule" name="ruleId"><select name="ruleId" aria-label="Immutable reviewed tax rule" required defaultValue=""><option value="" disabled>Select an exact reviewed rule</option>{rules.map(rule=><option key={rule.id} value={rule.id}>{rule.jurisdiction} · {rule.reviewedBy} · {rule.reviewedAt} · {rule.id}</option>)}</select></Field>}
   </Form>}
   {!correction&&!rules.length&&<p>Save an explicit reviewed tax rule for this matter before calculating.</p>}
   {(bill.taxReviews??[]).map((review:Row)=><details key={review.id}><summary>{dollars(review.snapshot.taxCents)} tax · {dollars(review.snapshot.totalCents)} total · revision {review.billRevision}{review.billRevision!==bill.revision?' · prior revision':''}</summary>
