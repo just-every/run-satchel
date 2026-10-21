@@ -36,6 +36,7 @@ test('BILL-015 prospective numbering: exact approved issue, tax gate, batch roll
   assert.equal((await h.request('/api/satchel/bills/'+first.id+'/invoice.pdf',undefined,h.owner)).status,404);assert.equal((await h.json('/invoice-numbering',undefined,h.owner)).counter.next_number,100);
   await h.json('/invoices/issue',{bills:[{id:first.id,revision:'stale'}]},h.owner,409);
   const issued=await h.json('/invoices/issue',payload,h.owner),one=issued.issues[0];assert.match(one.number,/^BL-\d{4}-00100$/);assert.equal(one.approved_digest,approved.artifactDigest);assert.equal(one.snapshot_digest,hash(JSON.stringify(approved.snapshot)));
+  const audit=await h.json('/audit?matterId='+m.id+'&action=invoice.issued',undefined,h.owner);assert.equal(audit.records.length,1);assert.equal(audit.records[0].revision,approved.revision);assert.equal(audit.records[0].evidence.record.pdf_digest,one.pdf_digest);
   assert.deepEqual(await h.json('/invoices/issue',payload,h.owner),issued);assert.equal((await h.json('/invoice-numbering',undefined,h.owner)).counter.next_number,101);
   const pdf=Buffer.from(await(await h.request('/api/satchel/bills/'+first.id+'/invoice.pdf',undefined,h.owner)).arrayBuffer());assert.match(pdf.toString('ascii',0,8),/^%PDF-/);assert.equal(hash(pdf),one.pdf_digest);
   assert.equal((await h.request('/api/satchel/bills/'+first.id+'/invoice.pdf',undefined,assistant)).status,403);assert.equal((await h.request('/api/satchel/bills/'+first.id+'/invoice.pdf')).status,401);
@@ -46,9 +47,11 @@ test('BILL-015 prospective numbering: exact approved issue, tax gate, batch roll
   const collision=one.number.replace(/00100$/,'00101');await h.json('/invoice-numbering/import',{source:'External source numbering collision fixture',numbers:[{number:collision,ordinal:1}]},h.owner);
   const next=await reviewed(h,m,second);await h.json('/invoices/issue',{bills:[{id:next.id,revision:next.revision}]},h.owner,409);assert.equal((await h.json('/invoice-numbering',undefined,h.owner)).counter.next_number,101);
   const state=await h.json('/invoice-numbering',undefined,h.owner);await h.json('/invoice-numbering',scheme(102,{prefix:'NEW',year:false,separator:'.',revision:state.counter.revision}),h.owner);
-  const after=await h.json('/invoices/issue',{bills:[{id:next.id,revision:next.revision}]},h.owner);assert.equal(after.issues[0].number,'NEW.00102');assert.deepEqual(Buffer.from(await(await h.request('/api/satchel/bills/'+first.id+'/invoice.pdf',undefined,h.owner)).arrayBuffer()),pdf);
+  const after=await h.json('/invoices/issue',{bills:[{id:next.id,revision:next.revision}]},h.owner);assert.equal(after.issues[0].number,'NEW.00102');
+  const pair=[];for(const title of ['Batch matter review','Batch title review'])pair.push(await reviewed(h,m,await draft(h,m,title)));
+  const batch=await h.json('/invoices/issue',{bills:pair.map(b=>({id:b.id,revision:b.revision}))},h.owner);assert.deepEqual(batch.issues.map(i=>i.number),['NEW.00103','NEW.00104']);assert.deepEqual(Buffer.from(await(await h.request('/api/satchel/bills/'+first.id+'/invoice.pdf',undefined,h.owner)).arrayBuffer()),pdf);
   target=await harness();await target.json('/restore',{archive:await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),confirm:'RESTORE'},target.owner);
   assert.deepEqual(await target.json('/invoice-numbering',undefined,target.owner),await h.json('/invoice-numbering',undefined,h.owner));assert.deepEqual(Buffer.from(await(await target.request('/api/satchel/bills/'+first.id+'/invoice.pdf',undefined,target.owner)).arrayBuffer()),pdf);
-  const third=await reviewed(target,m,await draft(target,m,'Recovered continuation'));const continuation=await target.json('/invoices/issue',{bills:[{id:third.id,revision:third.revision}]},target.owner);assert.equal(continuation.issues[0].number,'NEW.00103');
+  const third=await reviewed(target,m,await draft(target,m,'Recovered continuation'));const continuation=await target.json('/invoices/issue',{bills:[{id:third.id,revision:third.revision}]},target.owner);assert.equal(continuation.issues[0].number,'NEW.00105');
  }finally{await target?.close();await h.close();}
 });
