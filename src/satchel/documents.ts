@@ -108,7 +108,7 @@ export async function saveDocument(db: D1Database, actor: Actor, matterId: strin
 
  }
  const documentId = existing?.id ?? id(), revision = id(), at = now(), attemptId=id();
- const baseRevision=body.revision===undefined?existing?.revision:text(body.revision,'Base revision',100);
+ const baseRevision=existing?text(body.revision,'Base document revision',100):null;
  const writes = [...matterGuard(db, actor, matterId)];
  if (existing) {
   writes.push(...documentGuard(db, actor, existing, true, Boolean(resolving)));

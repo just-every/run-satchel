@@ -54,7 +54,7 @@ for(const width of [1440,390])test(`DOC-002 authenticated PDF/image/text preview
   const wordRecord=page.locator('article.record').filter({has:page.getByText(word.title,{exact:true})});await wordRecord.getByRole('button',{name:'Preview and compare versions'}).click();await wordRecord.getByText(/Counsel (first|second) Word revision/).waitFor();
   const review=await h.json('/documents/'+word.id+'/review',undefined,h.owner);await wordRecord.getByLabel('Conflict copy',{exact:true}).selectOption(review.conflicts[0].id);await wordRecord.getByRole('region',{name:'Preview version conflict',exact:true}).getByText(/Counsel (first|second) Word revision/).waitFor();
   if(process.env.SATCHEL_SCREENSHOTS)await wordRecord.screenshot({path:process.env.SATCHEL_SCREENSHOTS+'/'+width+'-word-conflict.png'});
-  await wordRecord.getByRole('button',{name:'Append retained conflict as a new version',exact:true}).click();await wordRecord.getByText('Version 3',{exact:true}).waitFor();await wordRecord.getByRole('button',{name:'Preview and compare versions'}).click();await wordRecord.getByLabel('Compare with version',{exact:true}).selectOption('1');await wordRecord.getByText('Original Word notice',{exact:true}).waitFor();
+  await wordRecord.getByRole('button',{name:'Append retained conflict as a new version',exact:true}).click();await wordRecord.locator('p').filter({hasText:/· Version 3$/}).waitFor();await wordRecord.getByRole('button',{name:'Preview and compare versions'}).click();await wordRecord.getByLabel('Compare with version',{exact:true}).selectOption('1');await wordRecord.getByText('Original Word notice',{exact:true}).waitFor();
   if(process.env.SATCHEL_SCREENSHOTS)await wordRecord.screenshot({path:process.env.SATCHEL_SCREENSHOTS+'/'+width+'-word-resolved.png'});
   for(const [kind,expected] of [['xlsx','Reviewed filing cost'],['pptx','Hearing preparation summary']]){const r=page.locator('article.record').filter({has:page.getByText('Hearing.'+kind,{exact:true})});await r.getByRole('button',{name:'Preview and compare versions'}).click();await r.getByText(expected,{exact:true}).waitFor();if(process.env.SATCHEL_SCREENSHOTS)await r.screenshot({path:process.env.SATCHEL_SCREENSHOTS+'/'+width+'-'+kind+'.png'});}
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);
@@ -71,6 +71,7 @@ for(const width of [1440,390])test(`DOC-002 authenticated PDF/image/text preview
 test('DOC-002 simultaneous Word saves retain the losing copy, version-bound notes, citations, access, archive recovery and disposal',async()=>{
  const h=await harness();let restored;try{
   const m=await open(h),base='/matters/'+m.id,first=await h.json(base+'/documents',wordUpload('Original reviewed notice'),h.owner),door='/documents/'+first.id;
+  await h.json(base+'/documents',{...wordUpload('Unbased edit refused'),documentId:first.id},h.owner,400);
   const deadline=await h.json(base+'/deadlines',{title:'Reviewed original notice',date:'2026-12-01',timezone:'America/New_York',source:'Original Word version one clause seven',documentId:first.id,documentVersion:1},h.owner);
   await h.json('/deadlines/'+deadline.id+'/confirm',{revision:deadline.revision,reviewNote:'Reviewed exact source',confirmed:true},h.owner);
   await h.json(door+'/annotations',{version:1,page:1,note:'Separate strategy annotation'},h.owner);

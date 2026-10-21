@@ -8,3 +8,7 @@
 .document-preview pre { white-space:pre-wrap; overflow-wrap:anywhere; max-height:32rem; overflow:auto; }
 .document-hash { overflow-wrap:anywhere; }
 .document-originals:has(.document-preview) { grid-column:1 / -1; }
+
+.office-preview { max-width:100%; overflow-x:auto; }
+.office-preview table { border-collapse:collapse; margin:.75rem 0; }
+.office-preview td { border:1px solid var(--border,#d8d8d8); padding:.5rem; vertical-align:top; }

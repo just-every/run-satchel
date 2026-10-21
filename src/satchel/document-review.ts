@@ -26,6 +26,7 @@ export async function resolveConflict(db:D1Database,actor:Actor,documentId:strin
  const {d,c}=await conflict(db,actor,documentId,conflictId);
  insist(actor.role==='owner'||d.created_by===actor.email,'Only the document author or owner can append versions',403);
  insist(!c.resolved_at,'This conflict was already resolved',409);insist(body.revision===d.revision,'The document changed. Compare again before resolving.',409);
+ const bytes=decode(c.content_base64);insist(bytes.length===c.size&&await digest(bytes)===c.sha256,'Conflict original failed its integrity check',503);
  const same=await stmt(db,'SELECT version FROM s_document_versions WHERE document_id=? AND sha256=?',d.id,c.sha256).first<Data>();
  if(same){
   const fence=id();await atomic(db,actor,[...documentGuard(db,actor,d,true),stmt(db,'INSERT INTO s_guard(id,ok) SELECT ?,CASE WHEN resolved_at IS NULL THEN 1 ELSE 0 END FROM s_document_conflicts WHERE id=?',fence,c.id),stmt(db,'DELETE FROM s_guard WHERE id=?',fence),stmt(db,'UPDATE s_document_conflicts SET resolved_version=?,resolved_by=?,resolved_at=? WHERE id=?',same.version,actor.email,now(),c.id),audit(db,actor,'document.conflict_resolved',c.id,JSON.stringify({documentId:d.id,version:same.version}),{matterId:d.matter_id})]);
