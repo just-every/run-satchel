@@ -1,6 +1,7 @@
 import {createPortability} from '@runeditrun/rer/modules/portability';
 import policy from './archive-policy.mjs';
 import {firmToday} from './retention';
+import {matterGuard} from './documents';
 import {atomic,audit,digest,human,id,insist,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
 // Conflict originals inherit the existing whole-matter schedule and legal hold.
 // Attribution, digest, scope and enforced restrictions remain history, as do the
@@ -9,7 +10,7 @@ export async function disposeConflictWaiver(db:D1Database,actor:Actor,waiverId:s
  human(actor);need(actor,'owner');const f=await stmt(db,'SELECT * FROM s_conflict_waivers WHERE id=? AND NOT EXISTS(SELECT 1 FROM s_conflict_disposals d WHERE d.waiver_id=s_conflict_waivers.id)',waiverId).first<Data>();insist(f,'Conflict original not found',404);
  insist(b.confirm===f.name,'Type the waiver filename to confirm disposal');const reason=text(b.reason,'Disposal reason',2000),at=now(),today=await firmToday(db),scopes=await rows(db,'SELECT matter_id FROM s_conflict_waiver_matters WHERE waiver_id=?',f.id),guards:D1PreparedStatement[]=[];
  insist(scopes.length,'The original has no classified matter custody',409);
- for(const s of scopes){await matter(db,actor,s.matter_id);const hold=await stmt(db,'SELECT reason FROM s_holds WHERE matter_id=? AND document_id IS NULL AND released_at IS NULL',s.matter_id).first<Data>();insist(!hold,'Legal hold: '+hold?.reason,409);
+ for(const s of scopes){await matter(db,actor,s.matter_id);guards.push(...matterGuard(db,actor,s.matter_id));const hold=await stmt(db,'SELECT reason FROM s_holds WHERE matter_id=? AND document_id IS NULL AND released_at IS NULL',s.matter_id).first<Data>();insist(!hold,'Legal hold: '+hold?.reason,409);
   const r=await stmt(db,'SELECT * FROM s_retention WHERE matter_id=? AND document_id IS NULL AND superseded_at IS NULL',s.matter_id).first<Data>();insist(r&&r.dispose_after<=today,'The affected matter needs an expired retention schedule',409);
   const fence=id();guards.push(stmt(db,'INSERT INTO s_guard VALUES(?,CASE WHEN EXISTS(SELECT 1 FROM s_retention WHERE id=? AND superseded_at IS NULL AND dispose_after<=?) AND NOT EXISTS(SELECT 1 FROM s_holds WHERE matter_id=? AND document_id IS NULL AND released_at IS NULL) THEN 1 ELSE 0 END)',fence,r.id,today,s.matter_id),stmt(db,'DELETE FROM s_guard WHERE id=?',fence));
  }
@@ -30,7 +31,7 @@ export async function disposeConflictPayload(db:D1Database,actor:Actor,searchId:
  insist(scopes.size,'This conflict payload has no classified matter custody',409);
  const guards:D1PreparedStatement[]=[];
  for(const matterId of scopes){
-  await matter(db,actor,matterId);
+  await matter(db,actor,matterId);guards.push(...matterGuard(db,actor,matterId));
   const r=await stmt(db,'SELECT * FROM s_retention WHERE matter_id=? AND document_id IS NULL AND superseded_at IS NULL',matterId).first<Data>();
   insist(r&&r.dispose_after<=today,'Every affected matter needs an expired retention schedule',409);
   insist(!await stmt(db,'SELECT 1 FROM s_holds WHERE matter_id=? AND document_id IS NULL AND released_at IS NULL',matterId).first(),'An affected matter has a legal hold',409);

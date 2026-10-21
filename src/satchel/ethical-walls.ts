@@ -52,7 +52,7 @@ export async function takeWallCustody(db:D1Database,actor:Actor,wallId:string,b:
 async function saveWallAfterUnassigned(db:D1Database,actor:Actor,w:Data,b:Data){
  const reason=text(b.reason,'Custody reason',2000),revision=id(),at=now(),fence=id();
  insist(b.revision===w.revision,'The wall changed. Refresh before saving.',409);
- await atomic(db,actor,[stmt(db,'INSERT INTO s_guard VALUES(?,CASE WHEN (SELECT revision FROM s_ethical_walls WHERE id=?)=? THEN 1 ELSE 0 END)',fence,w.id,w.revision),
+ await atomic(db,actor,[stmt(db,`INSERT INTO s_guard VALUES(?,CASE WHEN EXISTS(SELECT 1 FROM s_ethical_walls w WHERE w.id=? AND w.revision=? AND w.dissolved_at IS NULL AND NOT (EXISTS(SELECT 1 FROM s_wall_members m WHERE m.matter_id=w.matter_id AND m.email=w.custodian_email) AND (EXISTS(SELECT 1 FROM oa_operators o WHERE o.email=w.custodian_email AND o.role='owner' AND o.status='active') OR EXISTS(SELECT 1 FROM s_members m WHERE m.email=w.custodian_email AND m.role='lawyer' AND m.active=1)))) THEN 1 ELSE 0 END)`,fence,w.id,w.revision),
   stmt(db,'UPDATE s_ethical_walls SET custodian_email=?,revision=?,reason=?,updated_by=?,updated_at=? WHERE id=?',actor.email,revision,reason,actor.email,at,w.id),
   stmt(db,"UPDATE s_wall_requests SET revoked_at=?,revoke_reason='Custodian changed' WHERE wall_id=? AND status='approved' AND revoked_at IS NULL",at,w.id),
   audit(db,actor,'wall.custody_taken',w.id,reason,{matterId:w.matter_id,revision}),stmt(db,'DELETE FROM s_guard WHERE id=?',fence)]);
