@@ -73,7 +73,7 @@ test('BILL-004 configured-matter approval freezes exact two-jurisdiction tax pro
    const issued=await h.json('/invoices/issue',{bills:[{id:approved.id,revision:approved.revision}]},h.owner);
    const counter=(await h.json('/invoice-numbering',undefined,h.owner)).counter.next_number;
    const file=await h.request('/api/satchel/bills/'+draft.id+'/export',undefined,h.owner);assert.equal(file.status,200);const bytes=await file.text();assert.match(bytes,new RegExp('"TAX USD cents","'+tax+'"'));assert.match(bytes,new RegExp('"TOTAL","","","","","","","'+total+'"'));assert.ok(bytes.includes(review.id)&&bytes.includes(review.snapshot.rule.reference)&&bytes.includes('native firm-reviewed calculation'));
-   const current=(await h.json(base+'/billing',undefined,h.owner)).bills.find(v=>v.id===draft.id);originals.push({id:current.id,bytes,snapshot:current.snapshot});
+   const current=(await h.json(base+'/billing',undefined,h.owner)).bills.find(v=>v.id===draft.id);const originalPdf=await h.request('/api/satchel/bills/'+current.id+'/invoice.pdf',undefined,h.owner);assert.equal(originalPdf.status,200);originals.push({id:current.id,bytes,snapshot:current.snapshot,pdfBytes:Buffer.from(await originalPdf.arrayBuffer())});
    let parent=current;
    for(const [index,correctedAmountCents] of [10,101].entries()){
     const correction=await h.json('/bills/'+parent.id+'/correct',{revision:parent.revision,sourceId:parent.snapshot.lines[0].sourceId,correctedAmountCents,reason:index?'Restore reviewed source amount':'Courtesy reduction with tax delta',date:'2026-10-02'},h.owner);
