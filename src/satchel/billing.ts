@@ -122,7 +122,7 @@ export async function listBilling(db: D1Database, actor: Actor, matterId: string
   matterBills(db,matterId),
  ]);
  const expenses=await expenseDetails(db,actor,entries.map(e=>e.id)),edits=await entryEdits(db,entries.map(e=>e.id));
- return {entries:entries.map(e=>({...entryRow(e),expense:expenses.get(e.id)??null,released:Boolean(e.released),editHistory:edits.get(e.id)??[]})),bills:await Promise.all(bills.map(async b=>({...b,taxReviews:b.status==='draft'?(await taxCalculations(db,actor,b.id)).calculations:[],issue:await invoiceIssue(db,b.id),invoiceVoid:await getInvoiceVoid(db,b.id),trustPayment:await invoiceFunds(db,b.id),ledes:await billLedes(db,b.id),earningReview:await stmt(db,'SELECT * FROM s_fee_earning_reviews WHERE bill_id=?',b.id).first<Data>()}))),correctionReviews:correctionReviews(bills)};
+ return {entries:entries.map(e=>({...entryRow(e),expense:expenses.get(e.id)??null,...(e.released?{released:true,editHistory:edits.get(e.id)??[]}:{} )})),bills:await Promise.all(bills.map(async b=>({...b,taxReviews:b.status==='draft'?(await taxCalculations(db,actor,b.id)).calculations:[],issue:await invoiceIssue(db,b.id),invoiceVoid:await getInvoiceVoid(db,b.id),trustPayment:await invoiceFunds(db,b.id),ledes:await billLedes(db,b.id),earningReview:await stmt(db,'SELECT * FROM s_fee_earning_reviews WHERE bill_id=?',b.id).first<Data>()}))),correctionReviews:correctionReviews(bills)};
 }
 
 export async function prepareBill(db: D1Database, actor: Actor, matterId: string, body: Data) {
