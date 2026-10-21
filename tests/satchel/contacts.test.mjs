@@ -113,10 +113,12 @@ test('whole-firm conflict labels, opaque principal and wall routes, closed dispo
   const stage=(await h.json('/lead-stages',{name:'Consultation review',position:1},h.owner)).find(s=>s.name==='Consultation review');
   const lead=await h.json('/leads',{name:'Pioneer Manufacturing',summary:'synthetic-satchel-1',referralSource:'Native inquiry',stageId:stage.id},h.owner);
   let graph=await h.json('/contacts',undefined,h.owner);await h.json('/contacts/'+prospect.id+'/conflict-classification',{revision:graph.revision,classification:'prospective_client',leadId:lead.id,note:'Counsel confirmed this inquiry contact'},h.owner);graph=await h.json('/contacts',undefined,h.owner);await h.json('/contacts/'+staff.id+'/conflict-classification',{revision:graph.revision,classification:'staff_relationship',staffEmail:'custodian@example.test',kind:'family ownership',startDate:'2026-01-01',endDate:'2026-06-01',note:'synthetic-satchel-2'},h.owner);
+  graph=await h.json('/contacts',undefined,h.owner);const formerIdentity=graph.contacts.find(c=>c.name==='Restricted client');await h.json('/contacts',{id:formerIdentity.id,revision:graph.revision,kind:'organization',name:formerIdentity.name,aliases:['FormerClientAlias'],formerNames:[],emails:[],phones:[],addresses:[]},h.owner);
+  const closedPreview=await h.json('/matters/'+hidden.id+'/closure-preview',{clientPromisesReviewed:true,clientPromises:[],originalReturn:{status:'not_held',note:'No client originals held'}},h.owner);await h.json('/matters/'+hidden.id+'/close',{previewId:closedPreview.id,digest:closedPreview.digest,revision:closedPreview.revision,reason:'Representation complete',outcome:'settled',exceptions:closedPreview.checks.map(c=>({key:c.key,reason:'Counsel reviewed continuing responsibility'}))},h.owner);
   // Current grants: ordinary hidden matter has one principal route, never its title,
   // role, number or count. The permitted name and alias remain available.
-  const native=await h.json('/conflicts',{client:'Restricted affiliate',adverse:'Elsewhere'},outside);
-  assert.equal(native.matches.filter(c=>c.restricted).length,1);assert.equal(native.matches.find(c=>c.restricted).custodianRoutes[0].route,'principal');assert.ok(native.matches.some(c=>c.name==='Restricted affiliate'));
+  const native=await h.json('/conflicts',{client:'FormerClientAlias',adverse:'Elsewhere'},outside);
+  assert.equal(native.matches.filter(c=>c.restricted).length,1);assert.equal(native.matches.find(c=>c.restricted).custodianRoutes[0].route,'principal');assert.ok(native.matches.some(c=>c.name==='Restricted client'));
   for(const value of [hidden.id,hidden.title,hidden.number])assert.ok(!JSON.stringify(native.matches).includes(value));
   const nativeOpen={title:'Native restricted engagement',conflictId:native.id,reviewNote:'Counsel review',confirmed:true};
   await h.json('/conflicts/'+native.id+'/disposition',{decision:'cleared',note:'Not a closed-set value',restrictions:[]},outside,400);
@@ -125,7 +127,7 @@ test('whole-firm conflict labels, opaque principal and wall routes, closed dispo
   await h.json('/matters',nativeOpen,outside,409);await h.json('/conflict-referrals/'+nativeReferral.id+'/decide',{decision:'no_conflict',note:'Not the custodian'},outside,404);
   await h.json('/conflict-referrals/'+nativeReferral.id+'/decide',{decision:'decline',note:'Private principal review'},h.owner);await h.json('/matters',nativeOpen,outside,409);
   const identities=(await h.json('/contacts',undefined,h.owner)).contacts,client=identities.find(c=>c.name==='Restricted client'),adverse=identities.find(c=>c.name==='Restricted affiliate');
-  const metadata={date:'2026-10-21',scope:'Limited acquisition advice',matchId:adverse.id,parties:[client.id]};
+  const metadata={date:'2026-10-21',scope:'Limited acquisition advice',matchId:client.id,parties:[client.id]};
   await h.json('/conflict-referrals/'+nativeReferral.id+'/decide',{decision:'waiver_recorded',note:'No missing waiver'},h.owner,409);
   await h.json('/conflict-referrals/'+nativeReferral.id+'/decide',{decision:'waiver_recorded',note:'Bad waiving party',waiver:{...metadata,parties:[adverse.id],confirmation:'synthetic-satchel-3'}},h.owner,409);
   await h.json('/conflict-referrals/'+nativeReferral.id+'/decide',{decision:'waiver_recorded',note:'Private principal waiver',restrictions:['Advice excludes the adverse acquisition'],excludedStaff:['assistant@example.test'],waiver:{...metadata,confirmation:'synthetic-satchel-4'}},h.owner);
@@ -158,7 +160,7 @@ test('whole-firm conflict labels, opaque principal and wall routes, closed dispo
   const referral=await h.json('/conflicts/'+fresh.id+'/referrals',{wallId:wall.id},h.owner);assert.equal((await h.json('/conflicts/'+fresh.id+'/referrals',{wallId:wall.id},h.owner)).id,referral.id);
   await h.json('/conflict-referrals/'+referral.id+'/decide',{decision:'no_conflict',note:'Principal cannot dispose'},h.owner,404);
   await h.json('/matters/'+hidden.id+'/wall',{custodianEmail:'owner@example.test',members:[],reason:'Cannot redesignate',revision:wall.revision},h.owner,403);
-  const privateBytes='Privileged restricted consent: synthetic-satchel-7',privateWaiver={...metadata,name:'restricted-consent.txt',mime:'text/plain',contentBase64:Buffer.from(privateBytes).toString('base64')};
+  const privateBytes='Privileged restricted consent: synthetic-satchel-7',privateWaiver={...metadata,matchId:adverse.id,name:'restricted-consent.txt',mime:'text/plain',contentBase64:Buffer.from(privateBytes).toString('base64')};
   await h.json('/conflict-referrals/'+referral.id+'/decide',{decision:'decline',note:'Private representation requires review',waiver:privateWaiver},custodian);
   let custodial=(await h.json('/conflict-referrals',undefined,custodian)).custodian.find(r=>r.id===referral.id);assert.equal(custodial.status,'decline');assert.equal(await(await h.request('/api/satchel/conflict-waivers/'+custodial.waiver.id+'/file',undefined,custodian)).text(),privateBytes);await h.json('/conflict-waivers/'+custodial.waiver.id+'/file',undefined,h.owner,404);
   await h.json('/matters',{...opening,restrictionsAcknowledged:true},h.owner,409);
