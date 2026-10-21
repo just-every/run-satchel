@@ -19,6 +19,12 @@ export async function disposeConflictWaiver(db:D1Database,actor:Actor,waiverId:s
 }
 
 const disposedPayload='Disposed conflict payload; consult counsel';
+function redactedPolicy(value:unknown):unknown{
+ if(Array.isArray(value))return value.map(redactedPolicy);
+ if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).map(([key,v])=>[key,['note','reason','release_reason','restriction'].includes(key)?disposedPayload:key==='restrictions'?(typeof v==='string'?JSON.stringify([disposedPayload]):[disposedPayload]):redactedPolicy(v)]));
+ return value;
+}
+
 export async function disposeConflictPayload(db:D1Database,actor:Actor,searchId:string,b:Data,originals:R2Bucket){
  human(actor);need(actor,'owner');
  const search=await stmt(db,'SELECT * FROM s_conflicts WHERE id=?',searchId).first<Data>();insist(search,'Conflict search not found',404);
@@ -43,7 +49,12 @@ export async function disposeConflictPayload(db:D1Database,actor:Actor,searchId:
  const journal={restrictionRecords:reviews.length+decisions.length+legacy.length,matterAcknowledgments:(await rows(db,'SELECT id FROM s_matters WHERE conflict_id=?',searchId)).length,auditPayloads:auditRows.length,scopes:[...scopes],retained:'ids, decisions, attribution and times; original audit payload digests; staff exclusions and walls remain enforced'};
  const service=await createPortability({db,buckets:{originals},policy});
  const writes:D1PreparedStatement[]=[...guards,stmt(db,'INSERT INTO s_conflict_policy_disposals VALUES(?,?,?,?,?)',searchId,reason,JSON.stringify(journal),actor.email,at)];
- for(const a of auditRows)writes.push(stmt(db,'INSERT INTO s_conflict_policy_audit_redactions VALUES(?,?,?)',a.id,searchId,await digest(JSON.stringify({detail:a.detail,evidence:a.evidence}))),stmt(db,"UPDATE s_audit SET detail=?,evidence=(SELECT json_object('disposedConflictPayload',1,'sha256',r.sha256) FROM s_conflict_policy_audit_redactions r WHERE r.audit_id=s_audit.id) WHERE id=?",disposedPayload,a.id));
+ for(const a of auditRows){
+  const sha256=await digest(JSON.stringify({detail:a.detail,evidence:a.evidence}));
+  let detail=disposedPayload;try{const original=JSON.parse(a.detail);if(original&&typeof original==='object')detail=JSON.stringify(redactedPolicy(original));}catch{}
+  const evidence=JSON.stringify({...redactedPolicy(a.evidence?JSON.parse(a.evidence):{}) as Data,disposedConflictPayload:1,sha256});
+  writes.push(stmt(db,'INSERT INTO s_conflict_policy_audit_redactions VALUES(?,?,?,?,?)',a.id,searchId,sha256,detail,evidence),stmt(db,'UPDATE s_audit SET detail=?,evidence=? WHERE id=?',detail,evidence,a.id));
+ }
  for(const table of ['s_conflict_reviews','s_conflict_route_decisions','s_conflict_referral_decisions']){
   const ids=table==='s_conflict_reviews'?reviews:table==='s_conflict_route_decisions'?decisions:legacy;
   for(const r of ids)writes.push(stmt(db,`UPDATE ${table} SET note=?,restrictions=? WHERE id=?`,disposedPayload,JSON.stringify([disposedPayload]),r.id));
