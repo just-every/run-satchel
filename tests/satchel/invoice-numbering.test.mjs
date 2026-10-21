@@ -99,6 +99,13 @@ test('BILL-015 BILL-016 prospective numbering and append-only native void/rebill
   nativeState=await h.json(base+'/billing',undefined,h.owner);assert.ok(nativeState.entries.filter(e=>[work.id,cost.id].includes(e.id)).every(e=>e.reservedBy===replacement.id));
   assert.equal(nativeState.bills.filter(b=>b.status!=='void'&&b.snapshot.lines.some(l=>l.sourceId===work.id)).length,1);assert.equal(nativeState.bills.filter(b=>b.status!=='void'&&b.snapshot.lines.some(l=>l.sourceId===cost.id)).length,1);
   const voidAudit=await h.json('/audit?action=invoice.voided&matterId='+m.id,undefined,h.owner);assert.equal(voidAudit.records.length,1);assert.equal(voidAudit.records[0].evidence.record.recordType,'s_invoice_voids');assert.equal(voidAudit.records[0].evidence.record.reviewed_revision,native.revision);
+  const unissued=await reviewed(h,m,await draft(h,m,'Approved but not issued void'));
+  await h.json('/team',{email:'lawyer@example.test',name:'Responsible counsel',role:'lawyer'},h.owner);await h.json('/team/invite',{email:'lawyer@example.test'},h.owner);const lawyer=await h.login('lawyer@example.test');
+  await h.json('/invoices/'+unissued.id+'/void',{revision:unissued.revision,reason:'Counsel withdraws approval before issue'},lawyer,404);await h.json(base+'/access',{email:'lawyer@example.test'},h.owner);
+  await h.json('/invoices/'+unissued.id+'/void',{revision:unissued.revision,reason:'Counsel withdraws approval before issue'},lawyer);
+  assert.equal(await(await h.request('/api/satchel/bills/'+unissued.id+'/export',undefined,lawyer)).text(),unissued.artifact);
+  await h.json('/invoices/issue',{bills:[{id:unissued.id,revision:unissued.revision}]},h.owner,409);
+  assert.equal((await h.json('/invoice-numbering',undefined,h.owner)).counter.next_number,countBeforeVoid+1,'Unissued void consumes no number');
   await target.close();target=await harness();await target.json('/restore',{archive:await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),confirm:'RESTORE'},target.owner);await target.restart();
   for(const source of [h,target]){assert.deepEqual((await source.json(base+'/billing',undefined,source.owner)).bills.find(b=>b.id===native.id).invoiceVoid,voids[0]);assert.deepEqual(Buffer.from(await(await source.request('/api/satchel/bills/'+native.id+'/invoice.pdf',undefined,source.owner)).arrayBuffer()),nativePdf);assert.equal(await(await source.request('/api/satchel/bills/'+native.id+'/export',undefined,source.owner)).text(),nativeCsv);assert.deepEqual(await source.json('/invoices/'+native.id+'/void',voidPayload,source.owner),voids[0]);}
 
