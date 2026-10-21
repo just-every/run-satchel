@@ -18,7 +18,7 @@ const latestReview=(db:D1Database,s:string)=>stmt(db,'SELECT * FROM s_conflict_r
 const latestDecision=(db:D1Database,r:string)=>stmt(db,'SELECT * FROM s_conflict_route_decisions WHERE referral_id=? ORDER BY sequence DESC LIMIT 1',r).first<Data>();
 async function waiverInfo(db:D1Database,waiverId:string|null){return waiverId?await stmt(db,'SELECT f.id,f.name,f.mime,f.size,f.sha256,d.* FROM s_conflict_waivers f LEFT JOIN s_conflict_waiver_details d ON d.waiver_id=f.id WHERE f.id=?',waiverId).first<Data>():null;}
 async function publicReview(db:D1Database,r:Data|null,actor:Actor){
- if(r?.waiver_id&&await stmt(db,`SELECT 1 FROM s_conflict_waiver_matters wm WHERE wm.waiver_id=? AND NOT ${matterScope('wm.matter_id')}`,r.waiver_id,actor.role,actor.email).first())return {...r,note:'Restricted counsel evidence: ask its custodian',restrictions:[],excludedStaff:[],waiver:null};
+ if(r?.waiver_id&&await stmt(db,`SELECT 1 FROM s_conflict_waiver_matters wm WHERE wm.waiver_id=? AND NOT ${matterScope('wm.matter_id')}`,r.waiver_id,actor.role,actor.email).first())return {...r,note:'Restricted counsel evidence: ask its custodian',restrictions:[],excludedStaff:[],excluded_staff:'[]',waiver_id:null,screen_custodian:null,waiver:null};
  return r?{...r,decision:r.disposition??(r.decision==='declined'?'decline':'no_conflict'),restrictions:JSON.parse(r.restrictions),excludedStaff:JSON.parse(r.excluded_staff),waiver:await waiverInfo(db,r.waiver_id)}:null;}
 async function disposition(db:D1Database,b:Data,actor:Actor){
  insist(['no_conflict','waiver_recorded','restrictions','decline'].includes(b.decision),'Choose no conflict, waivable with waiver recorded, proceed with restrictions, or decline');
@@ -61,7 +61,7 @@ async function waiver(db:D1Database,actor:Actor,s:Data,wallId:string[]|null,b:Da
 }
 export async function conflictReview(db:D1Database,actor:Actor,searchId:string){
  const s=await ownSearch(db,actor,searchId),visible=await routes(db,actor,s);
- return {...visible,canDispose:actor.role==='owner',disposal:await stmt(db,'SELECT * FROM s_conflict_policy_disposals WHERE search_id=?',s.id).first<Data>(),review:await publicReview(db,await latestReview(db,s.id),actor),history:await Promise.all((await rows(db,'SELECT * FROM s_conflict_reviews WHERE search_id=? ORDER BY sequence',s.id)).map(r=>publicReview(db,r,actor)))};
+ return {...visible,canDispose:actor.role==='owner',disposal:await stmt(db,'SELECT approved_at,approved_by FROM s_conflict_policy_disposals WHERE search_id=?',s.id).first<Data>(),review:await publicReview(db,await latestReview(db,s.id),actor),history:await Promise.all((await rows(db,'SELECT * FROM s_conflict_reviews WHERE search_id=? ORDER BY sequence',s.id)).map(r=>publicReview(db,r,actor)))};
 }
 export async function saveConflictReview(db:D1Database,actor:Actor,searchId:string,b:Data){
  const s=await ownSearch(db,actor,searchId);insist(!await stmt(db,'SELECT 1 FROM s_conflict_policy_disposals WHERE search_id=?',s.id).first(),'The retained conflict payload was disposed; run a fresh search',409);const d=await disposition(db,b,actor),file=await waiver(db,actor,s,null,b.waiver),reviewId=id();
