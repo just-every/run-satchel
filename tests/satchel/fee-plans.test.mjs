@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {harness,open} from './harness.mjs';
 import {foundation} from './trust-fixture.mjs';
 import {readXml,xmlProfile} from './ledes-xml-reader.mjs';
+import {scheme} from './invoice-numbering-fixture.mjs';
 const terms=(extra={})=>({title:'Monthly counsel',kind:'flat',recurrence:'monthly',startDate:'2026-08-01',endDate:'2026-09-30',earning:'period_end',trustDraw:'permitted',amountCents:30000,includedWork:'Monthly employment advice and client conference',exceptions:'none',reference:'Counsel-reviewed engagement section 4',reviewed:true,...extra});
 const approve=(b,extra={})=>({revision:b.revision,reviewNote:'Exact fee and terms reviewed',earnedConfirmed:true,earningEvidence:'Source conference notes and agreed period completed',...extra});
 async function work(h,m,minutes=60,rateCents=30000){return h.json('/matters/'+m.id+'/entries',{kind:'time',date:'2026-09-10',description:'Reviewed legal advice',minutes,rateCents},h.owner);}
@@ -35,6 +36,7 @@ test('TIME-004 monthly flat and retainer schedules and milestone fees: once per 
   const funds=(await h.json(path+'/billing',undefined,h.owner)).bills.find(v=>v.id===b.id).trustPayment;assert.deepEqual([funds.earned_cents,funds.paid_cents,funds.due_cents],[30000,30000,0]);assert.equal((await h.json('/trust',undefined,h.owner)).ledgers.find(l=>l.id===f.ledger.id).balance_cents,170000);
   let ms=first.bills.find(b=>b.snapshot.feePlan.id===milestone.id);await h.json('/bills/'+ms.id+'/approve',approve(ms),h.owner,422);ms=await h.json('/bills/'+ms.id+'/approve',{...(approve(ms,{milestoneCompleted:true})),taxReviewId:await exemptTaxReview(h,'/bills/'+ms.id+'/approve')},h.owner);
   const refusal=await h.json('/trust/transfers',await withTaxAllocation(h,{billId:ms.id,ledgerId:f.ledger.id,operatingAccountId:f.operating.id,requestKey:'not-authorized'}),h.owner,422);assert.match(refusal.error,/prohibit.*draw-down/);
+  await h.json('/invoices/'+ms.id+'/void',{revision:ms.revision,reason:'Scheduled nonhourly fees require their own release and rebill workflow'},h.owner,409);
   assert.equal((await h.json(path+'/billing',undefined,h.owner)).bills.find(b=>b.id===ms.id).trustPayment.earned_cents,50000);
   const future=await h.json(path+'/fee-plans',terms({title:'Future period',startDate:'2099-01-01',endDate:'2099-01-31'}),h.owner);const fb=(await h.json(path+'/fee-plans/run',{asOf:'2099-01-01'},h.owner)).bills.find(b=>b.snapshot.feePlan.id===future.id);await h.json('/bills/'+fb.id+'/approve',approve(fb),h.owner,409);
   const today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
@@ -57,7 +59,7 @@ test('TIME-004 monthly flat and retainer schedules and milestone fees: once per 
   const restored=await harness();try{const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);await restored.scheduled('2026-10-01T12:45:00Z');const replay=(await restored.json(sp+'/billing',undefined,restored.owner)).bills;assert.equal(replay.length,2);assert.equal(replay.find(b=>b.id===voided.id).status,'void');}finally{await restored.close();}
  }finally{await h.close();}
 });
-test('TIME-004 capped and blended reviewed work, explicit exceptions, reservation and corrections prevent over-cap or duplicate billing',async()=>{
+test('TIME-004 BILL-016 capped and blended reviewed work, exceptions, corrections and append-only void/rebill preserve the cap and prevent duplicate billing',async()=>{
  const h=await harness();try{
   const m=await open(h),p=await h.json('/matters/'+m.id+'/fee-plans',terms({kind:'capped',recurrence:'once',startDate:'2026-09-01',endDate:'2026-09-30',earning:'on_approval',amountCents:45000}),h.owner);
   const a=await work(h,m),b=await work(h,m);await h.json('/matters/'+m.id+'/bills',{title:'Missing cap review',date:'2026-09-30',entryIds:[a.id]},h.owner,422);
@@ -76,6 +78,63 @@ test('TIME-004 capped and blended reviewed work, explicit exceptions, reservatio
   const e=await work(h,blended,17,99000);let bb=await bill(h,blended,[e],{feePlanId:bp.id});assert.equal(bb.snapshot.totalCents,5667);assert.equal(bb.snapshot.lines[0].rateCents,20001);bb=await h.json('/bills/'+bb.id+'/approve',{...(approve(bb)),taxReviewId:await exemptTaxReview(h,'/bills/'+bb.id+'/approve')},h.owner);await h.request('/api/satchel/bills/'+bb.id+'/export',undefined,h.owner);bb=(await h.json('/matters/'+blended.id+'/billing',undefined,h.owner)).bills.find(b=>b.id===bb.id);await h.json('/bills/'+bb.id+'/correct',{revision:bb.revision,sourceId:e.id,correctedAmountCents:10000,reason:'Cannot override reviewed blended rate',date:'2026-09-30'},h.owner,422);
   const ex=await work(h,blended,60,33000);const eb=await bill(h,blended,[ex],{feePlanId:bp.id,exceptionReason:'Signed trial addendum section 7, counsel reviewed'});assert.equal(eb.snapshot.totalCents,33000);assert.match(eb.snapshot.exception,/addendum/);
   await h.json('/matters/'+blended.id+'/fee-plans',terms({kind:'capped',recurrence:'once',startDate:'2026-09-01',endDate:'2026-09-30'}),h.owner,409);
+  // BILL-016: the same reviewed original-work void/rebill applies when a cap or
+  // blended agreement supplied its price. Neither history nor terms are reset.
+  await h.json('/invoice-numbering',scheme(700),h.owner);
+  const retained=[];
+  for(const kind of ['capped','blended']){
+   const fm=await open(h,kind+' invoice replacement',kind+' client',kind+' opponent'),fp='/matters/'+fm.id;
+   const plan=await h.json(fp+'/fee-plans',terms({kind,recurrence:'once',startDate:'2026-09-01',endDate:'2026-09-30',earning:'on_approval',amountCents:kind==='capped'?45000:20001}),h.owner);
+   const entry=await work(h,fm,kind==='capped'?60:17,kind==='capped'?30000:99000);
+   const cost=await h.json(fp+'/entries',{kind:'disbursement',date:'2026-09-10',description:'Recorded filing cost',amountCents:1234},h.owner);
+   let original=await bill(h,fm,[entry,cost],{feePlanId:plan.id});
+   const expected=kind==='capped'?31234:6901;assert.equal(original.snapshot.totalCents,expected);
+   // An independent live bill still consumes its part of the cap after a void.
+   if(kind==='capped'){const other=await work(h,fm);assert.equal((await bill(h,fm,[other],{feePlanId:plan.id})).snapshot.totalCents,15000);}
+   original=await h.json('/bills/'+original.id+'/approve',{...approve(original),taxReviewId:await exemptTaxReview(h,'/bills/'+original.id+'/approve')},h.owner);
+   const issueRequest={bills:[{id:original.id,revision:original.revision}]},issue=(await h.json('/invoices/issue',issueRequest,h.owner)).issues[0];
+   const pdf=Buffer.from(await(await h.request('/api/satchel/bills/'+original.id+'/invoice.pdf',undefined,h.owner)).arrayBuffer());assert.match(pdf.toString('ascii',0,8),/^%PDF-/);
+   const csv=await(await h.request('/api/satchel/bills/'+original.id+'/export',undefined,h.owner)).text();
+   original=(await h.json(fp+'/billing',undefined,h.owner)).bills.find(b=>b.id===original.id);
+   const payload={revision:original.revision,reason:'Counsel corrects recorded work while retaining the reviewed '+kind+' terms'};
+   const voids=await Promise.all([h.json('/invoices/'+original.id+'/void',payload,h.owner),h.json('/invoices/'+original.id+'/void',payload,h.owner)]);assert.deepEqual(voids[0],voids[1]);
+   assert.deepEqual(await h.json('/invoices/'+original.id+'/void',payload,h.owner),voids[0]);
+   await h.json('/invoices/'+original.id+'/void',{...payload,reason:'A changed request cannot replace the void reason'},h.owner,409);
+   const state=await h.json(fp+'/billing',undefined,h.owner),voided=state.bills.find(b=>b.id===original.id);
+   assert.equal(voided.status,'void');assert.deepEqual(voided.snapshot,original.snapshot);assert.deepEqual(voided.earningReview,original.earningReview);assert.deepEqual(voided.issue,issue);
+   assert.equal(voided.trustPayment.earned_cents,0);assert.equal(voided.trustPayment.due_cents,0);
+   for(const source of [entry,cost])assert.equal(state.entries.find(e=>e.id===source.id).reservedBy,null);
+   assert.equal((await h.json('/invoices/issue',issueRequest,h.owner)).issues[0].number,issue.number);
+   await h.json(fp+'/bills',{title:'Missing terms after void',date:'2026-09-30',entryIds:[entry.id,cost.id]},h.owner,422);
+   const released=state.entries.find(e=>e.id===entry.id),edit={revision:released.revision,description:'Corrected '+kind+' work narrative',rateCents:40000,reason:'Counsel corrects the recorded work before repricing under its reviewed plan'};
+   await h.json('/entries/'+entry.id+'/edit',edit,h.owner);
+   let replacement=await bill(h,fm,[entry,cost],{feePlanId:plan.id});
+   assert.equal(replacement.snapshot.totalCents,expected,kind==='capped'?'The other live bill consumes $150 of the $450 cap; rebilling can use only $300 plus the exact expense':'Rebilling retains the reviewed blended rate despite the corrected entry rate');
+   assert.equal(replacement.snapshot.lines.find(l=>l.sourceId===entry.id).description,edit.description);assert.deepEqual(replacement.snapshot.feePlan,original.snapshot.feePlan);
+   await h.json(fp+'/bills',{title:'Duplicate replacement',date:'2026-09-30',entryIds:[entry.id,cost.id],feePlanId:plan.id},h.owner,409);
+   const taxReviewId=await exemptTaxReview(h,'/bills/'+replacement.id+'/approve');
+   await h.json('/bills/'+replacement.id+'/approve',{revision:replacement.revision,reviewNote:'An old earning review cannot approve a replacement',taxReviewId},h.owner,422);
+   replacement=await h.json('/bills/'+replacement.id+'/approve',{...approve(replacement,{earningEvidence:'Counsel freshly reviewed the corrected work and retained agreement'}),taxReviewId},h.owner);
+   const replacementIssue=(await h.json('/invoices/issue',{bills:[{id:replacement.id,revision:replacement.revision}]},h.owner)).issues[0];assert.notEqual(replacementIssue.number,issue.number);
+   const final=await h.json(fp+'/billing',undefined,h.owner);
+   for(const source of [entry,cost]){assert.equal(final.entries.find(e=>e.id===source.id).reservedBy,replacement.id);assert.equal(final.bills.filter(b=>b.status!=='void'&&b.snapshot.lines.some(l=>l.sourceId===source.id)).length,1);}
+   assert.equal(final.entries.find(e=>e.id===entry.id).editHistory.length,1);assert.equal(final.bills.find(b=>b.id===replacement.id).trustPayment.earned_cents,expected);
+   const replacementPdf=Buffer.from(await(await h.request('/api/satchel/bills/'+replacement.id+'/invoice.pdf',undefined,h.owner)).arrayBuffer());assert.notDeepEqual(replacementPdf,pdf);
+   assert.equal((await h.json(fp+'/fee-plans',undefined,h.owner)).plans.length,1);
+   retained.push({fp,original,payload,voidRecord:voids[0],csv,pdf,replacementId:replacement.id,replacementPdf,state:final});
+  }
+  await h.restart();
+  const target=await harness();try{
+   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();await target.json('/restore',{archive,confirm:'RESTORE'},target.owner);
+   for(const source of [h,target])for(const r of retained){
+    assert.deepEqual(await source.json(r.fp+'/billing',undefined,source.owner),r.state,'Capped/blended snapshots, earnings, source reservations, edits, void journal and new numbers survive recovery');
+    assert.deepEqual(await source.json('/invoices/'+r.original.id+'/void',r.payload,source.owner),r.voidRecord);
+    assert.equal(await(await source.request('/api/satchel/bills/'+r.original.id+'/export',undefined,source.owner)).text(),r.csv);
+    assert.deepEqual(Buffer.from(await(await source.request('/api/satchel/bills/'+r.original.id+'/invoice.pdf',undefined,source.owner)).arrayBuffer()),r.pdf);
+    assert.deepEqual(Buffer.from(await(await source.request('/api/satchel/bills/'+r.replacementId+'/invoice.pdf',undefined,source.owner)).arrayBuffer()),r.replacementPdf);
+   }
+  }finally{await target.close();}
+
  }finally{await h.close();}
 });
 test('TIME-004 and inherited TIME-007 nonhourly fees need actual fee codes, export as fees with one unit and retain original LEDES/XML bytes through correction',async()=>{

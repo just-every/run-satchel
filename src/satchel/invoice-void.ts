@@ -8,7 +8,8 @@ export async function getInvoiceVoid(db:D1Database,billId:string){
 const noFunds=`NOT EXISTS(SELECT 1 FROM s_operating_payments p WHERE p.bill_id=? AND p.cents>COALESCE((SELECT SUM(r.cents) FROM s_operating_payment_reversals r WHERE r.payment_id=p.id),0))
  AND NOT EXISTS(SELECT 1 FROM s_trust_transfers t WHERE t.bill_id=? AND NOT EXISTS(SELECT 1 FROM s_trust_transfer_actions a WHERE a.transfer_id=t.id AND a.kind IN('declined','not_executed','cleared')))`;
 const originalSources=`EXISTS(SELECT 1 FROM s_bills b WHERE b.id=? AND b.corrects_bill_id IS NULL
- AND json_extract(b.snapshot,'$.feePlan') IS NULL AND json_array_length(b.snapshot,'$.lines')>0
+ AND (json_extract(b.snapshot,'$.feePlan') IS NULL OR json_extract(b.snapshot,'$.feePlan.kind') IN('capped','blended'))
+ AND json_array_length(b.snapshot,'$.lines')>0
  AND NOT EXISTS(SELECT 1 FROM json_each(b.snapshot,'$.lines') l WHERE COALESCE(json_extract(l.value,'$.kind'),'') NOT IN('time','disbursement')))
  AND NOT EXISTS(SELECT 1 FROM s_bills WHERE corrects_bill_id=?)`;
 
@@ -21,7 +22,9 @@ function replay(record:Data,revision:string,reason:string){
  return record;
 }
 
-// Native BILL-016 slice: preserve reviewed history and release original work only.
+// Native BILL-016: release original recorded work, including capped/blended
+// invoices. Scheduled nonhourly occurrences and correction branches stay separate;
+// rebilling recorded work must resolve and review its applicable fee terms again.
 export async function voidInvoice(db:D1Database,actor:Actor,billId:string,body:Data){
  human(actor);need(actor,'owner','lawyer');
  const revision=text(body.revision,'Reviewed revision',100),reason=text(body.reason,'Void reason',2000);
