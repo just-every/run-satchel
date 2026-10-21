@@ -48,7 +48,7 @@ export function TaxCalculation({bill,rules,run,pinnedRule}:{bill:Row;rules:Row[]
    <p>{review.snapshot.label}<br/><small>{review.snapshot.provider} · Review {review.id} · {review.createdBy} · {review.createdAt}</small></p>
    <RuleDetails rule={review.snapshot.rule}/>
    <p>{review.snapshot.rounding} · Before tax: {dollars(review.snapshot.subtotalCents)} · Tax: {dollars(review.snapshot.taxCents)} · Total: {dollars(review.snapshot.totalCents)}</p>
-   <div className="table-scroll"><table><thead><tr><th>Source</th><th>Tax base (USD)</th><th>Treatment</th><th>Tax (USD)</th><th>Total (USD)</th></tr></thead><tbody>{review.snapshot.lines.map((line:Row,index:number)=><tr key={index}>
+   <div className="table-scroll"><table style={{minWidth:768}}><thead><tr><th>Source</th><th>Tax base (USD)</th><th>Treatment</th><th>Tax (USD)</th><th>Total (USD)</th></tr></thead><tbody>{review.snapshot.lines.map((line:Row,index:number)=><tr key={index}>
     <td>{line.sourceId} · revision {line.sourceRevision}<br/><small>{line.kind}</small></td><td>{dollars(line.baseCents)}{line.priorBaseCents!==undefined&&<small> · {dollars(line.priorBaseCents)} → {dollars(line.correctedBaseCents)}</small>}</td><td>{line.eligibility} · {line.ratePpm} parts per million<br/><small>{line.reference}</small></td><td>{dollars(line.taxCents)}{line.priorTaxCents!==undefined&&<small> · {dollars(line.priorTaxCents)} → {dollars(line.correctedTaxCents)}</small>}</td><td>{dollars(line.baseCents+line.taxCents)}</td>
    </tr>)}</tbody></table></div>
   </details>)}
