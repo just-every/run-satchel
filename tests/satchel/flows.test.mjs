@@ -284,6 +284,8 @@ test('ethical walls exclude a principal from current doors and require expiring 
   await w.json('/ethical-walls/'+wall.id+'/dissolve',{reason:'Counsel records end of representation screen',revision:current.revision},custodian);
   await w.json('/matters/'+hidden.id,undefined,w.owner);
   assert.ok(!(await w.json('/ethical-walls',undefined,custodian)).walls.some(w=>w.id===wall.id));
+  const reestablished=await w.json('/matters/'+hidden.id+'/wall',{custodianEmail:'custodian@example.test',members:[],reason:'Principal establishes a new screen after dissolution',revision:null},w.owner);await w.json('/matters/'+hidden.id,undefined,w.owner,404);assert.equal(reestablished.id,wall.id);
+  await w.json('/matters/'+hidden.id+'/wall',{custodianEmail:'custodian@example.test',members:['owner@example.test'],reason:'Principal admitted to inspect retained audit',revision:reestablished.revision},custodian);
   const finalTrail=(await w.json('/audit?matterId='+hidden.id,undefined,w.owner)).records;for(const action of ['wall.custody_taken','wall.dissolved'])assert.ok(finalTrail.some(r=>r.action===action&&r.detail));
   assert.equal((await w.json('/matters/'+visible.id,undefined,w.owner)).matter.id,visible.id);
  }finally{await w.close();}
