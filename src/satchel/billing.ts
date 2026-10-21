@@ -145,13 +145,17 @@ export async function approveBill(db: D1Database, actor: Actor, billId: string, 
  insist(bill.status === 'draft', 'Only a draft can be approved',409);
  const reviewNote = text(body.reviewNote,'Review note',2000), at = now();
  if(bill.snapshot.numberingCutover)insist(body.taxReviewId,'Unknown tax treatment: review this draft before approving for issue',422);
- const feeReview=await earningReview(db,actor,bill,body),tax=await approvalTax(db,actor,bill,body,at);
+ // Legacy reserved drafts also enter issue-time rendering when approved after
+ // the first scheme. Already reviewed/exported artifacts are never rewritten.
+ const numbering=await invoiceCounter(db);
+ const issueSnapshot=numbering?{...bill.snapshot,numberingCutover:true}:bill.snapshot;
+ const feeReview=await earningReview(db,actor,bill,body),tax=await approvalTax(db,actor,{...bill,snapshot:issueSnapshot},body,at);
  const approved = {...bill,snapshot:tax.snapshot,approvedBy:actor.email,approvedAt:at,reviewNote}, exportedArtifact = artifact(approved);
  const checks = bill.correctsBillId ? [guard(db,"EXISTS(SELECT 1 FROM s_bills WHERE id=? AND status='exported')",bill.correctsBillId)]
   : [guard(db,`NOT EXISTS(SELECT 1 FROM json_each(?) l WHERE NOT EXISTS(SELECT 1 FROM s_billing_sources s JOIN s_entries e ON e.id=s.entry_id WHERE s.entry_id=json_extract(l.value,'$.sourceId') AND s.bill_id=? AND s.source_revision=json_extract(l.value,'$.sourceRevision') AND e.revision=s.source_revision))`,JSON.stringify(bill.snapshot.lines.filter((l:Data)=>l.kind!=='fee')),bill.id)];
- await atomic(db,actor,[accessGuard(db,actor,bill.matterId),revisionGuard(db,bill),...checks,...feeReview,...tax.guards,
+ await atomic(db,actor,[accessGuard(db,actor,bill.matterId),revisionGuard(db,bill),guard(db,numbering?'EXISTS(SELECT 1 FROM s_invoice_counter WHERE revision=?)':'NOT EXISTS(SELECT 1 FROM s_invoice_counter)',...(numbering?[numbering.revision]:[])),...checks,...feeReview,...tax.guards,
   stmt(db,"UPDATE s_bills SET status='approved',revision=?,artifact=?,artifact_digest=?,approved_by=?,approved_at=?,review_note=? WHERE id=? AND revision=? AND status='draft'",id(),exportedArtifact,await digest(exportedArtifact),actor.email,at,reviewNote,bill.id,bill.revision),
-  ...(!bill.snapshot.numberingCutover?await freezeLedes(db,approved):[]),
+  ...(!approved.snapshot.numberingCutover?await freezeLedes(db,approved):[]),
   audit(db,actor,'bill.approved',bill.id,reviewNote),
  ]);
  return getBill(db,actor,bill.id);
@@ -176,6 +180,7 @@ export async function voidBill(db: D1Database, actor: Actor, billId: string, bod
  insist(['draft','approved'].includes(bill.status), 'Exported bills require an additive correction; only unexported bills can be voided',409);
  const reason = text(body.reason,'Void reason',2000);
  await atomic(db,actor,[accessGuard(db,actor,bill.matterId),revisionGuard(db,bill),
+  guard(db,'NOT EXISTS(SELECT 1 FROM s_invoice_issues WHERE bill_id=?)',bill.id),
   guard(db,"NOT EXISTS(SELECT 1 FROM s_operating_payments p WHERE p.bill_id=? AND p.cents>COALESCE((SELECT SUM(r.cents) FROM s_operating_payment_reversals r WHERE r.payment_id=p.id),0)) AND NOT EXISTS(SELECT 1 FROM s_trust_transfers t WHERE t.bill_id=? AND NOT EXISTS(SELECT 1 FROM s_trust_transfer_actions a WHERE a.transfer_id=t.id AND a.kind IN('declined','not_executed','cleared')))",bill.id,bill.id),
   stmt(db,"UPDATE s_bills SET status='void',revision=?,void_reason=?,voided_by=?,voided_at=? WHERE id=? AND revision=? AND status IN ('draft','approved')",id(),reason,actor.email,now(),bill.id,bill.revision),
   stmt(db,'DELETE FROM s_billing_sources WHERE bill_id=?',bill.id),audit(db,actor,'bill.voided',bill.id,reason),

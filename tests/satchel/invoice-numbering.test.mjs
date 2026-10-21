@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {harness,open} from './harness.mjs';
 import {createHash} from 'node:crypto';
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
-import {scheme,draft,reviewed} from './invoice-numbering-fixture.mjs';
+import {scheme,draft,reviewed,insurer} from './invoice-numbering-fixture.mjs';
 test('BILL-015 prospective numbering: exact approved issue, tax gate, batch rollback, collision refusal, import floor, replay, retained void number and full archive continuation',async()=>{
  const h=await harness();let target;try{
   const m=await open(h),base='/matters/'+m.id;
@@ -30,7 +30,7 @@ test('BILL-015 prospective numbering: exact approved issue, tax gate, batch roll
   // BILL-015: a legacy reservation approved after cutover must issue before any
   // export can turn it into an exported bill, preserving its one reserved number.
   const reservedApproved=await h.json('/bills/'+reserved.id+'/approve',{revision:reserved.revision,reviewNote:'Review legacy reservation after cutover',taxReviewId:await exemptTaxReview(h,'/bills/'+reserved.id+'/approve')},h.owner);
-  await h.json('/bills/'+reserved.id+'/export',undefined,h.owner,409);
+  assert.equal((await h.request('/api/satchel/bills/'+reserved.id+'/export',undefined,h.owner)).status,409);
   await h.json('/bills/'+reserved.id+'/ledes',undefined,h.owner,409);
   const reservedPayload={bills:[{id:reserved.id,revision:reservedApproved.revision}]};
   const reservedIssue=await h.json('/invoices/issue',reservedPayload,h.owner);
@@ -69,4 +69,60 @@ test('BILL-015 prospective numbering: exact approved issue, tax gate, batch roll
   assert.deepEqual(await target.json('/invoice-numbering',undefined,target.owner),await h.json('/invoice-numbering',undefined,h.owner));assert.deepEqual(Buffer.from(await(await target.request('/api/satchel/bills/'+first.id+'/invoice.pdf',undefined,target.owner)).arrayBuffer()),pdf);
   const third=await reviewed(target,m,await draft(target,m,'Recovered continuation'));const continuation=await target.json('/invoices/issue',{bills:[{id:third.id,revision:third.revision}]},target.owner);assert.equal(continuation.issues[0].number,'NEW.00105');
  }finally{await target?.close();await h.close();}
+});
+
+
+test('BILL-015 and TIME-007 issue legacy and prospective LEDES/XML, retain correction identities and reconcile concurrent issues without consuming replay numbers',async()=>{
+ const {readXml}=await import('./ledes-xml-reader.mjs');
+ const h=await harness();let restored;
+ try{
+  const m=await insurer(h),base='/matters/'+m.id;
+  const legacy=await draft(h,m,'Reserved insurer prebill');
+  const legacyNumber=legacy.snapshot.ledes.invoiceNumber;
+  await h.json('/invoice-numbering',scheme(),h.owner);
+  const approve=async b=>h.json('/bills/'+b.id+'/approve',{revision:b.revision,reviewNote:'Exact client tax mapping and insurer narrative reviewed',taxReviewId:await exemptTaxReview(h,'/bills/'+b.id+'/approve')},h.owner);
+  const issued=[];
+  for(const b of [legacy,await draft(h,m,'Prospective insurer invoice')]){
+   const approved=await approve(b),payload={bills:[{id:b.id,revision:approved.revision}]};
+   assert.equal((await h.request('/api/satchel/bills/'+b.id+'/export',undefined,h.owner)).status,409);
+   const result=await h.json('/invoices/issue',payload,h.owner),number=result.issues[0].number;
+   if(b.id===legacy.id)assert.equal(number,legacyNumber);else assert.match(number,/^BL-\d{4}-00100$/);
+   const files={};
+   for(const format of ['export','ledes','ledes-xml','invoice.pdf']){
+    const response=await h.request('/api/satchel/bills/'+b.id+'/'+format,undefined,h.owner);assert.equal(response.status,200);files[format]=Buffer.from(await response.arrayBuffer());
+   }
+   assert.equal(readXml(files['ledes-xml'].toString()).invoice.inv_id,number);
+   assert.ok(files.ledes.toString().trim().split('\r\n').slice(2).every(row=>row.split('|')[1]===number));
+   assert.equal(hash(files['invoice.pdf']),result.issues[0].pdf_digest);
+   assert.equal(hash(files.export),approved.artifactDigest);
+   assert.deepEqual(await h.json('/invoices/issue',payload,h.owner),result);
+   issued.push({id:b.id,number,files});
+  }
+  let parent=(await h.json(base+'/billing',undefined,h.owner)).bills.find(b=>b.id===issued[1].id);
+  const counter=(await h.json('/invoice-numbering',undefined,h.owner)).counter.next_number;
+  for(const [index,correctedAmountCents] of [35000,37500].entries()){
+   const b=await h.json('/bills/'+parent.id+'/correct',{revision:parent.revision,sourceId:parent.snapshot.lines[0].sourceId,correctedAmountCents,reason:index?'Restore original reviewed amount':'Reviewed courtesy reduction',date:'2026-10-02'},h.owner),approved=await approve(b),payload={bills:[{id:b.id,revision:approved.revision}]};
+   const result=await h.json('/invoices/issue',payload,h.owner),number=issued[1].number+'-R'+(index+1);assert.equal(result.issues[0].number,number);
+   const files={};for(const format of ['export','ledes','ledes-xml','invoice.pdf']){const r=await h.request('/api/satchel/bills/'+b.id+'/'+format,undefined,h.owner);assert.equal(r.status,200);files[format]=Buffer.from(await r.arrayBuffer());}
+   const xml=readXml(files['ledes-xml'].toString());assert.equal(xml.invoice.inv_id,number);assert.equal(xml.invoice.inv_total_net_due,(correctedAmountCents/100).toFixed(2));assert.equal(xml.extensions.find(x=>x.ext_name==='replaces_invoice').ext_value,issued.at(-1).number);
+   assert.deepEqual(await h.json('/invoices/issue',payload,h.owner),result);assert.equal((await h.json('/invoice-numbering',undefined,h.owner)).counter.next_number,counter);
+   issued.push({id:b.id,number,files});parent=(await h.json(base+'/billing',undefined,h.owner)).bills.find(x=>x.id===b.id);
+  }
+  const pair=[];for(const title of ['Independent coverage review','Independent deposition review'])pair.push(await approve(await draft(h,m,title)));
+  const payloads=pair.map(b=>({bills:[{id:b.id,revision:b.revision}]}));
+  const responses=await Promise.all(payloads.map(p=>h.request('/api/satchel/invoices/issue',p,h.owner)));
+  assert.ok(responses.every(r=>[200,409].includes(r.status)));assert.ok(responses.some(r=>r.status===200));
+  const reconciled=[];for(const p of payloads)reconciled.push((await h.json('/invoices/issue',p,h.owner)).issues[0]);
+  assert.deepEqual(reconciled.map(i=>i.number).sort(),[101,102].map(n=>'BL-'+new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',year:'numeric'}).format(new Date())+'-'+String(n).padStart(5,'0')));
+  assert.equal((await h.json('/invoice-numbering',undefined,h.owner)).counter.next_number,103);
+  const duplicate=await Promise.all([h.json('/invoices/issue',payloads[0],h.owner),h.json('/invoices/issue',payloads[0],h.owner)]);assert.deepEqual(duplicate[0],duplicate[1]);assert.equal((await h.json('/invoice-numbering',undefined,h.owner)).counter.next_number,103);
+  assert.equal((await h.json('/audit?action=invoice.issued',undefined,h.owner)).records.length,6);
+  const raced=await approve(await draft(h,m,'Issue versus draft discard'));
+  const race=await Promise.all([h.request('/api/satchel/invoices/issue',{bills:[{id:raced.id,revision:raced.revision}]},h.owner),h.request('/api/satchel/bills/'+raced.id+'/void',{revision:raced.revision,reason:'Discard only if still unissued'},h.owner)]);
+  assert.ok(race.every(r=>[200,409].includes(r.status)));assert.equal(race.filter(r=>r.status===200).length,1);
+  const final=(await h.json(base+'/billing',undefined,h.owner)).bills.find(b=>b.id===raced.id);assert.ok(final.issue?final.status==='approved':final.status==='void');
+  await h.restart();restored=await harness();await restored.json('/restore',{archive:await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),confirm:'RESTORE'},restored.owner);
+  for(const target of [h,restored])for(const original of issued)for(const [format,bytes] of Object.entries(original.files))assert.deepEqual(Buffer.from(await(await target.request('/api/satchel/bills/'+original.id+'/'+format,undefined,target.owner)).arrayBuffer()),bytes);
+  assert.deepEqual(await restored.json('/invoice-numbering',undefined,restored.owner),await h.json('/invoice-numbering',undefined,h.owner));
+ }finally{await restored?.close();await h.close();}
 });
