@@ -49,7 +49,7 @@ export async function openMatter(db: D1Database, actor: Actor, body: Data, fixed
   statements.push(stmt(db,'INSERT OR IGNORE INTO s_matter_parties VALUES(?,?,?)',matterId,partyId,relation));
  }
  for(const email of clearance.excludedStaff)statements.push(stmt(db,'DELETE FROM s_matter_access WHERE matter_id=? AND email=?',matterId,email),stmt(db,'INSERT INTO s_matter_exclusions(matter_id,email,restriction,recorded_by,at) VALUES(?,?,?,?,?)',matterId,email,clearance.restrictions.join('; '),actor.email,time));
- if(clearance.screenCustodian){const wallId=id(),revision=id();statements.push(stmt(db,'INSERT INTO s_ethical_walls VALUES(?,?,?,?,?,?,?)',wallId,matterId,clearance.screenCustodian,revision,clearance.restrictions.join('; '),actor.email,time),stmt(db,'INSERT INTO s_wall_members VALUES(?,?)',matterId,clearance.screenCustodian),stmt(db,'INSERT OR IGNORE INTO s_matter_access VALUES(?,?)',matterId,clearance.screenCustodian),...(!clearance.excludedStaff.includes(actor.email)&&actor.email!==clearance.screenCustodian?[stmt(db,'INSERT INTO s_wall_members VALUES(?,?)',matterId,actor.email)]:[]),audit(db,actor,'wall.created',wallId,JSON.stringify({custodian:clearance.screenCustodian,reason:clearance.restrictions.join('; ')}),{matterId,revision}));}
+ if(clearance.screenCustodian){const wallId=id(),revision=id();statements.push(stmt(db,'INSERT INTO s_ethical_walls(id,matter_id,custodian_email,revision,reason,updated_by,updated_at) VALUES(?,?,?,?,?,?,?)',wallId,matterId,clearance.screenCustodian,revision,clearance.restrictions.join('; '),actor.email,time),stmt(db,'INSERT INTO s_wall_members VALUES(?,?)',matterId,clearance.screenCustodian),stmt(db,'INSERT OR IGNORE INTO s_matter_access VALUES(?,?)',matterId,clearance.screenCustodian),...(!clearance.excludedStaff.includes(actor.email)&&actor.email!==clearance.screenCustodian?[stmt(db,'INSERT INTO s_wall_members VALUES(?,?)',matterId,actor.email)]:[]),audit(db,actor,'wall.created',wallId,JSON.stringify({custodian:clearance.screenCustodian,reason:clearance.restrictions.join('; ')}),{matterId,revision}));}
  statements.push(stmt(db,'INSERT INTO s_matter_conflict_terms VALUES(?,?,?,?,?)',matterId,dispositionId,JSON.stringify(clearance.restrictions),actor.email,time));
  statements.push(audit(db,actor,'matter.opened',matterId,`Conflict ${conflict.id}; ${note}`));
  // MATTER-004: opening after conflict review ends intake; imported matters propose nothing.
@@ -70,7 +70,7 @@ export async function matterDetail(db: D1Database, actor: Actor, matterId: strin
 }
 export async function grantMatter(db:D1Database,actor:Actor,matterId:string,body:Data) {
  human(actor); need(actor,'owner'); await matter(db,actor,matterId);
- const wall=await stmt(db,'SELECT custodian_email FROM s_ethical_walls WHERE matter_id=?',matterId).first<Data>();
+ const wall=await stmt(db,'SELECT custodian_email FROM s_ethical_walls WHERE matter_id=? AND dissolved_at IS NULL',matterId).first<Data>();
  insist(!wall||wall.custodian_email===actor.email,'Only the custodian may change walled matter access',403);
  const email=text(body.email,'Team member email',254).toLowerCase();
  if(!body.remove){const excluded=await stmt(db,'SELECT restriction FROM s_matter_exclusions WHERE matter_id=? AND email=? AND released_at IS NULL',matterId,email).first<Data>();insist(!excluded,'Engagement restriction: '+excluded?.restriction,409);}

@@ -218,6 +218,13 @@ test('ethical walls exclude a principal from current doors and require expiring 
   const key=await w.json('/keys',{label:'Principal assistant'},w.owner),auth={authorization:'Bearer '+key.key};
   const old=await w.json('/conflicts',{client:'Juniper',adverse:'Other'},w.owner);
   const wall=await w.json('/matters/'+hidden.id+'/wall',{custodianEmail:'custodian@example.test',members:[],reason:'Adverse representation ethical screen',revision:null},w.owner);
+  // Outside principals cannot add themselves, change members/custodian, or dissolve.
+  for(const change of [{custodianEmail:'custodian@example.test',members:['owner@example.test']},{custodianEmail:'custodian@example.test',members:['outside@example.test']},{custodianEmail:'owner@example.test',members:[]}])await w.json('/matters/'+hidden.id+'/wall',{...change,reason:'Outside principal override',revision:wall.revision},w.owner,403);
+  await w.json('/ethical-walls/'+wall.id+'/dissolve',{reason:'Outside principal override',revision:wall.revision},w.owner,404);
+  for(const extra of [auth,feedAuth]){
+   await w.json('/ethical-walls/'+wall.id+'/requests',{reason:'Delegated request'},'',401,extra);
+   await w.json('/matters/'+hidden.id,undefined,'',401,extra);
+  }
   const visible=await open(w,'Public lease advice','Open Workshop','Other Holdings');
   assert.ok(!(await w.json('/state',undefined,w.owner)).matters.some(m=>m.id===hidden.id));
   for(const path of ['/matters/'+hidden.id,'/matters/'+hidden.id+'/billing','/matters/'+hidden.id+'/documents','/matters/'+hidden.id+'/deadlines','/matters/'+hidden.id+'/tasks','/documents/'+doc.id+'/file'])await w.json(path,undefined,w.owner,404);
@@ -236,8 +243,43 @@ test('ethical walls exclude a principal from current doors and require expiring 
   await w.json('/agent/matters/'+hidden.id,undefined,'',404,auth);assert.ok(!JSON.stringify(await w.json('/agent/context',undefined,'',200,auth)).includes(hidden.id));
   const custodyTrail=await w.json('/audit?matterId='+hidden.id,undefined,custodian);assert.ok(custodyTrail.records.some(r=>r.action==='wall.access_approved'));
   const trail=await w.json('/audit?matterId='+hidden.id,undefined,w.owner);assert.ok(trail.records.some(r=>r.action==='wall.access_approved'&&r.detail.note==='Documented emergency coverage reviewed'&&r.actor.email==='custodian@example.test'));
+  await w.json('/backup',undefined,w.owner,403);
+  let archiveWall=await w.json('/matters/'+hidden.id+'/wall',{custodianEmail:'custodian@example.test',members:['owner@example.test'],reason:'Principal admitted as a member for archive custody',revision:wall.revision},custodian);
   const archive=await(await w.request('/api/satchel/backup',undefined,w.owner)).text();const restored=await harness();try{await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);assert.equal((await restored.json('/ethical-walls',undefined,restored.owner)).requests[0].reason,'Urgent coverage needed for filing today');}finally{await restored.close();}
+  await w.json('/matters/'+hidden.id+'/wall',{custodianEmail:'custodian@example.test',members:[],reason:'End principal wall membership',revision:archiveWall.revision},custodian);
   await w.json('/wall-emergencies/'+request.id+'/revoke',{reason:'Coverage complete'},custodian);await w.json('/matters/'+hidden.id,undefined,w.owner,404);await w.restart();await w.json('/matters/'+hidden.id,undefined,w.owner,404);
+  let current=(await w.json('/ethical-walls',undefined,custodian)).walls.find(w=>w.id===wall.id);
+  const requestAccess=async()=>w.json('/ethical-walls/'+wall.id+'/requests',{reason:'Further need is a new request'},w.owner);
+  const grant=async minutes=>{const r=await requestAccess();await w.json('/wall-requests/'+r.id+'/decide',{approve:true,note:'Custodian reviewed new need',minutes},custodian);return r;};
+  const short=await grant(1);await w.json('/wall-requests/'+short.id+'/decide',{approve:true,note:'Never renew',minutes:60},custodian,409);
+  assert.equal((await w.json('/matters/'+hidden.id,undefined,w.owner)).matter.id,hidden.id);
+  await new Promise(resolve=>setTimeout(resolve,61000));
+  await w.json('/matters/'+hidden.id,undefined,w.owner,404);
+  assert.ok((await w.json('/ethical-walls',undefined,w.owner)).requests.some(r=>r.id===short.id&&Date.parse(r.expires_at)<=Date.now()));
+  const membershipGrant=await grant(60);
+  const full=(await w.json('/ethical-walls',undefined,w.owner)).requests.find(r=>r.id===membershipGrant.id);assert.ok(Date.parse(full.expires_at)-Date.now()<=3600000);
+  await w.json('/backup',undefined,w.owner,403);
+  current=await w.json('/matters/'+hidden.id+'/wall',{custodianEmail:'custodian@example.test',members:['outside@example.test'],reason:'Bring inside successor into the screen',revision:current.revision},custodian);
+  await w.json('/matters/'+hidden.id,undefined,w.owner,404);
+  await grant(60);
+  current=await w.json('/matters/'+hidden.id+'/wall',{custodianEmail:'outside@example.test',members:['custodian@example.test'],reason:'Handover to inside lawyer',revision:current.revision},custodian);
+  await w.json('/matters/'+hidden.id,undefined,w.owner,404);
+  await w.json('/ethical-walls/'+wall.id+'/dissolve',{reason:'Former custodian cannot dissolve',revision:current.revision},custodian,404);
+  const pending=await requestAccess();
+  await w.json('/team',{email:'outside@example.test',name:'Other lawyer',role:'lawyer',active:false},w.owner);
+  const unassigned=(await w.json('/ethical-walls',undefined,custodian)).walls.find(w=>w.id===wall.id);assert.equal(unassigned.custodian_email,null);assert.equal(unassigned.canTakeCustody,true);
+  const unrouted=await w.json('/conflicts',{client:'Juniper',adverse:'Other'},w.owner);assert.match(unrouted.matches.find(m=>m.restricted).custodianRoutes[0].custodian,/custodian unassigned/);
+  await w.json('/ethical-walls/'+wall.id+'/requests',{reason:'No active custodian'},w.owner,409);
+  await w.json('/ethical-walls/'+wall.id+'/take-custody',{reason:'Outside takeover',revision:current.revision},w.owner,403);
+  current=await w.json('/ethical-walls/'+wall.id+'/take-custody',{reason:'Inside counsel assumes the unassigned wall',revision:current.revision},custodian);
+  assert.equal((await w.json('/ethical-walls',undefined,custodian)).walls.find(w=>w.id===wall.id).custodian_email,'custodian@example.test');
+  await w.json('/wall-requests/'+pending.id+'/decide',{approve:true,note:'Reviewed after custody recovery',minutes:30},custodian);
+  await w.json('/matters/'+hidden.id,undefined,w.owner);
+  await w.json('/ethical-walls/'+wall.id+'/dissolve',{reason:'',revision:current.revision},custodian,400);
+  await w.json('/ethical-walls/'+wall.id+'/dissolve',{reason:'Counsel records end of representation screen',revision:current.revision},custodian);
+  await w.json('/matters/'+hidden.id,undefined,w.owner);
+  assert.ok(!(await w.json('/ethical-walls',undefined,custodian)).walls.some(w=>w.id===wall.id));
+  const finalTrail=(await w.json('/audit?matterId='+hidden.id,undefined,w.owner)).records;for(const action of ['wall.custody_taken','wall.dissolved'])assert.ok(finalTrail.some(r=>r.action===action&&r.detail));
   assert.equal((await w.json('/matters/'+visible.id,undefined,w.owner)).matter.id,visible.id);
  }finally{await w.close();}
 });
