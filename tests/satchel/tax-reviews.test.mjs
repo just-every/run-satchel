@@ -222,6 +222,7 @@ test('BILL-004 mandatory legacy review, explicit client LEDES mapping, tax trust
   const otherBase='/matters/'+f.other.id,prohibitedEntry=await h.json(otherBase+'/entries',{kind:'time',date:'2026-10-01',description:'Tax draw-down prohibited by reviewed authority',minutes:60,rateCents:1000},h.owner),prohibitedDraft=await h.json(otherBase+'/bills',{title:'Prohibited tax draw',date:'2026-10-01',entryIds:[prohibitedEntry.id]},h.owner),prohibitedRule=await h.json(otherBase+'/tax-rules',terms('NY',{trust:{eligibility:'prohibited',reference:'Synthetic reviewed prohibition'}}),h.owner),prohibitedReview=await h.json('/bills/'+prohibitedDraft.id+'/tax-reviews',{revision:prohibitedDraft.revision,ruleId:prohibitedRule.id},h.owner);
   await h.json('/bills/'+prohibitedDraft.id+'/approve',{revision:prohibitedDraft.revision,reviewNote:'Reviewed tax; trust drawing still prohibited',taxReviewId:prohibitedReview.id},h.owner);
   assert.match((await h.json('/trust/transfers',{billId:prohibitedDraft.id,ledgerId:f.otherLedger.id,operatingAccountId:f.operating.id,requestKey:'prohibited-tax-draw',allocation:{earnedCents:1000,taxCents:50,reference:'An allocation cannot override prohibited eligibility'}},h.owner,422)).error,/prohibited/);
+  const pendingLegacy=await h.json('/trust/transfers',{...allocated,requestKey:'pending-before-legacy-metadata-loss',allocation:{earnedCents:1000,taxCents:50,reference:'Explicit reviewed request retained before historical metadata loss'}},h.owner);
   const {withoutReviewedTax}=await import('./tax-fixture.mjs');
   const historical=await harness();try{
    const fixture=await withoutReviewedTax(await(await h.request('/api/satchel/backup',undefined,h.owner)).text());await historical.json('/restore',{archive:fixture,confirm:'RESTORE'},historical.owner);
@@ -229,6 +230,7 @@ test('BILL-004 mandatory legacy review, explicit client LEDES mapping, tax trust
    const unsupported=await historical.json('/bills/'+old.id+'/correct',{revision:old.revision,sourceId:entry.id,correctedAmountCents:8000,reason:'Legacy metadata cannot be invented from original bytes',date:'2026-10-06'},historical.owner);
    assert.match((await historical.json('/bills/'+unsupported.id+'/tax-reviews',{revision:unsupported.revision,ruleId:rule.id},historical.owner,422)).error,/no reviewed original tax basis/);
    assert.match((await historical.json('/trust/transfers',{...request,requestKey:'unreviewed-legacy-tax'},historical.owner,422)).error,/no retained reviewed tax treatment/);
+   await historical.json('/trust/transfers/'+pendingLegacy.id+'/decide',{revision:pendingLegacy.revision,decision:'approved',reviewNote:'A queued request cannot bypass missing reviewed eligibility'},historical.owner,409);
    assert.equal(await(await historical.request(path+'/export',undefined,historical.owner)).text(),files.export,'Legacy original CSV remains byte-identical while new unreviewed tax operations refuse');
   }finally{await historical.close();}
  }finally{await h.close();}
