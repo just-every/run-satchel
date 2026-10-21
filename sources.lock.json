@@ -59,7 +59,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "3610713528122aa55f34f820fc903fff644b6b02a515933c11b9d844a826619b",
+      "sha256": "1c25075b6ee695f4eb29cde97545c7032fa9d28b985254929ab6f8be89f3a7fd",
       "executable": false
     },
     "AGENTS.md": {
@@ -79,7 +79,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "69c4895f608d8c5388a2fcf6e231d31a2b562cc59477058ec4dd03223f52bf93",
+      "sha256": "e72ea071e7c9ff501d0ca1c4cc02faa2d0c288790f3d8cf3612f1bfaf8ec3fe1",
       "executable": false
     },
     "DEMO.md": {
@@ -3391,7 +3391,7 @@
       "executable": false
     },
     "tests/satchel/invoice-numbering-journey.test.mjs": {
-      "sha256": "1f4fd2675b108b6dfeaff22334accd37b83571e5ac04131d657ca90d5cae710b",
+      "sha256": "5e29ff5fbc3f7875a5d3ea6467675102318debad7a6c67570add052c9643831e",
       "executable": false
     },
     "tests/satchel/invoice-numbering.test.mjs": {
