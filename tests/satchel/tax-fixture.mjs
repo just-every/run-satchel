@@ -42,3 +42,16 @@ export async function selectExemptTax(h,page,card){
  await page.getByLabel('Current matter').selectOption(selected.matterId);
  await card.getByLabel('Reviewed tax calculation',{exact:true}).selectOption(reviewId);
 }
+
+// Historical archive input with no structured reviewed tax records. Rebuild the
+// public archive's declared counts and hashes; never mutate the application's DB.
+export async function withoutReviewedTax(archive){
+ const records=archive.trim().split('\n').map(JSON.parse),manifest=records[0],tables=new Set(['s_tax_rules','s_tax_calculations','s_bill_tax_approvals']);
+ for(const t of manifest.tables)if(tables.has(t.name))t.count=0;
+ const {makePart}=await import('@runeditrun/rer/modules/portability');
+ const {ArchiveVerifier,ContentVerifier}=await import('../../node_modules/@runeditrun/rer/modules/portability/format.mjs');
+ const groups=records.filter(r=>r.kind==='part').map(p=>p.items.filter(i=>i.kind!=='row'||!tables.has(i.table))).filter(items=>items.length);manifest.partCount=groups.length;
+ const integrity=new ArchiveVerifier(manifest),content=new ContentVerifier(manifest),parts=[];
+ for(const items of groups){const part=await makePart(parts.length,items);parts.push(part);integrity.add(part);for(const item of items)content.add(item);}
+ return [manifest,...parts,{kind:'closing',partCount:parts.length,archiveHash:integrity.digest(),contentHash:content.digest()}].map(JSON.stringify).join('\n')+'\n';
+}

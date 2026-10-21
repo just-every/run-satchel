@@ -211,5 +211,14 @@ test('BILL-004 mandatory legacy review, explicit client LEDES mapping, tax trust
   await h.json('/bills/'+correction.id+'/approve',{revision:correction.revision,reviewNote:'Reviewed signed difference and complete replacement exports',taxReviewId:delta.id},h.owner);
   assert.equal(delta.snapshot.taxCents,-50);assert.equal(readXml(await(await h.request('/api/satchel/bills/'+correction.id+'/ledes-xml',undefined,h.owner)).text()).invoice.inv_total_net_due,'116.10');
   const archived=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),restored=await harness();try{await restored.json('/restore',{archive:archived,confirm:'RESTORE'},restored.owner);for(const target of [h,restored]){for(const [format,bytes] of Object.entries(files))assert.equal(await(await target.request(path+'/'+format,undefined,target.owner)).text(),bytes);const retained=(await target.json('/trust/transfers',undefined,target.owner)).find(t=>t.id===transfer.id);assert.deepEqual([retained.allocation_earned,retained.allocation_tax,retained.allocation_reference],[6000,330,allocated.allocation.reference]);assert.equal(retained.reversal.status,'cleared');}}finally{await restored.close();}
+  const {withoutReviewedTax}=await import('./tax-fixture.mjs');
+  const historical=await harness();try{
+   const fixture=await withoutReviewedTax(await(await h.request('/api/satchel/backup',undefined,h.owner)).text());await historical.json('/restore',{archive:fixture,confirm:'RESTORE'},historical.owner);
+   const old=(await historical.json(base+'/billing',undefined,historical.owner)).bills.find(b=>b.id===correction.id);
+   const unsupported=await historical.json('/bills/'+old.id+'/correct',{revision:old.revision,sourceId:entry.id,correctedAmountCents:8000,reason:'Legacy metadata cannot be invented from original bytes',date:'2026-10-06'},historical.owner);
+   assert.match((await historical.json('/bills/'+unsupported.id+'/tax-reviews',{revision:unsupported.revision,ruleId:rule.id},historical.owner,422)).error,/no reviewed original tax basis/);
+   assert.match((await historical.json('/trust/transfers',{...request,requestKey:'unreviewed-legacy-tax'},historical.owner,422)).error,/no retained reviewed tax treatment/);
+   assert.equal(await(await historical.request(path+'/export',undefined,historical.owner)).text(),files.export,'Legacy original CSV remains byte-identical while new unreviewed tax operations refuse');
+  }finally{await historical.close();}
  }finally{await h.close();}
 });
