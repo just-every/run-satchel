@@ -216,8 +216,8 @@ async function ledesReplacement(db: D1Database, bill: Data, source: Data, body: 
  insist(!problems.length, `This correction does not meet the ${g.client} billing guideline: ${problems.join('; ')}`, 422);
  const next: Data = {...line,units4:before.units4,unitCostCents:before.unitCostCents,adjustmentCents:corrected-baseCents(before.units4,before.unitCostCents)};
  const changed = ['task','activity','expense','description'].some(k => next[k] !== before[k]);
- const rejected = (await billLedes(db,bill.id))?.status === 'rejected';
- const replacement:Data={...bill.snapshot.ledes,guidelineId:g.id,guidelineVersion:g.version,clientId:g.clientLedesId,lawFirmId:g.lawFirmId,invoiceNumber:await nextInvoiceNumber(db,bill.matterId,bill.snapshot.matterNumber,bill.id),replaces:bill.snapshot.ledes.invoiceNumber,respondsToRejection:rejected,lines:bill.snapshot.ledes.lines.map((l: Data) => l.sourceId === source.sourceId ? next : l)};
+ const priorLedes=await billLedes(db,bill.id),rejected = priorLedes?.status === 'rejected';
+ const replacement:Data={...bill.snapshot.ledes,guidelineId:g.id,guidelineVersion:g.version,clientId:g.clientLedesId,lawFirmId:g.lawFirmId,invoiceNumber:await nextInvoiceNumber(db,bill.matterId,bill.snapshot.matterNumber,bill.id),replaces:priorLedes?.invoiceNumber??bill.snapshot.ledes.invoiceNumber,respondsToRejection:rejected,lines:bill.snapshot.ledes.lines.map((l: Data) => l.sourceId === source.sourceId ? next : l)};
  if(g.xmlProfile){xmlText(g.clientLedesId,'XML client ID',20);xmlText(g.lawFirmId,'XML law firm ID',20);}
  replacement.xml=await snapshotXml(db,g.xmlProfile,bill.snapshot.client,bill.matterId,bill.snapshot.matterNumber,bill.snapshot.matterTitle,replacement.invoiceNumber||'DRAFT',replacement.lines);
  return {changed,ledes:replacement};

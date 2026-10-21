@@ -135,7 +135,9 @@ test('TIME-007 firm UTBMS code sets and a client guideline code an insurer bill,
   const replacementXmlFile=await(await h.request('/api/satchel/bills/'+revision.id+'/ledes-xml',undefined,h.owner)).text(),replacementXml=readXml(replacementXmlFile);
   assert.equal(replacementXml.invoice.inv_id,invoice+'-R1');assert.equal(replacementXml.invoice.inv_total_net_due,'810.00');
   assert.deepEqual(replacementXml.fees.map(l=>[l.file_item_nbr,l.task_activity,l.total_amount]),[['1','A101','270.00'],['2','A104','135.00']]);
-  assert.deepEqual(replacementXml.extensions,[{ext_name:'replaces_invoice',ext_value:invoice,file_item_nbr:replacementXml.extensions[0].file_item_nbr}]);
+  assert.deepEqual(replacementXml.extensions.filter(e=>e.ext_name==='replaces_invoice'),[{ext_name:'replaces_invoice',ext_value:invoice,file_item_nbr:replacementXml.extensions[0].file_item_nbr}]);
+  assert.deepEqual(replacementXml.extensions.map(e=>e.ext_name),['replaces_invoice','reviewed_tax','reviewed_tax','reviewed_tax']);
+  assert.deepEqual(replacementXml.extensions.filter(e=>e.ext_name==='reviewed_tax').map(e=>JSON.parse(e.ext_value)).map(e=>[e.sourceId,e.baseCents,e.taxCents]),revision.snapshot.ledes.lines.map(l=>[l.sourceId,l.totalCents,0]));
   assert.deepEqual(replacement.map(l=>[l.INVOICE_NUMBER,l.LINE_ITEM_NUMBER,l.LINE_ITEM_ACTIVITY_CODE,l.LINE_ITEM_TOTAL,l.INVOICE_TOTAL]),[[invoice+'-R1','1','A101','270.00','810.00'],[invoice+'-R1','2','A104','135.00','810.00'],[invoice+'-R1','3','','405.00','810.00']]);
   outcome=await h.json('/bills/'+revision.id+'/ledes-outcomes',{fileName:'harbor-accept.txt',content:`${invoice}-R1||ACCEPTED|`},h.owner);
   assert.equal(outcome.status,'accepted');
