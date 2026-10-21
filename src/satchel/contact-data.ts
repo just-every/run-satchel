@@ -20,7 +20,7 @@ export async function contactData(db:D1Database){
  stmt(db,'SELECT * FROM s_contact_merges ORDER BY merged_at,losing_id'),
  stmt(db,'SELECT p.*,m.title,m.matter_number FROM s_matter_parties p JOIN s_matters m ON m.id=p.matter_id ORDER BY p.matter_id,p.party_id'),
  stmt(db,"SELECT target_id,source_identity,job_id,record_json FROM ik_provenance WHERE target_kind='party' ORDER BY id"),
- stmt(db,'SELECT * FROM s_contact_classifications ORDER BY at,id'),stmt(db,'SELECT * FROM s_staff_relationships ORDER BY at,id'),stmt(db,"SELECT l.*,s.name stage_name FROM s_leads l LEFT JOIN s_lead_stages s ON s.id=l.stage_id WHERE l.status IN ('open','lost')"),stmt(db,'SELECT timezone FROM s_firm WHERE id=1')
+ stmt(db,'SELECT * FROM s_contact_classifications ORDER BY at,id'),stmt(db,'SELECT * FROM s_staff_relationships ORDER BY at,id'),stmt(db,"SELECT l.*,s.name stage_name,lc.party_id FROM s_leads l JOIN s_lead_contacts lc ON lc.lead_id=l.id LEFT JOIN s_lead_stages s ON s.id=l.stage_id WHERE l.status IN ('open','lost')"),stmt(db,'SELECT timezone FROM s_firm WHERE id=1')
  ]);
  const [revision,parties,profiles,relationships,roles,consents,merges,matterLinks,sources,classifications,staffRelationships,leads,firm]=result.map(r=>r.results as Data[]);
  return {revision:Number(revision[0].party_revision),parties,profiles,relationships,roles,consents,merges,matterLinks,sources,classifications,staffRelationships,leads,timezone:firm[0]?.timezone??'UTC'};

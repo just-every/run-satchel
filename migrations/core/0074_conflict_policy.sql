@@ -24,6 +24,7 @@ CREATE TRIGGER s_staff_relationships_delete BEFORE DELETE ON s_staff_relationshi
 
 CREATE TRIGGER s_conflict_lead_insert AFTER INSERT ON s_leads BEGIN UPDATE s_meta SET party_revision=party_revision+1 WHERE id=1; END;
 CREATE TRIGGER s_conflict_lead_update AFTER UPDATE ON s_leads BEGIN UPDATE s_meta SET party_revision=party_revision+1 WHERE id=1; END;
--- A native inquiry is a searchable identity even before someone opens Contacts.
-INSERT INTO s_parties(id,name,aliases,email,source,revision) SELECT 'lead:'||l.id,l.name,'',l.email,'lead',l.revision FROM s_leads l WHERE NOT EXISTS(SELECT 1 FROM s_parties p LEFT JOIN s_contact_profiles f ON f.party_id=p.id WHERE lower(COALESCE(f.display_name,p.name))=lower(l.name));
-CREATE TRIGGER s_lead_conflict_identity AFTER INSERT ON s_leads WHEN NOT EXISTS(SELECT 1 FROM s_parties p LEFT JOIN s_contact_profiles f ON f.party_id=p.id WHERE lower(COALESCE(f.display_name,p.name))=lower(NEW.name)) BEGIN INSERT INTO s_parties(id,name,aliases,email,source,revision) VALUES('lead:'||NEW.id,NEW.name,'',NEW.email,'lead',NEW.revision); END;
+-- Counsel records the contact association; a public inquiry never claims an
+-- existing identity or communication consent merely by supplying its name.
+CREATE TABLE s_lead_contacts(lead_id TEXT NOT NULL REFERENCES s_leads(id),party_id TEXT NOT NULL REFERENCES s_parties(id),actor TEXT NOT NULL,at TEXT NOT NULL,PRIMARY KEY(lead_id,party_id));
+CREATE TRIGGER s_lead_contact_added AFTER INSERT ON s_lead_contacts BEGIN UPDATE s_meta SET party_revision=party_revision+1 WHERE id=1; END;

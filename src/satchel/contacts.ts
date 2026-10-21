@@ -29,7 +29,11 @@ export async function contactAction(db:D1Database,actor:Actor,partyId:string,op:
  }else if(op==='conflict-classification'){
   insist(['prospective_client','staff_relationship'].includes(body.classification),'Choose prospective client or staff relationship');
   const note=text(body.note,'Classification evidence',2000);
-  insist(body.classification==='staff_relationship','Prospective-client labels come from an unconverted lead or consultation');
+  if(body.classification==='prospective_client'){
+   const leadId=text(body.leadId,'Unconverted lead ID',150);insist(await stmt(db,"SELECT 1 FROM s_leads WHERE id=? AND status IN ('open','lost')",leadId).first(),'Choose an unconverted lead',409);
+   writes.push(stmt(db,'INSERT INTO s_lead_contacts VALUES(?,?,?,?)',leadId,contact.id,actor.email,at),audit(db,actor,'contact.lead_associated',contact.id,JSON.stringify({leadId,partyId:contact.id,source:note})));
+   await atomic(db,actor,writes);return contactState(db,actor);
+  }
   const staffEmail=text(body.staffEmail,'Staff member',254).toLowerCase(),kind=text(body.kind,'Relationship kind',200),startDate=date(body.startDate),endDate=body.endDate?date(body.endDate):null;
   insist(!endDate||endDate>=startDate,'Relationship end must follow its start');
   insist(await stmt(db,"SELECT 1 FROM s_members WHERE email=? UNION SELECT 1 FROM oa_operators WHERE email=? AND role='owner'",staffEmail,staffEmail).first(),'Choose a recorded staff member');

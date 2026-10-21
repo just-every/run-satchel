@@ -22,7 +22,7 @@ export async function conflictSearch(db: D1Database, actor: Actor, body: Data) {
  const graph=contactGraph(await contactData(db));
  const {summary,context}=await conflictContext(db,actor,graph.contacts);
  const scoped=await contactState(db,actor);
- const rawMatches=graph.contacts.filter(p=>{const safe=scoped.contacts.find(c=>c.id===p.id);return queries.some(q=>contactMatches(safe??p,q,safe?scoped.contacts:graph.contacts));}).map(p=>{const safe=scoped.contacts.find(c=>c.id===p.id)??p;return {...safe,aliases:safe.aliases.join('; '),matter_ids:safe.matterRoles.map((r:Data)=>r.matter_id).join(','),matterContext:context(p)};});
+ const rawMatches=graph.contacts.filter(p=>{const safe=scoped.contacts.find(c=>c.id===p.id);return queries.some(q=>contactMatches(safe??p,q,safe?scoped.contacts:graph.contacts));}).map(p=>{const safe=scoped.contacts.find(c=>c.id===p.id)??p;return {...safe,classifications:[...(safe.classifications??[]),...(safe.relationships?.length?[{classification:'related_entity',note:safe.relationships.map((r:Data)=>r.relationship).join('; ')}]:[])],aliases:safe.aliases.join('; '),matter_ids:safe.matterRoles.map((r:Data)=>r.matter_id).join(','),matterContext:context(p)};});
  const matches=await opaqueMatches(db,actor,rawMatches);
  const conflict={id:id(),client,adverse,queries,matches,...summary,partyRevision:graph.revision,actor:actor.email,at:now()};
  const routeSources:D1PreparedStatement[]=[];const matchMatters=[...new Set(rawMatches.flatMap(c=>graph.contacts.find(p=>p.id===c.id)?.matterRoles.map((r:Data)=>r.matter_id)??[]))];

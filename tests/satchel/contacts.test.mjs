@@ -111,8 +111,8 @@ test('whole-firm conflict labels, opaque principal and wall routes, closed dispo
   const contact=async(name,aliases=[])=>{const s=await h.json('/contacts',undefined,h.owner);return h.json('/contacts',{revision:s.revision,kind:'organization',name,aliases,formerNames:[],emails:[],phones:[],addresses:[]},h.owner);};
   const prospect=await contact('Pioneer Manufacturing',['Pioneer affiliate']),staff=await contact('Partner family business',['StaffPartner']);
   const stage=(await h.json('/lead-stages',{name:'Consultation review',position:1},h.owner)).find(s=>s.name==='Consultation review');
-  await h.json('/leads',{name:'Pioneer Manufacturing',summary:'synthetic-satchel-1',referralSource:'Native inquiry',stageId:stage.id},h.owner);
-  let graph=await h.json('/contacts',undefined,h.owner);await h.json('/contacts/'+staff.id+'/conflict-classification',{revision:graph.revision,classification:'staff_relationship',staffEmail:'custodian@example.test',kind:'family ownership',startDate:'2026-01-01',endDate:'2026-06-01',note:'synthetic-satchel-2'},h.owner);
+  const lead=await h.json('/leads',{name:'Pioneer Manufacturing',summary:'synthetic-satchel-1',referralSource:'Native inquiry',stageId:stage.id},h.owner);
+  let graph=await h.json('/contacts',undefined,h.owner);await h.json('/contacts/'+prospect.id+'/conflict-classification',{revision:graph.revision,classification:'prospective_client',leadId:lead.id,note:'Counsel confirmed this inquiry contact'},h.owner);graph=await h.json('/contacts',undefined,h.owner);await h.json('/contacts/'+staff.id+'/conflict-classification',{revision:graph.revision,classification:'staff_relationship',staffEmail:'custodian@example.test',kind:'family ownership',startDate:'2026-01-01',endDate:'2026-06-01',note:'synthetic-satchel-2'},h.owner);
   // Current grants: ordinary hidden matter has one principal route, never its title,
   // role, number or count. The permitted name and alias remain available.
   const native=await h.json('/conflicts',{client:'Restricted affiliate',adverse:'Elsewhere'},outside);
@@ -136,20 +136,6 @@ test('whole-firm conflict labels, opaque principal and wall routes, closed dispo
   const nativeTerms=(await h.json('/matters/'+nativeMatter.id,undefined,outside)).conflictTerms;
   const refusal=await h.json('/matters/'+nativeMatter.id+'/access',{email:'assistant@example.test'},h.owner,409);assert.match(refusal.error,/Advice excludes/);
   await h.json('/matters/'+nativeMatter.id,undefined,assistant,404);
-  const beforeDisposal=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();
-  await h.json('/conflict-waivers/'+review.waiver.id+'/dispose',{confirm:waiver.name,reason:'Not principal'},custodian,403);
-  await h.json('/conflict-waivers/'+review.waiver.id+'/dispose',{confirm:waiver.name,reason:'No expired schedule'},h.owner,409);
-  await h.json('/retention',{matterId:ownMatter.id,disposeAfter:'2020-01-01',basis:'synthetic-satchel-8'},h.owner);
-  const hold=await h.json('/holds',{matterId:ownMatter.id,reason:'Keep conflict consent'},h.owner);
-  await h.json('/conflict-waivers/'+review.waiver.id+'/dispose',{confirm:waiver.name,reason:'Hold must refuse'},h.owner,409);
-  await h.json('/holds/'+hold.id+'/release',{reason:'Counsel released hold'},h.owner);
-  const disposed=await h.json('/conflict-waivers/'+review.waiver.id+'/dispose',{confirm:waiver.name,reason:'Principal confirms expired consent originals'},h.owner);assert.equal(disposed.journal.conflictOriginals,1);assert.equal(disposed.journal.originals[0].sha256,review.waiver.sha256);await h.json('/conflict-waivers/'+review.waiver.id+'/file',undefined,h.owner,404);
-  const currentArchive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(!currentArchive.includes(waiver.contentBase64));const fenced=await harness();try{await fenced.json('/restore',{archive:beforeDisposal,journal:currentArchive,confirm:'RESTORE'},fenced.owner,409);}finally{await fenced.close();}
-  const screenSearch=await h.json('/conflicts',{client:'Screened new client',adverse:'Unique new adversary'},outside);
-  await h.json('/conflicts/'+screenSearch.id+'/disposition',{decision:'restrictions',note:'A screen is required',restrictions:['Principal excluded from this engagement'],excludedStaff:['owner@example.test'],screenCustodian:'custodian@example.test'},outside);
-  const screened=await h.json('/matters',{title:'Screen created at opening',conflictId:screenSearch.id,reviewNote:'Screened limited engagement',confirmed:true,restrictionsAcknowledged:true},outside);
-  await h.json('/matters/'+screened.id,undefined,h.owner,404);const inside=(await h.json('/ethical-walls',undefined,custodian)).walls.find(w=>w.matter_id===screened.id);assert.ok(inside.custodian);assert.ok(!inside.members.some(m=>m.email==='owner@example.test'));
-  for(const path of ['/state','/contacts','/reports','/notifications','/audit'])assert.ok(!JSON.stringify(await h.json(path,undefined,h.owner)).includes(screened.id),path);
   await h.json('/matters/'+nativeMatter.id+'/restrictions/remove',{email:'assistant@example.test',reason:'Unauthorized'},assistant,403);
   // Every conflict door refuses non-counsel and unauthenticated agent credentials.
   for(const cookie of [assistant,trust])for(const [path,body] of [['/conflicts',{client:'A',adverse:'B'}],['/conflicts/'+native.id+'/review',undefined],['/conflicts/'+native.id+'/disposition',{decision:'no_conflict'}],['/conflicts/'+native.id+'/referrals',{wallId:'principal'}],['/conflict-referrals',undefined],['/conflict-referrals/'+nativeReferral.id+'/decide',{decision:'no_conflict'}],['/conflict-waivers/'+principalDecision.waiver.id+'/file',undefined]])await h.json(path,body,cookie,403);
@@ -178,12 +164,26 @@ test('whole-firm conflict labels, opaque principal and wall routes, closed dispo
   await h.json('/matters',{...opening,restrictionsAcknowledged:true},h.owner,409);
   await h.json('/conflict-referrals/'+referral.id+'/decide',{decision:'waiver_recorded',note:'Private waiver permits disclosed conditions',restrictions:['Disclosed counsel scope'],waiver:privateWaiver},custodian);
   await h.json('/conflicts/'+fresh.id+'/disposition',{decision:'decline',note:'Applicant pauses',restrictions:[]},h.owner);await h.json('/matters',{...opening,restrictionsAcknowledged:true},h.owner,409);
-  review=await h.json('/conflicts/'+fresh.id+'/disposition',{decision:'restrictions',note:'Applicant approves',restrictions:['Advice excludes the adverse acquisition'],waiver},h.owner);
+  waiver.contentBase64=Buffer.from(original+' final').toString('base64');review=await h.json('/conflicts/'+fresh.id+'/disposition',{decision:'restrictions',note:'Applicant approves',restrictions:['Advice excludes the adverse acquisition'],waiver},h.owner);
   await h.json('/matters',opening,h.owner,409);const opened=await h.json('/matters',{...opening,restrictionsAcknowledged:true},h.owner);
   const terms=(await h.json('/matters/'+opened.id,undefined,h.owner)).conflictTerms;assert.equal(terms.review_id,review.id);assert.deepEqual(terms.restrictions,['Advice excludes the adverse acquisition','Disclosed counsel scope']);
   await h.restart();assert.deepEqual((await h.json('/matters/'+opened.id,undefined,h.owner)).conflictTerms,terms);
   const emergency=await h.json('/ethical-walls/'+wall.id+'/requests',{reason:'Authorized archival custody'},h.owner);await h.json('/wall-requests/'+emergency.id+'/decide',{approve:true,note:'Archive continuity',minutes:30},custodian);
-  const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),restored=await harness();try{await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);assert.deepEqual((await restored.json('/matters/'+opened.id,undefined,restored.owner)).conflictTerms,terms);assert.deepEqual((await restored.json('/matters/'+nativeMatter.id,undefined,restored.owner)).conflictTerms,nativeTerms);assert.equal(await(await restored.request('/api/satchel/conflict-waivers/'+review.waiver.id+'/file',undefined,restored.owner)).text(),original);assert.equal((await restored.json('/conflicts/'+fresh.id+'/review',undefined,restored.owner)).review.id,review.id);await restored.json('/matters/'+nativeMatter.id+'/access',{email:'assistant@example.test'},restored.owner,409);}finally{await restored.close();}
+  const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),restored=await harness();try{await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);assert.deepEqual((await restored.json('/matters/'+opened.id,undefined,restored.owner)).conflictTerms,terms);assert.deepEqual((await restored.json('/matters/'+nativeMatter.id,undefined,restored.owner)).conflictTerms,nativeTerms);assert.equal(await(await restored.request('/api/satchel/conflict-waivers/'+review.waiver.id+'/file',undefined,restored.owner)).text(),original+' final');assert.equal((await restored.json('/conflicts/'+fresh.id+'/review',undefined,restored.owner)).review.id,review.id);await restored.json('/matters/'+nativeMatter.id+'/access',{email:'assistant@example.test'},restored.owner,409);}finally{await restored.close();}
+  const beforeDisposal=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();
+  await h.json('/conflict-waivers/'+review.waiver.id+'/dispose',{confirm:waiver.name,reason:'Not principal'},custodian,403);
+  await h.json('/conflict-waivers/'+review.waiver.id+'/dispose',{confirm:waiver.name,reason:'No expired schedule'},h.owner,409);
+  await h.json('/retention',{matterId:ownMatter.id,disposeAfter:'2020-01-01',basis:'synthetic-satchel-8'},h.owner);
+  const hold=await h.json('/holds',{matterId:ownMatter.id,reason:'Keep conflict consent'},h.owner);
+  await h.json('/conflict-waivers/'+review.waiver.id+'/dispose',{confirm:waiver.name,reason:'Hold must refuse'},h.owner,409);
+  await h.json('/holds/'+hold.id+'/release',{reason:'Counsel released hold'},h.owner);
+  const disposed=await h.json('/conflict-waivers/'+review.waiver.id+'/dispose',{confirm:waiver.name,reason:'Principal confirms expired consent originals'},h.owner);assert.equal(disposed.journal.conflictOriginals,1);assert.equal(disposed.journal.originals[0].sha256,review.waiver.sha256);await h.json('/conflict-waivers/'+review.waiver.id+'/file',undefined,h.owner,404);
+  const currentArchive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(!currentArchive.includes(waiver.contentBase64));const fenced=await harness();try{await fenced.json('/restore',{archive:beforeDisposal,journal:currentArchive,confirm:'RESTORE'},fenced.owner,409);}finally{await fenced.close();}
+  const screenSearch=await h.json('/conflicts',{client:'Screened new client',adverse:'Unique new adversary'},outside);
+  await h.json('/conflicts/'+screenSearch.id+'/disposition',{decision:'restrictions',note:'A screen is required',restrictions:['Principal excluded from this engagement'],excludedStaff:['owner@example.test'],screenCustodian:'custodian@example.test'},outside);
+  const screened=await h.json('/matters',{title:'Screen created at opening',conflictId:screenSearch.id,reviewNote:'Screened limited engagement',confirmed:true,restrictionsAcknowledged:true},outside);
+  await h.json('/matters/'+screened.id,undefined,h.owner,404);const inside=(await h.json('/ethical-walls',undefined,custodian)).walls.find(w=>w.matter_id===screened.id);assert.ok(inside.custodian);assert.ok(!inside.members.some(m=>m.email==='owner@example.test'));
+  for(const path of ['/state','/contacts','/reports','/notifications','/audit'])assert.ok(!JSON.stringify(await h.json(path,undefined,h.owner)).includes(screened.id),path);
   await h.json('/matters/'+nativeMatter.id+'/restrictions/remove',{email:'assistant@example.test',reason:'Counsel reviewed changed scope'},outside);await h.json('/matters/'+nativeMatter.id+'/access',{email:'assistant@example.test'},h.owner);await h.json('/matters/'+nativeMatter.id,undefined,assistant);
  }finally{await h.close();}
 });
