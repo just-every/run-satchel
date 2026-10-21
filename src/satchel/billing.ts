@@ -1,4 +1,4 @@
-import {expenseInput,expenseInsert,expenseReplay,expenseDetails} from './expenses';
+import {expenseInput,expenseInsert,expenseReplay,expenseReceipt,expenseDetails} from './expenses';
 import {invoiceCounter} from './invoice-schemes';
 import {invoiceIssue} from './invoice-issue';
 import {approvalTax,taxCalculations} from './tax-reviews';
@@ -101,12 +101,13 @@ export async function addEntry(db: D1Database, actor: Actor, matterId: string, b
  // TIME-003's fee agreement resolves the rate, increment, discount and billability.
  const p = kind === 'time' ? price(pricing,{matterId,client:m.client,date:workDate,timekeeper:actor.email,task,minutes:integer(body.minutes,'Minutes',1,1440),billable:requested,rateCents:body.rateCents === undefined ? undefined : integer(body.rateCents,'Hourly rate in USD cents',0,100000000)}) : null;
  const minutes = p ? integer(body.minutes,'Minutes',1,1440) : null, amount = p ? p.amountCents : money(body.amountCents);
- const expenseMeta=await expenseInput(db,actor,matterId,body,{date:workDate,description,amountCents:amount,billable:requested,utbmsExpense:expense});
+ const expenseMeta=await expenseInput(matterId,body,{date:workDate,description,amountCents:amount,billable:requested,utbmsExpense:expense});
  const replay=await expenseReplay(db,expenseMeta);
  if(replay){const found=(await listBilling(db,actor,matterId)).entries.find(e=>e.id===replay);insist(found,'Source charge already recorded',409);return found;}
+ const expenseGuards=expenseMeta?await expenseReceipt(db,actor,matterId,expenseMeta):[];
  await atomic(db,actor,[accessGuard(db,actor,matterId),pricingGuard(db,pricing),
   stmt(db,'INSERT INTO s_entries(id,matter_id,revision,kind,date,description,minutes,rate_cents,amount_cents,created_by,created_at,billable,utbms_task,utbms_activity,utbms_expense,billed_minutes,discount_bps,rate_rule_id,rate_source) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',entryId,matterId,id(),kind,workDate,description,minutes,p?.rateCents ?? null,amount,actor.email,at,(p ? p.billable : requested) ? 1 : 0,task,activity,expense,p?.billedMinutes ?? null,p?.discountBps ?? null,p?.ruleId ?? null,p?.rateSource ?? null),
-  ...(expenseMeta?[...expenseMeta.guards,expenseInsert(db,entryId,expenseMeta)]:[]),
+  ...(expenseMeta?[...expenseGuards,expenseInsert(db,entryId,expenseMeta)]:[]),
   budgetAlerts(db,matterId,entryId,at),audit(db,actor,'billing.entry.recorded',entryId,kind),
  ]);
  return {...entryRow((await stmt(db,'SELECT * FROM s_entries WHERE id=?',entryId).first<Data>())!),expense:(await expenseDetails(db,actor,[entryId])).get(entryId)??null};
