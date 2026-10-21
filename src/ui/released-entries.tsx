@@ -52,7 +52,7 @@ function EditEntry({entry,targets,run}:{entry:Row;targets:Row[];run:Run}){
     </div>
    </>:<Field label="Released entry UTBMS expense" name="utbmsExpense" required={false} value={entry.utbmsExpense??''}/>}
    <Field label="Move released entry to matter (same client)" name="matterId" required={false}>
-    <select name="matterId" defaultValue=""><option value="">Keep in this matter</option>
+    <select name="matterId" aria-label="Move released entry to matter (same client)" defaultValue=""><option value="">Keep in this matter</option>
      {targets.map(m=><option key={m.id} value={m.id}>{m.matter_number?m.matter_number+' · ':''}{m.title}</option>)}
     </select>
    </Field>
