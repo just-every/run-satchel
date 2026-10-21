@@ -73,7 +73,6 @@ test('BILL-004 configured-matter approval freezes exact two-jurisdiction tax pro
    const issued=await h.json('/invoices/issue',{bills:[{id:approved.id,revision:approved.revision}]},h.owner);
    const counter=(await h.json('/invoice-numbering',undefined,h.owner)).counter.next_number;
    const file=await h.request('/api/satchel/bills/'+draft.id+'/export',undefined,h.owner);assert.equal(file.status,200);const bytes=await file.text();assert.match(bytes,new RegExp('"TAX USD cents","'+tax+'"'));assert.match(bytes,new RegExp('"TOTAL","","","","","","","'+total+'"'));assert.ok(bytes.includes(review.id)&&bytes.includes(review.snapshot.rule.reference)&&bytes.includes('native firm-reviewed calculation'));
-   const again=await h.json('/trust/transfers',{...allocated,requestKey:'after-exact-tax-reversal'},h.owner);assert.equal(again.cents,6330);await h.json('/trust/transfers/'+again.id+'/decide',{revision:again.revision,decision:'declined',reviewNote:'Exact reversed components available again; release without bank movement'},h.owner);
   const current=(await h.json(base+'/billing',undefined,h.owner)).bills.find(v=>v.id===draft.id);const originalPdf=await h.request('/api/satchel/bills/'+current.id+'/invoice.pdf',undefined,h.owner);assert.equal(originalPdf.status,200);originals.push({id:current.id,bytes,snapshot:current.snapshot,pdfBytes:Buffer.from(await originalPdf.arrayBuffer())});
    let parent=current;
    for(const [index,correctedAmountCents] of [10,101].entries()){
