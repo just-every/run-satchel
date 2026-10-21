@@ -17,7 +17,9 @@ async function routes(db:D1Database,actor:Actor,s:Data){
 const latestReview=(db:D1Database,s:string)=>stmt(db,'SELECT * FROM s_conflict_reviews WHERE search_id=? ORDER BY sequence DESC LIMIT 1',s).first<Data>();
 const latestDecision=(db:D1Database,r:string)=>stmt(db,'SELECT * FROM s_conflict_route_decisions WHERE referral_id=? ORDER BY sequence DESC LIMIT 1',r).first<Data>();
 async function waiverInfo(db:D1Database,waiverId:string|null){return waiverId?await stmt(db,'SELECT f.id,f.name,f.mime,f.size,f.sha256,d.* FROM s_conflict_waivers f LEFT JOIN s_conflict_waiver_details d ON d.waiver_id=f.id WHERE f.id=?',waiverId).first<Data>():null;}
-async function publicReview(db:D1Database,r:Data|null){return r?{...r,decision:r.disposition??(r.decision==='declined'?'decline':'no_conflict'),restrictions:JSON.parse(r.restrictions),excludedStaff:JSON.parse(r.excluded_staff),waiver:await waiverInfo(db,r.waiver_id)}:null;}
+async function publicReview(db:D1Database,r:Data|null,actor:Actor){
+ if(r?.waiver_id&&await stmt(db,`SELECT 1 FROM s_conflict_waiver_matters wm WHERE wm.waiver_id=? AND NOT ${matterScope('wm.matter_id')}`,r.waiver_id,actor.role,actor.email).first())return {...r,note:'Restricted counsel evidence: ask its custodian',restrictions:[],excludedStaff:[],waiver:null};
+ return r?{...r,decision:r.disposition??(r.decision==='declined'?'decline':'no_conflict'),restrictions:JSON.parse(r.restrictions),excludedStaff:JSON.parse(r.excluded_staff),waiver:await waiverInfo(db,r.waiver_id)}:null;}
 async function disposition(db:D1Database,b:Data){
  insist(['no_conflict','waiver_recorded','restrictions','decline'].includes(b.decision),'Choose no conflict, waivable with waiver recorded, proceed with restrictions, or decline');
  const note=text(b.note,'Counsel disposition',10000);insist(Array.isArray(b.restrictions??[])&&(b.restrictions??[]).length<=100,'Record an engagement restrictions list');
@@ -33,13 +35,13 @@ async function disposition(db:D1Database,b:Data){
  insist(b.decision!=='restrictions'||restrictions.length,'Proceed with restrictions needs disclosed condition text');
  return {decision:b.decision as string,note,restrictions,excludedStaff,screenCustodian};
 }
-async function waiver(db:D1Database,actor:Actor,s:Data,wallId:string|null,b:Data|undefined){
+async function waiver(db:D1Database,actor:Actor,s:Data,wallId:string[]|null,b:Data|undefined){
  if(b===undefined)return {id:null,writes:[] as D1PreparedStatement[]};
  insist(b&&typeof b==='object','Record the waiver evidence');
  const scope=text(b.scope,'Waiver scope',4000),waiverDate=date(b.date),matchId=text(b.matchId,'Waiver match',150);
  const graph=await contactState(db,actor),match=graph.contacts.find(c=>c.identityIds.includes(matchId));
  insist(match&&JSON.parse(s.queries).some((q:string)=>contactMatches(match,q,graph.contacts)),'Waiver must answer a matching contact',409);
- if(wallId)insist(match.matterRoles.some((r:Data)=>r.matter_id===wallId),'Waiver must answer this restricted match',409);
+ if(wallId?.length)insist(match.matterRoles.some((r:Data)=>wallId.includes(r.matter_id)),'Waiver must answer this restricted match',409);
  insist(Array.isArray(b.parties)&&b.parties.length>0&&b.parties.length<=100,'Record the waiving client contacts');
  const parties=[...new Set<string>(b.parties.map((v:unknown)=>text(v,'Waiving client contact',150)))];
  const affected=new Set(match.matterRoles.map((r:Data)=>r.matter_id));
@@ -51,20 +53,21 @@ async function waiver(db:D1Database,actor:Actor,s:Data,wallId:string|null,b:Data
  const contentBase64=b.contentBase64??btoa(unescape(encodeURIComponent(confirmation)));
  insist(typeof contentBase64==='string'&&contentBase64.length<=6990508&&contentBase64.length%4===0&&/^[A-Za-z0-9+/]*={0,2}$/.test(contentBase64),'Supply a base64 original file up to 5 MB');
  const bytes=Uint8Array.from(atob(contentBase64),c=>c.charCodeAt(0));insist(bytes.length>0&&bytes.length<=5242880,'Waiver must be between 1 byte and 5 MB');
- const fileId=id(),wall=wallId?await stmt(db,'SELECT id FROM s_ethical_walls WHERE matter_id=?',wallId).first<Data>():null;
+ const fileId=id(),wall=wallId?.length?await stmt(db,'SELECT id FROM s_ethical_walls WHERE matter_id=?',wallId[0]).first<Data>():null;
  const writes=[stmt(db,'INSERT INTO s_conflict_waivers VALUES(?,?,?,?,?,?,?,?,?)',fileId,s.id,wall?.id??null,name,mime,bytes.length,await digest(bytes),actor.email,now()),stmt(db,'INSERT INTO s_conflict_waiver_details VALUES(?,?,?,?,?,?,?)',fileId,JSON.stringify(parties),waiverDate,scope,matchId,confirmation,'practitioner-recorded, not signed through Satchel')];
+ writes.push(...([...affected] as string[]).map(matterId=>stmt(db,'INSERT INTO s_conflict_waiver_matters VALUES(?,?)',fileId,matterId)));
  for(let offset=0;offset<contentBase64.length;offset+=524288)writes.push(stmt(db,'INSERT INTO s_conflict_waiver_chunks VALUES(?,?,?)',fileId,offset/524288,contentBase64.slice(offset,offset+524288)));
  return {id:fileId,writes};
 }
 export async function conflictReview(db:D1Database,actor:Actor,searchId:string){
  const s=await ownSearch(db,actor,searchId),visible=await routes(db,actor,s);
- return {...visible,review:await publicReview(db,await latestReview(db,s.id)),history:await Promise.all((await rows(db,'SELECT * FROM s_conflict_reviews WHERE search_id=? ORDER BY sequence',s.id)).map(r=>publicReview(db,r)))};
+ return {...visible,review:await publicReview(db,await latestReview(db,s.id),actor),history:await Promise.all((await rows(db,'SELECT * FROM s_conflict_reviews WHERE search_id=? ORDER BY sequence',s.id)).map(r=>publicReview(db,r,actor)))};
 }
 export async function saveConflictReview(db:D1Database,actor:Actor,searchId:string,b:Data){
  const s=await ownSearch(db,actor,searchId),d=await disposition(db,b),file=await waiver(db,actor,s,null,b.waiver),reviewId=id();
  insist(d.decision!=='waiver_recorded'||file.id,'A waivable match requires its recorded waiver',409);
  await atomic(db,actor,[...file.writes,stmt(db,'INSERT INTO s_conflict_reviews(id,search_id,actor,decision,note,restrictions,waiver_id,created_at,sequence,disposition,excluded_staff,screen_custodian) SELECT ?,?,?,?,?,?,?,?,COALESCE(MAX(sequence),0)+1,?,?,? FROM s_conflict_reviews WHERE search_id=?',reviewId,s.id,actor.email,d.decision==='decline'?'declined':'cleared',d.note,JSON.stringify(d.restrictions),file.id,now(),d.decision,JSON.stringify(d.excludedStaff),d.screenCustodian,s.id),audit(db,actor,'conflict.disposition_recorded',reviewId,JSON.stringify({searchId:s.id,...d,waiverId:file.id}))]);
- return publicReview(db,(await stmt(db,'SELECT * FROM s_conflict_reviews WHERE id=?',reviewId).first<Data>())!);
+ return publicReview(db,(await stmt(db,'SELECT * FROM s_conflict_reviews WHERE id=?',reviewId).first<Data>())!,actor);
 }
 export async function routeConflictMatch(db:D1Database,actor:Actor,searchId:string,b:Data){
  const s=await ownSearch(db,actor,searchId),routeId=text(b.wallId,'Custodian route'),visible=await routes(db,actor,s);
@@ -81,7 +84,8 @@ export async function listConflictReferrals(db:D1Database,actor:Actor){
   const w=await routeAuthority(db,r.route_id,r.party_revision),d=await latestDecision(db,r.id),current=d?.revision===w.revision;
   if(r.requester_email===actor.email)own.push({id:r.id,searchId:r.search_id,wallId:r.route_id,custodian:w.custodian_email,status:current?d!.decision:'pending',at:current?d!.created_at:null,restrictions:current?JSON.parse(d!.restrictions):[]});
   if(w.custodian_email===actor.email){
-   const graph=await contactState(db,actor),queries=JSON.parse(r.queries) as string[],matches=graph.contacts.filter(c=>(!w.matter_id||c.matterRoles.some((role:Data)=>role.matter_id===w.matter_id))&&queries.some(q=>contactMatches(c,q,graph.contacts)));
+   const sourceMatters=await rows(db,'SELECT w.matter_id FROM s_conflict_route_sources rs JOIN s_ethical_walls w ON w.id=rs.wall_id WHERE rs.search_id=? AND rs.route_id=?',r.search_id,r.route_id);
+   const graph=await contactState(db,actor),queries=JSON.parse(r.queries) as string[],matches=graph.contacts.filter(c=>(!w.matter_id||c.matterRoles.some((role:Data)=>sourceMatters.length?sourceMatters.some(s=>s.matter_id===role.matter_id):role.matter_id===w.matter_id))&&queries.some(q=>contactMatches(c,q,graph.contacts)));
    custodian.push({matches,restrictions:d?JSON.parse(d.restrictions):[],id:r.id,searchId:r.search_id,wallId:r.route_id,matterId:w.matter_id,wallRevision:w.revision,requester:r.requester_email,client:r.client,adverse:r.adverse,status:current?d!.decision:'pending',decision:d,waiver:await waiverInfo(db,d?.waiver_id)});
   }
  }
@@ -90,13 +94,14 @@ export async function listConflictReferrals(db:D1Database,actor:Actor){
 export async function decideConflictReferral(db:D1Database,actor:Actor,referralId:string,b:Data){
  human(actor);need(actor,'owner','lawyer');const r=await stmt(db,'SELECT r.*,c.party_revision,c.queries FROM s_conflict_routes r JOIN s_conflicts c ON c.id=r.search_id WHERE r.id=?',referralId).first<Data>();insist(r,'Custodian referral not found',404);
  const w=await routeAuthority(db,r.route_id,r.party_revision);insist(w.custodian_email===actor.email,'Custodian referral not found',404);
- const d=await disposition(db,b),s={id:r.search_id,queries:r.queries},file=await waiver(db,actor,s,w.matter_id,b.waiver),decisionId=id();
+ const sourceMatters=await rows(db,'SELECT w.matter_id FROM s_conflict_route_sources rs JOIN s_ethical_walls w ON w.id=rs.wall_id WHERE rs.search_id=? AND rs.route_id=?',r.search_id,r.route_id);
+ const d=await disposition(db,b),s={id:r.search_id,queries:r.queries},file=await waiver(db,actor,s,w.matter_id?(sourceMatters.length?sourceMatters.map(m=>m.matter_id):[w.matter_id]):null,b.waiver),decisionId=id();
  insist(d.decision!=='waiver_recorded'||file.id,'A waivable restricted match requires its recorded waiver',409);
  const fence=id();await atomic(db,actor,[...(w.matter_id?[stmt(db,'INSERT INTO s_guard VALUES(?,CASE WHEN EXISTS(SELECT 1 FROM s_ethical_walls w JOIN s_wall_members m ON m.matter_id=w.matter_id AND m.email=w.custodian_email WHERE w.id=? AND w.revision=? AND w.custodian_email=?) THEN 1 ELSE 0 END)',fence,w.id,w.revision,actor.email)]:[stmt(db,"INSERT INTO s_guard VALUES(?,CASE WHEN EXISTS(SELECT 1 FROM oa_operators WHERE email=? AND role='owner' AND status='active') THEN 1 ELSE 0 END)",fence,actor.email)]),...file.writes,stmt(db,'INSERT INTO s_conflict_route_decisions SELECT ?,?,?,?,?,?,?,?,?,?,?,COALESCE(MAX(sequence),0)+1 FROM s_conflict_route_decisions WHERE referral_id=?',decisionId,r.id,w.revision,d.decision,d.note,JSON.stringify(d.restrictions),JSON.stringify(d.excludedStaff),d.screenCustodian,file.id,actor.email,now(),r.id),audit(db,actor,'conflict.custodian_decided',decisionId,JSON.stringify({referralId:r.id,searchId:r.search_id,...d,waiverId:file.id}),{matterId:w.matter_id,revision:w.revision}),stmt(db,'DELETE FROM s_guard WHERE id=?',fence)]);
  return {id:decisionId,referralId:r.id,decision:d.decision};
 }
 export async function waiverFile(db:D1Database,actor:Actor,waiverId:string){
- human(actor);need(actor,'owner','lawyer');const f=await stmt(db,'SELECT * FROM s_conflict_waivers WHERE id=?',waiverId).first<Data>();insist(f,'Waiver not found',404);
+ human(actor);need(actor,'owner','lawyer');const f=await stmt(db,'SELECT * FROM s_conflict_waivers WHERE id=?',waiverId).first<Data>();insist(f&&!await stmt(db,'SELECT 1 FROM s_conflict_disposals WHERE waiver_id=?',waiverId).first(),'Waiver not found',404);
  const route=await stmt(db,'SELECT r.route_id,c.party_revision FROM s_conflict_route_decisions d JOIN s_conflict_routes r ON r.id=d.referral_id JOIN s_conflicts c ON c.id=r.search_id WHERE d.waiver_id=?',f.id).first<Data>();
  if(route)insist((await routeAuthority(db,route.route_id,route.party_revision)).custodian_email===actor.email,'Waiver not found',404);else{insist(f.created_by===actor.email,'Waiver not found',404);await ownSearch(db,actor,f.search_id);}
  const graph=await contactState(db,actor),details=await waiverInfo(db,f.id);insist(!details?.match_id||graph.contacts.some(c=>c.identityIds.includes(details.match_id)),'Waiver not found',404);
@@ -108,11 +113,12 @@ export async function gateEngagement(db:D1Database,actor:Actor,search:Data){
  const s=await ownSearch(db,actor,search.id),r=await latestReview(db,s.id),visible=await routes(db,actor,s),restrictions:string[]=r?JSON.parse(r.restrictions):[],excludedStaff:string[]=r?JSON.parse(r.excluded_staff):[],guards:D1PreparedStatement[]=[],screens:string[]=r?.screen_custodian?[r.screen_custodian]:[];
  insist((await stmt(db,'SELECT party_revision FROM s_meta WHERE id=1').first<Data>())?.party_revision===s.party_revision,'Party changes made every disposition stale; run a new search',409);
  insist(r?.disposition!=='decline'&&r?.decision!=='declined','Counsel declined this engagement',409);
+ if(r?.disposition==='waiver_recorded')insist(r.waiver_id&&!await stmt(db,'SELECT 1 FROM s_conflict_disposals WHERE waiver_id=?',r.waiver_id).first(),'The recorded waiver was disposed',409);
  if(visible.routes.length)insist(r,'Record counsel disposition before opening this engagement',409);
  for(const route of visible.routes){
   const w=await routeAuthority(db,route.route,s.party_revision),referral=await stmt(db,'SELECT id FROM s_conflict_routes WHERE search_id=? AND route_id=?',s.id,route.route).first<Data>(),d=referral?await latestDecision(db,referral.id):null;
   insist(w.custodian_email&&d&&d.decision!=='decline'&&d.revision===w.revision,'A current custodian disposition is required before opening this engagement',409);
-  insist(d.decision!=='waiver_recorded'||d.waiver_id,'A waivable restricted match requires its waiver',409);
+  insist(d.decision!=='waiver_recorded'||d.waiver_id&&!await stmt(db,'SELECT 1 FROM s_conflict_disposals WHERE waiver_id=?',d.waiver_id).first(),'A waivable restricted match requires its waiver',409);
   restrictions.push(...JSON.parse(d.restrictions));excludedStaff.push(...JSON.parse(d.excluded_staff));if(d.screen_custodian)screens.push(d.screen_custodian);
   const fence=id();guards.push(stmt(db,'INSERT INTO s_guard VALUES(?,CASE WHEN (SELECT id FROM s_conflict_route_decisions WHERE referral_id=? ORDER BY sequence DESC LIMIT 1)=? THEN 1 ELSE 0 END)',fence,referral!.id,d.id),stmt(db,'DELETE FROM s_guard WHERE id=?',fence));
  }

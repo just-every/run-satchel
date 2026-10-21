@@ -1,3 +1,4 @@
+import {disposeConflictWaiver} from './conflict-custody';
 import {conflictReview,saveConflictReview,routeConflictMatch,listConflictReferrals,decideConflictReferral,waiverFile,savedConflictSearches,removeEngagementExclusion} from './conflict-dispositions';
 import {wallState,saveWall,requestWallAccess,decideWallAccess,revokeWallAccess} from './ethical-walls';
 import {editReleasedEntry} from './released-entries';
@@ -163,6 +164,7 @@ api.post('/api/satchel/conflicts/:id/referrals',as(async(a,c)=>routeConflictMatc
 api.get('/api/satchel/conflicts',as((a,c)=>savedConflictSearches(db(c),a)));
 api.get('/api/satchel/conflict-referrals',as((a,c)=>listConflictReferrals(db(c),a)));
 api.post('/api/satchel/conflict-referrals/:id/decide',as(async(a,c)=>decideConflictReferral(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/conflict-waivers/:id/dispose',as(async(a,c)=>disposeConflictWaiver(db(c),a,param(c),await body(c),c.env.ORIGINALS)));
 api.get('/api/satchel/conflict-waivers/:id/file',as((a,c)=>waiverFile(db(c),a,param(c))));
 
 api.post('/api/satchel/matters',as(async(a,c)=>openMatter(db(c),a,await body(c))));

@@ -136,6 +136,20 @@ test('whole-firm conflict labels, opaque principal and wall routes, closed dispo
   const nativeTerms=(await h.json('/matters/'+nativeMatter.id,undefined,outside)).conflictTerms;
   const refusal=await h.json('/matters/'+nativeMatter.id+'/access',{email:'assistant@example.test'},h.owner,409);assert.match(refusal.error,/Advice excludes/);
   await h.json('/matters/'+nativeMatter.id,undefined,assistant,404);
+  const beforeDisposal=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();
+  await h.json('/conflict-waivers/'+review.waiver.id+'/dispose',{confirm:waiver.name,reason:'Not principal'},custodian,403);
+  await h.json('/conflict-waivers/'+review.waiver.id+'/dispose',{confirm:waiver.name,reason:'No expired schedule'},h.owner,409);
+  await h.json('/retention',{matterId:ownMatter.id,disposeAfter:'2020-01-01',basis:'synthetic-satchel-8'},h.owner);
+  const hold=await h.json('/holds',{matterId:ownMatter.id,reason:'Keep conflict consent'},h.owner);
+  await h.json('/conflict-waivers/'+review.waiver.id+'/dispose',{confirm:waiver.name,reason:'Hold must refuse'},h.owner,409);
+  await h.json('/holds/'+hold.id+'/release',{reason:'Counsel released hold'},h.owner);
+  const disposed=await h.json('/conflict-waivers/'+review.waiver.id+'/dispose',{confirm:waiver.name,reason:'Principal confirms expired consent originals'},h.owner);assert.equal(disposed.journal.conflictOriginals,1);assert.equal(disposed.journal.originals[0].sha256,review.waiver.sha256);await h.json('/conflict-waivers/'+review.waiver.id+'/file',undefined,h.owner,404);
+  const currentArchive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(!currentArchive.includes(waiver.contentBase64));const fenced=await harness();try{await fenced.json('/restore',{archive:beforeDisposal,journal:currentArchive,confirm:'RESTORE'},fenced.owner,409);}finally{await fenced.close();}
+  const screenSearch=await h.json('/conflicts',{client:'Screened new client',adverse:'Unique new adversary'},outside);
+  await h.json('/conflicts/'+screenSearch.id+'/disposition',{decision:'restrictions',note:'A screen is required',restrictions:['Principal excluded from this engagement'],excludedStaff:['owner@example.test'],screenCustodian:'custodian@example.test'},outside);
+  const screened=await h.json('/matters',{title:'Screen created at opening',conflictId:screenSearch.id,reviewNote:'Screened limited engagement',confirmed:true,restrictionsAcknowledged:true},outside);
+  await h.json('/matters/'+screened.id,undefined,h.owner,404);const inside=(await h.json('/ethical-walls',undefined,custodian)).walls.find(w=>w.matter_id===screened.id);assert.ok(inside.custodian);assert.ok(!inside.members.some(m=>m.email==='owner@example.test'));
+  for(const path of ['/state','/contacts','/reports','/notifications','/audit'])assert.ok(!JSON.stringify(await h.json(path,undefined,h.owner)).includes(screened.id),path);
   await h.json('/matters/'+nativeMatter.id+'/restrictions/remove',{email:'assistant@example.test',reason:'Unauthorized'},assistant,403);
   // Every conflict door refuses non-counsel and unauthenticated agent credentials.
   for(const cookie of [assistant,trust])for(const [path,body] of [['/conflicts',{client:'A',adverse:'B'}],['/conflicts/'+native.id+'/review',undefined],['/conflicts/'+native.id+'/disposition',{decision:'no_conflict'}],['/conflicts/'+native.id+'/referrals',{wallId:'principal'}],['/conflict-referrals',undefined],['/conflict-referrals/'+nativeReferral.id+'/decide',{decision:'no_conflict'}],['/conflict-waivers/'+principalDecision.waiver.id+'/file',undefined]])await h.json(path,body,cookie,403);

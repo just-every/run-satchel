@@ -25,7 +25,7 @@ export async function opaqueMatches(db:D1Database,actor:Actor,matches:Data[]){
    // Strip hidden roles and source records before returning the permitted contact.
    result.push({...c,matterRoles:(c.matterRoles??[]).filter((r:Data)=>permitted.has(r.matter_id)),matter_ids:(c.matterRoles??[]).filter((r:Data)=>permitted.has(r.matter_id)).map((r:Data)=>r.matter_id).join(','),identities:(c.identities??[]).map((i:Data)=>({...i,sources:[]})),relationships:(c.relationships??[]).filter((r:Data)=>!context.privateContacts.has(r.fromId)&&!context.privateContacts.has(r.toId))});
   }
-  for(const routeId of routeIds){if(seen.has(routeId))continue;seen.add(routeId);const r=await routeAuthority(db,routeId,revision);result.push({restricted:true,custodianRoutes:[{route:routeId,custodian:r.custodian_email??"custodian unassigned: ask the wall's counsel"}]});}
+  for(const routeId of routeIds){const r=await routeAuthority(db,routeId,revision),key=r.custodian_email??'unassigned';if(seen.has(key))continue;seen.add(key);result.push({restricted:true,custodianRoutes:[{route:routeId,custodian:r.custodian_email??"custodian unassigned: ask the wall's counsel"}]});}
  }
  return result;
 }
