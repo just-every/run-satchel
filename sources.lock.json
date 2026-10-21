@@ -3391,7 +3391,7 @@
       "executable": false
     },
     "tests/satchel/invoice-numbering-journey.test.mjs": {
-      "sha256": "8ac569fb7d344060a631e7d35f6792a3936535f75dd73372e9ade18ee743ad97",
+      "sha256": "b4d104b7d00773c4a52e4437bb6f16bbf5707330dde8ff70d07db6a5242ddb3d",
       "executable": false
     },
     "tests/satchel/invoice-numbering.test.mjs": {
