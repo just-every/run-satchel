@@ -434,7 +434,7 @@ Every capability claim in br’s approved homepage register (17 October 2026, 60
 
 Judged from the code and tests at commit `f0039d8cce859a318e2fe12238057ccb098282e8` (19 October 2026).
 
-BILL-004, TIME-004 and INTAKE-001 and their inherited obligations are updated from the code and named tests in this tree; the commit above is the preceding assessment baseline.
+DOC-002, BILL-004, TIME-004 and INTAKE-001 and their inherited obligations are updated from the code and named tests in this tree; the commit above is the preceding assessment baseline.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
@@ -486,7 +486,7 @@ BILL-004, TIME-004 and INTAKE-001 and their inherited obligations are updated fr
 | `MATTER-008` | Number matters by firm scheme | target | done | `tests/satchel/numbering.test.mjs`; `tests/satchel/matter-import.test.mjs`; `tests/satchel/numbering-journey.test.mjs` | Principal patterns, atomic firm/client sequences, source-number preservation and collision avoidance; fixed numbers on search, bills, documents and deadlines, exercised at 1440 and 390 pixels. |
 | `MATTER-009` | Search the whole firm from one box | target | missing |  | One search box finds matters by name, matter number or case number, contacts and aliases, notes, tasks, events, documents, email, invoices and payments the person may see, grouped by type with keyboard navigation and a phone layout. Results apply matter access, custom roles and ethical walls before any title, count or snippet is returned and link to the record; DOC-003 supplies document and email full text. |
 | `DOC-001` | Store real working files | target | partial | `src/satchel/documents.ts` | Matter-document originals remain limited to 1 MiB; intake-only R2 originals now support 10 MiB each. Resumable matter-file storage and quarantine remain missing. |
-| `DOC-002` | Preview and compare versions | target | partial | `src/satchel/documents.ts` | Original versions exist; previews, annotation, comparison and connected-edit conflict handling are absent. |
+| `DOC-002` | Preview and compare versions | target | partial | `src/satchel/documents.ts`; `src/ui/document-preview.tsx`; `tests/satchel/document-preview.test.mjs` | Authenticated exact-version PDF/image/plain-text previews, PDF paging and embedded text, author/time/hash provenance and side-by-side original comparison are implemented. Rendering is in browser memory, with no persisted derivative. Office previews, separate annotations and durable concurrent-edit conflict custody remain missing. |
 | `DOC-003` | Search OCR and full text | target | missing |  | OCR scanned records and index permitted document text, metadata and email with matter/date/type filters, exact page snippets and index freshness. Search applies matter walls before snippets and includes deletion of all derivatives on disposal. |
 | `DOC-004` | Organize and act on document sets | target | done | `src/satchel/document-sets.ts`; `src/ui/document-sets.tsx`; `tests/satchel/document-sets.test.mjs`; `tests/satchel/document-sets-journey.test.mjs` |  |
 | `DOC-005` | Work in Microsoft Word | target | missing |  | Open matter DOCX files in Word through Microsoft 365, preserve tracked changes, comments and original versions, and save a new version back to the correct matter with conflict detection and access revocation. |

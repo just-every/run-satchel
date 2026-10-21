@@ -3,6 +3,7 @@ import {api,Empty,Field,Form,type Row,type Run} from './common';
 import {MatterRetention} from './retention';
 import {Assembly} from './assembly';
 import {DocumentSets} from './document-sets';
+import {DocumentVersions} from './document-preview';
 export function Documents({matterId,actor,run,tick}:{matterId:string;actor:Row;run:Run;tick:number}){
  const [items,setItems]=useState<Row[]>([]),[files,setFiles]=useState<File[]>([]),[versionFor,setVersionFor]=useState<Row>();
  useEffect(()=>{setItems([]);setFiles([]);setVersionFor(undefined);},[matterId]);
@@ -13,7 +14,7 @@ export function Documents({matterId,actor,run,tick}:{matterId:string;actor:Row;r
   <strong>{d.title}</strong><small>Matter {d.matterNumber}</small><p><span className="badge">{d.visibility}</span> · {d.erasedAt?'Bytes erased':'Version '+d.currentVersion}</p>
   {(d.documentType||d.tags.length>0)&&<p>{[d.documentType,...d.tags].filter(Boolean).join(' · ')}</p>}
   {d.duplicates.length>0&&<p className="notice">Duplicate content: {d.duplicates.map((v:Row)=>v.title).join(', ')}. Each original and its version history are retained.</p>}
-  {d.versions.map((v:Row)=><p key={v.version}>{d.erasedAt?<span>Version {v.version} · {v.size} bytes</span>:<a href={`/api/satchel/documents/${d.id}/file?version=${v.version}`}>Download version {v.version} · {v.size} bytes</a>}<br/><small>{v.createdBy} · {v.createdAt.slice(0,10)}</small></p>)}{!d.erasedAt&&<button className="quiet" onClick={()=>setVersionFor(d)}>Append version</button>}
+  {d.versions.map((v:Row)=><p key={v.version}>{d.erasedAt?<span>Version {v.version} · {v.size} bytes</span>:<a href={`/api/satchel/documents/${d.id}/file?version=${v.version}`}>Download version {v.version} · {v.size} bytes</a>}<br/><small>{v.createdBy} · {v.createdAt.slice(0,10)}</small></p>)}{!d.erasedAt&&<><button className="quiet" onClick={()=>setVersionFor(d)}>Append version</button><DocumentVersions key={d.revision} document={d}/></>}
  </article>)}</section>}</DocumentSets>
  <section className="panel"><h2>{versionFor?'Append original':'Add a document'}</h2><p>Original bytes stay in your firm’s database. Maximum 1 MiB per file. Private documents are visible only to their uploader and the principal.</p>{versionFor&&<p>New version of <strong>{versionFor.title}</strong> <button className="quiet" onClick={()=>setVersionFor(undefined)}>Cancel</button></p>}
  <Form label="Save original" submit={d=>run(async()=>{

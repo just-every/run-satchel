@@ -1,2 +1,9 @@
 @import url('/brand/forms.css');
 @import url('/brand/workspace.css');
+
+/* DOC-002: comparison stacks on phones; original page proportions are retained. */
+.document-comparison { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,24rem),1fr)); gap:1rem; min-width:0; }
+.document-preview { min-width:0; overflow-wrap:anywhere; border-top:1px solid var(--border,#d8d8d8); padding-top:1rem; }
+.document-preview canvas,.document-preview img { display:block; max-width:100%; height:auto; background:white; }
+.document-preview pre { white-space:pre-wrap; overflow-wrap:anywhere; max-height:32rem; overflow:auto; }
+.document-hash { overflow-wrap:anywhere; }
