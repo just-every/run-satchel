@@ -7,3 +7,4 @@
 .document-preview canvas,.document-preview img { display:block; max-width:100%; height:auto; background:white; }
 .document-preview pre { white-space:pre-wrap; overflow-wrap:anywhere; max-height:32rem; overflow:auto; }
 .document-hash { overflow-wrap:anywhere; }
+.document-originals:has(.document-preview) { grid-column:1 / -1; }
