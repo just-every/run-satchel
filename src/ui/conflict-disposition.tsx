@@ -7,13 +7,13 @@ function DispositionForm({searchId,review,run,saved}:{searchId:string;review?:Ro
  return <section aria-label="Record counsel disposition">
   <h4>{review?'Record a new disposition':'Record counsel disposition'}</h4>
   <Form label="Record counsel disposition" submit={data=>run(async()=>{
-   await api('/conflicts/'+searchId+'/disposition',{decision:data.decision,note:data.note,restrictions:data.restrictions.split(/\r?\n/).map((line:string)=>line.trim()).filter(Boolean),waiver:await originalWaiver(waiver,data),excludedStaff:data.excludedStaff.split(/\r?\n/).map((v:string)=>v.trim()).filter(Boolean),screenCustodian:data.screenCustodian});
+   await api('/conflicts/'+searchId+'/disposition',{decision:data.decision,note:data.note,restrictions:data.restrictions.split(/\r?\n/).map((line:string)=>line.trim()).filter(Boolean),waiver:await originalWaiver(waiver,data),excludedStaff:data.excludedStaff.split(/\r?\n/).map((v:string)=>v.trim()).filter(Boolean),screenCustodian:data.screenCustodian,screenRequired:data.screenRequired==='on'});
    await saved();
   },'Counsel disposition recorded')}>
    <Field label="Counsel decision" name="decision"><select name="decision" aria-label="Counsel decision" defaultValue="" required><option value="">Choose a decision</option><option value="no_conflict">No conflict</option><option value="waiver_recorded">Waivable, waiver recorded</option><option value="restrictions">Proceed with engagement restrictions</option><option value="decline">Decline</option></select></Field>
    <Field label="Counsel disposition note" name="note"><textarea name="note" aria-label="Counsel disposition note" required rows={4}/></Field>
    <Field label="Engagement restrictions (one per line)" name="restrictions"><textarea name="restrictions" aria-label="Engagement restrictions" rows={4}/></Field>
-   <Field label="Excluded staff emails (one per line)" name="excludedStaff"><textarea name="excludedStaff" aria-label="Excluded staff emails" rows={3}/></Field><Field label="Screen custodian email (if a screen is required)" name="screenCustodian" required={false}/>
+   <Field label="Excluded staff emails (one per line)" name="excludedStaff"><textarea name="excludedStaff" aria-label="Excluded staff emails" rows={3}/></Field><label><input type="checkbox" name="screenRequired"/>Require an ethical screen (defaults to the recording counsel as custodian)</label><Field label="Screen custodian email (if a screen is required)" name="screenCustodian" required={false}/>
    <WaiverUpload label="Counsel waiver original (optional)" onChange={setWaiver}/>
   </Form>
  </section>;

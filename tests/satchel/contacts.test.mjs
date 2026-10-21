@@ -139,6 +139,39 @@ test('whole-firm conflict labels, opaque principal and wall routes, closed dispo
   const nativeTerms=(await h.json('/matters/'+nativeMatter.id,undefined,outside)).conflictTerms;
   const refusal=await h.json('/matters/'+nativeMatter.id+'/access',{email:'assistant@example.test'},h.owner,409);assert.match(refusal.error,/Advice excludes/);
   await h.json('/matters/'+nativeMatter.id,undefined,assistant,404);
+  // Mixed visible/walled roles retain the permitted profile, and multiple
+  // hidden matters under one custodian aggregate into one opaque route.
+  const secondHidden=await open(h,'Second protected strategy','Restricted client','Second protected adverse');
+  const publicRole=await open(h,'Public association','MixedRoleLegal','Public adverse');
+  graph=await h.json('/contacts',undefined,h.owner);const mixed=graph.contacts.find(c=>c.name==='MixedRoleLegal');
+  await h.json('/contacts/'+mixed.id+'/matter-role',{revision:graph.revision,matterId:hidden.id,role:'insurer'},h.owner);
+  const wall2=await h.json('/matters/'+secondHidden.id+'/wall',{custodianEmail:'custodian@example.test',members:[],reason:'Second protected screen',revision:null},h.owner);
+  let wallNow=(await h.json('/ethical-walls',undefined,custodian)).walls.find(w=>w.id===wall.id);
+  await h.json('/matters/'+hidden.id+'/wall',{custodianEmail:'custodian@example.test',members:[],reason:'End principal archive membership',revision:wallNow.revision},custodian);
+  const mixedSearch=await h.json('/conflicts',{client:'MixedRoleLegal',adverse:'Restricted client'},h.owner),onlyRoutes=mixedSearch.matches.filter(m=>m.restricted);
+  assert.equal(onlyRoutes.length,1);assert.equal(onlyRoutes[0].custodianRoutes[0].custodian,'custodian@example.test');
+  const publicMatch=mixedSearch.matches.find(m=>m.id===mixed.id);assert.ok(publicMatch);assert.ok(publicMatch.matterContext.some(m=>m.matterId===publicRole.id));
+  for(const value of [hidden.id,hidden.title,secondHidden.id,secondHidden.title])assert.ok(!JSON.stringify(mixedSearch.matches).includes(value));
+  const aggregate=await h.json('/conflicts/'+mixedSearch.id+'/referrals',{wallId:onlyRoutes[0].custodianRoutes[0].route},h.owner);
+  const privateReview=(await h.json('/conflict-referrals',undefined,custodian)).custodian.find(r=>r.id===aggregate.id);assert.ok(privateReview.matches.some(m=>m.matterRoles.some(r=>r.matter_id===hidden.id)));assert.ok(privateReview.matches.some(m=>m.matterRoles.some(r=>r.matter_id===secondHidden.id)));
+  await h.json('/conflict-referrals/'+aggregate.id+'/decide',{decision:'waiver_recorded',note:'synthetic-satchel-private-decision',waiver:{...metadata,confirmation:'synthetic-satchel-private-waiver'}},custodian);
+  await h.json('/conflicts/'+mixedSearch.id+'/disposition',{decision:'no_conflict',note:'Review every opaque custodian outcome',restrictions:[]},h.owner);
+  const privateMarkers=['synthetic-satchel-private-decision','synthetic-satchel-private-waiver',hidden.title,secondHidden.title];
+  const probeKey=await h.json('/keys',{label:'Privacy probe'},h.owner),probeAuth={authorization:'Bearer '+probeKey.key};
+  for(const path of ['/conflicts/'+mixedSearch.id+'/review','/conflict-referrals','/state','/contacts','/notifications','/reports','/audit?limit=200']){const body=JSON.stringify(await h.json(path,undefined,h.owner));for(const marker of privateMarkers)assert.ok(!body.includes(marker),path+' excludes '+marker);}
+  for(const path of ['/api/satchel/audit/export','/api/satchel/reports/export?dashboard=status']){const response=await h.request(path,undefined,h.owner);assert.equal(response.status,200);const body=await response.text();for(const marker of privateMarkers)assert.ok(!body.includes(marker),path+' excludes '+marker);}
+  const context=JSON.stringify(await h.json('/agent/context',undefined,'',200,probeAuth));for(const marker of privateMarkers)assert.ok(!context.includes(marker));
+  // A changed secondary source stales the whole search, not just that source.
+  await h.json('/matters/'+secondHidden.id+'/wall',{custodianEmail:'custodian@example.test',members:['outside@example.test'],reason:'Secondary source membership changed',revision:wall2.revision},custodian);
+  await h.json('/matters',{title:'Cannot use the old aggregate disposition',conflictId:mixedSearch.id,confirmed:true,reviewNote:'Old review'},h.owner,409);
+  await h.json('/team',{email:'custodian@example.test',name:'Wall custodian',role:'lawyer',active:false},h.owner);
+  const unassigned=await h.json('/conflicts',{client:'Restricted client',adverse:'Unrelated'},h.owner);assert.ok(unassigned.matches.some(m=>m.restricted&&m.custodianRoutes.some(r=>r.custodian.includes('custodian unassigned'))));
+  const unassignedRoute=unassigned.matches.find(m=>m.restricted).custodianRoutes[0].route;
+  await h.json('/conflicts/'+unassigned.id+'/referrals',{wallId:unassignedRoute},h.owner,409);await h.json('/conflicts/'+unassigned.id+'/disposition',{decision:'no_conflict',note:'Cannot bypass missing custodian',restrictions:[]},h.owner);await h.json('/matters',{title:'Unassigned must stay held',conflictId:unassigned.id,confirmed:true,reviewNote:'No custodian'},h.owner,409);
+  await h.json('/team',{email:'custodian@example.test',name:'Wall custodian',role:'lawyer'},h.owner);
+  const custodianSearch=await h.json('/conflicts',{client:'Restricted client',adverse:'Unrelated'},custodian);
+  await h.json('/conflicts/'+custodianSearch.id+'/disposition',{decision:'waiver_recorded',note:'Inside counsel reviews the matched representation',waiver:{...metadata,confirmation:'synthetic-satchel-9'}},custodian);
+  await h.json('/matters',{title:'Custodian reviewed engagement',conflictId:custodianSearch.id,confirmed:true,reviewNote:'Inside counsel recorded and reviewed waiver'},custodian);
   await h.json('/matters/'+nativeMatter.id+'/restrictions/remove',{email:'assistant@example.test',reason:'Unauthorized'},assistant,403);
   // Every conflict door refuses non-counsel and unauthenticated agent credentials.
   for(const cookie of [assistant,trust])for(const [path,body] of [['/conflicts',{client:'A',adverse:'B'}],['/conflicts/'+native.id+'/review',undefined],['/conflicts/'+native.id+'/disposition',{decision:'no_conflict'}],['/conflicts/'+native.id+'/referrals',{wallId:'principal'}],['/conflict-referrals',undefined],['/conflict-referrals/'+nativeReferral.id+'/decide',{decision:'no_conflict'}],['/conflict-waivers/'+principalDecision.waiver.id+'/file',undefined]])await h.json(path,body,cookie,403);
