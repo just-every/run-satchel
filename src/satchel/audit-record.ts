@@ -2,8 +2,11 @@
 // Explicit columns exclude credentials and original file bytes.
 const record=(table:string,columns:string[],matter='NULL',revision='NULL',where='x.id=i.object_id',extra:Record<string,string>={})=>`(SELECT json_object('recordType','${table}','matterId',${matter},'revision',${revision},${[...columns.flatMap(c=>[`'${c}'`,`x.${c}`]),...Object.entries(extra).flatMap(([k,v])=>[`'${k}'`,v])].join(',')}) FROM ${table} x WHERE ${where} LIMIT 1)`;
 const contexts=[
+ record('s_conflict_routes',['id','search_id','route_id','requester_email','created_at'],'(SELECT matter_id FROM s_ethical_walls WHERE id=x.route_id)'),
+ record('s_conflict_route_decisions',['id','referral_id','revision','decision','note','restrictions','excluded_staff','screen_custodian','waiver_id','actor','created_at'],'(SELECT w.matter_id FROM s_conflict_routes r JOIN s_ethical_walls w ON w.id=r.route_id WHERE r.id=x.referral_id)','x.revision'),
+ record('s_staff_relationships',['id','party_id','staff_email','kind','start_date','end_date','source','actor','at']),
  record('s_contact_classifications',['id','party_id','classification','note','actor','at']),
- record('s_conflict_reviews',['id','search_id','actor','decision','note','restrictions','waiver_id','created_at'],'NULL','x.id'),
+ record('s_conflict_reviews',['id','search_id','actor','decision','note','restrictions','waiver_id','created_at','disposition','excluded_staff','screen_custodian'],'NULL','x.id'),
  record('s_conflict_referral_decisions',['id','referral_id','wall_revision','decision','note','restrictions','waiver_id','actor','created_at'],'(SELECT w.matter_id FROM s_conflict_referrals r JOIN s_ethical_walls w ON w.id=r.wall_id WHERE r.id=x.referral_id)','x.wall_revision'),
  record('s_conflict_waivers',['id','search_id','wall_id','name','mime','size','sha256','created_by','created_at'],'(SELECT matter_id FROM s_ethical_walls WHERE id=x.wall_id)'),
  record('s_ethical_walls',['id','matter_id','custodian_email','revision','reason','updated_by','updated_at'],'x.matter_id','x.revision',"x.id=i.object_id AND i.action IN('wall.created','wall.updated')"),

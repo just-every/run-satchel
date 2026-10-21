@@ -29,7 +29,12 @@ export async function contactAction(db:D1Database,actor:Actor,partyId:string,op:
  }else if(op==='conflict-classification'){
   insist(['prospective_client','staff_relationship'].includes(body.classification),'Choose prospective client or staff relationship');
   const note=text(body.note,'Classification evidence',2000);
-  writes.push(stmt(db,'INSERT INTO s_contact_classifications VALUES(?,?,?,?,?,?)',objectId,contact.id,body.classification,note,actor.email,at),stmt(db,'UPDATE s_parties SET revision=? WHERE id=?',id(),contact.id),audit(db,actor,'contact.conflict_classified',objectId,JSON.stringify({partyId:contact.id,classification:body.classification,note})));
+  insist(body.classification==='staff_relationship','Prospective-client labels come from an unconverted lead or consultation');
+  const staffEmail=text(body.staffEmail,'Staff member',254).toLowerCase(),kind=text(body.kind,'Relationship kind',200),startDate=date(body.startDate),endDate=body.endDate?date(body.endDate):null;
+  insist(!endDate||endDate>=startDate,'Relationship end must follow its start');
+  insist(await stmt(db,"SELECT 1 FROM s_members WHERE email=? UNION SELECT 1 FROM oa_operators WHERE email=? AND role='owner'",staffEmail,staffEmail).first(),'Choose a recorded staff member');
+  writes.push(stmt(db,'INSERT INTO s_staff_relationships VALUES(?,?,?,?,?,?,?,?,?)',objectId,contact.id,staffEmail,kind,startDate,endDate,note,actor.email,at));
+  writes.push(stmt(db,'UPDATE s_parties SET revision=? WHERE id=?',id(),contact.id),audit(db,actor,'contact.conflict_classified',objectId,JSON.stringify({partyId:contact.id,classification:body.classification,note})));
  }else if(op==='consent'){
   insist(contactChannels.includes(body.channel),'Choose a communication channel');insist(['allowed','denied','unknown'].includes(body.decision),'Choose the recorded consent decision');
   const evidenceDate=date(body.evidenceDate),source=text(body.source,'Consent source/reference',2000);

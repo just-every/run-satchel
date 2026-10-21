@@ -103,38 +103,73 @@ test('INTAKE-004 INTAKE-005 imported insurer aliases retain every source, relati
  }finally{await target?.close();await h.close();}
 });
 
-test('whole-firm conflict classifications, private custodian review, original waivers and acknowledged restrictions gate engagement and survive recovery',async()=>{
+test('whole-firm conflict labels, opaque principal and wall routes, closed dispositions, structured waivers and enforced exclusions survive recovery',async()=>{
  const h=await harness();try{
   const hidden=await open(h,'Screened acquisition advice','Restricted client','Restricted affiliate');
-  await h.json('/team',{email:'custodian@example.test',name:'Ethics partner',role:'lawyer'},h.owner);await h.json('/team/invite',{email:'custodian@example.test'},h.owner);const custodian=await h.login('custodian@example.test');
-  await h.json('/team',{email:'outside@example.test',name:'Other counsel',role:'lawyer'},h.owner);await h.json('/team/invite',{email:'outside@example.test'},h.owner);const outside=await h.login('outside@example.test');
+  for(const [email,role] of [['custodian@example.test','lawyer'],['outside@example.test','lawyer'],['assistant@example.test','assistant'],['trust@example.test','trust_officer']]){await h.json('/team',{email,name:email,role},h.owner);await h.json('/team/invite',{email},h.owner);}
+  const custodian=await h.login('custodian@example.test'),outside=await h.login('outside@example.test'),assistant=await h.login('assistant@example.test'),trust=await h.login('trust@example.test');
   const contact=async(name,aliases=[])=>{const s=await h.json('/contacts',undefined,h.owner);return h.json('/contacts',{revision:s.revision,kind:'organization',name,aliases,formerNames:[],emails:[],phones:[],addresses:[]},h.owner);};
   const prospect=await contact('Pioneer Manufacturing',['Pioneer affiliate']),staff=await contact('Partner family business',['StaffPartner']);
-  for(const [c,classification,note] of [[prospect,'prospective_client','Prospective client consulted counsel; not retained'],[staff,'staff_relationship','Partner disclosed a family ownership relationship']]){const s=await h.json('/contacts',undefined,h.owner);await h.json('/contacts/'+c.id+'/conflict-classification',{revision:s.revision,classification,note},h.owner);}
-  let graph=await h.json('/contacts',undefined,h.owner);const restricted=graph.contacts.find(c=>c.name==='Restricted affiliate');await h.json('/contacts/'+prospect.id+'/relationship',{revision:graph.revision,otherId:restricted.id,relationship:'prospective adverse affiliate'},h.owner);
-  const wall=await h.json('/matters/'+hidden.id+'/wall',{custodianEmail:'custodian@example.test',members:[],reason:'Screen the existing adverse representation',revision:null},h.owner);
+  const stage=(await h.json('/lead-stages',{name:'Consultation review',position:1},h.owner)).find(s=>s.name==='Consultation review');
+  await h.json('/leads',{name:'Pioneer Manufacturing',summary:'synthetic-satchel-1',referralSource:'Native inquiry',stageId:stage.id},h.owner);
+  let graph=await h.json('/contacts',undefined,h.owner);await h.json('/contacts/'+staff.id+'/conflict-classification',{revision:graph.revision,classification:'staff_relationship',staffEmail:'custodian@example.test',kind:'family ownership',startDate:'2026-01-01',endDate:'2026-06-01',note:'synthetic-satchel-2'},h.owner);
+  // Current grants: ordinary hidden matter has one principal route, never its title,
+  // role, number or count. The permitted name and alias remain available.
+  const native=await h.json('/conflicts',{client:'Restricted affiliate',adverse:'Elsewhere'},outside);
+  assert.equal(native.matches.filter(c=>c.restricted).length,1);assert.equal(native.matches.find(c=>c.restricted).custodianRoutes[0].route,'principal');assert.ok(native.matches.some(c=>c.name==='Restricted affiliate'));
+  for(const value of [hidden.id,hidden.title,hidden.number])assert.ok(!JSON.stringify(native.matches).includes(value));
+  const nativeOpen={title:'Native restricted engagement',conflictId:native.id,reviewNote:'Counsel review',confirmed:true};
+  await h.json('/conflicts/'+native.id+'/disposition',{decision:'cleared',note:'Not a closed-set value',restrictions:[]},outside,400);
+  await h.json('/conflicts/'+native.id+'/disposition',{decision:'no_conflict',note:'Applicant review',restrictions:[]},outside);
+  const nativeReferral=await h.json('/conflicts/'+native.id+'/referrals',{wallId:'principal'},outside);
+  await h.json('/matters',nativeOpen,outside,409);await h.json('/conflict-referrals/'+nativeReferral.id+'/decide',{decision:'no_conflict',note:'Not the custodian'},outside,404);
+  await h.json('/conflict-referrals/'+nativeReferral.id+'/decide',{decision:'decline',note:'Private principal review'},h.owner);await h.json('/matters',nativeOpen,outside,409);
+  const identities=(await h.json('/contacts',undefined,h.owner)).contacts,client=identities.find(c=>c.name==='Restricted client'),adverse=identities.find(c=>c.name==='Restricted affiliate');
+  const metadata={date:'2026-10-21',scope:'Limited acquisition advice',matchId:adverse.id,parties:[client.id]};
+  await h.json('/conflict-referrals/'+nativeReferral.id+'/decide',{decision:'waiver_recorded',note:'No missing waiver'},h.owner,409);
+  await h.json('/conflict-referrals/'+nativeReferral.id+'/decide',{decision:'waiver_recorded',note:'Bad waiving party',waiver:{...metadata,parties:[adverse.id],confirmation:'synthetic-satchel-3'}},h.owner,409);
+  await h.json('/conflict-referrals/'+nativeReferral.id+'/decide',{decision:'waiver_recorded',note:'Private principal waiver',restrictions:['Advice excludes the adverse acquisition'],excludedStaff:['assistant@example.test'],waiver:{...metadata,confirmation:'synthetic-satchel-4'}},h.owner);
+  const principalDecision=(await h.json('/conflict-referrals',undefined,h.owner)).custodian.find(r=>r.id===nativeReferral.id);assert.equal(principalDecision.waiver.label,'practitioner-recorded, not signed through Satchel');
+  await h.json('/conflict-waivers/'+principalDecision.waiver.id+'/file',undefined,outside,404);
+  const disclosed=(await h.json('/conflict-referrals',undefined,outside)).own[0];assert.equal(disclosed.status,'waiver_recorded');assert.equal(disclosed.custodian,'owner@example.test');assert.ok(disclosed.at);assert.deepEqual(disclosed.restrictions,['Advice excludes the adverse acquisition']);assert.ok(!JSON.stringify(disclosed).includes('Private principal'));
+  await h.json('/matters',nativeOpen,outside,409);const nativeMatter=await h.json('/matters',{...nativeOpen,restrictionsAcknowledged:true},outside);
+  const nativeTerms=(await h.json('/matters/'+nativeMatter.id,undefined,outside)).conflictTerms;
+  const refusal=await h.json('/matters/'+nativeMatter.id+'/access',{email:'assistant@example.test'},h.owner,409);assert.match(refusal.error,/Advice excludes/);
+  await h.json('/matters/'+nativeMatter.id,undefined,assistant,404);
+  await h.json('/matters/'+nativeMatter.id+'/restrictions/remove',{email:'assistant@example.test',reason:'Unauthorized'},assistant,403);
+  // Every conflict door refuses non-counsel and unauthenticated agent credentials.
+  for(const cookie of [assistant,trust])for(const [path,body] of [['/conflicts',{client:'A',adverse:'B'}],['/conflicts/'+native.id+'/review',undefined],['/conflicts/'+native.id+'/disposition',{decision:'no_conflict'}],['/conflicts/'+native.id+'/referrals',{wallId:'principal'}],['/conflict-referrals',undefined],['/conflict-referrals/'+nativeReferral.id+'/decide',{decision:'no_conflict'}],['/conflict-waivers/'+principalDecision.waiver.id+'/file',undefined]])await h.json(path,body,cookie,403);
+  await h.json('/conflicts',{client:'A',adverse:'B'},'',401,{authorization:'Bearer synthetic-satchel-5'});
+  // Party changes stale all dispositions, not just overall counsel review.
+  const stale=await h.json('/conflicts',{client:'Restricted affiliate',adverse:'Elsewhere'},outside);await h.json('/conflicts/'+stale.id+'/disposition',{decision:'no_conflict',note:'Before party change',restrictions:[]},outside);await contact('New identity');await h.json('/matters',{...nativeOpen,conflictId:stale.id},outside,409);
+  const ownMatter=await open(h,'Applicant source','Pioneer Manufacturing','Unrelated opposing company');
+  graph=await h.json('/contacts',undefined,h.owner);await h.json('/contacts/'+prospect.id+'/relationship',{revision:graph.revision,otherId:adverse.id,relationship:'prospective adverse affiliate'},h.owner);
+  const wall=await h.json('/matters/'+hidden.id+'/wall',{custodianEmail:'custodian@example.test',members:[],reason:'Screen existing adverse representation',revision:null},h.owner);
   const search=await h.json('/conflicts',{client:'Pioneer affiliate',adverse:'StaffPartner'},h.owner);
-  assert.ok(search.matches.find(c=>c.id===prospect.id).classifications.some(c=>c.classification==='prospective_client'));assert.ok(search.matches.find(c=>c.id===staff.id).classifications.some(c=>c.classification==='staff_relationship'));assert.ok(search.matches.some(c=>c.restricted));assert.ok(!JSON.stringify(search.matches).includes(hidden.id));
+  const label=search.matches.find(c=>c.id===prospect.id).classifications.find(c=>c.classification==='prospective_client');assert.equal(label.stage,'Consultation review');assert.match(label.year,/^20\d\d$/);assert.equal(search.matches.find(c=>c.id===staff.id).classifications.find(c=>c.classification==='staff_relationship').staff_email,'custodian@example.test');assert.ok(search.matches.some(c=>c.restricted));assert.ok(!JSON.stringify(search.matches).includes(hidden.id));
   const opening={title:'Limited new engagement',conflictId:search.id,reviewNote:'Counsel reviewed the whole-firm search',confirmed:true};await h.json('/matters',opening,h.owner,409);
-  const original='Signed ordinary waiver original: synthetic-satchel-1',waiver={name:'counsel-waiver.txt',mime:'text/plain',contentBase64:Buffer.from(original).toString('base64')};
-  let review=await h.json('/conflicts/'+search.id+'/disposition',{decision:'cleared',note:'Cleared only subject to the recorded scope restriction',restrictions:['Advice excludes the adverse acquisition'],waiver},h.owner);
+  // A permitted client association supplies the structured ordinary waiver.
+  const original='Signed ordinary waiver original: synthetic-satchel-6';
+  // Opening added parties, so refresh the review before recording any disposition.
+  const fresh=await h.json('/conflicts',{client:'Pioneer affiliate',adverse:'StaffPartner'},h.owner);opening.conflictId=fresh.id;
+  const waiver={name:'counsel-waiver.txt',mime:'text/plain',contentBase64:Buffer.from(original).toString('base64'),date:'2026-10-21',scope:'Applicant limited scope',matchId:prospect.id,parties:[prospect.id]};
+  let review=await h.json('/conflicts/'+fresh.id+'/disposition',{decision:'restrictions',note:'Applicant scope',restrictions:['Advice excludes the adverse acquisition'],waiver},h.owner);
   assert.equal(await(await h.request('/api/satchel/conflict-waivers/'+review.waiver.id+'/file',undefined,h.owner)).text(),original);await h.json('/conflict-waivers/'+review.waiver.id+'/file',undefined,outside,404);
+  const referral=await h.json('/conflicts/'+fresh.id+'/referrals',{wallId:wall.id},h.owner);assert.equal((await h.json('/conflicts/'+fresh.id+'/referrals',{wallId:wall.id},h.owner)).id,referral.id);
+  await h.json('/conflict-referrals/'+referral.id+'/decide',{decision:'no_conflict',note:'Principal cannot dispose'},h.owner,404);
+  await h.json('/matters/'+hidden.id+'/wall',{custodianEmail:'owner@example.test',members:[],reason:'Cannot redesignate',revision:wall.revision},h.owner,403);
+  const privateBytes='Privileged restricted consent: synthetic-satchel-7',privateWaiver={...metadata,name:'restricted-consent.txt',mime:'text/plain',contentBase64:Buffer.from(privateBytes).toString('base64')};
+  await h.json('/conflict-referrals/'+referral.id+'/decide',{decision:'decline',note:'Private representation requires review',waiver:privateWaiver},custodian);
+  let custodial=(await h.json('/conflict-referrals',undefined,custodian)).custodian.find(r=>r.id===referral.id);assert.equal(custodial.status,'decline');assert.equal(await(await h.request('/api/satchel/conflict-waivers/'+custodial.waiver.id+'/file',undefined,custodian)).text(),privateBytes);await h.json('/conflict-waivers/'+custodial.waiver.id+'/file',undefined,h.owner,404);
   await h.json('/matters',{...opening,restrictionsAcknowledged:true},h.owner,409);
-  const referral=await h.json('/conflicts/'+search.id+'/referrals',{wallId:wall.id},h.owner);assert.equal((await h.json('/conflicts/'+search.id+'/referrals',{wallId:wall.id},h.owner)).id,referral.id);
-  await h.json('/conflict-referrals/'+referral.id+'/decide',{decision:'cleared',note:'Principal cannot act as custodian'},h.owner,404);
-  const privateBytes='Privileged restricted consent: synthetic-satchel-2';
-  await h.json('/conflict-referrals/'+referral.id+'/decide',{decision:'declined',note:'Private representation requires further review',waiver:{name:'restricted-consent.txt',mime:'text/plain',contentBase64:Buffer.from(privateBytes).toString('base64')}},custodian);
-  let custodial=(await h.json('/conflict-referrals',undefined,custodian)).custodian.find(r=>r.id===referral.id);assert.equal(custodial.status,'declined');assert.equal(await(await h.request('/api/satchel/conflict-waivers/'+custodial.waiver.id+'/file',undefined,custodian)).text(),privateBytes);await h.json('/conflict-waivers/'+custodial.waiver.id+'/file',undefined,h.owner,404);
-  const own=await h.json('/conflict-referrals',undefined,h.owner);assert.deepEqual(Object.keys(own.own[0]).sort(),['custodian','id','searchId','wallId']);assert.ok(!JSON.stringify(own).includes('Private representation'));assert.ok(!JSON.stringify(own).includes(hidden.id));
-  await h.json('/matters',{...opening,restrictionsAcknowledged:true},h.owner,409);
-  await h.json('/conflict-referrals/'+referral.id+'/decide',{decision:'cleared',note:'Conditional private review',restrictions:['Hidden condition']},custodian);await h.json('/matters',{...opening,restrictionsAcknowledged:true},h.owner,409);assert.ok(!JSON.stringify(await h.json('/conflict-referrals',undefined,h.owner)).includes('Hidden condition'));
-  await h.json('/conflict-referrals/'+referral.id+'/decide',{decision:'cleared',note:'Unconditional conflict clearance after privileged review'},custodian);
-  await h.json('/conflicts/'+search.id+'/disposition',{decision:'declined',note:'Applicant counsel pauses engagement',restrictions:[]},h.owner);await h.json('/matters',{...opening,restrictionsAcknowledged:true},h.owner,409);
-  review=await h.json('/conflicts/'+search.id+'/disposition',{decision:'cleared',note:'Applicant counsel approves limited engagement after custodian review',restrictions:['Advice excludes the adverse acquisition'],waiver},h.owner);
+  await h.json('/conflict-referrals/'+referral.id+'/decide',{decision:'waiver_recorded',note:'Private waiver permits disclosed conditions',restrictions:['Disclosed counsel scope'],waiver:privateWaiver},custodian);
+  await h.json('/conflicts/'+fresh.id+'/disposition',{decision:'decline',note:'Applicant pauses',restrictions:[]},h.owner);await h.json('/matters',{...opening,restrictionsAcknowledged:true},h.owner,409);
+  review=await h.json('/conflicts/'+fresh.id+'/disposition',{decision:'restrictions',note:'Applicant approves',restrictions:['Advice excludes the adverse acquisition'],waiver},h.owner);
   await h.json('/matters',opening,h.owner,409);const opened=await h.json('/matters',{...opening,restrictionsAcknowledged:true},h.owner);
-  const terms=(await h.json('/matters/'+opened.id,undefined,h.owner)).conflictTerms;assert.equal(terms.review_id,review.id);assert.deepEqual(terms.restrictions,['Advice excludes the adverse acquisition']);assert.equal(terms.acknowledged_by,'owner@example.test');
+  const terms=(await h.json('/matters/'+opened.id,undefined,h.owner)).conflictTerms;assert.equal(terms.review_id,review.id);assert.deepEqual(terms.restrictions,['Advice excludes the adverse acquisition','Disclosed counsel scope']);
   await h.restart();assert.deepEqual((await h.json('/matters/'+opened.id,undefined,h.owner)).conflictTerms,terms);
-  const emergency=await h.json('/ethical-walls/'+wall.id+'/requests',{reason:'Authorized archival custody review'},h.owner);await h.json('/wall-requests/'+emergency.id+'/decide',{approve:true,note:'Archive needed for authorized firm continuity',minutes:30},custodian);
-  const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),restored=await harness();try{await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);assert.deepEqual((await restored.json('/matters/'+opened.id,undefined,restored.owner)).conflictTerms,terms);assert.equal(await(await restored.request('/api/satchel/conflict-waivers/'+review.waiver.id+'/file',undefined,restored.owner)).text(),original);assert.equal((await restored.json('/conflicts/'+search.id+'/review',undefined,restored.owner)).review.id,review.id);}finally{await restored.close();}
+  const emergency=await h.json('/ethical-walls/'+wall.id+'/requests',{reason:'Authorized archival custody'},h.owner);await h.json('/wall-requests/'+emergency.id+'/decide',{approve:true,note:'Archive continuity',minutes:30},custodian);
+  const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),restored=await harness();try{await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);assert.deepEqual((await restored.json('/matters/'+opened.id,undefined,restored.owner)).conflictTerms,terms);assert.deepEqual((await restored.json('/matters/'+nativeMatter.id,undefined,restored.owner)).conflictTerms,nativeTerms);assert.equal(await(await restored.request('/api/satchel/conflict-waivers/'+review.waiver.id+'/file',undefined,restored.owner)).text(),original);assert.equal((await restored.json('/conflicts/'+fresh.id+'/review',undefined,restored.owner)).review.id,review.id);await restored.json('/matters/'+nativeMatter.id+'/access',{email:'assistant@example.test'},restored.owner,409);}finally{await restored.close();}
+  await h.json('/matters/'+nativeMatter.id+'/restrictions/remove',{email:'assistant@example.test',reason:'Counsel reviewed changed scope'},outside);await h.json('/matters/'+nativeMatter.id+'/access',{email:'assistant@example.test'},h.owner);await h.json('/matters/'+nativeMatter.id,undefined,assistant);
  }finally{await h.close();}
 });

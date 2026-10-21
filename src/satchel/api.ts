@@ -1,4 +1,4 @@
-import {conflictReview,saveConflictReview,routeConflictMatch,listConflictReferrals,decideConflictReferral,waiverFile,savedConflictSearches} from './conflict-dispositions';
+import {conflictReview,saveConflictReview,routeConflictMatch,listConflictReferrals,decideConflictReferral,waiverFile,savedConflictSearches,removeEngagementExclusion} from './conflict-dispositions';
 import {wallState,saveWall,requestWallAccess,decideWallAccess,revokeWallAccess} from './ethical-walls';
 import {editReleasedEntry} from './released-entries';
 import {documentReview,annotateDocument,conflictFile,resolveConflict} from './document-review';
@@ -155,6 +155,7 @@ api.post('/api/satchel/contacts',as(async(a,c)=>saveContact(db(c),a,await body(c
 api.post('/api/satchel/contacts/merge-preview',as(async(a,c)=>previewContactMerge(db(c),a,await body(c))));
 api.post('/api/satchel/contacts/merge',as(async(a,c)=>applyContactMerge(db(c),a,await body(c))));
 api.post('/api/satchel/contacts/:id/:op',as(async(a,c)=>contactAction(db(c),a,param(c),param(c,'op'),await body(c))));
+api.post('/api/satchel/matters/:id/restrictions/remove',as(async(a,c)=>removeEngagementExclusion(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/conflicts',as(async(a,c)=>conflictSearch(db(c),a,await body(c))));
 api.get('/api/satchel/conflicts/:id/review',as((a,c)=>conflictReview(db(c),a,param(c))));
 api.post('/api/satchel/conflicts/:id/disposition',as(async(a,c)=>saveConflictReview(db(c),a,param(c),await body(c))));
