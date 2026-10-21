@@ -61,10 +61,10 @@ async function waiver(db:D1Database,actor:Actor,s:Data,wallId:string[]|null,b:Da
 }
 export async function conflictReview(db:D1Database,actor:Actor,searchId:string){
  const s=await ownSearch(db,actor,searchId),visible=await routes(db,actor,s);
- return {...visible,review:await publicReview(db,await latestReview(db,s.id),actor),history:await Promise.all((await rows(db,'SELECT * FROM s_conflict_reviews WHERE search_id=? ORDER BY sequence',s.id)).map(r=>publicReview(db,r,actor)))};
+ return {...visible,canDispose:actor.role==='owner',disposal:await stmt(db,'SELECT * FROM s_conflict_policy_disposals WHERE search_id=?',s.id).first<Data>(),review:await publicReview(db,await latestReview(db,s.id),actor),history:await Promise.all((await rows(db,'SELECT * FROM s_conflict_reviews WHERE search_id=? ORDER BY sequence',s.id)).map(r=>publicReview(db,r,actor)))};
 }
 export async function saveConflictReview(db:D1Database,actor:Actor,searchId:string,b:Data){
- const s=await ownSearch(db,actor,searchId),d=await disposition(db,b,actor),file=await waiver(db,actor,s,null,b.waiver),reviewId=id();
+ const s=await ownSearch(db,actor,searchId);insist(!await stmt(db,'SELECT 1 FROM s_conflict_policy_disposals WHERE search_id=?',s.id).first(),'The retained conflict payload was disposed; run a fresh search',409);const d=await disposition(db,b,actor),file=await waiver(db,actor,s,null,b.waiver),reviewId=id();
  insist(d.decision!=='waiver_recorded'||file.id,'A waivable match requires its recorded waiver',409);
  await atomic(db,actor,[...file.writes,stmt(db,'INSERT INTO s_conflict_reviews(id,search_id,actor,decision,note,restrictions,waiver_id,created_at,sequence,disposition,excluded_staff,screen_custodian) SELECT ?,?,?,?,?,?,?,?,COALESCE(MAX(sequence),0)+1,?,?,? FROM s_conflict_reviews WHERE search_id=?',reviewId,s.id,actor.email,d.decision==='decline'?'declined':'cleared',d.note,JSON.stringify(d.restrictions),file.id,now(),d.decision,JSON.stringify(d.excludedStaff),d.screenCustodian,s.id),audit(db,actor,'conflict.disposition_recorded',reviewId,JSON.stringify({searchId:s.id,...d,waiverId:file.id}))]);
  return publicReview(db,(await stmt(db,'SELECT * FROM s_conflict_reviews WHERE id=?',reviewId).first<Data>())!,actor);
@@ -93,7 +93,7 @@ export async function listConflictReferrals(db:D1Database,actor:Actor){
 }
 export async function decideConflictReferral(db:D1Database,actor:Actor,referralId:string,b:Data){
  human(actor);need(actor,'owner','lawyer');const r=await stmt(db,'SELECT r.*,c.party_revision,c.queries FROM s_conflict_routes r JOIN s_conflicts c ON c.id=r.search_id WHERE r.id=?',referralId).first<Data>();insist(r,'Custodian referral not found',404);
- const w=await routeAuthority(db,r.route_id,r.party_revision);insist(w.custodian_email===actor.email,'Custodian referral not found',404);
+ insist(!await stmt(db,'SELECT 1 FROM s_conflict_policy_disposals WHERE search_id=?',r.search_id).first(),'The retained conflict payload was disposed; run a fresh search',409);const w=await routeAuthority(db,r.route_id,r.party_revision);insist(w.custodian_email===actor.email,'Custodian referral not found',404);
  const sourceMatters=await rows(db,'SELECT w.matter_id FROM s_conflict_route_sources rs JOIN s_ethical_walls w ON w.id=rs.wall_id WHERE rs.search_id=? AND rs.route_id=?',r.search_id,r.route_id);
  const d=await disposition(db,b,actor),s={id:r.search_id,queries:r.queries},file=await waiver(db,actor,s,w.matter_id?(sourceMatters.length?sourceMatters.map(m=>m.matter_id):[w.matter_id]):null,b.waiver),decisionId=id();
  insist(d.decision!=='waiver_recorded'||file.id,'A waivable restricted match requires its recorded waiver',409);
@@ -112,7 +112,7 @@ export async function waiverFile(db:D1Database,actor:Actor,waiverId:string){
  return new Response(bytes,{headers:{'content-type':f.mime,'content-disposition':`attachment; filename*=UTF-8''${encodeURIComponent(f.name)}`,'cache-control':'no-store','x-content-type-options':'nosniff','content-security-policy':"sandbox; default-src 'none'",'x-satchel-original-sha256':f.sha256}});
 }
 export async function gateEngagement(db:D1Database,actor:Actor,search:Data){
- const s=await ownSearch(db,actor,search.id),r=await latestReview(db,s.id),visible=await routes(db,actor,s),restrictions:string[]=r?JSON.parse(r.restrictions):[],excludedStaff:string[]=r?JSON.parse(r.excluded_staff):[],guards:D1PreparedStatement[]=[],screens:string[]=r?.screen_custodian?[r.screen_custodian]:[];
+ insist(!await stmt(db,'SELECT 1 FROM s_conflict_policy_disposals WHERE search_id=?',search.id).first(),'The retained conflict payload was disposed; run a fresh search',409);const s=await ownSearch(db,actor,search.id),r=await latestReview(db,s.id),visible=await routes(db,actor,s),restrictions:string[]=r?JSON.parse(r.restrictions):[],excludedStaff:string[]=r?JSON.parse(r.excluded_staff):[],guards:D1PreparedStatement[]=[],screens:string[]=r?.screen_custodian?[r.screen_custodian]:[];
  insist((await stmt(db,'SELECT party_revision FROM s_meta WHERE id=1').first<Data>())?.party_revision===s.party_revision,'Party changes made every disposition stale; run a new search',409);
  insist(r?.disposition!=='decline'&&r?.decision!=='declined','Counsel declined this engagement',409);
  if(r?.disposition==='waiver_recorded')insist(r.waiver_id&&!await stmt(db,'SELECT 1 FROM s_conflict_disposals WHERE waiver_id=?',r.waiver_id).first(),'The recorded waiver was disposed',409);

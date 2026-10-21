@@ -139,6 +139,21 @@ test('whole-firm conflict labels, opaque principal and wall routes, closed dispo
   const nativeTerms=(await h.json('/matters/'+nativeMatter.id,undefined,outside)).conflictTerms;
   const refusal=await h.json('/matters/'+nativeMatter.id+'/access',{email:'assistant@example.test'},h.owner,409);assert.match(refusal.error,/Advice excludes/);
   await h.json('/matters/'+nativeMatter.id,undefined,assistant,404);
+  const payloadBefore=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();
+  const disposeBody={confirm:native.id,reason:'Principal confirms expired retained conflict restriction originals'};
+  await h.json('/conflicts/'+native.id+'/dispose',disposeBody,outside,403);
+  await h.json('/conflicts/'+native.id+'/dispose',{...disposeBody,confirm:'wrong'},h.owner,400);
+  await h.json('/conflicts/'+native.id+'/dispose',disposeBody,h.owner,409);
+  for(const matterId of [hidden.id,nativeMatter.id])await h.json('/retention',{matterId,disposeAfter:'2020-01-01',basis:'synthetic-satchel-12'},h.owner);
+  const restrictionHold=await h.json('/holds',{matterId:nativeMatter.id,reason:'Retain restriction consent'},h.owner);
+  await h.json('/conflicts/'+native.id+'/dispose',disposeBody,h.owner,409);await h.json('/holds/'+restrictionHold.id+'/release',{reason:'Counsel released restriction hold'},h.owner);
+  const redacted=await h.json('/conflicts/'+native.id+'/dispose',disposeBody,h.owner);assert.ok(redacted.journal.restrictionRecords>=1);assert.ok(redacted.journal.auditPayloads>=1);assert.ok(redacted.journal.scopes.includes(hidden.id)&&redacted.journal.scopes.includes(nativeMatter.id));
+  const redactedTerms=(await h.json('/matters/'+nativeMatter.id,undefined,h.owner)).conflictTerms;assert.deepEqual(redactedTerms.restrictions,['Disposed conflict payload; consult counsel']);assert.equal(redactedTerms.acknowledged_by,nativeTerms.acknowledged_by);
+  const redactedReview=await h.json('/conflicts/'+native.id+'/review',undefined,outside);assert.equal(redactedReview.review.id,nativeTerms.review_id);assert.deepEqual(redactedReview.review.restrictions,['Disposed conflict payload; consult counsel']);
+  await h.json('/matters/'+nativeMatter.id+'/access',{email:'assistant@example.test'},h.owner,409);await h.json('/matters/'+nativeMatter.id,undefined,assistant,404);
+  await h.json('/conflicts/'+native.id+'/dispose',disposeBody,h.owner,409);await h.json('/conflicts/'+native.id+'/disposition',{decision:'no_conflict',note:'Cannot resurrect disposed payload'},outside,409);
+  const disposedAudit=(await h.json('/audit?action=conflict.custodian_decided&limit=200',undefined,h.owner)).records.find(r=>r.objectId===principalDecision.decision.id);assert.equal(disposedAudit.detail,'Disposed conflict payload; consult counsel');assert.match(disposedAudit.evidence.sha256,/^[a-f0-9]{64}$/);assert.equal(disposedAudit.actor.email,'owner@example.test');
+  const payloadAfter=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();const redactionTarget=await harness();try{await redactionTarget.json('/restore',{archive:payloadBefore,journal:payloadAfter,confirm:'RESTORE'},redactionTarget.owner,409);await redactionTarget.json('/restore',{archive:payloadAfter,confirm:'RESTORE'},redactionTarget.owner);assert.deepEqual((await redactionTarget.json('/matters/'+nativeMatter.id,undefined,redactionTarget.owner)).conflictTerms.restrictions,['Disposed conflict payload; consult counsel']);await redactionTarget.json('/matters/'+nativeMatter.id+'/access',{email:'assistant@example.test'},redactionTarget.owner,409);}finally{await redactionTarget.close();}
   // Mixed visible/walled roles retain the permitted profile, and multiple
   // hidden matters under one custodian aggregate into one opaque route.
   const secondHidden=await open(h,'Second protected strategy','Restricted client','Second protected adverse');
@@ -154,9 +169,9 @@ test('whole-firm conflict labels, opaque principal and wall routes, closed dispo
   for(const value of [hidden.id,hidden.title,secondHidden.id,secondHidden.title])assert.ok(!JSON.stringify(mixedSearch.matches).includes(value));
   const aggregate=await h.json('/conflicts/'+mixedSearch.id+'/referrals',{wallId:onlyRoutes[0].custodianRoutes[0].route},h.owner);
   const privateReview=(await h.json('/conflict-referrals',undefined,custodian)).custodian.find(r=>r.id===aggregate.id);assert.ok(privateReview.matches.some(m=>m.matterRoles.some(r=>r.matter_id===hidden.id)));assert.ok(privateReview.matches.some(m=>m.matterRoles.some(r=>r.matter_id===secondHidden.id)));
-  await h.json('/conflict-referrals/'+aggregate.id+'/decide',{decision:'waiver_recorded',note:'synthetic-satchel-private-decision',waiver:{...metadata,confirmation:'synthetic-satchel-private-waiver'}},custodian);
+  await h.json('/conflict-referrals/'+aggregate.id+'/decide',{decision:'waiver_recorded',note:'synthetic-satchel-10',waiver:{...metadata,confirmation:'synthetic-satchel-11'}},custodian);
   await h.json('/conflicts/'+mixedSearch.id+'/disposition',{decision:'no_conflict',note:'Review every opaque custodian outcome',restrictions:[]},h.owner);
-  const privateMarkers=['synthetic-satchel-private-decision','synthetic-satchel-private-waiver',hidden.title,secondHidden.title];
+  const privateMarkers=['synthetic-satchel-10','synthetic-satchel-11',hidden.title,secondHidden.title];
   const probeKey=await h.json('/keys',{label:'Privacy probe'},h.owner),probeAuth={authorization:'Bearer '+probeKey.key};
   for(const path of ['/conflicts/'+mixedSearch.id+'/review','/conflict-referrals','/state','/contacts','/notifications','/reports','/audit?limit=200']){const body=JSON.stringify(await h.json(path,undefined,h.owner));for(const marker of privateMarkers)assert.ok(!body.includes(marker),path+' excludes '+marker);}
   for(const path of ['/api/satchel/audit/export','/api/satchel/reports/export?dashboard=status']){const response=await h.request(path,undefined,h.owner);assert.equal(response.status,200);const body=await response.text();for(const marker of privateMarkers)assert.ok(!body.includes(marker),path+' excludes '+marker);}

@@ -260,14 +260,17 @@ test('ethical walls exclude a principal from current doors and require expiring 
   const membershipGrant=await grant(60);
   const full=(await w.json('/ethical-walls',undefined,w.owner)).requests.find(r=>r.id===membershipGrant.id);assert.ok(Date.parse(full.expires_at)-Date.now()<=3600000);
   await w.json('/backup',undefined,w.owner,403);
+  await w.json('/matters/'+hidden.id+'/wall',{custodianEmail:'outside@example.test',members:['outside@example.test'],reason:'Outside handover refused',revision:current.revision},custodian,403);
   current=await w.json('/matters/'+hidden.id+'/wall',{custodianEmail:'custodian@example.test',members:['outside@example.test'],reason:'Bring inside successor into the screen',revision:current.revision},custodian);
   await w.json('/matters/'+hidden.id,undefined,w.owner,404);
   await grant(60);
   current=await w.json('/matters/'+hidden.id+'/wall',{custodianEmail:'outside@example.test',members:['custodian@example.test'],reason:'Handover to inside lawyer',revision:current.revision},custodian);
   await w.json('/matters/'+hidden.id,undefined,w.owner,404);
   await w.json('/ethical-walls/'+wall.id+'/dissolve',{reason:'Former custodian cannot dissolve',revision:current.revision},custodian,404);
-  const pending=await requestAccess();
+  const pending=await requestAccess(),inactiveGrant=await requestAccess();
+  await w.json('/wall-requests/'+inactiveGrant.id+'/decide',{approve:true,note:'Coverage before deactivation',minutes:30},outside);
   await w.json('/team',{email:'outside@example.test',name:'Other lawyer',role:'lawyer',active:false},w.owner);
+  await w.json('/matters/'+hidden.id,undefined,w.owner,404);
   const unassigned=(await w.json('/ethical-walls',undefined,custodian)).walls.find(w=>w.id===wall.id);assert.equal(unassigned.custodian_email,null);assert.equal(unassigned.canTakeCustody,true);
   const unrouted=await w.json('/conflicts',{client:'Juniper',adverse:'Other'},w.owner);assert.match(unrouted.matches.find(m=>m.restricted).custodianRoutes[0].custodian,/custodian unassigned/);
   await w.json('/ethical-walls/'+wall.id+'/requests',{reason:'No active custodian'},w.owner,409);

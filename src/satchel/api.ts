@@ -1,4 +1,4 @@
-import {disposeConflictWaiver} from './conflict-custody';
+import {disposeConflictWaiver,disposeConflictPayload} from './conflict-custody';
 import {conflictReview,saveConflictReview,routeConflictMatch,listConflictReferrals,decideConflictReferral,waiverFile,savedConflictSearches,removeEngagementExclusion} from './conflict-dispositions';
 import {wallState,saveWall,requestWallAccess,decideWallAccess,revokeWallAccess,takeWallCustody,dissolveWall,recordWallExpiries,auditWallReads} from './ethical-walls';
 import {editReleasedEntry} from './released-entries';
@@ -82,6 +82,7 @@ const as=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>{const actor=await pe
 const asAgent=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>c.json(await fn(await agent(c.req.raw,c.env),c));
 api.post('/api/satchel/ethical-walls/:id/take-custody',as(async(a,c)=>takeWallCustody(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/ethical-walls/:id/dissolve',as(async(a,c)=>dissolveWall(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/conflicts/:id/dispose',as(async(a,c)=>disposeConflictPayload(db(c),a,param(c),await body(c),runtimeBindings(c.env).ORIGINALS)));
 api.get('/api/satchel/ethical-walls',as((a,c)=>wallState(db(c),a)));
 api.post('/api/satchel/matters/:id/wall',as(async(a,c)=>saveWall(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/ethical-walls/:id/requests',as(async(a,c)=>requestWallAccess(db(c),a,param(c),await body(c))));
