@@ -27,6 +27,18 @@ test('BILL-015 prospective numbering: exact approved issue, tax gate, batch roll
   assert.equal(await(await h.request('/api/satchel/bills/'+legacy.id+'/export',undefined,h.owner)).text(),legacyCsv);
   const legacyRows=(await h.json('/matters/'+legacyMatter.id+'/billing',undefined,h.owner)).bills;
   assert.equal(legacyRows.find(b=>b.id===legacy.id).ledes.invoiceNumber,legacyNumber);assert.equal(legacyRows.find(b=>b.id===reserved.id).ledes.invoiceNumber,reservedNumber);
+  // BILL-015: a legacy reservation approved after cutover must issue before any
+  // export can turn it into an exported bill, preserving its one reserved number.
+  const reservedApproved=await h.json('/bills/'+reserved.id+'/approve',{revision:reserved.revision,reviewNote:'Review legacy reservation after cutover',taxReviewId:await exemptTaxReview(h,'/bills/'+reserved.id+'/approve')},h.owner);
+  await h.json('/bills/'+reserved.id+'/export',undefined,h.owner,409);
+  await h.json('/bills/'+reserved.id+'/ledes',undefined,h.owner,409);
+  const reservedPayload={bills:[{id:reserved.id,revision:reservedApproved.revision}]};
+  const reservedIssue=await h.json('/invoices/issue',reservedPayload,h.owner);
+  assert.equal(reservedIssue.issues[0].number,reservedNumber);
+  assert.equal((await h.json('/invoice-numbering',undefined,h.owner)).counter.next_number,100);
+  const reservedFile=await(await h.request('/api/satchel/bills/'+reserved.id+'/ledes',undefined,h.owner)).text();
+  assert.ok(reservedFile.includes('|'+reservedNumber+'|'));
+  assert.deepEqual(await h.json('/invoices/issue',reservedPayload,h.owner),reservedIssue);
   const laterLedes=await draft(h,legacyMatter,'Later unnumbered LEDES draft');assert.equal(laterLedes.snapshot.ledes.invoiceNumber,null);assert.equal((await h.json('/matters/'+legacyMatter.id+'/billing',undefined,h.owner)).bills.find(b=>b.id===laterLedes.id).ledes,null);
   const first=await draft(h,m),second=await draft(h,m,'Draft returned for review');assert.equal(first.snapshot.numberingCutover,true);assert.equal(first.snapshot.invoiceNumber,undefined);
   assert.equal((await h.json('/invoice-numbering',undefined,h.owner)).counter.next_number,100);
