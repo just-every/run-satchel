@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 // through the same public doors as a person. No harness interception or defaults.
 export async function fixtureBill(h,path){
  const id=path.split('/')[2];
- for(const m of (await h.json('/workspace',undefined,h.owner)).matters){
+ for(const m of (await h.json('/state',undefined,h.owner)).matters){
   const b=(await h.json('/matters/'+m.id+'/billing',undefined,h.owner)).bills.find(b=>b.id===id);
   if(b)return b;
  }
@@ -29,7 +29,7 @@ export async function withTaxAllocation(h,body){
 export async function selectExemptTax(h,page,card){
  const title=(await card.locator('strong').first().textContent()).split(' · ')[0];
  let selected;
- for(const m of (await h.json('/workspace',undefined,h.owner)).matters){const b=(await h.json('/matters/'+m.id+'/billing',undefined,h.owner)).bills.find(b=>b.status==='draft'&&b.snapshot.title===title);if(b){selected=b;break;}}
+ for(const m of (await h.json('/state',undefined,h.owner)).matters){const b=(await h.json('/matters/'+m.id+'/billing',undefined,h.owner)).bills.find(b=>b.status==='draft'&&b.snapshot.title===title);if(b){selected=b;break;}}
  assert.ok(selected,'Visible draft to review');
  const reviewId=await exemptTaxReview(h,'/bills/'+selected.id+'/approve');
  const nav=page.getByRole('navigation',{name:'Workspace'});
