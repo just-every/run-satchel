@@ -1,0 +1,46 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {harness,open} from './harness.mjs';
+import {exemptTaxReview} from './tax-fixture.mjs';
+
+test('TIME-006 native expense receipts, source-charge reconciliation, overhead exclusion and reviewed provenance survive restart and restore',async()=>{
+ const h=await harness();let restored;
+ try{
+  const m=await open(h),other=await open(h,'Separate matter','Pine client','Elm opponent'),base='/matters/'+m.id;
+  const bytes='Filing receipt: court fee USD 125.00',upload={name:'filing-receipt.txt',mime:'text/plain',visibility:'matter',contentBase64:Buffer.from(bytes).toString('base64')};
+  const receipt=await h.json(base+'/documents',upload,h.owner);
+  const payload={kind:'disbursement',date:'2026-10-20',description:'Court filing advanced by firm',amountCents:12500,expense:{category:'advanced_cost',vendor:'County Court',vendorReference:'Court receipt 8841',accountingCode:'Advanced client costs',sourceSystem:'InfoTrack imported report',sourceId:'filing-8841',receipt:{documentId:receipt.id,version:1}}};
+  const charge=await h.json(base+'/entries',payload,h.owner);
+  assert.equal(charge.expense.category,'advanced_cost');assert.equal(charge.expense.receipt.sha256,receipt.versions[0].sha256);
+  await h.json(base+'/documents',{...upload,documentId:receipt.id,revision:receipt.revision,contentBase64:Buffer.from('Receipt amended with additional explanatory text').toString('base64')},h.owner);
+  assert.equal((await h.json(base+'/entries',payload,h.owner)).id,charge.id);
+  await h.json(base+'/entries',{...payload,amountCents:12501},h.owner,409);
+  await h.json('/matters/'+other.id+'/entries',payload,h.owner,409);
+  await h.json(base+'/entries',{...payload,expense:{...payload.expense,sourceId:undefined}},h.owner,400);
+  await h.json(base+'/entries',{...payload,expense:{...payload.expense,sourceId:'missing-receipt',receipt:{documentId:receipt.id,version:99}}},h.owner,409);
+  const pair={...payload,description:'Registry search',amountCents:3000,expense:{...payload.expense,category:'client_disbursement',sourceId:'search-19',receipt:null}};
+  const raced=await Promise.all([h.request('/api/satchel'+base+'/entries',pair,h.owner),h.request('/api/satchel'+base+'/entries',pair,h.owner)]);
+  assert.ok(raced.every(r=>[200,409].includes(r.status)));assert.ok(raced.some(r=>r.status===200));
+  const search=await h.json(base+'/entries',pair,h.owner);
+  const overhead=await h.json(base+'/entries',{...payload,description:'Office stationery',expense:{...payload.expense,category:'overhead',sourceId:'stationery-12',receipt:null}},h.owner);
+  assert.equal(overhead.billable,false);
+  await h.json(base+'/bills',{title:'Cannot bill office overhead',date:'2026-10-20',entryIds:[overhead.id]},h.owner,409);
+  await h.json('/team',{email:'assistant@example.test',name:'Case assistant',role:'assistant'},h.owner);await h.json('/team/invite',{email:'assistant@example.test'},h.owner);const assistant=await h.login('assistant@example.test');
+  await h.json(base+'/entries',payload,assistant,404);await h.json(base+'/access',{email:'assistant@example.test'},h.owner);
+  const privateReceipt=await h.json(base+'/documents',{...upload,name:'private-receipt.txt',visibility:'private'},h.owner);
+  const privateCharge=await h.json(base+'/entries',{...payload,description:'Private receipt reference',expense:{...payload.expense,sourceId:'private-ref',receipt:{documentId:privateReceipt.id,version:1}}},h.owner);
+  assert.deepEqual((await h.json(base+'/billing',undefined,assistant)).entries.find(e=>e.id===privateCharge.id).expense.receipt,{unavailable:true});
+  await h.json(base+'/entries',{...payload,expense:{...payload.expense,sourceId:'invisible-copy',receipt:{documentId:privateReceipt.id,version:1}}},assistant,404);
+  let bill=await h.json(base+'/bills',{title:'Reviewed court and registry costs',date:'2026-10-20',entryIds:[charge.id,search.id]},h.owner);
+  assert.deepEqual(bill.snapshot.lines.map(l=>[l.expense.category,l.expense.accountingCode]),[['advanced_cost','Advanced client costs'],['client_disbursement','Advanced client costs']]);
+  bill=await h.json('/bills/'+bill.id+'/approve',{revision:bill.revision,reviewNote:'Compared original receipts and accounting references',taxReviewId:await exemptTaxReview(h,'/bills/'+bill.id+'/approve')},h.owner);
+  const exported=await(await h.request('/api/satchel/bills/'+bill.id+'/export',undefined,h.owner)).text();assert.ok(exported.includes('Court receipt 8841'));assert.ok(exported.includes('InfoTrack imported report'));
+  assert.equal((await h.json(base+'/billing',undefined,h.owner)).entries.filter(e=>e.expense?.sourceId==='search-19').length,1);
+  const before=await h.json(base+'/billing',undefined,h.owner);await h.restart();assert.deepEqual(await h.json(base+'/billing',undefined,h.owner),before);
+  restored=await harness();await restored.json('/restore',{archive:await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),confirm:'RESTORE'},restored.owner);
+  assert.deepEqual(await restored.json(base+'/billing',undefined,restored.owner),before);
+  assert.equal((await restored.json(base+'/entries',payload,restored.owner)).id,charge.id);
+  assert.equal(await(await restored.request('/api/satchel/documents/'+receipt.id+'/file?version=1',undefined,restored.owner)).text(),bytes);
+  assert.equal(await(await restored.request('/api/satchel/bills/'+bill.id+'/export',undefined,restored.owner)).text(),exported);
+ }finally{await restored?.close();await h.close();}
+});

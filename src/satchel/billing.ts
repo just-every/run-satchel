@@ -1,3 +1,4 @@
+import {expenseInput,expenseInsert,expenseReplay,expenseDetails} from './expenses';
 import {invoiceCounter} from './invoice-schemes';
 import {invoiceIssue} from './invoice-issue';
 import {approvalTax,taxCalculations} from './tax-reviews';
@@ -56,6 +57,10 @@ function artifact(bill: Data) {
   ['Correction reason',s.reason ?? ''],
   ['kind','source id','source revision','date','description','minutes','rate USD cents/hour','amount USD cents','prior USD cents','corrected USD cents','rounding'],
   ...s.lines.map((l: Data) => [l.kind,l.sourceId,l.sourceRevision,l.date,l.description,l.minutes,l.rateCents,l.amountCents,l.priorAmountCents,l.correctedAmountCents,l.rounding]),
+  ...(s.lines.some((l:Data)=>l.expense)?[
+   ['Expense source id','Category','Vendor','Vendor reference','Accounting code','Imported source system','Imported charge reference'],
+   ...s.lines.filter((l:Data)=>l.expense).map((l:Data)=>[l.sourceId,l.expense.category,l.expense.vendor,l.expense.vendorReference,l.expense.accountingCode,l.expense.sourceSystem,l.expense.sourceId]),
+  ]:[]),
   ...(s.taxReview ? [
    ['SUBTOTAL USD cents',s.subtotalCents],
    ['Tax calculation ID',s.taxReview.id,'Reviewed bill revision',s.taxReview.billRevision],
@@ -89,18 +94,22 @@ export async function addEntry(db: D1Database, actor: Actor, matterId: string, b
  insist(['time','disbursement'].includes(body.kind), 'Choose time or disbursement');
  const kind = body.kind, workDate = date(body.date), description = text(body.description,'Description',2000);
  insist(body.billable === undefined || typeof body.billable === 'boolean', 'Say whether the work is billable');
- const requested = body.billable !== false, task = kind === 'time' ? utbmsTask(body.utbmsTask) : null, activity = kind === 'time' ? utbmsActivity(body.utbmsActivity) : null, expense = kind === 'time' ? null : utbmsExpense(body.utbmsExpense);
+ const requested = body.expense?.category==='overhead' ? false : body.billable !== false, task = kind === 'time' ? utbmsTask(body.utbmsTask) : null, activity = kind === 'time' ? utbmsActivity(body.utbmsActivity) : null, expense = kind === 'time' ? null : utbmsExpense(body.utbmsExpense);
  await checkCodes(db,{task,activity,expense});
  const m = await matter(db,actor,matterId), pricing = await loadPricing(db), entryId = id(), at = now();
  // An explicit hourly rate is recorded exactly as entered (SAT-004); without one,
  // TIME-003's fee agreement resolves the rate, increment, discount and billability.
  const p = kind === 'time' ? price(pricing,{matterId,client:m.client,date:workDate,timekeeper:actor.email,task,minutes:integer(body.minutes,'Minutes',1,1440),billable:requested,rateCents:body.rateCents === undefined ? undefined : integer(body.rateCents,'Hourly rate in USD cents',0,100000000)}) : null;
  const minutes = p ? integer(body.minutes,'Minutes',1,1440) : null, amount = p ? p.amountCents : money(body.amountCents);
+ const expenseMeta=await expenseInput(db,actor,matterId,body,{date:workDate,description,amountCents:amount,billable:requested,utbmsExpense:expense});
+ const replay=await expenseReplay(db,expenseMeta);
+ if(replay){const found=(await listBilling(db,actor,matterId)).entries.find(e=>e.id===replay);insist(found,'Source charge already recorded',409);return found;}
  await atomic(db,actor,[accessGuard(db,actor,matterId),pricingGuard(db,pricing),
   stmt(db,'INSERT INTO s_entries(id,matter_id,revision,kind,date,description,minutes,rate_cents,amount_cents,created_by,created_at,billable,utbms_task,utbms_activity,utbms_expense,billed_minutes,discount_bps,rate_rule_id,rate_source) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',entryId,matterId,id(),kind,workDate,description,minutes,p?.rateCents ?? null,amount,actor.email,at,(p ? p.billable : requested) ? 1 : 0,task,activity,expense,p?.billedMinutes ?? null,p?.discountBps ?? null,p?.ruleId ?? null,p?.rateSource ?? null),
+  ...(expenseMeta?[...expenseMeta.guards,expenseInsert(db,entryId,expenseMeta)]:[]),
   budgetAlerts(db,matterId,entryId,at),audit(db,actor,'billing.entry.recorded',entryId,kind),
  ]);
- return entryRow((await stmt(db,'SELECT * FROM s_entries WHERE id=?',entryId).first<Data>())!);
+ return {...entryRow((await stmt(db,'SELECT * FROM s_entries WHERE id=?',entryId).first<Data>())!),expense:(await expenseDetails(db,actor,[entryId])).get(entryId)??null};
 }
 
 export async function listBilling(db: D1Database, actor: Actor, matterId: string) {
@@ -109,7 +118,8 @@ export async function listBilling(db: D1Database, actor: Actor, matterId: string
   rows(db,'SELECT e.*,s.bill_id FROM s_entries e LEFT JOIN s_billing_sources s ON s.entry_id=e.id WHERE e.matter_id=? ORDER BY e.date,e.created_at,e.id',matterId),
   matterBills(db,matterId),
  ]);
- return {entries:entries.map(entryRow),bills:await Promise.all(bills.map(async b=>({...b,taxReviews:b.status==='draft'?(await taxCalculations(db,actor,b.id)).calculations:[],issue:await invoiceIssue(db,b.id),trustPayment:await invoiceFunds(db,b.id),ledes:await billLedes(db,b.id),earningReview:await stmt(db,'SELECT * FROM s_fee_earning_reviews WHERE bill_id=?',b.id).first<Data>()}))),correctionReviews:correctionReviews(bills)};
+ const expenses=await expenseDetails(db,actor,entries.map(e=>e.id));
+ return {entries:entries.map(e=>({...entryRow(e),expense:expenses.get(e.id)??null})),bills:await Promise.all(bills.map(async b=>({...b,taxReviews:b.status==='draft'?(await taxCalculations(db,actor,b.id)).calculations:[],issue:await invoiceIssue(db,b.id),trustPayment:await invoiceFunds(db,b.id),ledes:await billLedes(db,b.id),earningReview:await stmt(db,'SELECT * FROM s_fee_earning_reviews WHERE bill_id=?',b.id).first<Data>()}))),correctionReviews:correctionReviews(bills)};
 }
 
 export async function prepareBill(db: D1Database, actor: Actor, matterId: string, body: Data) {
@@ -121,6 +131,8 @@ export async function prepareBill(db: D1Database, actor: Actor, matterId: string
  insist(entries.length === ids.length && entries.every(e => !e.bill_id), 'Entries must belong to this matter and be unbilled',409);
  insist(entries.every(e => e.billable !== 0), 'Nonbillable time is recorded but never billed',409);
  let lines:Data[] = entries.map(e => ({kind:e.kind,sourceId:e.id,sourceRevision:e.revision,date:e.date,description:e.description,minutes:e.minutes,rateCents:e.rate_cents,amountCents:e.amount_cents,rounding:e.kind !== 'time' ? 'exact USD cents' : e.billed_minutes == null || e.rate_source === 'entry' ? 'minutes × hourly USD cents / 60; half-up to cents' : `${e.billed_minutes} billed minutes (${e.minutes} worked, rounded up to the agreed increment) × hourly USD cents / 60${e.discount_bps ? `, less ${e.discount_bps / 100}% discount` : ''}; half-up to cents`}));
+ const expenses=await expenseDetails(db,actor,entries.map(e=>e.id));
+ lines=lines.map(l=>{const expense=expenses.get(l.sourceId);if(!expense)return l;const {receipt,...provenance}=expense;return {...l,expense:provenance};});
  const fee=await feeAdjustedLines(db,actor,matterId,entries,lines,body);lines=fee.lines;
  // TIME-007: a client with a billing guideline gets a coded LEDES invoice; preparation
  // refuses every line that does not conform, naming each reason.
