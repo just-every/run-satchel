@@ -1,3 +1,4 @@
+import {selectExemptTax} from './tax-fixture.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
@@ -40,7 +41,7 @@ test('TIME-007 guideline and code set configured at 1440px, a missing activity c
   await unbilled.getByLabel('Activity · Analyze coverage position letter').fill('A103');await unbilled.getByRole('button',{name:'Prepare bill from all unbilled work'}).click();await done('Bill prepared. Review the exact lines below.');
   const invoice=m.matter_number+'-1',bill=()=>page.locator('article.record',{has:page.getByLabel('LEDES invoice '+invoice,{exact:true})});
   await bill().getByText(`LEDES 1998B invoice ${invoice} · e-billing status: not reported`,{exact:true}).waitFor();
-  await bill().getByLabel('Review note').fill('Coded per Harbor guideline');await bill().getByRole('button',{name:'Approve exact bill'}).click();await done('Bill approved. The reviewed package is ready to export.');
+  await selectExemptTax(h,page,bill());await bill().getByLabel('Review note').fill('Coded per Harbor guideline');await bill().getByRole('button',{name:'Approve exact bill'}).click();await done('Bill approved. The reviewed package is ready to export.');
   const [download]=await Promise.all([page.waitForEvent('download'),bill().getByRole('button',{name:'Download LEDES 1998B'}).click()]);await done('LEDES invoice exported');
   const chunks=[];for await(const c of await download.createReadStream())chunks.push(c);const file=Buffer.concat(chunks).toString('utf8');
   assert.equal(download.suggestedFilename(),invoice+'.ledes.txt');assert.match(file,/^LEDES1998B\[\]\r\n/);assert.ok(file.includes(`|${invoice}|HARBOR01|`));assert.ok(file.includes('|A103|BL-001|Analyze coverage position letter|13-1234567|300.00|Barton, Avery|PT|[]'));
@@ -58,7 +59,7 @@ test('TIME-007 guideline and code set configured at 1440px, a missing activity c
   form=await opened(bill(),'Prepare a correction');await form.getByLabel('Source line').selectOption(analysis.id);await form.getByLabel('Corrected activity code (blank: unchanged)').fill('A104');await form.getByLabel('Reason').fill('Recode per Harbor rejection');await form.getByRole('button',{name:'Prepare correction for review'}).click();await done('Correction prepared; original export preserved');
   const revision=()=>page.locator('article.record',{has:page.getByLabel('LEDES invoice '+invoice+'-R1',{exact:true})});
   await revision().getByText(`LEDES 1998B invoice ${invoice}-R1 · replaces ${invoice} · e-billing status: not reported`,{exact:true}).waitFor();await revision().getByText('Correction: October services · $0.00',{exact:true}).waitFor();
-  await revision().getByLabel('Review note').fill('Recode reviewed against Harbor rejection');await revision().getByRole('button',{name:'Approve exact bill'}).click();await done('Bill approved. The reviewed package is ready to export.');
+  await selectExemptTax(h,page,revision());await revision().getByLabel('Review note').fill('Recode reviewed against Harbor rejection');await revision().getByRole('button',{name:'Approve exact bill'}).click();await done('Bill approved. The reviewed package is ready to export.');
   await Promise.all([page.waitForEvent('download'),revision().getByRole('button',{name:'Download LEDES 1998B'}).click()]);await done('LEDES invoice exported');await shot('1440-ledes-revision');
 
   // The rejection, the replacement invoice and an unchanged bill total on a phone.

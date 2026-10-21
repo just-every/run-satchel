@@ -2,7 +2,7 @@ import {api,dollars,Empty,Field,Form,type Row,type Run} from './common';
 
 function RuleDetails({rule}:{rule:Row}){
  return <><p>{rule.state} · {rule.jurisdiction}<br/><small>Rule {rule.id} · reviewed by {rule.reviewedBy} · {rule.reviewedAt}</small></p>
-  <p>Review reference: {rule.reference} · Per-line rounding: {rule.rounding}</p>
+  <p>Review reference: {rule.reference} · Per-line rounding: {rule.rounding}</p><p>Tax draw from trust: {rule.trust?.eligibility??'not reviewed'}{rule.trust&&<> · {rule.trust.reference}</>}</p>{rule.ledesMapping&&<p>Client-reviewed tax mapping: {rule.ledesMapping.client} · {rule.ledesMapping.clientLedesId} · 1998B {rule.ledesMapping.expenseCode} · XML {rule.ledesMapping.taxType} / {rule.ledesMapping.taxIdNumber}<br/><small>{rule.ledesMapping.reference}</small></p>}
   {['service','expense'].map(kind=><p key={kind}>{kind==='service'?'Services':'Expenses'}: {rule[kind].eligibility} · {rule[kind].ratePpm} parts per million<br/><small>Treatment reference: {rule[kind].reference}</small></p>)}</>;
 }
 
@@ -20,6 +20,7 @@ export function TaxRules({matterId,actor,run,rules}:{matterId:string;actor:Row;r
  return <section className="panel"><h2>Reviewed tax rules</h2><p>Save the exact jurisdiction and treatment reviewed by counsel or an accountant. Each saved rule is immutable. A new review creates a separate rule.</p>
   {rules.length?rules.map(rule=><details key={rule.id}><summary>{rule.jurisdiction} · {rule.reviewedBy} · {rule.reviewedAt}</summary><RuleDetails rule={rule}/></details>):<Empty>No reviewed tax rules saved for this matter.</Empty>}
   {['owner','lawyer'].includes(actor.role)&&<details><summary>Save a reviewed tax rule</summary><Form label="Save reviewed tax rule" submit={data=>run(()=>api('/matters/'+matterId+'/tax-rules',{
+   trust:data.taxTrustEligibility?{eligibility:data.taxTrustEligibility,reference:data.taxTrustReference}:undefined,ledesMapping:data.taxClientId?{clientLedesId:data.taxClientId,expenseCode:data.taxExpenseCode,taxIdNumber:data.taxIdNumber,taxType:data.taxType,reference:data.taxMappingReference}:undefined,
    state:data.state,jurisdiction:data.jurisdiction,reference:data.reference,rounding:data.rounding,reviewed:data.reviewed==='yes',
    service:{eligibility:data.serviceEligibility,ratePpm:Number(data.serviceRatePpm),reference:data.serviceReference},
    expense:{eligibility:data.expenseEligibility,ratePpm:Number(data.expenseRatePpm),reference:data.expenseReference},
@@ -30,6 +31,8 @@ export function TaxRules({matterId,actor,run,rules}:{matterId:string;actor:Row;r
    <TreatmentFields kind="service"/><TreatmentFields kind="expense"/>
    <small>Enter rates as exact integer parts per million: 7.25% = 72500. An exempt treatment requires an explicit zero rate.</small>
    <Field label="Reviewed per-line rounding" name="rounding"><select name="rounding" aria-label="Reviewed per-line rounding" required defaultValue=""><option value="" disabled>Select reviewed rounding</option><option value="half_up">Half up</option><option value="half_even">Half even</option><option value="down">Down</option></select></Field>
+   <fieldset><legend>Tax draw-down eligibility</legend><p>Unreviewed or prohibited treatment blocks tax-reviewed trust applications. Each application also needs an explicit earned-base and tax allocation.</p><Field label="Reviewed tax trust eligibility" name="taxTrustEligibility" required={false}><select name="taxTrustEligibility" defaultValue=""><option value="">Not reviewed</option><option value="permitted">Permitted by reviewed authority</option><option value="prohibited">Prohibited</option></select></Field><Field label="Tax trust eligibility reference" name="taxTrustReference" required={false}/></fieldset>
+   <fieldset><legend>Client-reviewed LEDES tax mapping</legend><p>For LEDES clients, record their exact client ID, approved 1998B tax expense code and XML tax identity. Blank mapping blocks tax-reviewed LEDES approval.</p><Field label="Tax mapping LEDES client ID" name="taxClientId" required={false}/><Field label="1998B tax expense code" name="taxExpenseCode" required={false}/><Field label="XML tax registration or reference" name="taxIdNumber" required={false}/><Field label="XML tax type" name="taxType" required={false}/><Field label="Client tax mapping review reference" name="taxMappingReference" required={false}/></fieldset>
    <label><input type="checkbox" name="reviewed" value="yes" required/> I confirm counsel or an accountant reviewed this exact jurisdiction, service and expense treatment, rates, references and per-line rounding.</label>
   </Form></details>}
  </section>;

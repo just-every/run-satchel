@@ -1,3 +1,4 @@
+import {withTaxAllocation} from './tax-fixture.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {harness,open} from './harness.mjs';
@@ -52,7 +53,7 @@ test('TRUST-010: identity, matter walls, cleared availability and all competing 
  const t=await h.json('/trust/matter-transfers',f.body,h.owner);assert.deepEqual(await h.json('/trust/matter-transfers',undefined,second),[]);await approve(h,t,second).then(()=>assert.fail('Officer without both matters approved'),e=>assert.match(e.message,/404/));
  assert.equal((await h.json('/trust',undefined,h.owner)).ledgers.find(l=>l.id===f.ledger.id).available_cents,0);
  const debit={accountId:f.account.id,ledgerId:f.ledger.id,direction:'disbursement',kind:'wire',cents:1,counterparty:f.m.client,bankReference:'COMPETING',receivedDate:'2026-10-02',depositDate:'2026-10-02',documentId:f.source.id,purpose:'Client authorized refund',requestKey:'competing'};await h.json('/trust/transactions',debit,h.owner,409);
- const bill=await earnedBill(h,f.m,100,'Legal advice');await h.json('/trust/transfers',{billId:bill.id,ledgerId:f.ledger.id,operatingAccountId:f.operating.id,requestKey:'earned-competing'},h.owner,409);
+ const bill=await earnedBill(h,f.m,100,'Legal advice');await h.json('/trust/transfers',await withTaxAllocation(h,{billId:bill.id,ledgerId:f.ledger.id,operatingAccountId:f.operating.id,requestKey:'earned-competing'}),h.owner,409);
  await h.json('/trust/matter-transfers/'+t.id+'/decide',{revision:t.revision,decision:'declined',reviewNote:'Decline and release unused funds'},h.owner);assert.equal((await h.json('/trust',undefined,h.owner)).ledgers.find(l=>l.id===f.ledger.id).available_cents,75000);
  const key=await h.json('/keys',{label:'No trust approval authority'},h.owner);await h.json('/trust/matter-transfers',f.body,'',401,{authorization:'Bearer '+key.key});
  }finally{await h.close();}

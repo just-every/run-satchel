@@ -1,3 +1,4 @@
+import {exemptTaxReview} from './tax-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {harness,open} from './harness.mjs';
@@ -25,7 +26,7 @@ test('MATTER-008 and SAT-002 concurrent single-use reviews, atomic firm and per-
   const entry=await h.json('/matters/'+first.id+'/entries',{kind:'time',date:'2026-10-19',description:'Client advice',minutes:60,rateCents:30000},h.owner);
   let bill=await h.json('/matters/'+first.id+'/bills',{title:'Legal advice',date:'2026-10-19',entryIds:[entry.id]},h.owner);
   assert.equal(bill.snapshot.matterNumber,first.matter_number);
-  bill=await h.json('/bills/'+bill.id+'/approve',{revision:bill.revision,reviewNote:'Reviewed exact services'},h.owner);
+  bill=await h.json('/bills/'+bill.id+'/approve',{...({revision:bill.revision,reviewNote:'Reviewed exact services'}),taxReviewId:await exemptTaxReview(h,'/bills/'+bill.id+'/approve')},h.owner);
   const original=await(await h.request('/api/satchel/bills/'+bill.id+'/export',undefined,h.owner)).text();assert.ok(original.includes(first.matter_number));
   const doc=await h.json('/matters/'+first.id+'/documents',{name:'Advice.txt',mime:'text/plain',visibility:'matter',contentBase64:Buffer.from('Reviewed advice').toString('base64')},h.owner);
   const deadline=await h.json('/matters/'+first.id+'/deadlines',{title:'Serve notice',date:'2026-11-20',timezone:'America/New_York',source:'Lease clause 8'},h.owner);

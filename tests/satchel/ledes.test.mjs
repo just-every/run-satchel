@@ -1,3 +1,4 @@
+import {exemptTaxReview} from './tax-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readXml,xmlProfile} from './ledes-xml-reader.mjs';
@@ -81,7 +82,7 @@ test('TIME-007 firm UTBMS code sets and a client guideline code an insurer bill,
   await h.json('/bills/'+bill.id+'/ledes-outcomes',{fileName:'early.txt',content:`${invoice}||REJECTED|Too early`},h.owner,409);
   await h.json('/bills/'+bill.id+'/ledes',undefined,h.owner,409);
   await h.json('/bills/'+bill.id+'/ledes-xml',undefined,h.owner,409);
-  bill=await h.json('/bills/'+bill.id+'/approve',{revision:bill.revision,reviewNote:'Coded per Harbor guideline'},h.owner);
+  bill=await h.json('/bills/'+bill.id+'/approve',{...({revision:bill.revision,reviewNote:'Coded per Harbor guideline'}),taxReviewId:await exemptTaxReview(h,'/bills/'+bill.id+'/approve')},h.owner);
   await h.json('/bills/'+bill.id+'/ledes',undefined,assistant,403);
   await h.json('/bills/'+bill.id+'/ledes-xml',undefined,assistant,403);
 
@@ -129,7 +130,7 @@ test('TIME-007 firm UTBMS code sets and a client guideline code an insurer bill,
   assert.deepEqual([revision.correctsBillId,revision.snapshot.totalCents,revision.snapshot.ledes.invoiceNumber,revision.snapshot.ledes.replaces,revision.snapshot.ledes.respondsToRejection],[bill.id,0,invoice+'-R1',invoice,true]);
   await h.json('/matters/'+m.id+'/bills',{title:'Rebill',date:'2026-11-03',entryIds:[analysis.id],coding:{[analysis.id]:{utbmsActivity:'A104'}}},h.owner,409);
   await correct({utbmsActivity:'A101'},409);
-  revision=await h.json('/bills/'+revision.id+'/approve',{revision:revision.revision,reviewNote:'Recode reviewed against Harbor rejection'},h.owner);
+  revision=await h.json('/bills/'+revision.id+'/approve',{...({revision:revision.revision,reviewNote:'Recode reviewed against Harbor rejection'}),taxReviewId:await exemptTaxReview(h,'/bills/'+revision.id+'/approve')},h.owner);
   const replacement=readLedes(await(await h.request('/api/satchel/bills/'+revision.id+'/ledes',undefined,h.owner)).text());
   const replacementXmlFile=await(await h.request('/api/satchel/bills/'+revision.id+'/ledes-xml',undefined,h.owner)).text(),replacementXml=readXml(replacementXmlFile);
   assert.equal(replacementXml.invoice.inv_id,invoice+'-R1');assert.equal(replacementXml.invoice.inv_total_net_due,'810.00');
@@ -156,12 +157,12 @@ test('TIME-007 firm UTBMS code sets and a client guideline code an insurer bill,
   await h.json('/matters/'+m.id+'/ledes-guideline',{...guideline,incrementMinutes:0},h.owner);
   const small=await entry({description:'Read client’s email & <coverage> note',minutes:10,rateCents:10001,utbmsTask:'L110',utbmsActivity:'A101'});
   const prepare=body=>h.json('/matters/'+m.id+'/bills',{title:'Additional & <coverage>',date:'2026-11-03',entryIds:[small.id],...body},h.owner);
-  let rounded=await prepare({});rounded=await h.json('/bills/'+rounded.id+'/approve',{revision:rounded.revision,reviewNote:'Reviewed exact fractional unit adjustment'},h.owner);
+  let rounded=await prepare({});rounded=await h.json('/bills/'+rounded.id+'/approve',{...({revision:rounded.revision,reviewNote:'Reviewed exact fractional unit adjustment'}),taxReviewId:await exemptTaxReview(h,'/bills/'+rounded.id+'/approve')},h.owner);
   const fractional=readXml(await(await h.request('/api/satchel/bills/'+rounded.id+'/ledes-xml',undefined,h.owner)).text());
   assert.deepEqual([fractional.invoice.inv_desc,fractional.fees[0].charge_desc,fractional.fees[0].units,fractional.fees[0].rate,fractional.fees[0].base_amount,fractional.fees[0].item_disc_cred_amount,fractional.fees[0].total_amount],['Additional & <coverage>','Read client’s email & <coverage> note','0.17','100.01','17.0017','-0.3317','16.67']);
   const onlyExpense=await h.json('/matters/'+m.id+'/entries',{kind:'disbursement',date:'2026-11-03',description:'Certified court copy',amountCents:1250,utbmsExpense:'E112'},h.owner);
   let expenseBill=await h.json('/matters/'+m.id+'/bills',{title:'Certified court copy',date:'2026-11-03',entryIds:[onlyExpense.id]},h.owner);
-  expenseBill=await h.json('/bills/'+expenseBill.id+'/approve',{revision:expenseBill.revision,reviewNote:'Receipt reviewed'},h.owner);
+  expenseBill=await h.json('/bills/'+expenseBill.id+'/approve',{...({revision:expenseBill.revision,reviewNote:'Receipt reviewed'}),taxReviewId:await exemptTaxReview(h,'/bills/'+expenseBill.id+'/approve')},h.owner);
   const expenseXml=readXml(await(await h.request('/api/satchel/bills/'+expenseBill.id+'/ledes-xml',undefined,h.owner)).text());
   assert.equal(expenseXml.fees.length,0);assert.equal(expenseXml.expenses[0].total_amount,'12.50');assert.equal(expenseXml.timekeepers[0].tk_id,'BL-001');assert.equal(expenseXml.timekeepers[0].tk_rate,'300.00');
 

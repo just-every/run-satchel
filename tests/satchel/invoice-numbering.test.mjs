@@ -1,3 +1,4 @@
+import {exemptTaxReview} from './tax-fixture.mjs';
 import test from 'node:test';
 import {getDocument} from 'pdfjs-dist/legacy/build/pdf.mjs';
 import assert from 'node:assert/strict';
@@ -12,7 +13,7 @@ test('BILL-015 prospective numbering: exact approved issue, tax gate, batch roll
   await h.json('/ledes/timekeepers',{email:'owner@example.test',timekeeperId:'AB',name:'Barton, Avery',classification:'PT'},h.owner);
   await h.json('/matters/'+legacyMatter.id+'/ledes-guideline',{clientLedesId:'HARBOR',lawFirmId:'BARTON',requireTask:false,requireActivity:false,requireExpense:false,narrativeMin:0,bannedPhrases:[],maxRates:{},incrementMinutes:0,note:'Synthetic legacy insurer guideline'},h.owner);
   const legacy=await draft(h,legacyMatter,'Legacy reviewed insurer bill'),reserved=await draft(h,legacyMatter,'Legacy reserved draft');
-  const legacyApproved=await h.json('/bills/'+legacy.id+'/approve',{revision:legacy.revision,reviewNote:'Reviewed before firm scheme cutover'},h.owner);
+  const legacyApproved=await h.json('/bills/'+legacy.id+'/approve',{...({revision:legacy.revision,reviewNote:'Reviewed before firm scheme cutover'}),taxReviewId:await exemptTaxReview(h,'/bills/'+legacy.id+'/approve')},h.owner);
   const legacyFile=await(await h.request('/api/satchel/bills/'+legacy.id+'/ledes',undefined,h.owner)).text();
   const legacyCsv=await(await h.request('/api/satchel/bills/'+legacy.id+'/export',undefined,h.owner)).text();
   const legacyNumber=(await h.json('/matters/'+legacyMatter.id+'/billing',undefined,h.owner)).bills.find(b=>b.id===legacy.id).ledes.invoiceNumber;

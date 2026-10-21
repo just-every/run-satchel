@@ -151,7 +151,7 @@ export async function approveBill(db: D1Database, actor: Actor, billId: string, 
   : [guard(db,`NOT EXISTS(SELECT 1 FROM json_each(?) l WHERE NOT EXISTS(SELECT 1 FROM s_billing_sources s JOIN s_entries e ON e.id=s.entry_id WHERE s.entry_id=json_extract(l.value,'$.sourceId') AND s.bill_id=? AND s.source_revision=json_extract(l.value,'$.sourceRevision') AND e.revision=s.source_revision))`,JSON.stringify(bill.snapshot.lines.filter((l:Data)=>l.kind!=='fee')),bill.id)];
  await atomic(db,actor,[accessGuard(db,actor,bill.matterId),revisionGuard(db,bill),...checks,...feeReview,...tax.guards,
   stmt(db,"UPDATE s_bills SET status='approved',revision=?,artifact=?,artifact_digest=?,approved_by=?,approved_at=?,review_note=? WHERE id=? AND revision=? AND status='draft'",id(),exportedArtifact,await digest(exportedArtifact),actor.email,at,reviewNote,bill.id,bill.revision),
-  ...(!bill.snapshot.numberingCutover?await freezeLedes(db,bill):[]),
+  ...(!bill.snapshot.numberingCutover?await freezeLedes(db,approved):[]),
   audit(db,actor,'bill.approved',bill.id,reviewNote),
  ]);
  return getBill(db,actor,bill.id);

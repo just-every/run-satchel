@@ -147,3 +147,53 @@ for(const width of [1440,390])test(`BILL-004 reviewed tax setup, calculation, re
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);assert.deepEqual(errors,[]);if(process.env.SATCHEL_SCREENSHOTS){await bill.scrollIntoViewIfNeeded();await page.screenshot({path:process.env.SATCHEL_SCREENSHOTS+'/'+width+'-tax-approved-0.png'});}
  }finally{await browser.close();await h.close();}
 });
+
+test('BILL-004 mandatory legacy review, explicit client LEDES mapping, tax trust allocations, payment reversal and immutable export/restore',async()=>{
+ const {readXml,xmlProfile}=await import('./ledes-xml-reader.mjs');
+ const h=await harness();try{
+  const address={line1:'200 Park Avenue',city:'New York',state:'NY',zip:'10166'};
+  await h.json('/firm',{settings:{name:'Barton & Lee LLP',email:'office@example.test',phone:'212-555-0100',address,timezone:'America/New_York',billing:{defaultRateCents:30000,incrementMinutes:6,paymentTermsDays:30},fiscal:{yearStartMonth:1,basis:'cash'},offices:[{name:'Main',phone:'212-555-0100',timezone:'America/New_York',address}],practiceAreas:[{code:'LIT',name:'Litigation'}]}},h.owner);
+  const f=await foundation(h),base='/matters/'+f.m.id;
+  const opening=await h.json('/trust/openings',{accountId:f.account.id,ledgerId:f.ledger.id,cents:50000,statementDate:'2026-10-01',documentId:f.source.id,note:'Source-backed cleared client funds'},h.owner);await h.json('/trust/openings/'+opening.id+'/approve',{revision:opening.revision,reviewNote:'Exact client funds and original reviewed'},h.owner);
+  const legacyEntry=await h.json(base+'/entries',{kind:'time',date:'2026-10-01',description:'Legacy draft before any tax configuration',minutes:60,rateCents:1000},h.owner),legacy=await h.json(base+'/bills',{title:'Unconfigured legacy draft',date:'2026-10-01',entryIds:[legacyEntry.id]},h.owner);
+  assert.match((await h.json('/bills/'+legacy.id+'/approve',{revision:legacy.revision,reviewNote:'No treatment exists'},h.owner,422)).error,/Unknown tax treatment/);
+  assert.equal((await h.json(base+'/billing',undefined,h.owner)).bills.find(b=>b.id===legacy.id).status,'draft');
+  await h.json('/ledes/timekeepers',{email:'owner@example.test',timekeeperId:'BL-001',name:'Principal, Pat',classification:'PT'},h.owner);
+  await h.json(base+'/ledes-guideline',{clientLedesId:'TAX-CLIENT',lawFirmId:'FIRM-TEST',requireTask:false,requireActivity:false,requireExpense:false,narrativeMin:0,bannedPhrases:[],maxRates:{},incrementMinutes:0,note:'Synthetic reviewed tax client guideline',xmlProfile},h.owner);
+  const entry=await h.json(base+'/entries',{kind:'time',date:'2026-10-01',description:'Taxable legal work',minutes:60,rateCents:10000},h.owner),expense=await h.json(base+'/entries',{kind:'disbursement',date:'2026-10-01',description:'Taxable expense',amountCents:2000,utbmsExpense:'E101'},h.owner),draft=await h.json(base+'/bills',{title:'Taxed LEDES and trust',date:'2026-10-01',entryIds:[entry.id,expense.id]},h.owner);
+  const mapping={clientLedesId:'TAX-CLIENT',expenseCode:'E999',taxIdNumber:'SYNTHETIC-TAX-ID',taxType:'Sales',reference:'Synthetic client counsel reviewed both tax export formats'};
+  const extra={trust:{eligibility:'permitted',reference:'Synthetic counsel-reviewed tax draw-down authority'},ledesMapping:mapping,expense:{eligibility:'taxable',ratePpm:80000,reference:'Synthetic expense treatment'}};
+  const wrong=await h.json(base+'/tax-rules',terms('NY',{...extra,ledesMapping:{...mapping,clientLedesId:'WRONG-CLIENT'}}),h.owner),badReview=await h.json('/bills/'+draft.id+'/tax-reviews',{revision:draft.revision,ruleId:wrong.id},h.owner);
+  await h.json('/bills/'+draft.id+'/approve',{revision:draft.revision,reviewNote:'Client mismatch must refuse',taxReviewId:badReview.id},h.owner,422);
+  const rule=await h.json(base+'/tax-rules',terms('NY',extra),h.owner),review=await h.json('/bills/'+draft.id+'/tax-reviews',{revision:draft.revision,ruleId:rule.id},h.owner);
+  const approved=await h.json('/bills/'+draft.id+'/approve',{revision:draft.revision,reviewNote:'Reviewed exact base, tax and client mapping',taxReviewId:review.id},h.owner);
+  assert.deepEqual([approved.snapshot.subtotalCents,approved.snapshot.taxCents,approved.snapshot.totalCents],[12000,660,12660]);
+  const path='/api/satchel/bills/'+draft.id,files={};
+  for(const format of ['export','ledes','ledes-xml']){const response=await h.request(path+'/'+format,undefined,h.owner);assert.equal(response.status,200);files[format]=await response.text();}
+  const records=files.ledes.trim().split('\r\n').slice(2).map(r=>r.replace(/\[\]$/,'').split('|'));
+  assert.equal(records.length,4);assert.ok(records.every(r=>r.length===24&&r[4]==='126.60'));assert.deepEqual(records.slice(2).map(r=>[r[9],r[12],r[15]]),[['E','5.00','E999'],['E','1.60','E999']]);assert.equal(records.reduce((n,r)=>n+Math.round(Number(r[12])*100),0),12660);
+  const xml=readXml(files['ledes-xml']);assert.equal(xml.invoice.inv_total_tax,'6.60');assert.equal(xml.invoice.inv_total_net_due,'126.60');assert.equal(xml.matter.matter_tax_on_fees,'5.00');assert.equal(xml.matter.matter_tax_on_exp,'1.60');assert.match(files['ledes-xml'],/<tax_summary>/);assert.match(files['ledes-xml'],/<tax_item_fee>/);assert.match(files['ledes-xml'],/<tax_item_expense>/);assert.match(files['ledes-xml'],/SYNTHETIC-TAX-ID/);
+  const request={billId:draft.id,ledgerId:f.ledger.id,operatingAccountId:f.operating.id,requestKey:'explicit-tax-application'};
+  await h.json('/trust/transfers',request,h.owner,422);
+  await h.json('/trust/transfers',{...request,allocation:{earnedCents:12001,taxCents:659,reference:'Wrong base allocation despite a valid total'}},h.owner,409);
+  await h.json('/trust/transfers',{...request,allocation:{earnedCents:11999,taxCents:661,reference:'Wrong tax allocation despite a valid total'}},h.owner,409);
+  const allocated={...request,allocation:{earnedCents:6000,taxCents:330,reference:'Officer reviewed half the earned base and half the tax'}},transfer=await h.json('/trust/transfers',allocated,h.owner);
+  assert.equal(transfer.cents,6330);assert.equal((await h.json('/trust/transfers',allocated,h.owner)).id,transfer.id);
+  await h.json('/trust/transfers',{...allocated,allocation:{...allocated.allocation,taxCents:329}},h.owner,409);
+  await h.json('/trust/transfers/'+transfer.id+'/decide',{revision:transfer.revision,decision:'approved',reviewNote:'Exact retained earned-base and tax allocation reviewed'},h.owner);
+  await h.json('/trust/transfers/'+transfer.id+'/bank-result',{revision:transfer.revision,outcome:'submitted',bankDate:'2026-10-02',bankReference:'BANK-TAX-001',documentId:f.source.id,evidence:'Submitted at bank; outcome uncertain until reconciliation'},h.owner);
+  await h.restart();assert.equal((await h.json('/trust/transfers',undefined,h.owner)).find(t=>t.id===transfer.id).status,'awaiting_bank_reconciliation');
+  const bank={revision:transfer.revision,outcome:'cleared',bankDate:'2026-10-03',bankReference:'BANK-TAX-001',documentId:f.source.id,evidence:'Actual bank clearance reconciled'};
+  await h.json('/trust/transfers/'+transfer.id+'/bank-result',bank,h.owner);await h.json('/trust/transfers/'+transfer.id+'/bank-result',bank,h.owner);
+  let state=(await h.json(base+'/billing',undefined,h.owner)).bills.find(b=>b.id===draft.id).trustPayment;assert.deepEqual([state.earned_cents,state.tax_cents,state.paid_cents,state.due_cents],[12000,660,6330,6330]);
+  await h.json('/trust/transfers',{...request,requestKey:'reserved-tax-overflow',allocation:{earnedCents:0,taxCents:331,reference:'Cannot consume paid tax again'}},h.owner,409);
+  const reversal=await h.json('/trust/transfers/'+transfer.id+'/reversal',{reason:'Return exact base and tax allocation to client trust'},h.owner);
+  await h.json('/trust/transfers/'+transfer.id+'/reversal/action',{revision:reversal.revision,kind:'approved',note:'Reviewed original allocation and full reversal'},h.owner);
+  for(const kind of ['submitted','cleared'])await h.json('/trust/transfers/'+transfer.id+'/reversal/action',{revision:reversal.revision,kind,note:'Bank reconciled return of exact base and tax components',bankReference:'BANK-TAX-RETURN',bankDate:'2026-10-04',documentId:f.source.id},h.owner);
+  state=(await h.json(base+'/billing',undefined,h.owner)).bills.find(b=>b.id===draft.id).trustPayment;assert.deepEqual([state.paid_cents,state.due_cents],[0,12660]);
+  const current=(await h.json(base+'/billing',undefined,h.owner)).bills.find(b=>b.id===draft.id),correction=await h.json('/bills/'+current.id+'/correct',{revision:current.revision,sourceId:entry.id,correctedAmountCents:9000,reason:'Reviewed source reduction with original tax rule',date:'2026-10-05'},h.owner),delta=await h.json('/bills/'+correction.id+'/tax-reviews',{revision:correction.revision},h.owner);
+  await h.json('/bills/'+correction.id+'/approve',{revision:correction.revision,reviewNote:'Reviewed signed difference and complete replacement exports',taxReviewId:delta.id},h.owner);
+  assert.equal(delta.snapshot.taxCents,-50);assert.equal(readXml(await(await h.request('/api/satchel/bills/'+correction.id+'/ledes-xml',undefined,h.owner)).text()).invoice.inv_total_net_due,'116.10');
+  const archived=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),restored=await harness();try{await restored.json('/restore',{archive:archived,confirm:'RESTORE'},restored.owner);for(const target of [h,restored]){for(const [format,bytes] of Object.entries(files))assert.equal(await(await target.request(path+'/'+format,undefined,target.owner)).text(),bytes);const retained=(await target.json('/trust/transfers',undefined,target.owner)).find(t=>t.id===transfer.id);assert.deepEqual([retained.allocation_earned,retained.allocation_tax,retained.allocation_reference],[6000,330,allocated.allocation.reference]);assert.equal(retained.reversal.status,'cleared');}}finally{await restored.close();}
+ }finally{await h.close();}
+});

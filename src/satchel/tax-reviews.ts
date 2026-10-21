@@ -8,7 +8,7 @@ export async function taxRules(db:D1Database,actor:Actor,matterId:string){
  await matter(db,actor,matterId);return {rules:(await rows(db,'SELECT * FROM s_tax_rules WHERE matter_id=? ORDER BY reviewed_at,id',matterId)).map(rule)};
 }
 export async function saveTaxRule(db:D1Database,actor:Actor,matterId:string,b:Data){
- human(actor);need(actor,'owner','lawyer');await matter(db,actor,matterId);
+ human(actor);need(actor,'owner','lawyer');const m=await matter(db,actor,matterId);
  insist(b.reviewed===true,'Counsel must confirm the exact accountant/counsel-reviewed tax treatment',422);
  const state=text(b.state,'US state or DC',2).toUpperCase();insist(states.has(state),'Choose a US state or DC');
  insist(['half_up','half_even','down'].includes(b.rounding),'Choose per-line rounding: half_up, half_even or down');
@@ -20,12 +20,19 @@ export async function saveTaxRule(db:D1Database,actor:Actor,matterId:string,b:Da
   insist(t.eligibility!=='exempt'||rate===0,'Exempt treatment requires an explicit zero rate');
   treatments[kind]={eligibility:t.eligibility,ratePpm:rate,reference:text(t.reference,kind+' treatment or exemption reference',1000)};
  }
- const terms={state,jurisdiction:text(b.jurisdiction,'Reviewed jurisdiction including locality',200),rounding:b.rounding,reference:text(b.reference,'Counsel/accountant review reference',1000),...treatments};
+ let trust=null,ledesMapping=null;
+ if(b.trust){insist(['permitted','prohibited'].includes(b.trust.eligibility),'Review tax trust eligibility explicitly',422);trust={eligibility:b.trust.eligibility,reference:text(b.trust.reference,'Tax trust eligibility review reference',1000)};}
+ if(b.ledesMapping){const v=b.ledesMapping;
+  const clientLedesId=text(v.clientLedesId,'Reviewed LEDES client ID',20),expenseCode=text(v.expenseCode,'Client-reviewed 1998B tax expense code',4).toUpperCase();
+  insist(!/[|]|\[\]/.test(clientLedesId)&&/^E\d{3}$/.test(expenseCode),'Review a valid client ID and E000-shaped tax expense code');
+  ledesMapping={client:m.client,clientLedesId,expenseCode,taxIdNumber:text(v.taxIdNumber,'XML tax registration/reference',30),taxType:text(v.taxType,'XML tax type',30),reference:text(v.reference,'Client tax mapping review reference',1000)};
+ }
+ const terms={trust,ledesMapping,state,jurisdiction:text(b.jurisdiction,'Reviewed jurisdiction including locality',200),rounding:b.rounding,reference:text(b.reference,'Counsel/accountant review reference',1000),...treatments};
  const ruleId=id();await atomic(db,actor,[accessGuard(db,actor,matterId),stmt(db,'INSERT INTO s_tax_rules VALUES(?,?,?,?,?)',ruleId,matterId,JSON.stringify(terms),actor.email,now()),audit(db,actor,'tax.rule_reviewed',ruleId,JSON.stringify(terms),{matterId})]);
  return rule((await stmt(db,'SELECT * FROM s_tax_rules WHERE id=?',ruleId).first<Data>())!);
 }
 // BigInt avoids loss of precision even where cents × rate exceeds Number's range.
-function rounded(cents:number,ppm:number,mode:string){
+export function rounded(cents:number,ppm:number,mode:string){
  const n=BigInt(cents)*BigInt(ppm),d=1000000n,q=n/d,r=n%d;
  return Number(q+(mode==='down'?0n:mode==='half_even'?(r*2n>d||(r*2n===d&&q%2n===1n)?1n:0n):(r*2n>=d?1n:0n)));
 }
@@ -63,17 +70,19 @@ export async function calculateBillTax(db:D1Database,actor:Actor,billId:string,b
  return calculation((await stmt(db,'SELECT * FROM s_tax_calculations WHERE id=?',calcId).first<Data>())!);
 }
 
-// Interim BILL-004 integration: configured matters cannot silently bypass tax review.
-// Unconfigured matters retain the legacy billing door until the full clause ships.
+// BILL-004: every approval door, including unconfigured legacy drafts, requires exact reviewed treatment.
 export async function approvalTax(db:D1Database,actor:Actor,bill:Data,body:Data,approvedAt:string){
- const configured=await stmt(db,'SELECT 1 FROM s_tax_rules WHERE matter_id=? LIMIT 1',bill.matterId).first();
- if(!body.taxReviewId){
-  insist(!configured,'Unknown tax treatment: review and select the exact draft tax calculation before approval',422);
-  return {snapshot:bill.snapshot,guards:[guard(db,'NOT EXISTS(SELECT 1 FROM s_tax_rules WHERE matter_id=?)',bill.matterId)]};
- }
+ insist(body.taxReviewId,'Unknown tax treatment: review and select the exact draft tax calculation before approval, including legacy drafts and exemptions',422);
  const r=await stmt(db,'SELECT * FROM s_tax_calculations WHERE id=? AND bill_id=? AND matter_id=? AND bill_revision=?',text(body.taxReviewId,'Reviewed tax calculation ID',100),bill.id,bill.matterId,bill.revision).first<Data>();
  insist(r,'Unknown or stale tax calculation: review this exact bill revision',422);
- insist(!bill.snapshot.ledes,'Missing reviewed per-client LEDES 1998B/XML tax mapping; this bill cannot be approved',422);
  const review=calculation(r),t=review.snapshot,snapshot={...bill.snapshot,subtotalCents:t.subtotalCents,taxCents:t.taxCents,totalCents:t.totalCents,taxReview:review};
+ if(snapshot.ledes){
+  const mapping=t.rule.ledesMapping;
+  insist(mapping&&mapping.client===snapshot.client&&mapping.clientLedesId===snapshot.ledes.clientId,'Missing reviewed per-client LEDES 1998B/XML tax mapping; review the exact client ID',422);
+  // A replacement LEDES file contains the complete corrected invoice, while the
+  // native correction CSV/PDF carries only its signed additive difference.
+  const lines=snapshot.ledes.lines.map((line:Data)=>{const treatment=line.type==='E'?t.rule.expense:t.rule.service;return {sourceId:line.sourceId,type:line.type,baseCents:line.totalCents,taxCents:rounded(line.totalCents,treatment.ratePpm,t.rule.rounding)};});
+  snapshot.ledes={...snapshot.ledes,tax:{rule:t.rule,mapping,lines,totalCents:lines.reduce((n:number,l:Data)=>n+l.taxCents,0)}};
+ }
  return {snapshot,guards:[guard(db,'EXISTS(SELECT 1 FROM s_tax_calculations WHERE id=? AND bill_id=? AND bill_revision=?)',r.id,bill.id,bill.revision),stmt(db,'INSERT INTO s_bill_tax_approvals VALUES(?,?,?,?,?)',bill.id,r.id,JSON.stringify(snapshot),actor.email,approvedAt)]};
 }

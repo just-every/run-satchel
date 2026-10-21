@@ -1,3 +1,4 @@
+import {exemptTaxReview} from './tax-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {harness,open} from './harness.mjs';
@@ -44,7 +45,7 @@ test('TIME-003 versioned client, attorney, matter and task rates with increments
   // Issue a bill, then change the rate retroactively: recorded work and the issued bill keep their price.
   let bill=await h.json('/matters/'+a.id+'/bills',{title:'October services',date:'2026-10-31',entryIds:[before.id,pleading.id]},h.owner);
   const line=id=>bill.snapshot.lines.find(l=>l.sourceId===id);assert.match(line(before.id).rounding,/^54 billed minutes \(50 worked, rounded up to the agreed increment\)/);assert.match(line(pleading.id).rounding,/less 10% discount/);assert.equal(bill.snapshot.totalCents,40500);
-  bill=await h.json('/bills/'+bill.id+'/approve',{revision:bill.revision,reviewNote:'Rates match the engagement letter'},h.owner);
+  bill=await h.json('/bills/'+bill.id+'/approve',{...({revision:bill.revision,reviewNote:'Rates match the engagement letter'}),taxReviewId:await exemptTaxReview(h,'/bills/'+bill.id+'/approve')},h.owner);
   const issued=await(await h.request('/api/satchel/bills/'+bill.id+'/export',undefined,h.owner)).text();
   await rate(a,{scope:'client',effectiveFrom:'2026-10-01',rateCents:26000,note:'Amended engagement letter'});
   const billing=await h.json('/matters/'+a.id+'/billing',undefined,h.owner);

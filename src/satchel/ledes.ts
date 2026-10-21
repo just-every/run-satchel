@@ -22,10 +22,12 @@ export async function nextInvoiceNumber(db:D1Database,matterId:string,matterNumb
 export const reserveInvoice=(db:D1Database,billId:string,invoiceNumber:string)=>stmt(db,'INSERT INTO s_bill_ledes(bill_id,invoice_number,created_at) VALUES(?,?,?)',billId,invoiceNumber,now());
 
 export function ledes1998B(bill:Data) {
- const s=bill.snapshot,l=s.ledes,total=l.lines.reduce((n:number,x:Data)=>n+x.totalCents,0);
+ const s=bill.snapshot,l=s.ledes,tax=l.tax;
+ const taxLines=tax?tax.lines.filter((x:Data)=>x.taxCents!==0).map((x:Data,index:number)=>({lineNumber:l.lines.length+index+1,type:'E',units4:10000,unitCostCents:x.taxCents,adjustmentCents:0,totalCents:x.taxCents,date:s.date,expense:tax.mapping.expenseCode,description:('Tax '+tax.rule.jurisdiction+' source '+x.sourceId).replace(/[|]|\[\]/g,' ')})):[];
+ const exported=[...l.lines,...taxLines],total=l.lines.reduce((n:number,x:Data)=>n+x.totalCents,0)+(tax?.totalCents??0);
  const dates=l.lines.map((x:Data)=>x.date).sort();
  const row=(x:Data)=>[day(s.date),l.invoiceNumber,l.clientId,s.matterNumber,amount(total),day(dates[0]),day(dates.at(-1)),s.title.replace(/[|]|\[\]/g,' '),x.lineNumber,x.type,units(x.units4),amount(x.adjustmentCents),amount(x.totalCents),day(x.date),x.task??'',x.expense??'',x.activity??'',x.timekeeperId??'',x.description,l.lawFirmId,amount(x.unitCostCents),x.timekeeperName??'',x.classification??'',''];
- return ['LEDES1998B',fields.join('|'),...l.lines.map((x:Data)=>row(x).join('|'))].map(r=>r+'[]').join('\r\n')+'\r\n';
+ return ['LEDES1998B',fields.join('|'),...exported.map((x:Data)=>row(x).join('|'))].map(r=>r+'[]').join('\r\n')+'\r\n';
 }
 export async function freezeLedes(db:D1Database,bill:Data) {
  if(!bill.snapshot.ledes)return [];
@@ -73,7 +75,8 @@ export async function importOutcomes(db:D1Database,actor:Actor,billId:string,bod
  insist(bill.status==='exported','Export the LEDES invoice before recording its e-billing outcome',409);
  const sourceName=text(body.fileName,'Outcome file name',200),content=text(body.content,'Outcome file',200000),sourceDigest=await digest(content);
  if(await stmt(db,'SELECT 1 FROM s_ledes_outcomes WHERE bill_id=? AND source_digest=?',bill.id,sourceDigest).first())return billLedes(db,bill.id);
- const lineNumbers=new Set(JSON.parse(bill.snapshot).ledes.lines.map((l:Data)=>l.lineNumber));
+ const approved=await stmt(db,'SELECT snapshot FROM s_bill_tax_approvals WHERE bill_id=?',bill.id).first<Data>(),snapshot=JSON.parse(approved?.snapshot??bill.snapshot),l=snapshot.ledes;
+ const lineNumbers=new Set([...l.lines.map((x:Data)=>x.lineNumber),...(l.tax?l.tax.lines.filter((x:Data)=>x.taxCents!==0).map((_:Data,i:number)=>l.lines.length+i+1):[])]);
  const parsed=content.split(/\r?\n/).map(r=>r.replace(/\[\]$/,'').trim()).filter(r=>r&&!/^INVOICE_NUMBER\|/i.test(r)).map((r,i)=>{
   const [invoice,line,status,...reason]=r.split('|').map(x=>x.trim());
   insist(invoice===bill.invoice_number,`Row ${i+1} is for invoice ${invoice}, not ${bill.invoice_number}`);

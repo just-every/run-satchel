@@ -1,3 +1,4 @@
+import {exemptTaxReview} from './tax-fixture.mjs';
 import {test,before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -77,7 +78,7 @@ test('time and disbursements form a reviewed immutable bill, with unique reserva
  await h.json('/matters/'+m.id+'/bills',{title:'Duplicate',date:'2026-10-15',entryIds:[time.id]},h.owner,409);
  await h.json('/bills/'+bill.id+'/export',undefined,h.owner,409);
  await h.json('/bills/'+bill.id+'/approve',{revision:bill.revision,reviewNote:'Checked'},assistant,403);
- bill=await h.json('/bills/'+bill.id+'/approve',{revision:bill.revision,reviewNote:'Services and disbursement checked against matter record.'},h.owner);
+ bill=await h.json('/bills/'+bill.id+'/approve',{...({revision:bill.revision,reviewNote:'Services and disbursement checked against matter record.'}),taxReviewId:await exemptTaxReview(h,'/bills/'+bill.id+'/approve')},h.owner);
  const result=await h.request('/api/satchel/bills/'+bill.id+'/export',undefined,h.owner);assert.equal(result.status,200);originalCsv=await result.text();assert.ok(originalCsv.includes('40000'));assert.ok(originalCsv.includes('owner@example.test'));
  bill=(await h.json('/matters/'+m.id+'/billing',undefined,h.owner)).bills.find(b=>b.id===bill.id);
  await h.json('/bills/'+bill.id+'/void',{revision:bill.revision,reason:'Change'},h.owner,409);
@@ -86,7 +87,7 @@ test('corrections add a separately reviewed delta and preserve original exports'
  const corrected=await h.json('/bills/'+bill.id+'/correct',{revision:bill.revision,sourceId:bill.snapshot.lines.find(l=>l.kind==='time').sourceId,correctedAmountCents:35000,reason:'Courtesy reduction',date:'2026-10-15'},h.owner);
  assert.equal(corrected.snapshot.totalCents,-2500);
  await h.json('/bills/'+corrected.id+'/export',undefined,h.owner,409);
- await h.json('/bills/'+corrected.id+'/approve',{revision:corrected.revision,reviewNote:'Reduction approved'},h.owner);
+ await h.json('/bills/'+corrected.id+'/approve',{...({revision:corrected.revision,reviewNote:'Reduction approved'}),taxReviewId:await exemptTaxReview(h,'/bills/'+corrected.id+'/approve')},h.owner);
  assert.equal((await h.request('/api/satchel/bills/'+corrected.id+'/export',undefined,h.owner)).status,200);
  assert.equal(await(await h.request('/api/satchel/bills/'+bill.id+'/export',undefined,h.owner)).text(),originalCsv);
 });
