@@ -37,19 +37,28 @@ export async function taxCalculations(db:D1Database,actor:Actor,billId:string){
 }
 export async function calculateBillTax(db:D1Database,actor:Actor,billId:string,body:Data){
  human(actor);need(actor,'owner','lawyer');const b=await billFor(db,actor,billId);
- insist(b.status==='draft'&&!b.corrects_bill_id,'Tax review currently supports original drafts only',409);
+ insist(b.status==='draft','Tax review requires a current draft',409);
  insist(body.revision===b.revision,'Bill changed; review its current revision',409);
- const r=await stmt(db,'SELECT * FROM s_tax_rules WHERE id=? AND matter_id=?',text(body.ruleId,'Reviewed tax rule ID',100),b.matter_id).first<Data>();
- insist(r,'Unknown reviewed tax treatment for this matter',422);const t=rule(r),s=JSON.parse(b.snapshot);
+ const s=JSON.parse(b.snapshot),basis=s.taxBasis;
+ insist(!b.corrects_bill_id||basis,'This legacy correction has no reviewed original tax basis; review the original treatment before correcting tax',422);
+ if(basis)insist(body.ruleId===undefined||body.ruleId===basis.rule.id,'A correction retains the original reviewed tax rule',422);
+ const r=await stmt(db,'SELECT * FROM s_tax_rules WHERE id=? AND matter_id=?',text(basis?.rule.id??body.ruleId,'Reviewed tax rule ID',100),b.matter_id).first<Data>();
+ insist(r,'Unknown reviewed tax treatment for this matter',422);const t=basis?.rule??rule(r);
  const lines=s.lines.map((l:Data)=>{
   insist(['time','fee','disbursement'].includes(l.kind),'Unknown tax record kind: review treatment',422);
   const treatment=l.kind==='disbursement'?t.expense:t.service;
+  if(basis){
+   const priorBaseCents=integer(l.priorAmountCents,'Prior tax base in USD cents',0,1000000000000),correctedBaseCents=integer(l.correctedAmountCents,'Corrected tax base in USD cents',0,1000000000000);
+   const priorTaxCents=rounded(priorBaseCents,treatment.ratePpm,t.rounding),correctedTaxCents=rounded(correctedBaseCents,treatment.ratePpm,t.rounding);
+   insist(l.amountCents===correctedBaseCents-priorBaseCents,'Correction tax basis does not match its reviewed source',409);
+   return {sourceId:l.sourceId,sourceRevision:l.sourceRevision,kind:l.kind,baseCents:l.amountCents,...treatment,priorBaseCents,correctedBaseCents,priorTaxCents,correctedTaxCents,taxCents:correctedTaxCents-priorTaxCents};
+  }
   const baseCents=integer(l.amountCents,'Tax base in USD cents',0,1000000000000);
   return {sourceId:l.sourceId,sourceRevision:l.sourceRevision,kind:l.kind,baseCents,...treatment,taxCents:rounded(baseCents,treatment.ratePpm,t.rounding)};
  });
  const subtotalCents=lines.reduce((n:number,l:Data)=>n+l.baseCents,0),taxCents=lines.reduce((n:number,l:Data)=>n+l.taxCents,0),totalCents=subtotalCents+taxCents;
  insist(Number.isSafeInteger(totalCents),'Tax total exceeds exact integer range');
- const snapshot={label:'Native tax calculation review only; not issued, applied to trust or exported',provider:'native firm-reviewed calculation',providerResult:null,currency:'USD',rule:t,rounding:'per line '+t.rounding,lines,subtotalCents,taxCents,totalCents};
+ const snapshot={label:'Native tax calculation review only; not issued, applied to trust or exported',provider:'native firm-reviewed calculation',providerResult:null,currency:'USD',rule:t,rounding:'per line '+t.rounding,...(basis?{correctionBasis:basis}:{}),lines,subtotalCents,taxCents,totalCents};
  const calcId=id();await atomic(db,actor,[accessGuard(db,actor,b.matter_id),guard(db,"EXISTS(SELECT 1 FROM s_bills WHERE id=? AND revision=? AND status='draft')",b.id,b.revision),stmt(db,'INSERT INTO s_tax_calculations VALUES(?,?,?,?,?,?,?)',calcId,b.id,b.matter_id,b.revision,JSON.stringify(snapshot),actor.email,now()),audit(db,actor,'tax.calculation_reviewed',calcId,JSON.stringify({ruleId:t.id,billId:b.id}),{matterId:b.matter_id})]);
  return calculation((await stmt(db,'SELECT * FROM s_tax_calculations WHERE id=?',calcId).first<Data>())!);
 }
@@ -62,7 +71,6 @@ export async function approvalTax(db:D1Database,actor:Actor,bill:Data,body:Data,
   insist(!configured,'Unknown tax treatment: review and select the exact draft tax calculation before approval',422);
   return {snapshot:bill.snapshot,guards:[guard(db,'NOT EXISTS(SELECT 1 FROM s_tax_rules WHERE matter_id=?)',bill.matterId)]};
  }
- insist(!bill.correctsBillId,'Tax correction review is not implemented; this correction cannot be approved',422);
  const r=await stmt(db,'SELECT * FROM s_tax_calculations WHERE id=? AND bill_id=? AND matter_id=? AND bill_revision=?',text(body.taxReviewId,'Reviewed tax calculation ID',100),bill.id,bill.matterId,bill.revision).first<Data>();
  insist(r,'Unknown or stale tax calculation: review this exact bill revision',422);
  insist(!bill.snapshot.ledes,'Missing reviewed per-client LEDES 1998B/XML tax mapping; this bill cannot be approved',422);
