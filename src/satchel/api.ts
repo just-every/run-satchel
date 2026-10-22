@@ -79,7 +79,7 @@ import {placeHold,releaseHold,setSchedule,retentionState,disposeDocument} from '
 type C=Context<{Bindings:Bindings}>;
 export const api=new Hono<{Bindings:Bindings}>();
 api.get('/health',c=>c.json({status:'ok',...deploymentHealth(c.env)}));
-api.use('/api/*',async(c,next)=>{await next();c.header('cache-control','no-store');c.header('x-content-type-options','nosniff');c.header('referrer-policy','no-referrer');});
+api.use('/api/*',async(c,next)=>{await next();const policy=c.res.headers.get('cache-control');c.header('cache-control',policy?.includes('no-store')?policy:'no-store');c.header('x-content-type-options','nosniff');c.header('referrer-policy','no-referrer');});
 api.onError((e,c)=>{if(e instanceof Fault)return c.json({error:e.message},e.status as 400);if(e instanceof SyntaxError)return c.json({error:'Supply valid JSON'},400);if('code' in e && /^(erasure_epoch|erased_row)/.test(String(e.code)))return c.json({error:'This archive predates an erasure. Restore the latest archive ('+String(e.code)+').'},409);if('code' in e)return c.json({error:String(e.code)},('status'in e?Number(e.status):409) as 400);console.error(e);return c.json({error:'The operation failed. Refresh before trying again.'},500);});
 async function body(c:C):Promise<Data>{const raw=await c.req.text();insist(raw.length<=24_000_000,'Request too large',413);const b=JSON.parse(raw);insist(b&&typeof b==='object'&&!Array.isArray(b),'Supply a JSON object');return b;}
 const db=(c:C)=>runtimeBindings(c.env).DB;
