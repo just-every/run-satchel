@@ -308,6 +308,12 @@ test('grouped firm search applies current record doors before results, counts an
   const sourceArchive=await(await w.request('/api/satchel/backup',undefined,w.owner)).text(),restored=await harness();
   try{await restored.json('/restore',{archive:sourceArchive,confirm:'RESTORE'},restored.owner);assert.deepEqual(await restored.json('/search?q=Barton',undefined,restored.owner),result,'Restored source records produce identical search results without an index rebuild');}finally{await restored.close();}
   await w.restart();assert.deepEqual(await search('Barton'),result,'Search derives from current records after restart');
+  for(const roleName of ['billing','accountant']){
+   const email=roleName+'@example.test';await w.json('/team',{email,name:roleName,role:roleName},w.owner);await w.json('/team/invite',{email},w.owner);const finance=await w.login(email);
+   await w.json(base+'/access',{email},w.owner);await w.json(base+'/fields',undefined,finance,403);
+   const financeResults=await search('Barton',finance);assert.ok(financeResults.total>0);assert.ok(!JSON.stringify(financeResults).includes('CASE-2026-BARTON-42'),'Finance snippets omit fields their direct door refuses');
+   assert.equal((await search('CASE-2026-BARTON-42',finance)).total,0,'Finance matching cannot disclose refused case fields');
+  }
   await w.json('/team',{email:'reader@example.test',name:'Case assistant',role:'assistant'},w.owner);await w.json('/team/invite',{email:'reader@example.test'},w.owner);const reader=await w.login('reader@example.test');
   for(const q of ['Barton',f.m.matter_number,'CASE-2026-BARTON-42'])assert.deepEqual((await search(q,reader)).groups,[],'Unassigned records produce no result or group count');
   await w.json(base+'/access',{email:'reader@example.test'},w.owner);

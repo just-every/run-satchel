@@ -33,8 +33,8 @@ export async function searchFirm(db:D1Database,actor:Actor,query:string){
   }
  }
  for(const m of matters){
-  const base='/matters/'+m.id,context=[m.title,m.client,m.matter_number,m.case_number??''].join(' · ');
-  if(permitted(actor,base)&&matches(context,m.court,m.custom))add('Matters',m.id,m.matter_number+' · '+m.title,[m.client,m.case_number].filter(Boolean).join(' · '),base,m.id,'Matters');
+  const base='/matters/'+m.id,fields=permitted(actor,base+'/fields')?m:{},context=[m.title,m.client,m.matter_number,fields.case_number??''].join(' · ');
+  if(permitted(actor,base)&&matches(context,fields.court,fields.custom))add('Matters',m.id,m.matter_number+' · '+m.title,[m.client,fields.case_number].filter(Boolean).join(' · '),base,m.id,'Matters');
   if(permitted(actor,base+'/tasks'))for(const t of await listTasks(db,actor,m.id))if(matches(context,t.title,t.evidence))add('Tasks',t.id,t.title,context+' · '+t.status,base+'/tasks',m.id,'Tasks');
   if(permitted(actor,base+'/calendar')){
    const calendar=await matterCalendar(db,actor,m.id);
