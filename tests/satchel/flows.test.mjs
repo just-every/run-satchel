@@ -290,3 +290,37 @@ test('ethical walls exclude a principal from current doors and require expiring 
   assert.equal((await w.json('/matters/'+visible.id,undefined,w.owner)).matter.id,visible.id);
  }finally{await w.close();}
 });
+
+test('grouped firm search applies current record doors before results, counts and snippets',async()=>{
+ const w=await harness();try{
+  const {searchFixture}=await import('./search-fixture.mjs'),f=await searchFixture(w),base='/matters/'+f.m.id;
+  const search=(q,c=w.owner)=>w.json('/search?q='+encodeURIComponent(q),undefined,c);
+  await w.json('/search?q=Barton',undefined,'',401);await w.json('/search?q=',undefined,w.owner,400);
+  const result=await search('Barton'),byType=Object.fromEntries(result.groups.map(g=>[g.type,g]));
+  for(const type of ['Matters','Contacts','Notes','Tasks','Events','Documents','Email','Invoices'])assert.ok(byType[type]?.count>0,type+' has a permitted result');
+  assert.ok(byType.Notes.items.some(n=>n.id===f.note.id&&n.snippet.includes('notice period')));
+  assert.ok(byType.Tasks.items.some(t=>t.id===f.task.id));assert.ok(byType.Invoices.items.some(b=>b.id===f.bill.id));
+  assert.equal(result.total,result.groups.reduce((n,g)=>n+g.count,0));
+  for(const q of [f.m.matter_number,'CASE-2026-BARTON-42'])assert.ok((await search(q)).groups.find(g=>g.type==='Matters').items.some(m=>m.id===f.m.id));
+  for(const q of ['Old workshop alias','Barton Makers'])assert.ok((await search(q)).groups.find(g=>g.type==='Contacts').items.some(c=>c.id===f.client.id));
+  assert.equal((await search("%' OR 1=1 --")).total,0,'Search text is literal, not SQL');
+  await w.json('/team',{email:'reader@example.test',name:'Case assistant',role:'assistant'},w.owner);await w.json('/team/invite',{email:'reader@example.test'},w.owner);const reader=await w.login('reader@example.test');
+  for(const q of ['Barton',f.m.matter_number,'CASE-2026-BARTON-42'])assert.deepEqual((await search(q,reader)).groups,[],'Unassigned records produce no result or group count');
+  await w.json(base+'/access',{email:'reader@example.test'},w.owner);
+  const privateDoc=await w.json(base+'/documents',{name:'Private counsel instructions',mime:'text/plain',visibility:'private',contentBase64:Buffer.from('Private source').toString('base64')},w.owner);
+  await w.json('/documents/'+privateDoc.id+'/annotations',{version:1,page:1,note:'Private strategy phrase'},w.owner);
+  assert.equal((await search('Private strategy phrase',reader)).total,0);assert.equal((await search('Private counsel instructions',reader)).total,0);
+  const permissions={rates:'none',bank:'none',reports:'none',contacts:'none',documents:'none',billing:'none',settings:'none'},role=await w.json('/roles',{name:'Matter work only',permissions,reason:'No contact, file or finance search'},w.owner);
+  await w.json('/team',{email:'reader@example.test',name:'Case assistant',role:'assistant',customRoleId:role.id},w.owner);
+  const restricted=await search('Barton',reader);assert.deepEqual(restricted.groups.map(g=>g.type),['Matters','Tasks','Events']);assert.ok(!JSON.stringify(restricted).includes(f.doc.id));assert.ok(!JSON.stringify(restricted).includes(f.bill.id));
+  await w.json('/team',{email:'custodian@example.test',name:'Wall counsel',role:'lawyer'},w.owner);await w.json('/team/invite',{email:'custodian@example.test'},w.owner);const custodian=await w.login('custodian@example.test');
+  await w.json(base+'/access',{email:'custodian@example.test'},w.owner);
+  await w.json(base+'/wall',{custodianEmail:'custodian@example.test',members:[],reason:'Conflicting representation screen',revision:null},w.owner);
+  for(const q of ['Barton',f.m.matter_number,'CASE-2026-BARTON-42','notice period']){const outside=await search(q);assert.deepEqual(outside.groups,[]);assert.equal(outside.total,0);assert.ok(!JSON.stringify(outside).includes(f.m.title));}
+  assert.ok((await search('Barton',custodian)).total>0,'The wall custodian can search the matter');
+  await w.json('/documents/'+f.doc.id+'/erase',{confirm:f.doc.title,reason:'Authorized erasure'},custodian,403);
+  const archive=await(await w.request('/api/satchel/backup',undefined,custodian)).text(); // principal-only archive is refused below
+  assert.ok(archive.includes('error'));
+  assert.equal((await w.request('/api/satchel/search?q=Barton',undefined,custodian)).headers.get('cache-control'),'private, no-store');
+ }finally{await w.close();}
+});

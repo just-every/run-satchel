@@ -8,7 +8,7 @@ const seg='[^/]+',any='.*';
 const rule=(pattern:string,areas:string[]):[RegExp,string[]]=>[new RegExp('^'+pattern+'$'),areas];
 const open:string[]=[];
 export const areaRules:[RegExp,string[]][]=[
- rule('/(health|me|state|portal|notifications|calendar|availability|agenda|agenda/export|absences|handoffs|workload|matter-board|stages|workflows|ethical-walls|conflict-referrals|matter-types)',open),
+ rule('/(health|me|state|search|portal|notifications|calendar|availability|agenda|agenda/export|absences|handoffs|workload|matter-board|stages|workflows|ethical-walls|conflict-referrals|matter-types)',open),
  rule('/(notifications/'+seg+'/read|proposals/'+seg+'/decide|absences/'+seg+'/coverage|handoffs/'+seg+'/acknowledge|workflows/'+seg+'/(rollout|versions)|ethical-walls/'+seg+'/(dissolve|requests|take-custody)|wall-requests/'+seg+'/decide|wall-emergencies/'+seg+'/revoke|conflict-referrals/'+seg+'/decide|tasks/'+seg+'/(assign|complete)|deadlines/'+seg+'/(complete|confirm|owner|reminders)|reminders/'+seg+'/(acknowledge|resolve)|reminders/rules/'+seg+'/cancel|appointments/'+seg+'/occurrences/'+seg+'/'+seg+'|workflow-runs/'+seg+'/(stop|restart)|intake/public/'+seg+'|conflict-waivers/'+seg+'/dispose|agent/context|agent/'+seg+')',open),
  rule('/matters',open),rule('/matters/'+seg,open),
  rule('/matters/'+seg+'/(access|wall|restrictions/remove|lifecycle|closure-preview|close|reopen|fields|stage|stage-profile|stage-transition|tasks|tasks/bulk|calendar|appointments|deadlines|workflows|workflow-preview|workflow-runs)',open),

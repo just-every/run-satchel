@@ -1,3 +1,4 @@
+import {searchFirm} from './search';
 import {disposeConflictWaiver,disposeConflictPayload} from './conflict-custody';
 import {conflictReview,saveConflictReview,routeConflictMatch,listConflictReferrals,decideConflictReferral,waiverFile,savedConflictSearches,removeEngagementExclusion} from './conflict-dispositions';
 import {wallState,saveWall,requestWallAccess,decideWallAccess,revokeWallAccess,takeWallCustody,dissolveWall,recordWallExpiries,auditWallReads} from './ethical-walls';
@@ -143,6 +144,7 @@ api.get('/api/satchel/matters/:id/lifecycle',as((a,c)=>matterLifecycle(db(c),a,p
 api.post('/api/satchel/matters/:id/closure-preview',as(async(a,c)=>closurePreview(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/matters/:id/close',as(async(a,c)=>closeMatter(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/matters/:id/reopen',as(async(a,c)=>reopenMatter(db(c),a,param(c),await body(c))));
+api.get('/api/satchel/search',as(async(a,c)=>c.json(await searchFirm(db(c),a,c.req.query('q')??''),200,{'Cache-Control':'private, no-store'})));
 api.get('/api/satchel/state',as((a,c)=>workspace(db(c),a)));
 api.get('/api/satchel/time',as((a,c)=>timesheet(db(c),a,c.req.query('week')||undefined)));
 api.post('/api/satchel/timers',as(async(a,c)=>startTimer(db(c),a,await body(c))));
