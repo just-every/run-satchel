@@ -19,6 +19,8 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`CAL-008 view overlappi
   await h.json('/matters/'+m2.id+'/appointments',{...once,title:'Deposition hearing',date:'2026-11-16',time:'10:00'},h.owner);
   await h.json('/matters/'+m.id+'/deadlines',{kind:'limitation',title:'Statute of limitations',date:'2027-02-01',timezone:'America/New_York',source:'Injury date 2024-02-01; CPLR 214'},h.owner);
   const filing=await h.json('/matters/'+m.id+'/deadlines',{kind:'filing',title:'File opposition',date:'2026-11-17',timezone:'America/New_York',source:'Scheduling order paragraph 4'},h.owner);await h.json('/deadlines/'+filing.id+'/confirm',{revision:filing.revision,note:'Checked order'},h.owner);
+  const privateSource=await h.json('/matters/'+m.id+'/documents',{name:'Private limitation evidence.txt',mime:'text/plain',visibility:'private',contentBase64:Buffer.from('Private counsel evidence').toString('base64')},h.owner);
+  await h.json('/matters/'+m.id+'/deadlines',{kind:'limitation',title:'Private future limitation',date:'2028-03-01',timezone:'America/New_York',source:'Private original paragraph 2',documentId:privateSource.id},h.owner);
   const context=await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true,acceptDownloads:true}),page=await context.newPage(),errors=[];page.setDefaultTimeout(15000);page.on('pageerror',e=>errors.push(String(e)));
   async function shot(name){assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0,`${name} fits at ${width}px`);if(process.env.SATCHEL_SCREENSHOTS){await mkdir(process.env.SATCHEL_SCREENSHOTS,{recursive:true});await capturePanel(page,panel,process.env.SATCHEL_SCREENSHOTS,`${width}-${name}`);await capturePanel(page,page.locator('section.panel',{has:page.getByRole('heading',{name:'Absences',exact:true})}),process.env.SATCHEL_SCREENSHOTS,`${width}-absences`);}}
   await page.goto(h.origin+'/signin');await page.getByLabel('Email').fill('owner@example.test');await page.getByRole('button',{name:'Email a sign-in link'}).click();await page.getByText('a sign-in link is on its way').waitFor();
@@ -42,6 +44,22 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`CAL-008 view overlappi
   assert.equal(csv[0],'Date,Time,Timezone,Kind,Matter,Title,Source,Owner,Confirmation,Coverage,Conflicts,Next action');
   assert.equal(csv.length,5);assert.ok(csv.some(l=>l.includes('Statute of limitations')&&l.includes('unconfirmed (proposed; needs lawyer confirmation)')&&l.includes('Injury date 2024-02-01; CPLR 214')));
   assert.ok(csv.some(l=>l.includes('File opposition')&&l.includes('confirmed by owner@example.test')&&l.includes('covered by priya@example.test')));
+  await panel.getByText(/2028-03-01.*Private future limitation/).waitFor();
+  const reader=await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true}),readerPage=await reader.newPage();
+  readerPage.setDefaultTimeout(15000);
+  await readerPage.goto(h.origin+'/signin');await readerPage.getByLabel('Email').fill('lawyer@example.test');await readerPage.getByRole('button',{name:'Email a sign-in link'}).click();await readerPage.getByText('a sign-in link is on its way').waitFor();
+  const readerMail=h.mails.toReversed().find(m=>m.to.includes('lawyer@example.test')),readerLink=(readerMail.text??readerMail.html).match(/https:\/\/[^\s"<]+\/auth\/confirm\?token=[^\s"&<]+/)[0];
+  await readerPage.goto(readerLink);await readerPage.getByRole('button',{name:'Confirm'}).click();await readerPage.waitForURL(/\/setup|\/app/);
+  if(readerPage.url().includes('/setup')){await readerPage.getByLabel('Your name').fill('Marcus Lee');await readerPage.getByRole('checkbox').check();await readerPage.getByRole('button',{name:'Finish setup'}).click();await readerPage.waitForURL(/\/app/);}
+  await readerPage.getByRole('heading',{level:1,name:'Matters',exact:true}).waitFor();
+  await readerPage.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Calendar',exact:true}).click();
+  const readerRange=form(readerPage,'Show agenda');await readerRange.getByLabel('Agenda from').fill('2026-11-01');await readerRange.getByLabel('Agenda to').fill('2027-02-28');await readerRange.getByRole('button',{name:'Show agenda'}).click();
+  const readerPanel=readerPage.locator('section',{has:readerPage.getByRole('heading',{name:'Agenda and coverage',exact:true})});
+  await readerPanel.locator('p',{hasText:'2027-02-01 · Matter '+m.matter_number+' · Statute of limitations'}).waitFor();
+  assert.equal(await readerPanel.getByText(/Private future limitation|2028-03-01/).count(),0,'Upcoming limitations hide a private source from another matter reader');
+  assert.equal(await readerPage.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);
+  if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(readerPage,readerPanel,process.env.SATCHEL_SCREENSHOTS,`${width}-agenda-reader`);
+  await reader.close();
   assert.deepEqual(errors,[]);
  }finally{await browser.close();await h.close();}
 });

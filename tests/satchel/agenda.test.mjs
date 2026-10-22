@@ -57,5 +57,25 @@ test('CAL-008 firm agenda shows overlapping hearings, an unconfirmed limitation 
   view=await h.json('/agenda?'+range,undefined,lawyer);
   assert.match(by('Extracted limitation').confirmation,/^unconfirmed/);assert.equal(by('Extracted limitation').nextAction,'Confirm the date against its source');
   assert.equal(view.limitations.find(l=>l.title==='Extracted limitation').confirmation,'unconfirmed','An extracted date never appears as confirmed');
+  // Upcoming dates outside the agenda range obey the source original's visibility too.
+  const source=await h.json('/matters/'+m.id+'/documents',{name:'Private limitation source.txt',mime:'text/plain',visibility:'private',contentBase64:Buffer.from('Private limitation evidence').toString('base64')},lawyer);
+  const privateDates=[];
+  for(const date of ['2027-02-10','2028-03-01']){
+   privateDates.push(await h.json('/matters/'+m.id+'/deadlines',{kind:'limitation',title:'Private limitation '+date,date,timezone:'America/New_York',source:'Private source paragraph 2',documentId:source.id},lawyer));
+  }
+  for(const who of [h.owner,lawyer]){
+   const allowed=await h.json('/agenda?'+range,undefined,who);
+   assert.ok(privateDates.every(d=>allowed.limitations.some(l=>l.id===d.id)),'Principal and source creator retain upcoming limitations beyond the range end');
+   assert.ok(allowed.items.some(i=>i.id===privateDates[0].id));
+  }
+  for(const scope of ['', '&matter='+m.id]){
+   const denied=await h.json('/agenda?'+range+scope,undefined,assistant);
+   assert.ok(!JSON.stringify(denied).includes('Private limitation'),'Matter access alone exposes no private-source title, date or identifier');
+   assert.ok(privateDates.every(d=>!denied.limitations.some(l=>l.id===d.id)&&!denied.items.some(i=>i.id===d.id)));
+   assert.ok(denied.limitations.some(l=>l.id===limitation.id),'A visible source-free limitation remains available');
+   const exported=await (await h.request('/api/satchel/agenda/export?'+range+scope,undefined,assistant)).text();
+   assert.ok(!exported.includes('Private limitation'));
+   assert.ok(exported.includes('Statute of limitations'));
+  }
  }finally{await h.close();}
 });
