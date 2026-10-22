@@ -13,3 +13,15 @@ export async function searchFixture(h){
  const bill=await h.json(base+'/bills',{title:'Lease advice prebill',date:'2026-10-01',entryIds:[entry.id]},h.owner);
  return {m,doc,note:notes.annotations[0],task,event,email,bill,client};
 }
+export async function searchPayment(h,f){
+ const {earnedBill}=await import('./trust-fixture.mjs'),{withTaxAllocation}=await import('./tax-fixture.mjs');
+ await h.json('/team',{email:'owner@example.test',name:'Principal',role:'trust_officer'},h.owner);
+ const account=await h.json('/trust/accounts',{name:'Synthetic trust bank',kind:'trust',bankReference:'synthetic-satchel-1'},h.owner),operating=await h.json('/trust/accounts',{name:'Synthetic operating bank',kind:'operating',bankReference:'synthetic-satchel-2'},h.owner);
+ const ledger=await h.json('/trust/ledgers',{accountId:account.id,matterId:f.m.id},h.owner);
+ const opening=await h.json('/trust/openings',{accountId:account.id,ledgerId:ledger.id,cents:100000,statementDate:'2026-09-01',documentId:f.doc.id,note:'Synthetic retained opening statement'},h.owner);
+ await h.json('/trust/openings/'+opening.id+'/approve',{revision:opening.revision,reviewNote:'Reviewed source and client ownership'},h.owner);
+ const bill=await earnedBill(h,f.m,10000,'Earned lease review'),transfer=await h.json('/trust/transfers',await withTaxAllocation(h,{billId:bill.id,ledgerId:ledger.id,operatingAccountId:operating.id,requestKey:'synthetic-satchel-3'}),h.owner);
+ await h.json('/trust/transfers/'+transfer.id+'/decide',{revision:transfer.revision,decision:'approved',reviewNote:'Exact reviewed invoice and funds'},h.owner);
+ for(const outcome of ['submitted','cleared'])await h.json('/trust/transfers/'+transfer.id+'/bank-result',{revision:transfer.revision,outcome,bankDate:'2026-10-03',bankReference:'synthetic-satchel-4',documentId:f.doc.id,evidence:'Retained bank confirmation'},h.owner);
+ return transfer;
+}

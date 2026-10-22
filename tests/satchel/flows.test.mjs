@@ -246,7 +246,7 @@ test('ethical walls exclude a principal from current doors and require expiring 
   const trail=await w.json('/audit?matterId='+hidden.id,undefined,w.owner);assert.ok(trail.records.some(r=>r.action==='wall.access_approved'&&r.detail.note==='Documented emergency coverage reviewed'&&r.actor.email==='custodian@example.test'));
   await w.json('/backup',undefined,w.owner,403);
   let archiveWall=await w.json('/matters/'+hidden.id+'/wall',{custodianEmail:'custodian@example.test',members:['owner@example.test'],reason:'Principal admitted as a member for archive custody',revision:wall.revision},custodian);
-  const archive=await(await w.request('/api/satchel/backup',undefined,w.owner)).text();const restored=await harness();try{await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);assert.equal((await restored.json('/ethical-walls',undefined,restored.owner)).requests[0].reason,'Urgent coverage needed for filing today');}finally{await restored.close();}
+  const archive=await(await w.request('/api/satchel/backup',undefined,w.owner)).text();const restored=await harness();try{await restored.json('/restore',{archive:sourceArchive,confirm:'RESTORE'},restored.owner);assert.equal((await restored.json('/ethical-walls',undefined,restored.owner)).requests[0].reason,'Urgent coverage needed for filing today');}finally{await restored.close();}
   await w.json('/matters/'+hidden.id+'/wall',{custodianEmail:'custodian@example.test',members:[],reason:'End principal wall membership',revision:archiveWall.revision},custodian);
   await w.json('/wall-emergencies/'+request.id+'/revoke',{reason:'Coverage complete'},custodian);await w.json('/matters/'+hidden.id,undefined,w.owner,404);await w.restart();await w.json('/matters/'+hidden.id,undefined,w.owner,404);
   let current=(await w.json('/ethical-walls',undefined,custodian)).walls.find(w=>w.id===wall.id);
@@ -296,14 +296,18 @@ test('grouped firm search applies current record doors before results, counts an
   const {searchFixture}=await import('./search-fixture.mjs'),f=await searchFixture(w),base='/matters/'+f.m.id;
   const search=(q,c=w.owner)=>w.json('/search?q='+encodeURIComponent(q),undefined,c);
   await w.json('/search?q=Barton',undefined,'',401);await w.json('/search?q=',undefined,w.owner,400);
+  const {searchPayment}=await import('./search-fixture.mjs');await searchPayment(w,f);
   const result=await search('Barton'),byType=Object.fromEntries(result.groups.map(g=>[g.type,g]));
-  for(const type of ['Matters','Contacts','Notes','Tasks','Events','Documents','Email','Invoices'])assert.ok(byType[type]?.count>0,type+' has a permitted result');
+  for(const type of ['Matters','Contacts','Notes','Tasks','Events','Documents','Email','Invoices','Payments'])assert.ok(byType[type]?.count>0,type+' has a permitted result');
   assert.ok(byType.Notes.items.some(n=>n.id===f.note.id&&n.snippet.includes('notice period')));
   assert.ok(byType.Tasks.items.some(t=>t.id===f.task.id));assert.ok(byType.Invoices.items.some(b=>b.id===f.bill.id));
   assert.equal(result.total,result.groups.reduce((n,g)=>n+g.count,0));
   for(const q of [f.m.matter_number,'CASE-2026-BARTON-42'])assert.ok((await search(q)).groups.find(g=>g.type==='Matters').items.some(m=>m.id===f.m.id));
   for(const q of ['Old workshop alias','Barton Makers'])assert.ok((await search(q)).groups.find(g=>g.type==='Contacts').items.some(c=>c.id===f.client.id));
   assert.equal((await search("%' OR 1=1 --")).total,0,'Search text is literal, not SQL');
+  const sourceArchive=await(await w.request('/api/satchel/backup',undefined,w.owner)).text(),restored=await harness();
+  try{await restored.json('/restore',{archive:sourceArchive,confirm:'RESTORE'},restored.owner);assert.deepEqual(await restored.json('/search?q=Barton',undefined,restored.owner),result,'Restored source records produce identical search results without an index rebuild');}finally{await restored.close();}
+  await w.restart();assert.deepEqual(await search('Barton'),result,'Search derives from current records after restart');
   await w.json('/team',{email:'reader@example.test',name:'Case assistant',role:'assistant'},w.owner);await w.json('/team/invite',{email:'reader@example.test'},w.owner);const reader=await w.login('reader@example.test');
   for(const q of ['Barton',f.m.matter_number,'CASE-2026-BARTON-42'])assert.deepEqual((await search(q,reader)).groups,[],'Unassigned records produce no result or group count');
   await w.json(base+'/access',{email:'reader@example.test'},w.owner);
@@ -318,6 +322,12 @@ test('grouped firm search applies current record doors before results, counts an
   await w.json(base+'/wall',{custodianEmail:'custodian@example.test',members:[],reason:'Conflicting representation screen',revision:null},w.owner);
   for(const q of ['Barton',f.m.matter_number,'CASE-2026-BARTON-42','notice period']){const outside=await search(q);assert.deepEqual(outside.groups,[]);assert.equal(outside.total,0);assert.ok(!JSON.stringify(outside).includes(f.m.title));}
   assert.ok((await search('Barton',custodian)).total>0,'The wall custodian can search the matter');
+  await w.json('/matters/'+f.m.id+'/access',{email:'reader@example.test',remove:true},custodian,403);
+  const wall=(await w.json('/ethical-walls',undefined,custodian)).walls.find(x=>x.matter_id===f.m.id);
+  await w.json('/matters/'+f.m.id+'/wall',{custodianEmail:'custodian@example.test',members:['owner@example.test'],reason:'Counsel admits the principal for authorized erasure',revision:wall.revision},custodian);
+  await w.json('/documents/'+f.doc.id+'/erase',{confirm:f.doc.title,reason:'Authorized original and derivative erasure'},w.owner);
+  const afterErasure=await search('notice period');assert.ok(!JSON.stringify(afterErasure).includes(f.note.id),'Erasure removes retained annotation search results immediately');
+  assert.equal((await search('Barton',reader)).total,0,'Revoked wall authority does not retain earlier search results');
   await w.json('/documents/'+f.doc.id+'/erase',{confirm:f.doc.title,reason:'Authorized erasure'},custodian,403);
   const archive=await(await w.request('/api/satchel/backup',undefined,custodian)).text(); // principal-only archive is refused below
   assert.ok(archive.includes('error'));
