@@ -71,6 +71,9 @@ test('FIRM-002 each built-in role reaches only its own legal, billing, trust, re
   await h.json('/portal-grants/'+shared.grants[0].id+'/revoke',{reason:'Engagement ended'},h.owner);assert.deepEqual((await h.json('/portal',undefined,c.client)).grants,[]);
   const audit=(await h.json('/audit?limit=200',undefined,h.owner)).records;
   for(const [action,role] of [['portal.granted','owner'],['portal.revoked','owner'],['bill.prepared','billing'],['invoice.issued','billing'],['trust.statement_imported','accountant'],['trust.clearance_recorded','accountant'],['bill.approved','lawyer']])assert.ok(audit.some(r=>r.action===action&&r.actor.role===role),action+' by '+role);
+  // The roles and the portal history survive an archive restore.
+  const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),target=await harness();
+  try{await target.json('/restore',{archive,confirm:'RESTORE'},target.owner);const restored=await target.json(base+'/portal',undefined,target.owner);assert.equal(restored.grants.length,1);assert.ok(restored.grants[0].revokedAt);assert.deepEqual((await target.json('/state',undefined,target.owner)).members.filter(m=>['billing','accountant','client'].includes(m.role)).map(m=>m.role).sort(),['accountant','billing','client']);}finally{await target.close();}
   // A stale agent key cannot outlive its sponsor's lawyer role.
   const key=await h.json('/keys',{label:'lawyer preparation'},c.lawyer);const agent=(path)=>h.request('/api/satchel'+path,undefined,'',{authorization:'Bearer '+key.key});
   assert.equal((await agent('/agent/context')).status,200);await h.json('/team',{email:'lawyer@example.test',name:'Nora Woods',role:'billing'},h.owner);assert.equal((await agent('/agent/context')).status,403);

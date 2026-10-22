@@ -22,7 +22,7 @@ export async function leadPipeline(db:D1Database,actor:Actor) {
 export async function leadReport(db:D1Database,actor:Actor) {
  const [all,stages,{today,timezone}]=await Promise.all([visible(db,actor),leadStages(db),leadCalendar(db)]);
  const allowed=new Set((await rows(db,`SELECT m.id FROM s_matters m WHERE ${matterScope('m.id', actor.channel === 'agent' ? "'agent'" : "'person'")}`,actor.role,actor.email)).map(m=>m.id));
- const counted=all.filter(l=>l.status!=='merged'&&(!l.matter_id||allowed.has(l.matter_id))).map(l=>leadJson(l,stages,today,timezone));
+ const counted=all.filter(l=>l.status!=='merged'&&(!l.matter_id||allowed.has(l.matter_id))&&(actor.grants?.reports!=='own'||l.assigned_email===actor.email)).map(l=>leadJson(l,stages,today,timezone));
  const group=(key:(l:Data)=>string)=>[...new Set(counted.map(key))].sort().map(name=>{const g=counted.filter(l=>key(l)===name);return {name,leads:g.length,open:g.filter(l=>l.status==='open').length,converted:g.filter(l=>l.status==='converted').length,lost:g.filter(l=>l.status==='lost').length};});
  return {today,total:counted.length,converted:counted.filter(l=>l.status==='converted').length,lost:counted.filter(l=>l.status==='lost').length,
   bySource:group(l=>l.referralSource),byStage:group(l=>l.stageName??'No stage'),byPractice:group(l=>l.practiceCode??'No practice'),

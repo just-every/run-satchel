@@ -5,8 +5,15 @@ export async function saveMember(db:D1Database,actor:Actor,body:Data) {
  const email=text(body.email,'Email',254).toLowerCase(),name=text(body.name,'Name',100);
  insist(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),'Enter a valid email');
  insist(['lawyer','assistant','trust_officer','billing','accountant','client'].includes(body.role),'Choose lawyer, assistant, trust officer, billing, accountant or client');
- await atomic(db,actor,[stmt(db,'INSERT INTO s_members VALUES(?,?,?,?) ON CONFLICT(email) DO UPDATE SET name=excluded.name,role=excluded.role,active=excluded.active',email,name,body.role,body.active===false?0:1),audit(db,actor,'member.saved',email,body.role)]);
- return {email,name,role:body.role,active:body.active!==false};
+ // FIRM-008: a custom role is a ceiling the principal places on a member; omitted keeps the current one, null removes it.
+ const assign='customRoleId' in body,customRoleId=assign&&body.customRoleId!==null?text(body.customRoleId,'Custom role',100):null,before=await stmt(db,'SELECT custom_role_id FROM s_members WHERE email=?',email).first<Data>();
+ if(customRoleId){
+  insist(await stmt(db,'SELECT 1 FROM s_custom_roles WHERE id=?',customRoleId).first(),'Custom role not found',404);
+  insist(body.role!=='client','A client has no staff doors for a custom role to narrow');
+  insist(!await stmt(db,"SELECT 1 FROM oa_operators WHERE lower(email)=? AND role='owner'",email).first(),'The principal’s authority cannot be narrowed by a custom role',403);
+ }
+ await atomic(db,actor,[stmt(db,'INSERT INTO s_members(email,name,role,active,custom_role_id) VALUES(?,?,?,?,?) ON CONFLICT(email) DO UPDATE SET name=excluded.name,role=excluded.role,active=excluded.active'+(assign?',custom_role_id=excluded.custom_role_id':''),email,name,body.role,body.active===false?0:1,customRoleId),audit(db,actor,'member.saved',email,body.role,{previousCustomRoleId:before?.custom_role_id??null,customRoleId:assign?customRoleId:before?.custom_role_id??null})]);
+ return {email,name,role:body.role,active:body.active!==false,customRoleId:assign?customRoleId:before?.custom_role_id??null};
 }
 export async function inviteMember(request:Request,env:Bindings,actor:Actor,body:Data) {
  human(actor);need(actor,'owner'); const member=await stmt(env.DB,'SELECT * FROM s_members WHERE email=? AND active=1',text(body.email,'Email').toLowerCase()).first<Data>();

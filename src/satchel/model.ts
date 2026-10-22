@@ -1,7 +1,8 @@
 import {matterScope} from './matter-scope';
+import type {Grants} from './custom-roles';
 import {auditQuery,type AuditActor} from './audit-record';
 export type Data = Record<string, any>;
-export type Actor = { id: string; email: string; name: string; role: 'owner' | 'lawyer' | 'assistant' | 'trust_officer' | 'billing' | 'accountant' | 'client'; channel: 'person' | 'agent'; approval?: {id: string; resultId: string} };
+export type Actor = { id: string; email: string; name: string; role: 'owner' | 'lawyer' | 'assistant' | 'trust_officer' | 'billing' | 'accountant' | 'client'; channel: 'person' | 'agent'; grants?: Grants; approval?: {id: string; resultId: string} };
 export class Fault extends Error { constructor(message: string, public status = 400) { super(message); } }
 export function insist(value: unknown, message: string, status = 400): asserts value { if (!value) throw new Fault(message, status); }
 export function text(value: unknown, label: string, max = 1000) { insist(typeof value === 'string' && value.trim().length > 0 && value.trim().length <= max, `${label} is required (maximum ${max} characters)`); return value.trim(); }

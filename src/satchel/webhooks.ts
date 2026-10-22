@@ -6,14 +6,17 @@ import {visibleDocument} from './documents';
 import {visibleDeadline} from './deadlines';
 import {sign,unseal} from './integration-secrets';
 import {agentRoles} from './role-doors';
+import {allows} from './role-areas';
+import {parseGrants} from './custom-roles';
 async function sponsor(db:D1Database,record:Data):Promise<Integration|null> {
- const o=await stmt(db,`SELECT o.*,m.role member_role FROM oa_operators o LEFT JOIN s_members m ON m.email=o.email AND m.active=1 WHERE o.id=? AND o.status='active'`,record.owner_id).first<Data>();
+ const o=await stmt(db,`SELECT o.*,m.role member_role,cr.permissions grants FROM oa_operators o LEFT JOIN s_members m ON m.email=o.email AND m.active=1 LEFT JOIN s_custom_roles cr ON cr.id=m.custom_role_id WHERE o.id=? AND o.status='active'`,record.owner_id).first<Data>();
  const role=o?.role==='owner'?'owner':o?.member_role;if(!o||!role||record.revoked||!agentRoles.includes(role))return null;
- return {record,actor:{id:o.id,email:o.email,name:o.display_name,role,channel:'agent'},scopes:JSON.parse(record.scopes),matters:JSON.parse(record.matter_ids)};
+ return {record,actor:{id:o.id,email:o.email,name:o.display_name,role,channel:'agent',...(o.role!=='owner'&&o.grants?{grants:parseGrants(o.grants)}:{})},scopes:JSON.parse(record.scopes),matters:JSON.parse(record.matter_ids)};
 }
 async function visible(db:D1Database,i:Integration,e:Data) {
  try {
   capability(i,e.kind.startsWith('proposal.')?'proposals:prepare':e.kind.startsWith('matter.')?'matters:read':e.kind.split('.')[0]+(e.kind.startsWith('finance.')?'':'s')+':read');
+  const area=e.kind.startsWith('document.')?'documents':e.kind.startsWith('finance.')?'billing':null;if(area&&!allows(i.actor,area,'read'))return false;
   await integrationMatter(db,i,e.matter_id);
   if(e.kind==='document.changed')await visibleDocument(db,i.actor,e.object_id);
   if(e.kind==='deadline.changed')await visibleDeadline(db,i.actor,e.object_id);

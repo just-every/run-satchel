@@ -8,6 +8,7 @@ import {listTasks} from './tasks';
 import {listBilling} from './billing';
 import {propose} from './proposals';
 import {agentSponsor} from './role-doors';
+import {parseGrants} from './custom-roles';
 import {randomSecret,seal} from './integration-secrets';
 export const integrationScopes=['matters:read','tasks:read','documents:read','deadlines:read','finance:read','proposals:prepare'];
 export const integrationEvents=['matter.created','matter.updated','task.changed','document.changed','deadline.changed','finance.changed','proposal.decided'];
@@ -46,9 +47,9 @@ export async function resumeIntegration(db:D1Database,actor:Actor,integrationId:
 }
 export async function integrationAuth(db:D1Database,request:Request):Promise<Integration> {
  const token=request.headers.get('authorization')?.match(/^Bearer (.+)$/)?.[1];insist(token,'An integration key is required',401);
- const r=await stmt(db,`SELECT i.*,o.email,o.display_name,o.role,m.role member_role FROM s_integrations i JOIN oa_operators o ON o.id=i.owner_id LEFT JOIN s_members m ON m.email=o.email AND m.active=1 WHERE i.digest=? AND i.revoked=0 AND o.status='active'`,await digest(token)).first<Data>();
+ const r=await stmt(db,`SELECT i.*,o.email,o.display_name,o.role,m.role member_role,cr.permissions grants FROM s_integrations i JOIN oa_operators o ON o.id=i.owner_id LEFT JOIN s_members m ON m.email=o.email AND m.active=1 LEFT JOIN s_custom_roles cr ON cr.id=m.custom_role_id WHERE i.digest=? AND i.revoked=0 AND o.status='active'`,await digest(token)).first<Data>();
  insist(r,'Invalid or revoked integration key',401);const role=r.role==='owner'?'owner':r.member_role;insist(role,'Integration sponsor no longer has access',403);agentSponsor(role);
- return {record:r,actor:{id:r.owner_id,email:r.email,name:r.display_name,role,channel:'agent'},scopes:JSON.parse(r.scopes),matters:JSON.parse(r.matter_ids)};
+ return {record:r,actor:{id:r.owner_id,email:r.email,name:r.display_name,role,channel:'agent',...(r.role!=='owner'&&r.grants?{grants:parseGrants(r.grants)}:{})},scopes:JSON.parse(r.scopes),matters:JSON.parse(r.matter_ids)};
 }
 export function capability(i:Integration,scope:string) {insist(i.scopes.includes(scope),'Integration capability refused',403);}
 export async function integrationMatter(db:D1Database,i:Integration,matterId:string) {insist(i.matters.includes(matterId),'Matter not found',404);return matter(db,i.actor,matterId);}
@@ -65,7 +66,7 @@ export async function integrationRecords(db:D1Database,i:Integration,matterId:st
  insist(['tasks','documents','deadlines','finance'].includes(kind),'Unknown resource',404);capability(i,kind+':read');await integrationMatter(db,i,matterId);
  const data=kind==='tasks'?await listTasks(db,i.actor,matterId):kind==='documents'?await listDocuments(db,i.actor,matterId):kind==='deadlines'?await listDeadlines(db,i.actor,matterId):await listBilling(db,i.actor,matterId);
  if(kind!=='finance')return page(data as Data[],query);
- const billing=data as Data,entries=await rows(db,'SELECT e.* FROM s_trust_entries e JOIN s_trust_ledgers l ON l.id=e.ledger_id WHERE l.matter_id=?',matterId);
+ const billing=data as Data,entries=i.actor.grants&&i.actor.grants.bank!=='full'?[]:await rows(db,'SELECT e.* FROM s_trust_entries e JOIN s_trust_ledgers l ON l.id=e.ledger_id WHERE l.matter_id=?',matterId);
  return page([...billing.bills.map((b:Data)=>({...b,resource:'bill'})),...billing.entries.map((e:Data)=>({...e,resource:'entry'})),...entries.map(e=>({...e,resource:'trust-entry'}))],query);
 }
 export async function integrationPrepare(db:D1Database,i:Integration,kind:string,body:Data,requestKey:string) {
