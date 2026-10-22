@@ -6,7 +6,7 @@ export function formatInvoice(terms:Data,ordinal:number,year:string){
  return [terms.prefix,terms.year?year:'',String(ordinal).padStart(terms.padding,'0')].filter(Boolean).join(terms.separator);
 }
 export async function invoiceSettings(db:D1Database,actor:Actor){
- human(actor);need(actor,'owner','lawyer');
+ human(actor);need(actor,'owner','lawyer','billing');
  const counter=await invoiceCounter(db);
  return {counter,schemes:(await rows(db,'SELECT * FROM s_invoice_schemes ORDER BY version')).map(s=>({...s,terms:JSON.parse(s.terms)}))};
 }

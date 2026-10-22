@@ -6,9 +6,14 @@ import {documentAccess,visibleDocument} from './documents';
 export async function trustOfficer(db:D1Database,actor:Actor){
  human(actor);insist(await stmt(db,"SELECT 1 FROM s_members WHERE email=? AND role='trust_officer' AND active=1",actor.email).first(),'A designated trust officer must authorize this action',403);
 }
+// FIRM-002: accountants reconcile and read the records; only designated trust officers authorize.
+export async function trustReconciler(db:D1Database,actor:Actor){
+ human(actor);insist(await stmt(db,"SELECT 1 FROM s_members WHERE email=? AND role IN('trust_officer','accountant') AND active=1",actor.email).first(),'A designated trust officer or accountant must view or reconcile trust records',403);
+}
+export const reconcilerGuard=(db:D1Database,actor:Actor)=>guard(db,"EXISTS(SELECT 1 FROM s_members WHERE email=? AND role IN('trust_officer','accountant') AND active=1)",actor.email);
 export const officerGuard=(db:D1Database,actor:Actor)=>guard(db,"EXISTS(SELECT 1 FROM s_members WHERE email=? AND role='trust_officer' AND active=1)",actor.email);
 export async function trustState(db:D1Database,actor:Actor){
- await trustOfficer(db,actor);
+ await trustReconciler(db,actor);
  const accounts=await rows(db,`SELECT a.*,COALESCE((SELECT SUM(e.cents) FROM s_trust_entries e WHERE e.account_id=a.id),0) balance_cents FROM s_trust_accounts a CROSS JOIN (SELECT ? email) scope_viewer WHERE ${accountWallScope('a.id','scope_viewer.email')} ORDER BY a.created_at,a.id`,actor.email);
  const ledgers=await rows(db,`SELECT l.*,m.title,m.matter_number,m.client,COALESCE((SELECT SUM(e.cents) FROM s_trust_entries e WHERE e.ledger_id=l.id),0) balance_cents,(${availabilitySql('l.id',"''")}) available_cents FROM s_trust_ledgers l JOIN s_matters m ON m.id=l.matter_id WHERE (${matterScope('l.matter_id', actor.channel === 'agent' ? "'agent'" : "'person'")}) ORDER BY l.created_at,l.id`,actor.role,actor.email);
  const allowed=JSON.stringify(ledgers.map(l=>l.id));

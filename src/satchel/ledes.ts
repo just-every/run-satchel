@@ -50,7 +50,7 @@ export async function billLedes(db:D1Database,billId:string) {
 }
 
 async function ledesBill(db:D1Database,actor:Actor,billId:string) {
- need(actor,'owner','lawyer');human(actor);
+ need(actor,'owner','lawyer','billing');human(actor);
  const bill=await stmt(db,'SELECT b.*,l.invoice_number,l.artifact AS ledes_artifact,l.artifact_digest AS ledes_digest FROM s_bills b JOIN s_bill_ledes l ON l.bill_id=b.id WHERE b.id=?',billId).first<Data>();
  insist(bill,'This bill has no LEDES invoice',404);
  const seen=await stmt(db,`SELECT 1 FROM s_matters m WHERE m.id=? AND (${matterScope('m.id', actor.channel === 'agent' ? "'agent'" : "'person'")})`,bill.matter_id,actor.role,actor.email).first();

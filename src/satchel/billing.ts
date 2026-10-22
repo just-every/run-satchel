@@ -127,7 +127,7 @@ export async function listBilling(db: D1Database, actor: Actor, matterId: string
 }
 
 export async function prepareBill(db: D1Database, actor: Actor, matterId: string, body: Data) {
- need(actor,'owner','lawyer'); const m = await matter(db,actor,matterId);
+ need(actor,'owner','lawyer','billing'); const m = await matter(db,actor,matterId);
  insist(Array.isArray(body.entryIds) && body.entryIds.length > 0 && body.entryIds.length <= 100, 'Select between 1 and 100 entries');
  const ids = body.entryIds.map((v: unknown) => text(v,'Entry ID',100));
  insist(new Set(ids).size === ids.length, 'Select each entry only once');
@@ -178,7 +178,7 @@ export async function approveBill(db: D1Database, actor: Actor, billId: string, 
 }
 
 export async function exportBill(db: D1Database, actor: Actor, billId: string): Promise<Response> {
- need(actor,'owner','lawyer'); human(actor); const bill = await getBill(db,actor,billId);
+ need(actor,'owner','lawyer','billing'); human(actor); const bill = await getBill(db,actor,billId);
  const retainedVoid=bill.status==='void'?await getInvoiceVoid(db,bill.id):null;
  insist((['approved','exported'].includes(bill.status)||retainedVoid) && bill.approvedBy && bill.artifact, 'A person must approve this bill before export',409);
  if(bill.snapshot.numberingCutover&&!retainedVoid)insist(await invoiceIssue(db,bill.id),'Issue the approved bill before exporting',409);

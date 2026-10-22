@@ -3,7 +3,7 @@ import {api,Field,Form,type Row,type Run} from './common';
 
 export function InvoiceNumbering({actor,run,tick}:{actor:Row;run:Run;tick:number}){
  const [state,setState]=useState<Row>();
- useEffect(()=>{let active=true;if(['owner','lawyer'].includes(actor.role))void api('/invoice-numbering').then(s=>{if(active)setState(s);}).catch(e=>run(async()=>{throw e;}));return()=>{active=false;};},[actor.role,tick]);
+ useEffect(()=>{let active=true;if(['owner','lawyer','billing'].includes(actor.role))void api('/invoice-numbering').then(s=>{if(active)setState(s);}).catch(e=>run(async()=>{throw e;}));return()=>{active=false;};},[actor.role,tick]);
  if(!state)return null;
  const scheme=state.schemes.at(-1),terms=scheme?.terms;
  return <section className="panel" aria-label="Invoice numbering"><h2>Invoice numbering</h2>
@@ -17,7 +17,7 @@ export function InvoiceNumbering({actor,run,tick}:{actor:Row;run:Run;tick:number
 }
 
 export function InvoiceIssue({bill,actor,run}:{bill:Row;actor:Row;run:Run}){
- if(!['owner','lawyer'].includes(actor.role))return null;
+ if(!['owner','lawyer','billing'].includes(actor.role))return null;
  if(bill.issue)return <p>Invoice <strong>{bill.issue.number}</strong> · issued {bill.issue.issued_at}<br/><small>Approved CSV SHA-256: {bill.issue.approved_digest}</small><br/><a href={`/api/satchel/bills/${bill.id}/invoice.pdf`}>Download issued PDF</a></p>;
  if(bill.status!=='approved')return bill.snapshot.numberingCutover?<p>Draft ID: {bill.id} · no invoice number assigned</p>:null;
  return <button type="button" onClick={()=>run(()=>api('/invoices/issue',{bills:[{id:bill.id,revision:bill.revision}]}),'Invoice issued; exact reviewed PDF retained')}>Issue exact approved invoice</button>;

@@ -7,6 +7,7 @@ import {listDeadlines} from './deadlines';
 import {listTasks} from './tasks';
 import {listBilling} from './billing';
 import {propose} from './proposals';
+import {agentSponsor} from './role-doors';
 import {randomSecret,seal} from './integration-secrets';
 export const integrationScopes=['matters:read','tasks:read','documents:read','deadlines:read','finance:read','proposals:prepare'];
 export const integrationEvents=['matter.created','matter.updated','task.changed','document.changed','deadline.changed','finance.changed','proposal.decided'];
@@ -46,7 +47,7 @@ export async function resumeIntegration(db:D1Database,actor:Actor,integrationId:
 export async function integrationAuth(db:D1Database,request:Request):Promise<Integration> {
  const token=request.headers.get('authorization')?.match(/^Bearer (.+)$/)?.[1];insist(token,'An integration key is required',401);
  const r=await stmt(db,`SELECT i.*,o.email,o.display_name,o.role,m.role member_role FROM s_integrations i JOIN oa_operators o ON o.id=i.owner_id LEFT JOIN s_members m ON m.email=o.email AND m.active=1 WHERE i.digest=? AND i.revoked=0 AND o.status='active'`,await digest(token)).first<Data>();
- insist(r,'Invalid or revoked integration key',401);const role=r.role==='owner'?'owner':r.member_role;insist(role,'Integration sponsor no longer has access',403);
+ insist(r,'Invalid or revoked integration key',401);const role=r.role==='owner'?'owner':r.member_role;insist(role,'Integration sponsor no longer has access',403);agentSponsor(role);
  return {record:r,actor:{id:r.owner_id,email:r.email,name:r.display_name,role,channel:'agent'},scopes:JSON.parse(r.scopes),matters:JSON.parse(r.matter_ids)};
 }
 export function capability(i:Integration,scope:string) {insist(i.scopes.includes(scope),'Integration capability refused',403);}

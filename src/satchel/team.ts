@@ -4,7 +4,7 @@ export async function saveMember(db:D1Database,actor:Actor,body:Data) {
  human(actor);need(actor,'owner');
  const email=text(body.email,'Email',254).toLowerCase(),name=text(body.name,'Name',100);
  insist(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),'Enter a valid email');
- insist(['lawyer','assistant','trust_officer'].includes(body.role),'Choose lawyer, assistant or trust officer');
+ insist(['lawyer','assistant','trust_officer','billing','accountant','client'].includes(body.role),'Choose lawyer, assistant, trust officer, billing, accountant or client');
  await atomic(db,actor,[stmt(db,'INSERT INTO s_members VALUES(?,?,?,?) ON CONFLICT(email) DO UPDATE SET name=excluded.name,role=excluded.role,active=excluded.active',email,name,body.role,body.active===false?0:1),audit(db,actor,'member.saved',email,body.role)]);
  return {email,name,role:body.role,active:body.active!==false};
 }

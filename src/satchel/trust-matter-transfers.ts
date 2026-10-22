@@ -1,11 +1,11 @@
 import {matterScope} from './matter-scope';
 import {atomic,audit,id,insist,integer,now,rows,stmt,text,type Actor,type Data} from './model';
 import {guard} from './trust-guards';
-import {sourceDocument,sourceGuard,trustOfficer} from './trust';
+import {sourceDocument,sourceGuard,trustOfficer,trustReconciler} from './trust';
 import {currentDate} from './trust-transactions';
 import {activeApprovals,authorizationGuard,contextGuards,liveMatterTransferGuard,matterTransferContext,matterTransferFunds,matterTransferPosting,matterTransferSource,transferContext} from './trust-matter-transfer-context';
 export async function matterTransferState(db:D1Database,actor:Actor){
- await trustOfficer(db,actor);
+ await trustReconciler(db,actor);
  const transfers=await rows(db,`SELECT t.*,f.matter_id from_matter_id,l.matter_id to_matter_id,m.matter_number from_matter_number,n.matter_number to_matter_number,f.account_id from_account_id,l.account_id to_account_id FROM s_trust_matter_transfers t JOIN s_trust_ledgers f ON f.id=t.from_ledger_id JOIN s_trust_ledgers l ON l.id=t.to_ledger_id JOIN s_matters m ON m.id=f.matter_id JOIN s_matters n ON n.id=l.matter_id WHERE ${matterScope('f.matter_id')} AND ${matterScope('l.matter_id')} ORDER BY t.created_at,t.id`,actor.role,actor.email,actor.role,actor.email);
  for(const t of transfers){t.actions=await rows(db,"SELECT * FROM s_trust_matter_transfer_actions WHERE transfer_id=? ORDER BY at,CASE kind WHEN 'approved' THEN 0 WHEN 'submitted' THEN 1 ELSE 2 END,actor,id",t.id);t.approvals=t.actions.filter((a:Data)=>a.kind==='approved').length;t.status=['posted','cleared','not_executed','declined','submitted'].find(k=>t.actions.some((a:Data)=>a.kind===k))??(t.approvals>=t.required_approvals?'authorized':'needs_review');}
  return transfers;

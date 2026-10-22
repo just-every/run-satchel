@@ -1,5 +1,6 @@
 import { operatorAuth, runtimeBindings, type Bindings } from '../auth.server';
 import { digest, Fault, insist, need, stmt, type Actor } from './model';
+import { agentSponsor } from './role-doors';
 export async function person(request: Request, original: Bindings): Promise<Actor> {
  const env = runtimeBindings(original), url = new URL(request.url);
  insist(url.origin === env.AUTH_ORIGIN, 'Invalid host', 403);
@@ -18,6 +19,6 @@ export async function agent(request: Request, env: Bindings): Promise<Actor & {l
  const record = await stmt(env.DB, `SELECT k.label,o.id,o.email,o.display_name,o.role,m.role member_role FROM s_agent_keys k JOIN oa_operators o ON o.id=k.owner_id LEFT JOIN s_members m ON m.email=o.email AND m.active=1 WHERE k.digest=? AND k.revoked=0 AND o.status='active'`, await digest(raw)).first<any>();
  insist(record, 'Invalid or revoked agent key', 401);
  const role = record.role === 'owner' ? 'owner' : record.member_role;
- insist(role, 'This agent no longer has firm access', 403);
+ insist(role, 'This agent no longer has firm access', 403);agentSponsor(role);
  return {id:record.id,email:record.email,name:record.display_name,role,channel:'agent',label:record.label};
 }

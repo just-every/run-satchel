@@ -1,7 +1,7 @@
 import {matterScope} from './matter-scope';
 import {digest,insist,stmt,text,type Actor,type Data} from './model';
 import {guard} from './trust-guards';
-import {trustOfficer} from './trust';
+import {trustReconciler} from './trust';
 
 // Account totals must never reveal a walled subsidiary or its source evidence.
 const sourceIds=`SELECT s.source_document_id FROM s_trust_entry_sources s JOIN s_trust_entries e ON e.id=s.entry_id WHERE e.account_id=?
@@ -13,7 +13,7 @@ const accessSql=`NOT EXISTS(SELECT 1 FROM s_trust_ledgers l WHERE l.account_id=?
 function accessValues(actor:Actor,accountId:string){return [accountId,actor.role,actor.email,accountId,accountId,accountId,accountId,actor.role,actor.email,actor.email,actor.role];}
 export function accountTrustGuard(db:D1Database,actor:Actor,accountId:string){return guard(db,accessSql,...accessValues(actor,accountId));}
 export async function accountTrustAccess(db:D1Database,actor:Actor,accountId:string){
- await trustOfficer(db,actor);
+ await trustReconciler(db,actor);
  const account=await stmt(db,"SELECT * FROM s_trust_accounts WHERE id=? AND kind='trust'",text(accountId,'Trust account')).first<Data>();
  insist(account,'Trust account not found',404);
  insist(await stmt(db,`SELECT 1 WHERE ${accessSql}`,...accessValues(actor,accountId)).first(),'Full access to every subsidiary and source in this account is required',403);

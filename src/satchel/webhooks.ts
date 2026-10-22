@@ -5,9 +5,10 @@ import {integrationMatter,capability,page,type Integration} from './integrations
 import {visibleDocument} from './documents';
 import {visibleDeadline} from './deadlines';
 import {sign,unseal} from './integration-secrets';
+import {agentRoles} from './role-doors';
 async function sponsor(db:D1Database,record:Data):Promise<Integration|null> {
  const o=await stmt(db,`SELECT o.*,m.role member_role FROM oa_operators o LEFT JOIN s_members m ON m.email=o.email AND m.active=1 WHERE o.id=? AND o.status='active'`,record.owner_id).first<Data>();
- const role=o?.role==='owner'?'owner':o?.member_role;if(!o||!role||record.revoked)return null;
+ const role=o?.role==='owner'?'owner':o?.member_role;if(!o||!role||record.revoked||!agentRoles.includes(role))return null;
  return {record,actor:{id:o.id,email:o.email,name:o.display_name,role,channel:'agent'},scopes:JSON.parse(record.scopes),matters:JSON.parse(record.matter_ids)};
 }
 async function visible(db:D1Database,i:Integration,e:Data) {

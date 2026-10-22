@@ -8,7 +8,7 @@ export async function invoiceIssue(db:D1Database,billId:string){
  return stmt(db,'SELECT bill_id,number,approved_revision,approved_digest,snapshot_digest,pdf_digest,issued_by,issued_at,scheme_id FROM s_invoice_issues WHERE bill_id=?',billId).first<Data>();
 }
 export async function issueInvoices(db:D1Database,actor:Actor,b:Data){
- human(actor);need(actor,'owner','lawyer');
+ human(actor);need(actor,'owner','lawyer','billing');
  insist(Array.isArray(b.bills)&&b.bills.length>0&&b.bills.length<=50,'Select 1–50 approved bills');
  insist(new Set(b.bills.map((x:Data)=>x.id)).size===b.bills.length,'Select each bill only once');
  const counter=await invoiceCounter(db);insist(counter,'The principal must save an invoice scheme before issuing',422);
@@ -53,7 +53,7 @@ export async function issueInvoices(db:D1Database,actor:Actor,b:Data){
 }
 
 export async function invoiceFile(db:D1Database,actor:Actor,billId:string){
- human(actor);need(actor,'owner','lawyer');const bill=await stmt(db,'SELECT matter_id FROM s_bills WHERE id=?',billId).first<Data>();insist(bill,'Bill not found',404);await matter(db,actor,bill.matter_id);
+ human(actor);need(actor,'owner','lawyer','billing');const bill=await stmt(db,'SELECT matter_id FROM s_bills WHERE id=?',billId).first<Data>();insist(bill,'Bill not found',404);await matter(db,actor,bill.matter_id);
  const issue=await stmt(db,'SELECT * FROM s_invoice_issues WHERE bill_id=?',billId).first<Data>();insist(issue,'This bill has not been issued',404);
  const bytes=Uint8Array.from(atob(issue.pdf_base64),c=>c.charCodeAt(0));insist(await digest(bytes)===issue.pdf_digest,'Issued PDF integrity check failed',409);
  await atomic(db,actor,[accessGuard(db,actor,bill.matter_id),audit(db,actor,'invoice.pdf_downloaded',billId,issue.pdf_digest,{matterId:bill.matter_id})]);

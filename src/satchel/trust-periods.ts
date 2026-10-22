@@ -1,7 +1,7 @@
 import {atomic,audit,digest,id,insist,integer,now,rows,stmt,text,type Actor,type Data} from './model';
 import {documentAccess} from './documents';
 import {guard} from './trust-guards';
-import {officerGuard,sourceDocument,sourceGuard} from './trust';
+import {officerGuard,reconcilerGuard,sourceDocument,sourceGuard,trustOfficer} from './trust';
 import {currentDate} from './trust-transactions';
 import {accountTrustAccess,accountTrustGuard,buildTrustReport,clientStatement,packetData,reportInputs,reportStateGuard} from './trust-reports';
 
@@ -24,7 +24,7 @@ export async function createTrustPeriod(db:D1Database,actor:Actor,b:Data){
  const prior=await stmt(db,'SELECT * FROM s_trust_periods WHERE account_id=? AND start_date=? AND end_date=?',account.id,start,end).first<Data>();
  if(prior){insist(prior.closing_balance_cents===cents&&prior.source_document_id===source.id&&prior.source_version===source.version&&prior.source_digest===source.digest,'This statement period already has a different immutable original',409);return prior;}
  const periodId=id();
- await atomic(db,actor,[officerGuard(db,actor),accountTrustGuard(db,actor,account.id),sourceGuard(db,source,actor),evidenceAccessGuard(db,actor,source.id),
+ await atomic(db,actor,[reconcilerGuard(db,actor),accountTrustGuard(db,actor,account.id),sourceGuard(db,source,actor),evidenceAccessGuard(db,actor,source.id),
   stmt(db,'INSERT INTO s_trust_periods VALUES(?,?,?,?,?,?,?,?,?,?)',periodId,account.id,start,end,cents,source.id,source.version,source.digest,actor.email,now()),
   audit(db,actor,'trust.statement_imported',periodId,JSON.stringify({accountId:account.id,startDate:start,endDate:end,closingBalanceCents:cents,source}))]);
  return stmt(db,'SELECT * FROM s_trust_periods WHERE id=?',periodId).first<Data>();
@@ -50,7 +50,7 @@ export async function trustPeriodReport(db:D1Database,actor:Actor,periodId:strin
 }
 
 export async function signTrustPeriod(db:D1Database,actor:Actor,periodId:string,b:Data){
- const p=await periodFor(db,actor,periodId),reviewed=text(b.reportDigest,'Reviewed reconciliation digest',64),last=await latestEvent(db,p.id);
+ await trustOfficer(db,actor);const p=await periodFor(db,actor,periodId),reviewed=text(b.reportDigest,'Reviewed reconciliation digest',64),last=await latestEvent(db,p.id);
  if(last?.kind==='signed'){
   const prior=await getTrustPacket(db,actor,last.packet_id);
   insist(prior.report_digest===reviewed,'Reopen this signed period before signing a corrected version',409);return prior;
@@ -75,7 +75,7 @@ export async function signTrustPeriod(db:D1Database,actor:Actor,periodId:string,
 }
 
 export async function reopenTrustPeriod(db:D1Database,actor:Actor,periodId:string,b:Data){
- const p=await periodFor(db,actor,periodId),last=await latestEvent(db,p.id),reason=text(b.reason,'Reason for reopening the signed period',2000);
+ await trustOfficer(db,actor);const p=await periodFor(db,actor,periodId),last=await latestEvent(db,p.id),reason=text(b.reason,'Reason for reopening the signed period',2000);
  insist(last,'Only a signed statement period can be reopened',409);
  const source=await sourceDocument(db,actor,b.documentId);
  if(last.kind==='reopened'){
