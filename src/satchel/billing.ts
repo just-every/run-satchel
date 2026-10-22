@@ -111,7 +111,7 @@ export async function addEntry(db: D1Database, actor: Actor, matterId: string, b
  await atomic(db,actor,[accessGuard(db,actor,matterId),pricingGuard(db,pricing),
   stmt(db,'INSERT INTO s_entries(id,matter_id,revision,kind,date,description,minutes,rate_cents,amount_cents,created_by,created_at,billable,utbms_task,utbms_activity,utbms_expense,billed_minutes,discount_bps,rate_rule_id,rate_source) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',entryId,matterId,id(),kind,workDate,description,minutes,p?.rateCents ?? null,amount,actor.email,at,(p ? p.billable : requested) ? 1 : 0,task,activity,expense,p?.billedMinutes ?? null,p?.discountBps ?? null,p?.ruleId ?? null,p?.rateSource ?? null),
   ...(expenseMeta?[...expenseGuards,expenseInsert(db,entryId,expenseMeta)]:[]),
-  budgetAlerts(db,matterId,entryId,at),audit(db,actor,'billing.entry.recorded',entryId,kind),
+  ...budgetAlerts(db,actor,matterId,entryId,at),audit(db,actor,'billing.entry.recorded',entryId,kind),
  ]);
  return {...entryRow((await stmt(db,'SELECT * FROM s_entries WHERE id=?',entryId).first<Data>())!),expense:(await expenseDetails(db,actor,[entryId])).get(entryId)??null};
 }

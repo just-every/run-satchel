@@ -55,7 +55,7 @@ export async function editReleasedEntry(db:D1Database,actor:Actor,entryId:string
    guard(db,`EXISTS(SELECT 1 FROM s_entries e WHERE e.id=? AND e.revision=? AND ${releasedSql}) AND NOT EXISTS(SELECT 1 FROM s_billing_sources WHERE entry_id=?)`,entryId,revision,entryId),
    stmt(db,'INSERT INTO s_entry_edits VALUES(?,?,?,?,?,?,?,?,?,?)',editId,entryId,revision,nextRevision,JSON.stringify(before),JSON.stringify(next),JSON.stringify(changes),reason,actor.email,at),
    stmt(db,`UPDATE s_entries SET revision=?,${Object.keys(fields).map(key=>key+'=?').join(',')} WHERE id=? AND revision=?`,nextRevision,...Object.keys(fields).map(key=>next[key]),entryId,revision),
-   budgetAlerts(db,e.matter_id,entryId,at),...(targetId===e.matter_id?[]:[budgetAlerts(db,targetId,entryId,at)]),
+   ...budgetAlerts(db,actor,e.matter_id,entryId,at),...(targetId===e.matter_id?[]:budgetAlerts(db,actor,targetId,entryId,at)),
    audit(db,actor,'billing.entry.edited',editId,reason,{matterId:targetId,reviewedRevision:revision}),
   ]);
  }catch(error){

@@ -94,6 +94,9 @@ test('BILL-015 BILL-016 prospective numbering and append-only native void/rebill
   assert.deepEqual((await h.json('/invoices/issue',nativeRequest,h.owner)).issues[0],nativeIssue,'Replaying the historical issue cannot restore a void');
   assert.equal((await h.json(base+'/billing',undefined,h.owner)).bills.find(b=>b.id===native.id).status,'void');
   const other=await open(h,'Barton second matter',m.client,'Harbor Landlord'),unrelated=await open(h,'Different client matter','Different client','Different adverse');
+  const usedBeforeEdit=(await h.json(base+'/rates',undefined,h.owner)).usedCents;
+  await h.json(base+'/budget',{cents:usedBeforeEdit+5000,alertPercent:100,note:'Review the rate correction crossing'},h.owner);
+  await h.json('/matters/'+other.id+'/budget',{cents:1000,alertPercent:80,note:'Review the moved cost crossing'},h.owner);
   const editPayload={revision:work.revision,description:'Corrected closing advice narrative',rateCents:30001,utbmsTask:'L120',utbmsActivity:'A101',reason:'Counsel reviewed the narrative, explicit rate and task coding'};
   await h.json('/entries/'+work.id+'/edit',editPayload,assistant,403);
   await h.json('/entries/'+work.id+'/edit',editPayload,'',401,{authorization:'Bearer '+key.key});
@@ -130,6 +133,13 @@ test('BILL-015 BILL-016 prospective numbering and append-only native void/rebill
   const otherState=await h.json(otherBase+'/billing',undefined,h.owner);assert.equal(otherState.entries.find(e=>e.id===cost.id).reservedBy,secondReplacement.id);
   for(const [state,entry] of [[nativeState,work],[otherState,cost]])assert.equal(state.bills.filter(b=>b.status!=='void'&&b.snapshot.lines.some(l=>l.sourceId===entry.id)).length,1);
   await h.json(otherBase+'/bills',{title:'Duplicate moved work',date:'2026-10-03',entryIds:[cost.id]},h.owner,409);
+  const alertAudit=await h.json('/audit?action=budget.alerted',undefined,h.owner);
+  assert.equal(alertAudit.total,4,'Concurrent edits, refused edits and replay never duplicate a budget alert');
+  for(const [matterId,entryId] of [[m.id,work.id],[other.id,cost.id]]){
+   const actions=alertAudit.records.filter(r=>r.matterId===matterId);
+   assert.deepEqual(new Set(actions.map(r=>r.evidence.record.level)),new Set(['threshold','exceeded']));
+   assert.ok(actions.every(r=>r.evidence.record.entry_id===entryId&&r.evidence.record.sourceEntry.id===entryId&&r.actor.email==='owner@example.test'&&r.revision==='1'));
+  }
   const editAudit=await h.json('/audit?action=billing.entry.edited',undefined,h.owner);assert.equal(editAudit.records.length,2);assert.deepEqual(new Set(editAudit.records.map(a=>a.detail)),new Set([editPayload.reason,move.reason]));assert.deepEqual(new Set(editAudit.records.map(a=>a.matterId)),new Set([m.id,other.id]));assert.ok(editAudit.records.every(a=>a.actor.email==='owner@example.test'&&a.actor.role==='owner'));
   const voidAudit=await h.json('/audit?action=invoice.voided&matterId='+m.id,undefined,h.owner);assert.equal(voidAudit.records.length,1);assert.equal(voidAudit.records[0].evidence.record.recordType,'s_invoice_voids');assert.equal(voidAudit.records[0].evidence.record.reviewed_revision,native.revision);
   const unissued=await reviewed(h,m,await draft(h,m,'Approved but not issued void'));

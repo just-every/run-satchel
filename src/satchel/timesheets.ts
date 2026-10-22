@@ -71,7 +71,7 @@ export async function postTime(db:D1Database,actor:Actor,body:Data) {
    stmt(db,"UPDATE s_time_drafts SET status='posted',entry_id=?,revision=?,updated_at=? WHERE id=?",entryId,id(),at,d.id),
    audit(db,actor,'billing.entry.recorded',entryId,JSON.stringify({kind:'time',draftId:d.id,source:d.source,billable:q.billable}),{matterId:d.matter_id}));
  }
- for(const [matterId,entryId] of last)writes.push(budgetAlerts(db,matterId,entryId,at));
+ for(const [matterId,entryId] of last)writes.push(...budgetAlerts(db,actor,matterId,entryId,at));
  if(posted.length)writes.push(audit(db,actor,'time.posted',from,JSON.stringify({from,to,entries:posted})));
  await atomic(db,actor,writes);
  return {posted:posted.length,...await timesheet(db,actor,from)};

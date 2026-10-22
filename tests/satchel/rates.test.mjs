@@ -68,7 +68,46 @@ test('TIME-003 versioned client, attorney, matter and task rates with increments
   await h.json('/matters/'+sibling.id+'/rates',undefined,lawyer,404);
 
   const audit=await h.json('/audit?matterId='+a.id,undefined,h.owner);for(const action of ['rate.rule_added','budget.set'])assert.ok(audit.records.some(r=>r.action===action),action);
+  const alertTrail=async(target=h,matterId=a.id)=>{
+   const response=await target.request('/api/satchel/audit/export?action=budget.alerted'+(matterId?'&matterId='+matterId:''),undefined,target.owner);
+   assert.equal(response.status,200);const body=await response.text();return body.trim()?body.trim().split('\n').map(JSON.parse):[];
+  };
+  const trail=await alertTrail();assert.equal(trail.length,2,'Further entries do not repeat an alert audit');
+  for(const alert of rates.alerts){
+   const event=trail.find(r=>r.objectId===alert.id),record=event.evidence.record;
+   assert.deepEqual([event.matterId,event.revision,event.actor.email,event.actor.role,event.actor.channel,event.legacy],[a.id,'1',alert.level==='threshold'?'lawyer@example.test':'owner@example.test',alert.level==='threshold'?'lawyer':'owner','person',false]);
+   assert.deepEqual([record.recordType,record.budget_id,record.level,record.used_cents,record.budget_cents,record.entry_id,record.at],['s_budget_alerts',alert.budgetId,alert.level,alert.usedCents,alert.budgetCents,alert.entryId,alert.at]);
+   assert.deepEqual([record.budget.version,record.budget.alertPercent,record.budget.note],[1,80,'Client approved budget']);
+   assert.equal(record.sourceEntry.id,alert.entryId);assert.ok(record.sourceEntry.revision);
+   assert.equal(event.evidence.context.automationPolicy.frequency,'Once per level per budget version');
+   assert.equal(event.evidence.context.outcome,'Recorded in Satchel; no email sent');
+  }
+  // Changing the budget can itself cross both levels, without inventing a source entry.
+  rates=await h.json('/matters/'+a.id+'/budget',{cents:100000,alertPercent:80,note:'Revised budget reviewed'},h.owner);
+  const changed=await alertTrail();assert.equal(changed.length,4);
+  for(const event of changed.filter(r=>r.revision==='3')){
+   assert.equal(event.evidence.record.entry_id,null);assert.equal(event.evidence.record.sourceEntry,null);
+   assert.equal(event.evidence.record.budget.note,'Revised budget reviewed');assert.equal(event.detail.trigger,'budget set');
+  }
+  assert.deepEqual(changed.filter(r=>r.revision==='1'),trail,'New budget versions never rewrite original alert evidence');
+  // Costs share the same budget check; nonbillable costs never cross a level.
+  await h.json('/matters/'+other.id+'/budget',{cents:100000,alertPercent:80,note:'Costs included'},h.owner);
+  await entry(other,{kind:'disbursement',date:'2026-11-04',amountCents:90000,billable:false});assert.equal((await alertTrail(h,other.id)).length,0);
+  const cost=await entry(other,{kind:'disbursement',date:'2026-11-04',amountCents:20000});
+  assert.deepEqual((await alertTrail(h,other.id)).map(r=>[r.evidence.record.level,r.evidence.record.sourceEntry.id,r.evidence.record.used_cents]),[['threshold',cost.id,83000]]);
+  const lastCost=await entry(other,{kind:'disbursement',date:'2026-11-04',amountCents:30000});
+  assert.equal((await alertTrail(h,other.id)).find(r=>r.evidence.record.level==='exceeded').evidence.record.sourceEntry.id,lastCost.id);
+  await h.json('/audit?action=budget.alerted',undefined,lawyer,403);
+  assert.equal((await h.request('/api/satchel/audit/export?action=budget.alerted',undefined,assistant)).status,403);
+  await h.restart();assert.deepEqual(await alertTrail(),changed,'Restart retains exact alert snapshots');
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();restored=await harness();await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);
+  assert.deepEqual(await alertTrail(restored),changed,'Archive restores each alert audit unchanged');
   assert.deepEqual(await restored.json('/matters/'+a.id+'/rates',undefined,restored.owner),rates);
+  await h.json('/matters/'+a.id+'/wall',{custodianEmail:'lawyer@example.test',members:[],reason:'Screen the budget evidence',revision:null},h.owner);
+  assert.ok((await alertTrail(h,null)).every(r=>r.matterId!==a.id),'A principal outside the wall receives no alert audit');
+  const inside=await h.json('/audit?matterId='+a.id+'&action=budget.alerted',undefined,lawyer);
+  assert.equal(inside.total,4,'The wall custodian retains the complete alert trail');
+  assert.deepEqual(new Set(inside.records.map(r=>r.objectId)),new Set(changed.map(r=>r.objectId)));
+
  }finally{await restored?.close();await h.close();}
 });

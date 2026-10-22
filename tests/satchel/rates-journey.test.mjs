@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
+import {capturePanel} from './browser-shots.mjs';
 import {chromium} from '@playwright/test';
 import {harness,open} from './harness.mjs';
 test('TIME-003 client override and future rate set at 1440px, work recorded either side, budget crossed and the alert inspected at 1440px and 390px',async()=>{
@@ -14,6 +15,21 @@ test('TIME-003 client override and future rate set at 1440px, work recorded eith
   const tab=async name=>{await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name,exact:true}).click();await page.getByRole('heading',{name,level:1,exact:true}).waitFor();};
   const done=async text=>page.getByRole('status').getByText(text,{exact:true}).waitFor();
   const shot=async name=>{assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);if(process.env.SATCHEL_SCREENSHOTS){await mkdir(process.env.SATCHEL_SCREENSHOTS,{recursive:true});await page.screenshot({path:`${process.env.SATCHEL_SCREENSHOTS}/${name}.png`,fullPage:true});}};
+  const inspectAlerts=async width=>{
+   await tab('Team & safety');
+   const audit=page.locator('section.panel',{has:page.getByRole('heading',{name:'Action audit',exact:true})}),filter=audit.locator('form');
+   await filter.getByLabel('Audit matter').selectOption(a.id);await filter.getByLabel('Exact action (optional)').fill('budget.alerted');await filter.getByRole('button',{name:'Filter action audit',exact:true}).click();
+   await audit.getByText(/^2 matching actions/).waitFor();
+   for(const summary of await audit.locator('summary').all())await summary.click();
+   assert.ok((await audit.locator('pre').allTextContents()).every(text=>text.includes('s_budget_alerts')&&text.includes('47250')&&text.includes('Once per level per budget version')));
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);
+   if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,audit,process.env.SATCHEL_SCREENSHOTS,`${width}-budget-audit`);
+   const pending=page.waitForEvent('download');await audit.getByRole('link',{name:'Download matching audit JSONL'}).click();
+   const download=await pending,chunks=[];for await(const chunk of await download.createReadStream())chunks.push(chunk);
+   const events=Buffer.concat(chunks).toString().trim().split('\n').map(JSON.parse);
+   assert.deepEqual(new Set(events.map(e=>e.evidence.record.level)),new Set(['threshold','exceeded']));
+   assert.ok(events.every(e=>e.matterId===a.id&&e.actor.role==='owner'&&e.evidence.record.used_cents===47250&&e.evidence.record.budget_cents===40000));
+  };
   const fees=()=>page.locator('section.panel',{has:page.getByRole('heading',{name:'Fee agreement and budget',exact:true})});
   const opened=async(scope,summary)=>{const d=scope.locator('details',{has:page.getByText(summary,{exact:true})});if(!await d.evaluate(e=>e.open))await d.locator('summary').click();return d;};
   await page.getByRole('heading',{level:1,name:'Matters',exact:true}).waitFor();await tab('Time & bills');await page.getByLabel('Current matter').selectOption(a.id);
@@ -38,14 +54,14 @@ test('TIME-003 client override and future rate set at 1440px, work recorded eith
   await sheet.getByRole('button',{name:'Submit week'}).click();await done('Week submitted');
   const unbilled=page.locator('section.panel',{has:page.getByRole('heading',{name:'Unbilled work',exact:true})});await unbilled.getByRole('cell',{name:'$225.00'}).waitFor();await unbilled.getByRole('cell',{name:'$247.50'}).waitFor();
   await fees().getByText('Budget $400.00 · $472.50 recorded billable · $72.50 over · alert at 50% (version 1)',{exact:true}).waitFor();
-  const alert='Budget exceeded: $472.50 of $400.00 recorded';await fees().getByRole('alert').filter({hasText:alert}).waitFor();await fees().getByRole('alert').filter({hasText:'Budget alert threshold reached: $472.50 of $400.00 recorded'}).waitFor();await shot('1440-rates-alert');
+  const alert='Budget exceeded: $472.50 of $400.00 recorded';await fees().getByRole('alert').filter({hasText:alert}).waitFor();await fees().getByRole('alert').filter({hasText:'Budget alert threshold reached: $472.50 of $400.00 recorded'}).waitFor();await shot('1440-rates-alert');await inspectAlerts(1440);
 
   // The same agreement, charges and alert on a phone.
   const phone=await browser.newContext({viewport:{width:390,height:844},ignoreHTTPSErrors:true,storageState:await desktop.storageState()});await desktop.close();
   page=await phone.newPage();page.on('pageerror',e=>errors.push(String(e)));page.setDefaultTimeout(15000);await page.goto(h.origin+'/app');
   await page.getByRole('heading',{level:1,name:'Matters',exact:true}).waitFor();await tab('Time & bills');await page.getByLabel('Current matter').selectOption(a.id);
   await fees().getByRole('alert').filter({hasText:alert}).waitFor();await fees().getByRole('article',{name:'Rate Client Harper family from 2026-10-01'}).waitFor();
-  await page.locator('section.panel',{has:page.getByRole('heading',{name:'Unbilled work',exact:true})}).getByRole('cell',{name:'$247.50'}).waitFor();await shot('390-rates-alert');
+  await page.locator('section.panel',{has:page.getByRole('heading',{name:'Unbilled work',exact:true})}).getByRole('cell',{name:'$247.50'}).waitFor();await shot('390-rates-alert');await inspectAlerts(390);
   const entries=(await h.json('/matters/'+a.id+'/billing',undefined,h.owner)).entries;assert.deepEqual(entries.map(e=>[e.date,e.minutes,e.billedMinutes,e.rateCents,e.amountCents,e.rateSource]),[['2026-10-30',50,54,25000,22500,'rule'],['2026-11-01',50,54,27500,24750,'rule']]);
   assert.deepEqual(errors,[]);
  }finally{await browser.close();await h.close();}

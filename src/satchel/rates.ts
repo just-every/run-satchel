@@ -2,6 +2,7 @@
 // Rules and budgets are append-only versions; an entry stores the price resolved
 // when it was recorded, so later rate changes never reprice work or issued bills.
 import {atomic,audit,date,human,id,insist,integer,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
+import {auditQuery} from './audit-record';
 import {accessGuard,guard} from './trust-guards';
 
 export type Pricing={rules:Data[];firmRateCents:number;firmIncrement:number;firmKey:string};
@@ -43,12 +44,20 @@ export function price(p:Pricing,w:Work):Price {
 // Each level alerts once per budget version, in the same transaction as the recording
 // that crossed it: threshold when used × 100 ≥ budget × alert percent; exceeded when
 // used > budget. Used is every billable entry's recorded USD cents (time and costs).
-export function budgetAlerts(db:D1Database,matterId:string,entryId:string|null,at:string) {
- return stmt(db,`INSERT INTO s_budget_alerts(id,budget_id,matter_id,level,used_cents,budget_cents,entry_id,at)
-  SELECT lower(hex(randomblob(16))),b.id,b.matter_id,lv.level,u.used,b.cents,?,? FROM (SELECT * FROM s_matter_budgets WHERE matter_id=? ORDER BY version DESC LIMIT 1) b
-  JOIN (SELECT 'threshold' level UNION ALL SELECT 'exceeded') lv JOIN (SELECT COALESCE(SUM(amount_cents),0) used FROM s_entries WHERE matter_id=? AND billable=1) u
-  WHERE ((lv.level='threshold' AND u.used*100>=b.cents*b.alert_percent) OR (lv.level='exceeded' AND u.used>b.cents))
-  AND NOT EXISTS(SELECT 1 FROM s_budget_alerts a WHERE a.budget_id=b.id AND a.level=lv.level)`,entryId,at,matterId,matterId);
+export function budgetAlerts(db:D1Database,actor:Actor,matterId:string,entryId:string|null,at:string) {
+ return ['threshold','exceeded'].flatMap(level=>{
+  const alertId=id(),event=auditQuery(actor,'budget.alerted',alertId,JSON.stringify({matterId,entryId,trigger:entryId?'entry recorded or changed':'budget set'}),{
+   automationPolicy:{used:'Recorded cents of every billable entry on the matter',threshold:'used × 100 >= budget × alert percent',exceeded:'used > budget',frequency:'Once per level per budget version'},
+   outcome:'Recorded in Satchel; no email sent',
+  });
+  return [stmt(db,`INSERT INTO s_budget_alerts(id,budget_id,matter_id,level,used_cents,budget_cents,entry_id,at)
+   SELECT ?,b.id,b.matter_id,?,u.used,b.cents,?,? FROM (SELECT * FROM s_matter_budgets WHERE matter_id=? ORDER BY version DESC LIMIT 1) b
+   JOIN (SELECT COALESCE(SUM(amount_cents),0) used FROM s_entries WHERE matter_id=? AND billable=1) u
+   WHERE ${level==='threshold'?'u.used*100>=b.cents*b.alert_percent':'u.used>b.cents'}
+   AND NOT EXISTS(SELECT 1 FROM s_budget_alerts a WHERE a.budget_id=b.id AND a.level=?)`,alertId,level,entryId,at,matterId,matterId,level),
+   // A fresh id binds this audit to this insertion, including retries and no-op checks.
+   stmt(db,event.sql+' WHERE EXISTS(SELECT 1 FROM s_budget_alerts WHERE id=?)',...event.params,alertId)];
+ });
 }
 
 const ruleJson=(r:Data)=>({id:r.id,scope:r.scope,client:r.scope==='client'?r.scope_key:null,matterId:r.scope==='matter'?r.scope_key:null,timekeeperEmail:r.timekeeper_email,utbmsTask:r.utbms_task,effectiveFrom:r.effective_from,rateCents:r.rate_cents,incrementMinutes:r.increment_minutes,discountBps:r.discount_bps,billable:r.billable===1,note:r.note,createdBy:r.created_by,createdAt:r.created_at});
@@ -93,6 +102,6 @@ export async function setBudget(db:D1Database,actor:Actor,matterId:string,body:D
  const budgetId=id(),at=now();
  await atomic(db,actor,[accessGuard(db,actor,matterId),
   stmt(db,'INSERT INTO s_matter_budgets(id,matter_id,version,cents,alert_percent,note,created_by,created_at) SELECT ?,?,COALESCE(MAX(version),0)+1,?,?,?,?,? FROM s_matter_budgets WHERE matter_id=?',budgetId,matterId,cents,percent,note,actor.email,at,matterId),
-  budgetAlerts(db,matterId,null,at),audit(db,actor,'budget.set',budgetId,JSON.stringify({matterId,cents,alertPercent:percent}),{matterId})]);
+  ...budgetAlerts(db,actor,matterId,null,at),audit(db,actor,'budget.set',budgetId,JSON.stringify({matterId,cents,alertPercent:percent}),{matterId})]);
  return matterRates(db,actor,matterId);
 }
