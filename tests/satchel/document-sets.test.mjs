@@ -120,6 +120,7 @@ test('controlled production pins originals, removes whole-page content, freezes 
   assert.equal((await h.request('/api/satchel'+door+'/file',undefined,h.owner)).status,404);assert.deepEqual(await h.json(base+'/productions',undefined,h.owner),[]);
   // The later erasure journal also fences an earlier archive that still held a packet.
   const journal=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();
+  assert.ok(!journal.includes('Reviewed each source, redacted page, privilege log and intended recipient'));assert.ok(!journal.includes('Withdraw before export'));
   await restored.close();restored=await harness();await restored.json('/restore',{archive,journal,confirm:'RESTORE'},restored.owner,409);
   await restored.json('/restore',{archive:journal,confirm:'RESTORE'},restored.owner);
   assert.equal((await restored.request('/api/satchel'+door+'/file',undefined,restored.owner)).status,404);
