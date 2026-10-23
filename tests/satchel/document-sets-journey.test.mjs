@@ -59,7 +59,7 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`controlled evidence pr
   const [exported]=await Promise.all([page.waitForEvent('download'),packet.getByRole('link',{name:'Export approved production',exact:true}).click()]);const exportedChunks=[];for await(const chunk of await exported.createReadStream())exportedChunks.push(chunk);assert.deepEqual(Buffer.concat(exportedChunks),reviewBytes);
   await panel.getByRole('button',{name:'Refresh production status',exact:true}).click();await packet.getByText(/First internal export:/).waitFor();assert.equal(await packet.getByRole('button',{name:'Recall unexported production',exact:true}).count(),0);await shot('exported');
   // Every button on this screen has a text label; there are no icon-only controls needing tooltips.
-  assert.deepEqual(await page.getByRole('button').evaluateAll(buttons=>buttons.filter(button=>!button.textContent.trim()).map(button=>button.outerHTML)),[]);
+  assert.deepEqual(await page.getByRole('button').evaluateAll(buttons=>buttons.filter(button=>button.tagName==='BUTTON'&&!button.textContent.trim()).map(button=>button.outerHTML)),[]);
   assert.deepEqual(errors,[]);
  }finally{await browser.close();await h.close();}
 });

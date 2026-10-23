@@ -51,3 +51,51 @@ Ambiguous clock times during a daylight-saving transition use the earlier instan
 In **Documents**, create matter folders and select documents to file together. A bulk preview shows each original, its versions, present and proposed folder, tags and document type, and who may read it. Apply the reviewed preview to change metadata; an intervening version or metadata change requires a fresh preview. Filing retains the same document IDs, original bytes and version links.
 
 Folder counts, tag/type totals, saved-filter counts and duplicate warnings include only documents you can currently read. A duplicate warning identifies matching original hashes without replacing either original. Private documents keep their existing readers when filed into a folder.
+
+## Prepare an internal evidence production
+
+The principal or a lawyer opens **Evidence productions** in Documents. Enter the intended recipient, a Bates prefix of uppercase letters, digits and hyphens, and the first number. Expand each source and choose **Produce PDF**, **Withhold entire original**, or **Do not select**. Enter a privilege label. For redaction, list whole page numbers separated by commas and give a reason; withheld originals also require a reason.
+
+Choose **Prepare production**. Review the source versions, Bates range, manifest and privilege log, then download the review packet. Each produced PDF has its own hash; the ZIP includes manifest.json and privilege-log.json. A redacted page is a new black page with a Bates footer: its source content is not copied. Unredacted originals remain separately available through the original-file door.
+
+Enter a counsel review note and choose **Approve exact production** before exporting the packet. Approval binds the exact ZIP hash. Bates labels are never reused within a matter, including recalled packets. The current limits are 20 source documents, 500 produced pages and 1 MiB for the complete ZIP; output accepts PDF originals, while withholding can reference any retained original format.
+
+**Recall unexported production** withdraws a draft or approved packet before internal export. **Refresh production status** reads the first internal export timestamp. This is an internal counsel workflow: it creates no external share, sends no email, and does not prove recipient delivery. External delivery and recall of unopened recipient shares remain unavailable.
+
+Every current source must remain readable before review, approval or export. Erasing any source removes the entire derived production packet and manifest. The principal alone can inspect the new production decision audit.
+
+## Review a native medical chronology
+
+The principal records the health-data authorization and reviewed native storage and processing agreement references under **Medical and bill chronologies**, with explicit confirmation. No external processor is configured. This conservative default permits only the principal to import, publish or inspect chronology decision audits, pending policy approval.
+
+Upload the received PDFs as **Uploader and principal only**, using the principal's own account. Chronology imports refuse shared originals and private originals uploaded by another person. Prepare a JSON record file containing an array of transcribed source entries in this format:
+
+```json
+[
+  {
+    "documentId": "<retained private PDF document id>",
+    "version": 1,
+    "page": 1,
+    "kind": "treatment",
+    "provider": "Clinic",
+    "date": "2026-01-01",
+    "treatment": "Reviewed visit description"
+  },
+  {
+    "documentId": "<retained private PDF document id>",
+    "version": 1,
+    "page": 2,
+    "kind": "bill",
+    "provider": "Clinic",
+    "date": "2026-01-01",
+    "treatment": "Received bill charge",
+    "chargeCents": 2000
+  }
+]
+```
+
+Choose **Chronology record file**, enter the packet's reported bill total in USD cents and the record interval threshold, then choose **Import chronology records**. A file contains at most 200 entries and may be at most 1 MiB. Page numbers must exist in the retained PDF version. Treatment descriptions are counsel's transcription, not an automated medical conclusion.
+
+Review the date-ordered entries and each source citation, the gross and reported bill totals and their difference. Equal provider, date and charge values flag a possible overlapping bill; nothing is excluded automatically. A long interval flags the space between received treatment records, not a conclusion about missing care or causation.
+
+For every candidate choose explicitly whether to keep the charge or exclude it from the reconciled total, and record the reason. Enter the counsel publication review and choose **Publish reviewed chronology**. Publication freezes those decisions and shows the reconciled total and its difference from the reported total; it grants no external access. Originals remain unchanged. Erasing any cited source removes its chronology snapshot and review, and disposal records the derivative count.
