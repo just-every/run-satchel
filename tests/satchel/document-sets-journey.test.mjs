@@ -34,3 +34,32 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`DOC-004 file mixed ori
   assert.deepEqual(errors,[]);
  }finally{await browser.close();await h.close();}
 });
+
+for(const [width,height] of [[1440,1000],[390,844]])test(`controlled evidence production review, whole-page redaction, exact approval and export at ${width}px`,async()=>{
+ const {PDFDocument,StandardFonts}=await import('pdf-lib'),{unzipSync,strFromU8}=await import('fflate');
+ const h=await harness(),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});
+ try{
+  const m=await open(h,'Controlled production'),pdf=await PDFDocument.create(),font=await pdf.embedFont(StandardFonts.Helvetica);
+  for(const line of ['Public evidence','synthetic-satchel-4 privileged page']){const p=pdf.addPage([400,500]);p.drawText(line,{x:30,y:400,font,size:12});}
+  const original=Buffer.from(await pdf.save());
+  const source=await h.json('/matters/'+m.id+'/documents',{name:'Evidence.pdf',mime:'application/pdf',visibility:'matter',contentBase64:original.toString('base64')},h.owner);
+  const context=await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true,acceptDownloads:true}),page=await context.newPage(),errors=[];page.setDefaultTimeout(15000);page.on('pageerror',e=>errors.push(String(e)));
+  await page.goto(h.origin+'/signin');await page.getByLabel('Email').fill('owner@example.test');await page.getByRole('button',{name:'Email a sign-in link'}).click();await page.getByText('a sign-in link is on its way').waitFor();
+  const mail=h.mails.toReversed().find(m=>m.to.includes('owner@example.test')),link=(mail.text??mail.html).match(/https:\/\/[^\s"<]+\/auth\/confirm\?token=[^\s"&<]+/)[0];await page.goto(link);await page.getByRole('button',{name:'Confirm',exact:true}).click();await page.waitForURL(/\/setup/);await page.getByLabel('Your name').fill('Avery Barton');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup'}).click();await page.waitForURL(/\/app/);await page.getByRole('heading',{level:1,name:'Firm',exact:true}).waitFor();
+  await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Documents',exact:true}).click();await page.getByLabel('Current matter').selectOption(m.id);
+  const panel=page.getByRole('region',{name:'Evidence productions',exact:true}),prepare=form(panel,'Prepare production');
+  await prepare.getByLabel('Intended recipient name',{exact:true}).fill('Opposing counsel');await prepare.getByLabel('Intended recipient email',{exact:true}).fill('counsel@example.test');await prepare.getByLabel('Bates prefix',{exact:true}).fill('SYN-');
+  await prepare.locator('summary').filter({hasText:'Evidence.pdf'}).click();await prepare.getByLabel('Production choice for Evidence.pdf',{exact:true}).selectOption('produce');
+  await prepare.getByLabel('Privilege label for Evidence.pdf',{exact:true}).fill('Work product');await prepare.getByLabel('Whole pages to redact in Evidence.pdf (comma separated)',{exact:true}).fill('2');await prepare.getByLabel('Withholding or redaction reason for Evidence.pdf',{exact:true}).fill('Attorney strategy');
+  const shot=async name=>{assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0,`Production fits ${width}px`);if(process.env.SATCHEL_SCREENSHOTS){await mkdir(process.env.SATCHEL_SCREENSHOTS,{recursive:true});await panel.screenshot({path:`${process.env.SATCHEL_SCREENSHOTS}/${width}-production-${name}.png`});}};
+  await shot('selection');await prepare.getByRole('button',{name:'Prepare production',exact:true}).click();await notice(page,'Production prepared for counsel review');
+  const packet=panel.locator('article.record');await packet.getByRole('heading',{name:'Production for Opposing counsel'}).waitFor();await packet.getByText('Manifest and privilege log',{exact:true}).click();await packet.getByText('Whole pages redacted: 2',{exact:true}).waitFor();await packet.getByText('SYN-00000001 through SYN-00000002 · Privilege: Work product',{exact:true}).waitFor();await shot('review');
+  const [review]=await Promise.all([page.waitForEvent('download'),packet.getByRole('link',{name:'Download review packet',exact:true}).click()]);const chunks=[];for await(const chunk of await review.createReadStream())chunks.push(chunk);const reviewBytes=Buffer.concat(chunks),manifest=JSON.parse(strFromU8(unzipSync(reviewBytes)['manifest.json']));assert.deepEqual(manifest.items[0].redactedPages,[2]);assert.equal(manifest.items[0].documentId,source.id);
+  const approval=form(packet,'Approve exact production');await approval.getByLabel('Counsel review note',{exact:true}).fill('Reviewed source, redaction, Bates, privilege and intended recipient');await approval.getByRole('button',{name:'Approve exact production',exact:true}).click();await notice(page,'Exact production approved for internal export');
+  const [exported]=await Promise.all([page.waitForEvent('download'),packet.getByRole('link',{name:'Export approved production',exact:true}).click()]);const exportedChunks=[];for await(const chunk of await exported.createReadStream())exportedChunks.push(chunk);assert.deepEqual(Buffer.concat(exportedChunks),reviewBytes);
+  await panel.getByRole('button',{name:'Refresh production status',exact:true}).click();await packet.getByText(/First internal export:/).waitFor();assert.equal(await packet.getByRole('button',{name:'Recall unexported production',exact:true}).count(),0);await shot('exported');
+  // Every button on this screen has a text label; there are no icon-only controls needing tooltips.
+  assert.deepEqual(await page.getByRole('button').evaluateAll(buttons=>buttons.filter(button=>!button.textContent.trim()).map(button=>button.outerHTML)),[]);
+  assert.deepEqual(errors,[]);
+ }finally{await browser.close();await h.close();}
+});

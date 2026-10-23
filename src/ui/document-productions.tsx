@@ -28,6 +28,7 @@ export function DocumentProductions({matterId,actor,documents,run,tick}:{matterI
     <Field label={'Withholding or redaction reason for '+d.title} name={d.id+'.reason'} required={false}/>
    </details>)}
   </Form>
+  <button className="quiet" onClick={()=>run(async()=>{setPackets(await api('/matters/'+matterId+'/productions'));},'Production status refreshed')}>Refresh production status</button>
   {packets.map(p=><article className="record" key={p.id}><h3>Production for {p.snapshot?.recipient.name??'Erased source'}</h3>
    <p>{p.status} · {p.size} bytes</p><p className="document-hash">Packet SHA-256 {p.sha256}</p>
    {p.snapshot&&<><p>Intended recipient: {p.snapshot.recipient.email}</p><p>{p.snapshot.scope}</p>
