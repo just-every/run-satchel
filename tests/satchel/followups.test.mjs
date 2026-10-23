@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {harness} from './harness.mjs';
 const hour=60*60000,minute=60000;
+// Deliveries run at the first 09:00 UTC at or after a due time: outside the 22:00-06:00 quiet hours, whatever the hour the suite runs.
+const daytime=at=>{const d=new Date(at);d.setUTCHours(9,0,0,0);if(d.getTime()<at)d.setUTCDate(d.getUTCDate()+1);return d.getTime();};
 const lead=(h,body,cookie)=>h.json('/leads',{name:'Prospect',summary:'Estate planning question',referralSource:'Website',assignedEmail:'lawyer@example.test',...body},cookie);
 const mailsTo=(h,email)=>h.mails.filter(m=>m.to.includes(email));
 test('INTAKE-008 consented bounded follow-ups: authority, consent, quiet hours, contact limit, reply/opt-out/conflict/decline stops, restart and merge never supply consent',async()=>{
@@ -36,22 +38,22 @@ test('INTAKE-008 consented bounded follow-ups: authority, consent, quiet hours, 
   const stopped=await h.json('/leads/'+prospect.id+'/followup-events',{kind:'reply',note:'Elena replied asking for a call on Thursday'},assistant,404);
   const replied=await h.json('/leads/'+prospect.id+'/followup-events',{kind:'reply',note:'Elena replied asking for a call on Thursday'},lawyer);
   assert.equal(replied.followups[0].status,'stopped');assert.equal(replied.followups[0].stopReason,'reply');assert.equal(replied.followups[0].humanOwner,'lawyer@example.test');assert.match(replied.followups[0].nextAction,/Respond to the prospect/);
-  await h.restart();await h.scheduled(second+hour*24*30);assert.equal(mailsTo(h,'elena@example.test').length,1,'Later sends stop after the restart');
+  await h.restart();await h.scheduled(daytime(second+hour*24*30));assert.equal(mailsTo(h,'elena@example.test').length,1,'Later sends stop after the restart');
   const after=await h.json('/leads/'+prospect.id+'/followups',undefined,lawyer),detail=await h.json('/leads/'+prospect.id,undefined,lawyer);
   assert.equal(after.followups[0].sends.at(-1).status,'cancelled');assert.equal(after.followups[0].humanOwner,'lawyer@example.test');assert.match(detail.nextAction,/Respond to the prospect/);assert.ok(detail.history.some(e=>e.kind==='followup_stopped'));
   // Prospect opt-out through the message link revokes consent and stops the sequence for good.
   const optLead=await lead(h,{name:'Opal Out',email:'opal@example.test'},h.owner);await h.json('/leads/'+optLead.id+'/consents',{channel:'email',source:'Web form checkbox',text:'Agreed'},h.owner);
   const optStart=(await h.json('/leads/'+optLead.id+'/followups',{kind:'unanswered_inquiry'},h.owner)).followups[0],due=Date.parse(optStart.sends[0].dueAt);
-  await h.scheduled(due+10*hour);const link=mailsTo(h,'opal@example.test')[0].text.match(/followup\/([0-9a-f-]+)\/([0-9a-f]{64})/);assert.ok(link);
+  await h.scheduled(daytime(due));const link=mailsTo(h,'opal@example.test')[0].text.match(/followup\/([0-9a-f-]+)\/([0-9a-f]{64})/);assert.ok(link);
   assert.equal((await h.request('/api/satchel/followups/'+link[1]+'/opt-out/'+'0'.repeat(64),{})).status,404);assert.equal((await h.request('/api/satchel/followups/'+link[1]+'/opt-out/'+link[2],{},'',{origin:'https://evil.example'})).status,403);
   assert.equal((await h.request('/api/satchel/followups/'+link[1]+'/opt-out/'+link[2],{})).status,200);
-  const opted=await h.json('/leads/'+optLead.id+'/followups',undefined,h.owner);assert.ok(opted.consents[0].revokedAt);assert.equal(opted.followups[0].stopReason,'opt_out');await h.scheduled(due+60*24*hour);assert.equal(mailsTo(h,'opal@example.test').length,1);
+  const opted=await h.json('/leads/'+optLead.id+'/followups',undefined,h.owner);assert.ok(opted.consents[0].revokedAt);assert.equal(opted.followups[0].stopReason,'opt_out');await h.scheduled(daytime(due+60*24*hour));assert.equal(mailsTo(h,'opal@example.test').length,1);
   await h.json('/leads/'+optLead.id+'/followups',{kind:'unanswered_inquiry'},h.owner,409);
   // Contact limit: one message in seven days, whatever the sequences.
   const chase=await lead(h,{name:'Chase Cap',email:'chase@example.test'},h.owner);await h.json('/leads/'+chase.id+'/consents',{channel:'email',source:'Email reply',text:'Agreed'},h.owner);
   const cap=(await h.json('/leads/'+chase.id+'/followups',{kind:'engagement_chase'},h.owner)).followups[0],capStart=Date.parse(cap.sends[0].dueAt);
-  await h.scheduled(capStart+10*hour);assert.equal(mailsTo(h,'chase@example.test').length,1);await h.scheduled(Date.parse(cap.sends[1].dueAt)+10*hour);assert.equal(mailsTo(h,'chase@example.test').length,1,'The limit defers the second message');
-  await h.scheduled(capStart+8*24*hour+10*hour);assert.equal(mailsTo(h,'chase@example.test').length,2,'It is sent once the limit window passes');
+  await h.scheduled(daytime(capStart));assert.equal(mailsTo(h,'chase@example.test').length,1);await h.scheduled(daytime(Date.parse(cap.sends[1].dueAt)));assert.equal(mailsTo(h,'chase@example.test').length,1,'The limit defers the second message');
+  await h.scheduled(daytime(capStart+8*24*hour));assert.equal(mailsTo(h,'chase@example.test').length,2,'It is sent once the limit window passes');
   // Conflict and decline stops: only counsel records a conflict; a lost lead halts its sequence.
   const conflict=await lead(h,{name:'Con Flict',email:'con@example.test'},h.owner),declined=await lead(h,{name:'Dee Cline',email:'dee@example.test'},h.owner);
   for(const l of [conflict,declined]){await h.json('/leads/'+l.id+'/consents',{channel:'email',source:'Email reply',text:'Agreed'},h.owner);await h.json('/leads/'+l.id+'/followups',{kind:'unanswered_inquiry'},h.owner);}
@@ -59,6 +61,6 @@ test('INTAKE-008 consented bounded follow-ups: authority, consent, quiet hours, 
   const c=await h.json('/leads/'+conflict.id+'/followup-events',{kind:'conflict',note:'Adverse to an existing client'},lawyer);assert.equal(c.followups[0].stopReason,'conflict');assert.match(c.followups[0].nextAction,/Conflict stop/);
   await h.json('/leads/'+declined.id,{revision:(await h.json('/leads/'+declined.id,undefined,h.owner)).revision,lostReason:'Prospect declined by phone'},h.owner);
   assert.equal((await h.json('/leads/'+declined.id+'/followups',undefined,h.owner)).followups[0].stopReason,'declined');
-  await h.scheduled(Date.now()+90*24*hour);assert.equal(mailsTo(h,'con@example.test').length+mailsTo(h,'dee@example.test').length,0);
+  await h.scheduled(daytime(Date.now()+90*24*hour));assert.equal(mailsTo(h,'con@example.test').length+mailsTo(h,'dee@example.test').length,0);
  }finally{await h.close();}
 });
