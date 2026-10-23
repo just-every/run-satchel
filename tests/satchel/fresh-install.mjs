@@ -31,9 +31,9 @@ try{
   await tab('Time & bills');const work=form('Record entry');await work.getByLabel('Description').fill('Review lease and notice');await work.getByLabel('Minutes').fill('90');await work.getByRole('button',{name:'Record entry'}).click();await done('Entry recorded');await page.getByRole('cell',{name:'$450.00'}).waitFor();await check('time entry');
   const unbilled=page.locator('section.panel',{has:page.getByRole('heading',{name:'Unbilled work',exact:true})});await unbilled.getByLabel('Bill title',{exact:true}).fill('First invoice');await unbilled.getByLabel('Bill date',{exact:true}).fill('2026-10-23');await unbilled.getByRole('button',{name:'Prepare bill from all unbilled work',exact:true}).click();await done('Bill prepared. Review the exact lines below.');
   await page.getByText('$450.00').first().waitFor();await check('bill');
-  await tab('Team & safety');await page.getByRole('heading',{name:'Provider charges'}).waitFor();assert.match(await page.locator('section.providers').innerText(),/Satchel charge: none/);await check('provider charges');
+  await tab('Team & safety');await page.getByRole('heading',{name:'Provider charges'}).waitFor();await page.getByText('Satchel charge: none.').first().waitFor();assert.match(await page.locator('section.providers').innerText(),/Satchel charge: none/);await check('provider charges');
   assert.deepEqual(errors,[]);
   const hosts=[...requested].filter(h=>!/^(127\.0\.0\.1|localhost|[a-z0-9-]+\.localhost)(:\d+)?$/.test(h));lines.push('external hosts contacted by the app pages: '+(hosts.join(', ')||'none'));
  }finally{await browser.close();}
- lines.push('PASS fresh installation: '+repository);
+ lines.push('PASS fresh installation of '+repository+' at '+process.env.CANDIDATE_SHA);
 }finally{server.kill('SIGTERM');await writeFile(receipt,lines.join('\n')+'\n');}
