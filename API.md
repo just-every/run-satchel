@@ -208,14 +208,22 @@ selected version and balances before exact review; issued PDF bytes remain fixed
 Trust-balance disclosure/preparation is principal-only. Payment links/QR are
 refused until an authorized invoice payment-page door exists.
 
-`GET/POST /matters/:id/statements` lists/prepares an internal immutable consolidated
+`GET/POST /matters/:id/statements` lists/prepares an immutable consolidated
 statement. Preparation takes `requestKey` and `invoices: [{id,feeReference,
-responsibleAttorney}]`, keeps the same recorded payer, includes an invoice of the
-current matter and checks every source matter on preparation and download.
-`GET /statements/:id/pdf` rechecks current access to all members. These are staff
-preparations, not recipient grants, portal publication, delivery or recipient view
-receipts. Unsupported correction detail refuses and existing client portal rights
-are unchanged.
+responsibleAttorney}]`, retains recorded attribution and issued corrections,
+keeps the same recorded payer and checks every selected matter.
+`GET /statements/:id/pdf` rechecks staff access to all member matters.
+`POST /statements/:id/publish` requires principal authority, `email`, `reason`,
+`requestKey`, `reviewed: true` and the exact `pdfDigest`. The recipient must have
+verified native client/payer financial grants on every member matter; the
+publication binds their current grant IDs. Changed finances require a new
+statement before publication. `POST /statement-recipients/:id/withdraw` takes a
+reason. Client `GET /portal/statements` and
+`GET /portal/statements/:id/pdf` recheck the bound grants and current walls;
+revocation followed by regrant never revives the old publication. Only actual
+authenticated recipient PDF access records a recipient view. Staff downloads
+are recorded separately. Retained statements are historical snapshots; their
+balances do not silently update after later financial events.
 
 Only the principal records `POST /matters/:id/late-fees` reviewed native engagement
 profiles: `scope` (matter/client), `mode` (none/simple_monthly/flat), `termsDays`,
