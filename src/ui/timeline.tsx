@@ -18,7 +18,7 @@ export function MatterTimeline({matterId,state,run,tick,go}:{matterId:string;sta
    <Field label="When it happened" name="occurredAt" type="datetime-local" required={false}/>
    <Field label="Who can read it" name="visibility"><select name="visibility" value={visibility} onChange={e=>setVisibility(e.target.value)}><option value="team">Everyone who sees this matter</option><option value="private">Only me (private)</option></select></Field>
    {counsel&&visibility==='team'&&<label><input type="checkbox" name="clientVisible"/>Share with the client</label>}
-   {visibility==='team'&&<fieldset><legend>Mention people who can see this matter</legend>{people.map((p:Row)=><label key={p.email}><input type="checkbox" checked={mentions.includes(p.email)} onChange={()=>setMentions(m=>m.includes(p.email)?m.filter(x=>x!==p.email):[...m,p.email])}/>{p.name} · {p.email}</label>)}</fieldset>}
+   {visibility==='team'&&<fieldset><legend>Mention people who can see this matter</legend>{people.map((p:Row)=><label key={p.email}><input type="checkbox" checked={mentions.includes(p.email)} onChange={()=>setMentions(m=>m.includes(p.email)?m.filter(x=>x!==p.email):[...m,p.email])}/>{p.name} ({p.email})</label>)}</fieldset>}
   </Form></details>}
  </section>;
 }
