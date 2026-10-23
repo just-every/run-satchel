@@ -142,6 +142,8 @@ export async function prepareBill(db: D1Database, actor: Actor, matterId: string
  const fee=await feeAdjustedLines(db,actor,matterId,entries,lines,body);lines=fee.lines;
  // TIME-007: a client with a billing guideline gets a coded LEDES invoice; preparation
  // refuses every line that does not conform, naming each reason.
+ let responsibleAttorney:string|undefined;const attorneyGuards:D1PreparedStatement[]=[];
+ if(body.responsibleAttorney){responsibleAttorney=text(body.responsibleAttorney,'Responsible attorney email',254).toLowerCase();const counsel=await stmt(db,"SELECT o.id,o.email,CASE WHEN o.role='owner' THEN 'owner' ELSE sm.role END role FROM oa_operators o LEFT JOIN s_members sm ON sm.email=o.email AND sm.active=1 WHERE o.email=? AND o.status='active' AND (o.role='owner' OR sm.role='lawyer')",responsibleAttorney).first<Data>();insist(counsel,'Choose an active responsible principal or lawyer');const ca={...actor,id:counsel.id,email:counsel.email,role:counsel.role,grants:undefined};await matter(db,ca,matterId);attorneyGuards.push(accessGuard(db,ca,matterId),guard(db,"EXISTS(SELECT 1 FROM oa_operators o LEFT JOIN s_members sm ON sm.email=o.email AND sm.active=1 WHERE o.email=? AND o.status='active' AND (o.role='owner' OR sm.role='lawyer'))",responsibleAttorney));}
  const g = await currentGuideline(db,m.client), title = text(body.title,'Bill title',200), billDate = date(body.date);
  let ledes: Data | undefined;
  if (g) {
@@ -154,7 +156,7 @@ export async function prepareBill(db: D1Database, actor: Actor, matterId: string
   if(g.xmlProfile){xmlText(title,'XML bill title',2048);xmlText(g.clientLedesId,'XML client ID',20);xmlText(g.lawFirmId,'XML law firm ID',20);}
   ledes.xml=await snapshotXml(db,g.xmlProfile,m.client,matterId,m.matter_number,m.title,ledes.invoiceNumber||'DRAFT',ledes.lines);
  }
- return createBill(db,actor,matterId,{title,date:billDate,currency:'USD',matterId,matterNumber:m.matter_number,matterTitle:m.title,client:m.client,lines,totalCents:sum(lines),...(fee.feePlan?{feePlan:fee.feePlan,feePeriod:fee.feePeriod,exception:fee.exception}:{}),...(ledes ? {ledes} : {})},lines,fee.guards??[]);
+ return createBill(db,actor,matterId,{title,date:billDate,currency:'USD',...(responsibleAttorney?{responsibleAttorney}:{}),matterId,matterNumber:m.matter_number,matterTitle:m.title,client:m.client,lines,totalCents:sum(lines),...(fee.feePlan?{feePlan:fee.feePlan,feePeriod:fee.feePeriod,exception:fee.exception}:{}),...(ledes ? {ledes} : {})},lines,[...attorneyGuards,...(fee.guards??[])]);
 }
 
 export async function approveBill(db: D1Database, actor: Actor, billId: string, body: Data) {
