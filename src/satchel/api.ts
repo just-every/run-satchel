@@ -1,3 +1,4 @@
+import {billingPayments,recordOfflinePayment,applyOfflineCredit,reverseOfflinePayment,requestWriteoff,approveWriteoff} from './billing-payments';
 import {searchFirm} from './search';
 import {disposeConflictWaiver,disposeConflictPayload} from './conflict-custody';
 import {conflictReview,saveConflictReview,routeConflictMatch,listConflictReferrals,decideConflictReferral,waiverFile,savedConflictSearches,removeEngagementExclusion} from './conflict-dispositions';
@@ -96,6 +97,12 @@ api.post('/api/satchel/matters/:id/wall',as(async(a,c)=>saveWall(db(c),a,param(c
 api.post('/api/satchel/ethical-walls/:id/requests',as(async(a,c)=>requestWallAccess(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/wall-requests/:id/decide',as(async(a,c)=>decideWallAccess(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/wall-emergencies/:id/revoke',as(async(a,c)=>revokeWallAccess(db(c),a,param(c),await body(c))));
+api.get('/api/satchel/matters/:id/payments',as((a,c)=>billingPayments(db(c),a,param(c))));
+api.post('/api/satchel/matters/:id/payments',as(async(a,c)=>recordOfflinePayment(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/receipts/:id/apply',as(async(a,c)=>applyOfflineCredit(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/receipts/:id/reverse',as(async(a,c)=>reverseOfflinePayment(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/bills/:id/writeoffs',as(async(a,c)=>requestWriteoff(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/writeoffs/:id/approve',as(async(a,c)=>approveWriteoff(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/invoice-numbering',as((a,c)=>invoiceSettings(db(c),a)));
 api.post('/api/satchel/invoice-numbering',as(async(a,c)=>saveInvoiceScheme(db(c),a,await body(c))));
 api.post('/api/satchel/invoice-numbering/import',as(async(a,c)=>registerImportedNumbers(db(c),a,await body(c))));
