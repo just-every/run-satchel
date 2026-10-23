@@ -8,6 +8,11 @@ let h,m,assistant,lawyer,privateDoc,sourceDoc,bill,originalCsv,oldArchive,newArc
 before(async()=>{h=await harness();m=await open(h);});
 after(async()=>{await h?.close();});
 test('native authentication, role denial, CSRF, matter membership and revocation',async()=>{
+ assert.equal(h.mails.length,1,'owner sign-in submitted to provider');
+ assert.equal((await h.request('/__dev/outbox')).status,404);
+ const session=await h.request('/auth/session',undefined,h.owner);
+ assert.equal(session.status,200);
+ assert.equal((await session.json()).operator.email,'owner@example.test');
  await h.json('/state',undefined,'',401);await h.json('/matters',{},'',401);
  await h.json('/team',{email:'assistant@example.test',name:'Case assistant',role:'assistant'},h.owner);
  await h.json('/team/invite',{email:'assistant@example.test'},h.owner);

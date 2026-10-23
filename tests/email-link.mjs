@@ -1,14 +1,8 @@
 import {queuedEntrypoint} from '@runeditrun/rer/queued-entry';
 const queued=await queuedEntrypoint(import.meta.url,'verify:email-link');if(queued!==null)process.exit(queued);
-// Exercise the emitted Worker and real email-link lifecycle at the paid provider edge.
-import assert from 'node:assert/strict';
-import {harness} from './satchel/harness.mjs';
-const h=await harness();
-try {
- assert.equal(h.mails.length,1,'owner sign-in submitted to provider');
- assert.equal((await h.request('/__dev/outbox')).status,404);
- const session=await h.request('/auth/session',undefined,h.owner);
- assert.equal(session.status,200);
- assert.equal((await session.json()).operator.email,'owner@example.test');
- console.log('Email-link sign-in passed against the emitted Worker: claim, provider submission, confirmation, session');
-}finally{await h.close();}
+// The installer keeps this entry point; Verify runs the same authentication
+// journey with the rest of the suite, without booting a second Worker harness.
+import {spawnSync} from 'node:child_process';
+const result=spawnSync(process.execPath,['--test','--test-concurrency=1','--test-name-pattern=^native authentication,','tests/satchel/flows.test.mjs'],{stdio:'inherit'});
+if(result.error)throw result.error;
+process.exit(result.status??1);
