@@ -1,0 +1,41 @@
+import {PDFDocument,StandardFonts} from 'pdf-lib';
+import {atomic,audit,digest,Fault,human,id,insist,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
+import {accessGuard,guard} from './trust-guards';
+import {invoiceFunds} from './trust-transfers';
+const staff=(a:Actor)=>{human(a);need(a,'owner','billing');};
+async function statementAccess(db:D1Database,a:Actor,statementId:string){
+ const s=await stmt(db,'SELECT * FROM s_billing_statements WHERE id=?',statementId).first<Data>();insist(s,'Statement not found',404);const members=await rows(db,'SELECT * FROM s_billing_statement_members WHERE statement_id=?',s.id);for(const m of members)await matter(db,a,m.matter_id);return {...s,snapshot:JSON.parse(s.snapshot),members};
+}
+export async function statementState(db:D1Database,a:Actor,matterId:string){
+ staff(a);const m=await matter(db,a,matterId),statements:Data[]=[];
+ for(const s of await rows(db,'SELECT DISTINCT s.id FROM s_billing_statements s JOIN s_billing_statement_members sm ON sm.statement_id=s.id WHERE sm.matter_id=? ORDER BY s.at,s.id',matterId))try{const v=await statementAccess(db,a,s.id);statements.push({id:v.id,payer:v.payer,snapshot:v.snapshot,pdfDigest:v.pdf_digest,preparedBy:v.actor,preparedAt:v.at});}catch(error){if(!(error instanceof Fault)||error.status!==404)throw error;}
+ const invoices:Data[]=[];
+ for(const b of await rows(db,"SELECT b.id,b.matter_id,b.snapshot,i.number FROM s_bills b JOIN s_invoice_issues i ON i.bill_id=b.id WHERE json_extract(b.snapshot,'$.client')=? AND b.corrects_bill_id IS NULL AND b.status IN('approved','exported') ORDER BY i.issued_at,i.number",m.client))try{const bm=await matter(db,a,b.matter_id);invoices.push({id:b.id,matterId:b.matter_id,matterNumber:bm.matter_number,matterTitle:bm.title,number:b.number});}catch(error){if(!(error instanceof Fault)||error.status!==404)throw error;}
+ return {payer:m.client,invoices,statements};
+}
+export async function prepareStatement(db:D1Database,a:Actor,matterId:string,b:Data){
+ staff(a);const m=await matter(db,a,matterId),key=text(b.requestKey,'Statement request reference',100);insist(Array.isArray(b.invoices)&&b.invoices.length>0&&b.invoices.length<=50,'Select 1–50 issued invoices');
+ const input={matterId,invoices:b.invoices.map((x:Data)=>({id:text(x.id,'Invoice ID',100),feeReference:text(x.feeReference,'Fee agreement reference',1000),responsibleAttorney:text(x.responsibleAttorney,'Responsible attorney',254).toLowerCase()}))};insist(new Set(input.invoices.map(x=>x.id)).size===input.invoices.length,'Select each invoice once');
+ const fingerprint=await digest(JSON.stringify(input)),prior=await stmt(db,'SELECT * FROM s_billing_statements WHERE request_key=?',key).first<Data>();if(prior){insist(prior.fingerprint===fingerprint,'Statement reference already records a different selection',409);const s=await statementAccess(db,a,prior.id);return {id:s.id,snapshot:s.snapshot};}
+ const revision=(await stmt(db,'SELECT revision FROM s_billing_money_revision WHERE id=1').first<Data>())!.revision,items:Data[]=[],checks:D1PreparedStatement[]=[accessGuard(db,a,matterId),guard(db,'(SELECT revision FROM s_billing_money_revision WHERE id=1)=?',revision)];
+ for(const requested of input.invoices){const bill=await stmt(db,'SELECT b.*,t.snapshot tax_snapshot,i.number FROM s_bills b JOIN s_invoice_issues i ON i.bill_id=b.id LEFT JOIN s_bill_tax_approvals t ON t.bill_id=b.id WHERE b.id=?',requested.id).first<Data>();insist(bill,'Choose an issued invoice',404);const bm=await matter(db,a,bill.matter_id),s=JSON.parse(bill.tax_snapshot??bill.snapshot);insist(s.client===m.client&&!bill.corrects_bill_id&&['approved','exported'].includes(bill.status),'Consolidate only live original invoices for this payer',409);
+  const attorney=await stmt(db,"SELECT o.id,o.email,CASE WHEN o.role='owner' THEN 'owner' ELSE sm.role END role FROM oa_operators o LEFT JOIN s_members sm ON sm.email=o.email AND sm.active=1 WHERE o.email=? AND o.status='active' AND (o.role='owner' OR sm.role='lawyer')",requested.responsibleAttorney).first<Data>();insist(attorney,'Choose an active responsible principal or lawyer');await matter(db,{...a,id:attorney.id,email:attorney.email,role:attorney.role,grants:undefined},bill.matter_id);
+  const funds=await invoiceFunds(db,bill.id);items.push({billId:bill.id,number:bill.number,matterId:bm.id,matterNumber:bm.matter_number,matterTitle:bm.title,feeReference:requested.feeReference,responsibleAttorney:requested.responsibleAttorney,templateId:s.template?.id??null,lines:s.lines,totalCents:s.totalCents,dueCents:funds.due_cents,paidCents:funds.paid_cents,writeoffCents:funds.writeoff_cents});checks.push(accessGuard(db,a,bm.id),accessGuard(db,{...a,id:attorney.id,email:attorney.email,role:attorney.role,grants:undefined},bm.id),guard(db,"EXISTS(SELECT 1 FROM oa_operators o LEFT JOIN s_members sm ON sm.email=o.email AND sm.active=1 WHERE o.email=? AND o.status='active' AND (o.role='owner' OR sm.role='lawyer'))",attorney.email));
+ }
+ insist(items.some(x=>x.matterId===matterId),'Include an invoice of the current matter');
+ const statementId=id(),at=now(),snapshot={payer:m.client,at,items,totalDueCents:items.reduce((n,x)=>n+x.dueCents,0),recipient:null,delivery:'Internal preparation only; no recipient grant, portal publication or delivery is authorized.'},pdf=await renderStatement(statementId,snapshot),pdfDigest=await digest(pdf);let binary='';for(const byte of pdf)binary+=String.fromCharCode(byte);
+ try{await atomic(db,a,[...checks,stmt(db,'INSERT INTO s_billing_statements VALUES(?,?,?,?,?,?,?,?,?)',statementId,key,fingerprint,m.client,JSON.stringify(snapshot),btoa(binary),pdfDigest,a.email,at),...items.map(x=>stmt(db,'INSERT INTO s_billing_statement_members VALUES(?,?,?)',statementId,x.billId,x.matterId)),audit(db,a,'billing.statement_prepared',statementId,'Internal consolidated statement; no recipient or delivery',{matterIds:items.map(x=>x.matterId),pdfDigest})]);}
+ catch(error){if(!(error instanceof Fault)||error.status!==409)throw error;const s=await stmt(db,'SELECT id,fingerprint FROM s_billing_statements WHERE request_key=?',key).first<Data>();if(!s||s.fingerprint!==fingerprint)throw error;const result=await statementAccess(db,a,s.id);return {id:result.id,snapshot:result.snapshot};}
+ return {id:statementId,snapshot};
+}
+async function renderStatement(statementId:string,s:Data){
+ const pdf=await PDFDocument.create(),font=await pdf.embedFont(StandardFonts.Helvetica);pdf.setCreationDate(new Date(s.at));pdf.setModificationDate(new Date(s.at));let p=pdf.addPage(),y=790;
+ const draw=(line:string)=>{if(y<45){p=pdf.addPage();y=790;}p.drawText(line,{x:45,y,size:10,font});y-=17;};const write=(v:string)=>{let line='';for(const word of v.split(/\s+/)){if(line&&font.widthOfTextAtSize(line+' '+word,10)>490){draw(line);line=word;}else line+=(line?' ':'')+word;}if(line)draw(line);};
+ write('Consolidated statement '+statementId);write('Payer: '+s.payer);write('Prepared: '+s.at);write(s.delivery);
+ for(const x of s.items){write('Invoice '+x.number+' | Matter '+x.matterNumber+' '+x.matterTitle);write('Fee agreement: '+x.feeReference+' | Responsible attorney: '+x.responsibleAttorney);for(const l of x.lines)write(l.date+' | '+l.description+' | USD '+(l.amountCents/100).toFixed(2));write('Invoice USD '+(x.totalCents/100).toFixed(2)+' | Paid USD '+(x.paidCents/100).toFixed(2)+' | Written off USD '+(x.writeoffCents/100).toFixed(2)+' | Due USD '+(x.dueCents/100).toFixed(2));}
+ write('Total due USD '+(s.totalDueCents/100).toFixed(2));return pdf.save();
+}
+export async function statementFile(db:D1Database,a:Actor,statementId:string){
+ staff(a);const s=await statementAccess(db,a,statementId),bytes=Uint8Array.from(atob(s.pdf_base64),c=>c.charCodeAt(0));insist(await digest(bytes)===s.pdf_digest,'Statement integrity check failed',409);
+ await atomic(db,a,[...s.members.map((m:Data)=>accessGuard(db,a,m.matter_id)),audit(db,a,'billing.statement_downloaded',s.id,s.pdf_digest,{matterIds:s.members.map((m:Data)=>m.matter_id),recipientView:false})]);return new Response(bytes,{headers:{'content-type':'application/pdf','content-disposition':'attachment; filename="satchel-consolidated-statement.pdf"','cache-control':'no-store'}});
+}

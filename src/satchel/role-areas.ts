@@ -20,6 +20,7 @@ export const areaRules:[RegExp,string[]][]=[
  rule('/(matters/'+seg+'/payments|receipts/'+seg+'/(apply|reverse)|bills/'+seg+'/writeoffs|writeoffs/'+seg+'/approve)',['billing']),
  rule('/matters/'+seg+'/receivables(\\.csv)?',['billing','rates:all']),
  rule('/(matters/'+seg+'/invoice-templates|invoice-templates|invoice-templates/'+seg+'/retire)',['billing']),
+ rule('/(matters/'+seg+'/statements|statements/'+seg+'/pdf)',['billing','rates:all']),
  rule('/matters/'+seg+'/rates',['rates']),
  rule('/agent/matters/'+seg,['billing','documents']),
  rule('/trust',['bank:balances']),rule('/trust/'+any,['bank']),
