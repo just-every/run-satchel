@@ -170,3 +170,34 @@ test('audit reads and raw exports require permissions for their source records',
   assert.deepEqual(statuses,Array(12).fill(403));
  }finally{await h.close();}
 });
+
+test('rate ceilings redact every source line amount while preserving own lines and bill totals',async()=>{
+ const h=await harness();try{
+  const f=await compositeCounsel(h),base=f.base;
+  await h.json('/team',{email:'assistant@example.test',name:'Assistant',role:'assistant'},h.owner);await h.json('/team/invite',{email:'assistant@example.test'},h.owner);const assistant=await h.login('assistant@example.test');await h.json(base+'/access',{email:'assistant@example.test'},h.owner);
+  const own=await h.json(base+'/entries',{kind:'time',date:'2026-10-01',description:'synthetic-satchel-3',minutes:60,rateCents:12000},assistant);
+  const draft=await h.json(base+'/bills',{title:'Reviewed services',date:'2026-10-01',entryIds:[f.entry.id,own.id]},h.owner);
+  const rule=await h.json(base+'/tax-rules',{state:'NY',jurisdiction:'Synthetic locality',rounding:'half_up',reference:'Synthetic reviewed treatment',reviewed:true,service:{eligibility:'taxable',ratePpm:50000,reference:'Synthetic service treatment'},expense:{eligibility:'exempt',ratePpm:0,reference:'Synthetic expense exemption'}},h.owner);
+  const approve=async b=>{const review=await h.json('/bills/'+b.id+'/tax-reviews',{revision:b.revision,...(b.snapshot.taxBasis?{}:{ruleId:rule.id})},h.owner);return h.json('/bills/'+b.id+'/approve',{revision:b.revision,taxReviewId:review.id,reviewNote:'Reviewed exact services and tax'},h.owner);};
+  let bill=await approve(draft);
+  assert.equal((await h.request('/api/satchel/bills/'+bill.id+'/export',undefined,h.owner)).status,200);
+  bill=(await h.json(base+'/billing',undefined,h.owner)).bills.find(b=>b.id===bill.id);
+  const correction=await h.json('/bills/'+bill.id+'/correct',{revision:bill.revision,sourceId:f.entry.id,correctedAmountCents:30000,date:'2026-10-02',reason:'Reviewed adjustment'},h.owner);
+  const corrected=await approve(correction);
+  const later=await h.json(base+'/entries',{kind:'time',date:'2026-10-03',description:'synthetic-satchel-4',minutes:60,rateCents:6000},h.owner);
+  const pending=await h.json(base+'/bills',{title:'Pending services',date:'2026-10-03',entryIds:[later.id]},h.owner);
+  await h.json('/bills/'+pending.id+'/tax-reviews',{revision:pending.revision,ruleId:rule.id},h.owner);
+  const original=await h.json(base+'/billing',undefined,h.owner);
+  const fields=['rateCents','amountCents','baseCents','currentAmountCents','priorAmountCents','correctedAmountCents','priorBaseCents','correctedBaseCents','taxCents','priorTaxCents','correctedTaxCents'];
+  const lineCopies=(value,sourceId)=>{if(Array.isArray(value))return value.flatMap(v=>lineCopies(v,sourceId));if(!value||typeof value!=='object')return [];return [...(value.sourceId===sourceId?[value]:[]),...Object.values(value).flatMap(v=>lineCopies(v,sourceId))];};
+  assert.ok(lineCopies(original,f.entry.id).some(l=>l.currentAmountCents===30000));
+  for(const mode of ['own','none']){
+   const role=await h.json('/roles',{name:'Rates '+mode,permissions:{...everything,rates:mode},reason:'Limit hourly figures'},h.owner);await assign(h,'assistant@example.test','Assistant','assistant',role.id);
+   const view=await h.json(base+'/billing',undefined,assistant),leaks=[];
+   for(const id of [f.entry.id,later.id,...(mode==='none'?[own.id]:[])])for(const line of lineCopies(view,id))for(const key of fields)if(key in line&&line[key]!==null)leaks.push(key+':'+line[key]);
+   assert.deepEqual(leaks,[]);
+   if(mode==='own')for(const line of lineCopies(view,own.id))for(const key of fields)if(key in line)assert.notEqual(line[key],null,'Own source retains '+key);
+   for(const b of [bill,corrected,pending])assert.equal(view.bills.find(v=>v.id===b.id).snapshot.totalCents,original.bills.find(v=>v.id===b.id).snapshot.totalCents);
+  }
+ }finally{await h.close();}
+});
