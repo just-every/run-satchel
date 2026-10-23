@@ -39,7 +39,7 @@ export async function importChronology(db:D1Database,actor:Actor,matterId:string
  for(const value of body.entries){
   insist(value&&typeof value==='object'&&!Array.isArray(value),'Supply a chronology record');
   const documentId=text(value.documentId,'Source document',100),version=integer(value.version,'Source version',1),key=documentId+':'+version;
-  let d=documents.get(documentId);if(!d){d=await visibleDocument(db,actor,documentId);insist(d.matter_id===matterId&&!d.erased_at,'Source document not found',404);documents.set(documentId,d);}
+  let d=documents.get(documentId);if(!d){d=await visibleDocument(db,actor,documentId);insist(d.matter_id===matterId&&!d.erased_at,'Source document not found',404);insist(d.visibility==='private'&&d.created_by===actor.email,'Health chronology sources must be private originals uploaded by the principal',409);documents.set(documentId,d);}
   let source=versions.get(key);
   if(!source){
    const v=await stmt(db,'SELECT * FROM s_document_versions WHERE document_id=? AND version=? AND content_base64 IS NOT NULL',documentId,version).first<Data>();insist(v,'Source original not found',404);

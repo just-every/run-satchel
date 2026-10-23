@@ -16,7 +16,7 @@ export function DocumentChronologies({matterId,actor,run,tick}:{matterId:string;
     if(!file||file.size>1048576)throw new Error('Choose a chronology record file no larger than 1 MiB');
     const entries=JSON.parse(await file.text());await api('/matters/'+matterId+'/chronologies',{entries,reportedTotalCents:Number(data.reportedTotalCents),gapDays:Number(data.gapDays)});
    },'Chronology imported for counsel review')}>
-    <p>Choose a record file in the documented chronology format. Each entry cites an uploaded PDF original, its version and source page. Nothing is published automatically.</p>
+    <p>Choose a record file in the documented chronology format. Each entry cites a private PDF original uploaded by the principal, its version and source page. Nothing is published automatically.</p>
     <label>Chronology record file<input type="file" accept=".json" required onChange={event=>setFile(event.target.files?.[0])}/></label>
     <Field label="Packet reported bill total (USD cents)" name="reportedTotalCents" type="number"/>
     <Field label="Flag record intervals longer than (days)" name="gapDays" type="number" value={30}/>
@@ -24,7 +24,7 @@ export function DocumentChronologies({matterId,actor,run,tick}:{matterId:string;
   </>}
   {(state?.chronologies??[]).map((c:Row)=><article className="record" key={c.id}><h3>Chronology · {c.status}</h3><p className="document-hash">Source snapshot SHA-256 {c.sha256}</p>
    <p>{c.snapshot.notice}</p><p>Gross bills: {dollars(c.snapshot.grossTotalCents)} · Packet reported total: {dollars(c.snapshot.reportedTotalCents)} · Unreviewed difference: {dollars(c.snapshot.unreviewedDifferenceCents)}</p>
-   {c.snapshot.entries.map((entry:Row)=><div key={entry.index}><strong>Record {entry.index+1}: {entry.provider} · {entry.date}</strong><p>{entry.treatment}{entry.kind==='bill'?' · '+dollars(entry.chargeCents):''}</p><a href={'/api/satchel/documents/'+entry.documentId+'/file?version='+entry.version}>Source {entry.sourceName}, version {entry.version}, page {entry.page}</a></div>)}
+   {c.snapshot.entries.toSorted((a:Row,b:Row)=>a.date.localeCompare(b.date)||a.provider.localeCompare(b.provider)||a.index-b.index).map((entry:Row)=><div key={entry.index}><strong>Record {entry.index+1}: {entry.provider} · {entry.date}</strong><p>{entry.treatment}{entry.kind==='bill'?' · '+dollars(entry.chargeCents):''}</p><a href={'/api/satchel/documents/'+entry.documentId+'/file?version='+entry.version}>Source {entry.sourceName}, version {entry.version}, page {entry.page}</a></div>)}
    <p>{c.snapshot.duplicates.length} possible duplicate bills; none excluded automatically.</p>
    {c.snapshot.intervals.map((gap:Row,index:number)=><p key={index}>Record interval: {gap.provider}, {gap.days} days between records {gap.fromIndex+1} and {gap.toIndex+1}. This does not establish missing treatment.</p>)}
    {c.status==='draft'&&<Form label="Publish reviewed chronology" submit={data=>run(()=>api('/chronologies/'+c.id+'/publish',{sha256:c.sha256,reviewNote:data.reviewNote,decisions:c.snapshot.duplicates.map((d:Row)=>({index:d.index,decision:data['decision'+d.index],note:data['reason'+d.index]}))}),'Counsel published the reviewed chronology')}>

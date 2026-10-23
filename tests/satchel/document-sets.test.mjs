@@ -131,7 +131,7 @@ test('native medical chronology requires health setup, pins source pages, reconc
  try{
   const m=await open(h,'Medical chronology'),base='/matters/'+m.id,door=base+'/chronologies',pdf=await PDFDocument.create(),font=await pdf.embedFont(StandardFonts.Helvetica);
   for(const line of ['synthetic-satchel-5 treatment packet','synthetic-satchel-6 overlapping bill']){const p=pdf.addPage([400,500]);p.drawText(line,{x:30,y:400,font,size:12});}
-  const bytes=Buffer.from(await pdf.save()),upload=name=>h.json(base+'/documents',{name,mime:'application/pdf',visibility:'matter',contentBase64:bytes.toString('base64')},h.owner),source=await upload('Treatment.pdf'),bill=await upload('Overlapping-bill.pdf');
+  const bytes=Buffer.from(await pdf.save()),upload=name=>h.json(base+'/documents',{name,mime:'application/pdf',visibility:'private',contentBase64:bytes.toString('base64')},h.owner),source=await upload('Treatment.pdf'),bill=await upload('Overlapping-bill.pdf');
   const entry=(extra={})=>({documentId:source.id,version:1,page:1,kind:'treatment',provider:'Clinic',date:'2026-01-01',treatment:'synthetic-satchel-7 reviewed visit',...extra});
   const packet={reportedTotalCents:2000,gapDays:30,entries:[entry(),entry({date:'2026-03-01',page:2}),entry({kind:'bill',chargeCents:2000,page:2}),entry({documentId:bill.id,kind:'bill',chargeCents:2000,page:2})]};
   assert.equal((await h.json(door,undefined,h.owner)).setup,null);await h.json(door,packet,h.owner,409);
@@ -144,7 +144,7 @@ test('native medical chronology requires health setup, pins source pages, reconc
   const publish='/chronologies/'+draft.id+'/publish',review={sha256:draft.sha256,reviewNote:'Counsel checked every source page and duplicate charge',decisions:[{index:3,decision:'exclude',note:'Same bill charge in overlapping packet'}]};
   await h.json(publish,{...review,decisions:[]},h.owner,400);await h.json(publish,{...review,sha256:'wrong'},h.owner,409);
   await h.json('/team',{email:'lawyer@example.test',name:'Counsel',role:'lawyer'},h.owner);await h.json('/team/invite',{email:'lawyer@example.test'},h.owner);const lawyer=await h.login('lawyer@example.test');await h.json(base+'/access',{email:'lawyer@example.test'},h.owner);
-  await h.json(door,undefined,lawyer,403);await h.json(door+'/setup',{authorizationReference:'No',agreementReference:'No',confirmed:true},lawyer,403);await h.json(publish,review,lawyer,403);
+  await h.json('/documents/'+source.id+'/file?version=1',undefined,lawyer,404);await h.json(door,undefined,lawyer,403);await h.json(door+'/setup',{authorizationReference:'No',agreementReference:'No',confirmed:true},lawyer,403);await h.json(publish,review,lawyer,403);
   const published=await h.json(publish,review,h.owner);assert.equal(published.review.reconciledTotalCents,2000);assert.equal(published.review.differenceCents,0);await h.json(publish,review,h.owner,409);
   assert.deepEqual(Buffer.from(await(await h.request('/api/satchel/documents/'+source.id+'/file?version=1',undefined,h.owner)).arrayBuffer()),bytes);
   const audit=(await h.json('/audit?matterId='+m.id+'&action=chronology.published',undefined,h.owner)).records[0];assert.equal(audit.evidence.record.recordType,'s_document_chronologies');assert.equal(audit.evidence.record.sha256,draft.sha256);
