@@ -22,6 +22,7 @@ export const areaRules:[RegExp,string[]][]=[
  rule('/(matters/'+seg+'/invoice-templates|invoice-templates|invoice-templates/'+seg+'/retire)',['billing']),
  rule('/(matters/'+seg+'/statements|statements/'+seg+'/pdf)',['billing','rates:all']),
  rule('/(matters/'+seg+'/late-fees|bills/'+seg+'/(fee-exclusions|late-fees)|late-fee-drafts/'+seg+'/waive)',['billing']),
+ rule('/matters/'+seg+'/payer-reviews',['billing']),
  rule('/matters/'+seg+'/rates',['rates']),
  rule('/agent/matters/'+seg,['billing','documents']),
  rule('/trust',['bank:balances']),rule('/trust/'+any,['bank']),

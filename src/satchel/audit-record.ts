@@ -2,6 +2,7 @@
 // Explicit columns exclude credentials and original file bytes.
 const record=(table:string,columns:string[],matter='NULL',revision='NULL',where='x.id=i.object_id',extra:Record<string,string>={})=>`(SELECT json_object('recordType','${table}','matterId',${matter},'revision',${revision},${[...columns.flatMap(c=>[`'${c}'`,`x.${c}`]),...Object.entries(extra).flatMap(([k,v])=>[`'${k}'`,v])].join(',')}) FROM ${table} x WHERE ${where} LIMIT 1)`;
 const contexts=[
+ record('s_billing_payer_reviews',['id','bill_id','matter_id','snapshot','actor','at'],'x.matter_id','x.id',"x.id=i.object_id AND i.action='billing.payer_fx_reviewed'"),
  record('s_billing_fee_profiles',['id','scope','matter_id','client','terms','actor','at'],'x.matter_id','x.id',"x.id=i.object_id AND i.action='billing.fee_profile_reviewed'"),
  record('s_billing_fee_holds',['id','bill_id','status','reference','actor','at'],'(SELECT matter_id FROM s_bills WHERE id=x.bill_id)','x.id',"x.id=i.object_id AND i.action='billing.fee_exclusion_reviewed'"),
  record('s_billing_fee_drafts',['id','bill_id','profile_id','as_of','basis_cents','eligible_days','cents','snapshot','actor','at'],'(SELECT matter_id FROM s_bills WHERE id=x.bill_id)','x.id',"x.id=i.object_id AND i.action IN('billing.late_fee_drafted','billing.late_fee_waived')",{waiver:"(SELECT json_object('reason',w.reason,'actor',w.actor,'at',w.at) FROM s_billing_fee_waivers w WHERE w.draft_id=x.id)"}),
