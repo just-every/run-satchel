@@ -21,6 +21,9 @@ export const areaRules:[RegExp,string[]][]=[
  rule('/agent/matters/'+seg,['billing','documents']),
  rule('/trust',['bank:balances']),rule('/trust/'+any,['bank']),
  rule('/(firm|firm/export|firm/import|team|team/invite|keys|keys/'+seg+'/revoke|numbering|integrations|integrations/'+seg+'/(dispatch|journal|matter-access|reconcile|resume|revoke|rotate)|matter-import|matter-import/'+seg+'|import|import/'+seg+'|backup|restore|audit|audit/export|roles|roles/doors|matters/'+seg+'/portal|portal-grants/'+seg+'/revoke|intake/forms|v1/events)',['settings']),
+ rule('/(providers|providers/'+seg+'/review|followups/settings)',['settings']),
+ rule('/(leads/'+seg+'/(followups|consents|followup-events)|consult/offers|consultations|consultations/'+seg+'/cancel)',['contacts']),
+ rule('/(consult/'+seg+'|consult/'+seg+'/book|consult/manage/'+seg+'|consult/manage/'+seg+'/(reschedule|cancel)|followups/'+seg+'/opt-out/'+seg+')',open),
  rule('/v1/matters',open),rule('/v1/matters/'+seg,open),rule('/v1/matters/'+seg+'/'+seg,open),
 ];
 export function areasOf(path:string):string[]|null{
