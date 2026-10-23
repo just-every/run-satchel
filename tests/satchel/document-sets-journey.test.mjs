@@ -69,7 +69,7 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`medical chronology set
  const h=await harness(),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});
  try{
   const m=await open(h,'Medical chronology review'),pdf=await PDFDocument.create(),font=await pdf.embedFont(StandardFonts.Helvetica),p=pdf.addPage([400,500]);p.drawText('synthetic-satchel-8 treatment and bill',{x:30,y:400,font,size:12});
-  const original=Buffer.from(await pdf.save()),source=await h.json('/matters/'+m.id+'/documents',{name:'Treatment.pdf',mime:'application/pdf',visibility:'matter',contentBase64:original.toString('base64')},h.owner);
+  const original=Buffer.from(await pdf.save()),source=await h.json('/matters/'+m.id+'/documents',{name:'Treatment.pdf',mime:'application/pdf',visibility:'private',contentBase64:original.toString('base64')},h.owner);
   const entry={documentId:source.id,version:1,page:1,provider:'Clinic',date:'2026-01-01',treatment:'Reviewed treatment'};
   const entries=[{...entry,kind:'treatment'},{...entry,kind:'treatment',date:'2026-03-01'},{...entry,kind:'bill',chargeCents:2000},{...entry,kind:'bill',chargeCents:2000}];
   const context=await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true}),page=await context.newPage(),errors=[];page.setDefaultTimeout(15000);page.on('pageerror',e=>errors.push(String(e)));
