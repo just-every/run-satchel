@@ -31,4 +31,6 @@ The principal sees every matter. Lawyers and assistants see assigned matters. As
 
 Moving contacts from Clio? Follow [Move in](move-in.md) before running the conflict searches for your new matters.
 
+Satchel is free software with no payment or license step; providers you connect later bill your firm directly. See [Free software and provider charges](free-and-providers.md).
+
 To stop your local app, run `rer dev --stop` from the same checkout.

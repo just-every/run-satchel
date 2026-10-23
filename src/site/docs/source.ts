@@ -20,6 +20,8 @@ const SECTIONS: Section[] = [
   ] },
   { title: 'Move in and keep it safe', pages: [
     ['move-in', 'Move in from Clio', 'Preview, commit and undo a Clio contacts import.', 'docs/move-in.md'],
+    ['client-portal', 'Client portal, timeline and summaries', 'Share exact records with clients, keep their messages, search the firm and schedule report summaries.', 'docs/client-portal.md'],
+    ['free-and-providers', 'Free software and provider charges', 'Satchel is free and MIT licensed; the providers you connect bill your firm directly.', 'docs/free-and-providers.md'],
     ['backup-and-restore', 'Backup and restore', 'Download the firm archive and restore it into a new installation.', 'docs/backup-and-restore.md'],
   ] },
   { title: 'Reference', pages: [

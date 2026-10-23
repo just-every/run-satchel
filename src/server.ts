@@ -3,6 +3,8 @@ import {recoverIntakeUploads} from './satchel/intake-files'
 import {dispatchWebhooks} from './satchel/webhooks'
 import {purgeIntakeSecurity} from './satchel/intake-submissions'
 import {runReminders} from './satchel/reminder-scheduler'
+import {runFollowups} from './satchel/followup-worker'
+import {runReportSchedules} from './satchel/report-schedules'
 import { withDemo } from './modules/demo/index.mjs'
 import { seedDemo } from './demo'
 import { rejectedResponse } from './base/rejected-response'
@@ -26,7 +28,7 @@ function noTransform(response: Response): Response {
 }
 
 export default withDemo({
-  async scheduled(controller,env) { await Promise.all([scheduledFees(runtimeBindings(env).DB,controller.scheduledTime),dispatchWebhooks(runtimeBindings(env)),runReminders(runtimeBindings(env),controller.scheduledTime),purgeIntakeSecurity(runtimeBindings(env).DB,new Date(controller.scheduledTime).toISOString()),recoverIntakeUploads(runtimeBindings(env),new Date(controller.scheduledTime).toISOString())]) },
+  async scheduled(controller,env) { await Promise.all([scheduledFees(runtimeBindings(env).DB,controller.scheduledTime),dispatchWebhooks(runtimeBindings(env)),runReminders(runtimeBindings(env),controller.scheduledTime),runFollowups(runtimeBindings(env),controller.scheduledTime),runReportSchedules(runtimeBindings(env),controller.scheduledTime),purgeIntakeSecurity(runtimeBindings(env).DB,new Date(controller.scheduledTime).toISOString()),recoverIntakeUploads(runtimeBindings(env),new Date(controller.scheduledTime).toISOString())]) },
   async fetch(request, env, execution) {
     const asset = await staticAssetResponse(request, env)
     if (asset) return asset
@@ -39,7 +41,7 @@ export default withDemo({
     const lobby = await lobbyResponse(request, runtimeBindings(env), identity)
     if (lobby) return lobby
     const response=await dispatch(request, () => api.fetch(request, env, execution), async () => noTransform(await start.fetch(request)))
-    if(new URL(request.url).pathname.startsWith('/intake/')){response.headers.set('referrer-policy','strict-origin');response.headers.set('cache-control','no-store, no-transform');response.headers.set('x-content-type-options','nosniff');}
+    if(/^\/(intake|book|consultation|followup)\//.test(new URL(request.url).pathname)){response.headers.set('referrer-policy','strict-origin');response.headers.set('cache-control','no-store, no-transform');response.headers.set('x-content-type-options','nosniff');}
     return rejectedResponse(request,response)
   },
 } satisfies ExportedHandler<Bindings>, { seed: seedDemo })

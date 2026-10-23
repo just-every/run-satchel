@@ -67,3 +67,15 @@ In **Matters → Intake forms**, a principal or lawyer sets the firm's name and 
 Prospects can complete the form on a phone and attach up to three PDF/PNG/JPEG originals, 10 MiB each. Successful submission displays an opaque receipt; it does not send an acknowledgment email. Consent is for receiving and reviewing that inquiry, and does not authorize automated contact.
 
 Open **Lead pipeline → Intake submissions** to read the original answers, receipt and exact consent text/time, and download private originals. Files are not malware-scanned. Assistants see only assigned leads; a merge does not grant access to another lead's original files. Earlier consent and form versions remain unchanged when the form is edited. Closed leads retain their intake history under **Closed leads**.
+
+## Book consultations
+
+In **Matters → Consultations**, the principal or a lawyer approves weekly availability: weekdays, a window, the length, buffers before and after, minimum notice and how many days ahead a prospect may book. Times are in the availability timezone, so daylight saving moves the UTC instant. A booking page is published at `/book/<offer>`; the prospect sees times in their own timezone and cannot book outside what is approved or while the lawyer already has a matter appointment or consultation there.
+
+A fee is disclosed and must be acknowledged; it is recorded as due at the consultation. Satchel collects no payment. The booking creates one lead assigned to the responsible lawyer and, when the page has a linked intake form, the same immutable intake record a form submission makes. Two prospects racing for the last time get one appointment and one refusal. The prospect's confirmation link lets them move the booking to another approved time or cancel it; either change keeps one appointment, appends history and leaves a next action on the lead. The lawyer or principal can also cancel with a reason.
+
+## Follow up prospects under consent
+
+**Matters → Consented follow-ups** (principal) configures consultation reminders, unanswered-inquiry follow-ups and engagement chases: the steps, quiet hours with their timezone and a contact limit per lead in seven days. Only email exists, and only after the principal records the mail provider review in **Team & safety → Provider charges**: that review is the firm's recorded sending authority. SMS and other channels are not available.
+
+A message is sent only while the lead's own email consent is active. Record consent on the lead under **Consent and follow-ups** (how the prospect agreed and what to), or the prospect ticks it on the booking form. A contact merge supplies neither authority nor consent. Every message carries a link that stops them. A reply, a conflict stop (principal or lawyer), a decline or an opt-out halts every active sequence for the lead and names the next human action and its owner, visible on the lead; so does losing or converting the lead. A message is held during quiet hours or when the contact limit is reached, and a restart of the worker never resends one.

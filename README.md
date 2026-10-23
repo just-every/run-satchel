@@ -7,6 +7,11 @@ matters, time and disbursements, private original files, confirmed deadlines and
 reviewed bill exports. It runs in your own Cloudflare account. MIT licensed.
 Trust funds remain in your existing trust ledger.
 
+Satchel software is free: no license fee, subscription, paywall, seat charge or
+matter limit. Providers you connect (payments, e-signature, accounting, hosting,
+mail, SMS, court rules and filing) bill your firm directly under their own terms;
+Satchel adds no charge to them. See `docs/free-and-providers.md`.
+
 ## Clone and run
 
 ```sh

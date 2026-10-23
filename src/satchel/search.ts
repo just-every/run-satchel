@@ -9,10 +9,11 @@ import {documentReview} from './document-review';
 import {listTasks} from './tasks';
 import {matterCalendar} from './appointments';
 import {listBilling} from './billing';
+import {noteJson,readableNotes} from './matter-notes';
 
 // Search is a read door, never a new grant. Each source must be readable through
 // its own current door before any matching, snippet, count or record ID is made.
-function permitted(actor:Actor,path:string){
+export function permitted(actor:Actor,path:string){
  try{gateRole(actor,'GET',path);gateGrants(actor,'GET',path);return true;}
  catch(e){if(e instanceof Fault&&e.status===403)return false;throw e;}
 }
@@ -35,6 +36,7 @@ export async function searchFirm(db:D1Database,actor:Actor,query:string){
  for(const m of matters){
   const base='/matters/'+m.id,fields=permitted(actor,base+'/fields')?m:{},context=[m.title,m.client,m.matter_number,fields.case_number??''].join(' · ');
   if(permitted(actor,base)&&matches(context,fields.court,fields.custom))add('Matters',m.id,m.matter_number+' · '+m.title,[m.client,fields.case_number].filter(Boolean).join(' · '),base,m.id,'Matters');
+  if(permitted(actor,base+'/notes'))for(const n of (await rows(db,`SELECT n.* FROM s_matter_notes n WHERE n.matter_id=? AND ${readableNotes()} ORDER BY n.occurred_at DESC,n.id`,m.id,actor.email)).map(noteJson))if(matches(context,n.title,n.body))add('Notes',n.id,n.title,n.body,base+'/timeline',m.id,'Matters');
   if(permitted(actor,base+'/tasks'))for(const t of await listTasks(db,actor,m.id))if(matches(context,t.title,t.evidence))add('Tasks',t.id,t.title,context+' · '+t.status,base+'/tasks',m.id,'Tasks');
   if(permitted(actor,base+'/calendar')){
    const calendar=await matterCalendar(db,actor,m.id);

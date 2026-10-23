@@ -4,6 +4,7 @@ import {matterScope} from './matter-scope';
 // officers see none. History is append-only and a merge keeps the duplicate as provenance.
 import {atomic,audit,date,human,id,insist,integer,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
 import {guard} from './trust-guards';
+import {stopStatements} from './followups';
 export async function leadCalendar(db:D1Database) {
  const timezone=(await stmt(db,'SELECT timezone FROM s_firm WHERE id=1').first<{timezone:string}>())?.timezone??'UTC';
  const today=new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
@@ -66,7 +67,7 @@ export async function createLead(db:D1Database,actor:Actor,body:Data) {
   ...event(db,actor,leadId,'created',{referralSource:lead.referralSource,assigned:lead.assigned,stageId:lead.stageId,practiceCode:lead.practiceCode},at)]);
  return leadDetail(db,actor,leadId);
 }
-async function visibleLead(db:D1Database,actor:Actor,leadId:string) {
+export async function visibleLead(db:D1Database,actor:Actor,leadId:string) {
  staff(actor);
  const l=await stmt(db,`SELECT * FROM s_leads l WHERE l.id=? AND ${visibleLeadSql}`,leadId,...visibleParams(actor)).first<Data>();insist(l,'Lead not found',404);return l;
 }
@@ -104,6 +105,7 @@ export async function updateLead(db:D1Database,actor:Actor,leadId:string,body:Da
  const at=now(),kind=next.status==='lost'?'lost':next.status==='converted'?'converted':'updated';
  await atomic(db,actor,[guard(db,`EXISTS(SELECT 1 FROM s_leads l WHERE l.id=? AND l.revision=? AND ${visibleLeadSql})`,leadId,l.revision,...visibleParams(actor)),
   stmt(db,'UPDATE s_leads SET stage_id=?,practice_code=?,assigned_email=?,qualification=?,consultation_outcome=?,next_action=?,next_action_date=?,status=?,lost_reason=?,matter_id=?,revision=?,last_activity_at=? WHERE id=?',next.stage_id,next.practice_code,next.assigned_email,next.qualification,next.consultation_outcome,next.next_action,next.next_action_date,next.status,next.lost_reason,next.matter_id,id(),at,leadId),
+  ...(kind==='updated'?[]:stopStatements(db,l,kind==='lost'?'declined':'converted',kind==='lost'?'Lead closed as lost: no further automated contact':'Lead converted: continue through the matter',next.assigned_email,actor.email,at)),
   ...event(db,actor,leadId,kind,changes,at)]);
  return leadDetail(db,actor,leadId);
 }

@@ -10,11 +10,24 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/app'
+import { Route as BookOfferIdRouteImport } from './routes/book.$offerId'
+import { Route as ConsultationTokenRouteImport } from './routes/consultation.$token'
 import { Route as IntakeFormIdRouteImport } from './routes/intake.$formId'
+import { Route as FollowupIdSignatureRouteImport } from './routes/followup.$id.$signature'
 
 const AppRoute = AppRouteImport.update({
   id: '/app',
   path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BookOfferIdRoute = BookOfferIdRouteImport.update({
+  id: '/book/$offerId',
+  path: '/book/$offerId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConsultationTokenRoute = ConsultationTokenRouteImport.update({
+  id: '/consultation/$token',
+  path: '/consultation/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IntakeFormIdRoute = IntakeFormIdRouteImport.update({
@@ -22,31 +35,64 @@ const IntakeFormIdRoute = IntakeFormIdRouteImport.update({
   path: '/intake/$formId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FollowupIdSignatureRoute = FollowupIdSignatureRouteImport.update({
+  id: '/followup/$id/$signature',
+  path: '/followup/$id/$signature',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/app': typeof AppRoute
+  '/book/$offerId': typeof BookOfferIdRoute
+  '/consultation/$token': typeof ConsultationTokenRoute
   '/intake/$formId': typeof IntakeFormIdRoute
+  '/followup/$id/$signature': typeof FollowupIdSignatureRoute
 }
 export interface FileRoutesByTo {
   '/app': typeof AppRoute
+  '/book/$offerId': typeof BookOfferIdRoute
+  '/consultation/$token': typeof ConsultationTokenRoute
   '/intake/$formId': typeof IntakeFormIdRoute
+  '/followup/$id/$signature': typeof FollowupIdSignatureRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/app': typeof AppRoute
+  '/book/$offerId': typeof BookOfferIdRoute
+  '/consultation/$token': typeof ConsultationTokenRoute
   '/intake/$formId': typeof IntakeFormIdRoute
+  '/followup/$id/$signature': typeof FollowupIdSignatureRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/app' | '/intake/$formId'
+  fullPaths:
+    | '/app'
+    | '/book/$offerId'
+    | '/consultation/$token'
+    | '/intake/$formId'
+    | '/followup/$id/$signature'
   fileRoutesByTo: FileRoutesByTo
-  to: '/app' | '/intake/$formId'
-  id: '__root__' | '/app' | '/intake/$formId'
+  to:
+    | '/app'
+    | '/book/$offerId'
+    | '/consultation/$token'
+    | '/intake/$formId'
+    | '/followup/$id/$signature'
+  id:
+    | '__root__'
+    | '/app'
+    | '/book/$offerId'
+    | '/consultation/$token'
+    | '/intake/$formId'
+    | '/followup/$id/$signature'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRoute
+  BookOfferIdRoute: typeof BookOfferIdRoute
+  ConsultationTokenRoute: typeof ConsultationTokenRoute
   IntakeFormIdRoute: typeof IntakeFormIdRoute
+  FollowupIdSignatureRoute: typeof FollowupIdSignatureRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -58,6 +104,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/book/$offerId': {
+      id: '/book/$offerId'
+      path: '/book/$offerId'
+      fullPath: '/book/$offerId'
+      preLoaderRoute: typeof BookOfferIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/consultation/$token': {
+      id: '/consultation/$token'
+      path: '/consultation/$token'
+      fullPath: '/consultation/$token'
+      preLoaderRoute: typeof ConsultationTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/intake/$formId': {
       id: '/intake/$formId'
       path: '/intake/$formId'
@@ -65,12 +125,22 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IntakeFormIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/followup/$id/$signature': {
+      id: '/followup/$id/$signature'
+      path: '/followup/$id/$signature'
+      fullPath: '/followup/$id/$signature'
+      preLoaderRoute: typeof FollowupIdSignatureRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRoute,
+  BookOfferIdRoute: BookOfferIdRoute,
+  ConsultationTokenRoute: ConsultationTokenRoute,
   IntakeFormIdRoute: IntakeFormIdRoute,
+  FollowupIdSignatureRoute: FollowupIdSignatureRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
