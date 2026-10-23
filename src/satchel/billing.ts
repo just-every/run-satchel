@@ -1,3 +1,4 @@
+import {billTemplate} from './billing-templates';
 import {matterScope} from './matter-scope';
 import {entryEdits,releasedSql} from './released-entries';
 import {expenseInput,expenseInsert,expenseReplay,expenseReceipt,expenseDetails} from './expenses';
@@ -79,9 +80,10 @@ async function createBill(db: D1Database, actor: Actor, matterId: string, snapsh
  if(snapshot.ledes?.xml)xmlText(snapshot.title,'XML bill title',2048);
  // A LEDES bill reserves its unique invoice number in the same step as the bill.
  const billId = fixedId ?? actor.approval?.resultId ?? id(), revision = id(), at = now();
+ const template=await billTemplate(db,actor,matterId,snapshot.client);if(template.snapshot)snapshot={...snapshot,template:template.snapshot};
  const numbering=await invoiceCounter(db);
  if(numbering){snapshot={...snapshot,numberingCutover:true,...(snapshot.ledes?{ledes:{...snapshot.ledes,invoiceNumber:null}}:{})};}
- await atomic(db,actor,[accessGuard(db,actor,matterId),guard(db,numbering?'EXISTS(SELECT 1 FROM s_invoice_counter WHERE revision=?)':'NOT EXISTS(SELECT 1 FROM s_invoice_counter)',...(numbering?[numbering.revision]:[])),...extra,
+ await atomic(db,actor,[accessGuard(db,actor,matterId),guard(db,numbering?'EXISTS(SELECT 1 FROM s_invoice_counter WHERE revision=?)':'NOT EXISTS(SELECT 1 FROM s_invoice_counter)',...(numbering?[numbering.revision]:[])),...template.guards,...extra,
   stmt(db,`INSERT INTO s_bills(id,matter_id,revision,status,snapshot,corrects_bill_id,created_by,created_at) VALUES(?,?,?,'draft',?,?,?,?)`,billId,matterId,revision,JSON.stringify(snapshot),snapshot.correctsBillId ?? null,actor.email,at),...after,
   ...(sources.length ? [
    stmt(db,`INSERT INTO s_billing_sources(entry_id,bill_id,source_revision) SELECT e.id,?,e.revision FROM s_entries e JOIN json_each(?) l ON e.id=json_extract(l.value,'$.sourceId') AND e.revision=json_extract(l.value,'$.sourceRevision') WHERE e.matter_id=?`,billId,JSON.stringify(sources),matterId),
@@ -134,7 +136,7 @@ export async function prepareBill(db: D1Database, actor: Actor, matterId: string
  const entries = await rows(db,`SELECT e.*,s.bill_id FROM s_entries e LEFT JOIN s_billing_sources s ON s.entry_id=e.id WHERE e.matter_id=? AND e.id IN (SELECT value FROM json_each(?)) ORDER BY e.date,e.created_at,e.id`,matterId,JSON.stringify(ids));
  insist(entries.length === ids.length && entries.every(e => !e.bill_id), 'Entries must belong to this matter and be unbilled',409);
  insist(entries.every(e => e.billable !== 0), 'Nonbillable time is recorded but never billed',409);
- let lines:Data[] = entries.map(e => ({kind:e.kind,sourceId:e.id,sourceRevision:e.revision,date:e.date,description:e.description,minutes:e.minutes,rateCents:e.rate_cents,amountCents:e.amount_cents,rounding:e.kind !== 'time' ? 'exact USD cents' : e.billed_minutes == null || e.rate_source === 'entry' ? 'minutes × hourly USD cents / 60; half-up to cents' : `${e.billed_minutes} billed minutes (${e.minutes} worked, rounded up to the agreed increment) × hourly USD cents / 60${e.discount_bps ? `, less ${e.discount_bps / 100}% discount` : ''}; half-up to cents`}));
+ let lines:Data[] = entries.map(e => ({kind:e.kind,sourceId:e.id,sourceRevision:e.revision,date:e.date,description:e.description,minutes:e.minutes,rateCents:e.rate_cents,amountCents:e.amount_cents,timekeeperEmail:e.created_by,billedMinutes:e.billed_minutes,discountBps:e.discount_bps,utbmsTask:e.utbms_task,utbmsActivity:e.utbms_activity,utbmsExpense:e.utbms_expense,rounding:e.kind !== 'time' ? 'exact USD cents' : e.billed_minutes == null || e.rate_source === 'entry' ? 'minutes × hourly USD cents / 60; half-up to cents' : `${e.billed_minutes} billed minutes (${e.minutes} worked, rounded up to the agreed increment) × hourly USD cents / 60${e.discount_bps ? `, less ${e.discount_bps / 100}% discount` : ''}; half-up to cents`}));
  const expenses=await expenseDetails(db,actor,entries.map(e=>e.id));
  lines=lines.map(l=>{const expense=expenses.get(l.sourceId);if(!expense)return l;const {receipt,...provenance}=expense;return {...l,expense:provenance};});
  const fee=await feeAdjustedLines(db,actor,matterId,entries,lines,body);lines=fee.lines;

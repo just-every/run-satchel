@@ -1,3 +1,4 @@
+import {templateState,saveTemplate,assignTemplate,retireTemplate} from './billing-templates';
 import {billingLedger,agingCsv} from './billing-ledger';
 import {billingPayments,recordOfflinePayment,applyOfflineCredit,reverseOfflinePayment,requestWriteoff,approveWriteoff} from './billing-payments';
 import {searchFirm} from './search';
@@ -106,6 +107,10 @@ api.post('/api/satchel/receipts/:id/apply',as(async(a,c)=>applyOfflineCredit(db(
 api.post('/api/satchel/receipts/:id/reverse',as(async(a,c)=>reverseOfflinePayment(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/bills/:id/writeoffs',as(async(a,c)=>requestWriteoff(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/writeoffs/:id/approve',as(async(a,c)=>approveWriteoff(db(c),a,param(c),await body(c))));
+api.get('/api/satchel/matters/:id/invoice-templates',as((a,c)=>templateState(db(c),a,param(c))));
+api.post('/api/satchel/matters/:id/invoice-templates',as(async(a,c)=>assignTemplate(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/invoice-templates',as(async(a,c)=>saveTemplate(db(c),a,await body(c))));
+api.post('/api/satchel/invoice-templates/:id/retire',as(async(a,c)=>retireTemplate(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/invoice-numbering',as((a,c)=>invoiceSettings(db(c),a)));
 api.post('/api/satchel/invoice-numbering',as(async(a,c)=>saveInvoiceScheme(db(c),a,await body(c))));
 api.post('/api/satchel/invoice-numbering/import',as(async(a,c)=>registerImportedNumbers(db(c),a,await body(c))));
