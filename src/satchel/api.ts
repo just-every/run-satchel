@@ -77,7 +77,8 @@ import {agenda,exportAgenda,absenceState,recordAbsence,assignCoverage,assignDead
 import {providerState,reviewProvider} from './providers';
 import {addNote} from './matter-notes';
 import {matterTimeline,clientTimeline} from './timeline';
-import {shareWithClient,revokeShare,clientShares,portalShares,acknowledgeShare,completeShare} from './client-shares';
+import {shareWithClient,revokeShare,clientShares,portalShares,acknowledgeShare,completeShare,portalFile,portalInvoices,portalInvoicePdf} from './client-shares';
+import {portalPreview} from './portal-preview';
 import {followupSettings,saveFollowupSettings,recordConsent,startFollowup,recordFollowupEvent,optOut,leadFollowups} from './followups';
 import {listOffers,saveOffer,listConsultations,cancelConsultation} from './consultations';
 import {publicOffer,bookConsultation,manageView,rescheduleConsultation,cancelByProspect} from './consult-public';
@@ -147,6 +148,10 @@ api.post('/api/satchel/client-shares/:id/revoke',as((a,c)=>revokeShare(db(c),a,p
 api.get('/api/satchel/portal/matters/:id/shares',as((a,c)=>portalShares(db(c),a,param(c))));
 api.post('/api/satchel/portal/shares/:id/acknowledge',as(async(a,c)=>acknowledgeShare(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/portal/shares/:id/complete',as(async(a,c)=>completeShare(db(c),a,param(c),await body(c))));
+api.get('/api/satchel/portal/shares/:id/file',as((a,c)=>portalFile(db(c),a,param(c))));
+api.get('/api/satchel/portal/matters/:id/invoices',as((a,c)=>portalInvoices(db(c),a,param(c))));
+api.get('/api/satchel/portal/invoices/:id/pdf',as((a,c)=>portalInvoicePdf(db(c),a,param(c))));
+api.get('/api/satchel/matters/:id/portal-preview',as((a,c)=>portalPreview(db(c),a,param(c),c.req.query('email'))));
 api.get('/api/satchel/integrations',as((a,c)=>integrationState(db(c),a)));
 api.post('/api/satchel/integrations',as(async(a,c)=>createIntegration(runtimeBindings(c.env),a,await body(c))));
 api.post('/api/satchel/integrations/:id/revoke',as((a,c)=>revokeIntegration(db(c),a,param(c))));

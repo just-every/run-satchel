@@ -3,6 +3,7 @@
 // that returns only entries the principal or a lawyer explicitly shared with the client.
 import {human,insist,matter,need,rows,stmt,type Actor,type Data} from './model';
 import {permitted} from './search';
+import {portalAccess,readerKinds} from './portal';
 import {noteJson,readableNotes} from './matter-notes';
 import {listTasks} from './tasks';
 import {listDocuments} from './documents';
@@ -33,7 +34,7 @@ export async function matterTimeline(db:D1Database,actor:Actor,matterId:string,q
 // The client's view: explicit grant, then only entries marked for the client. Nothing else about the matter is read.
 export async function clientTimeline(db:D1Database,actor:Actor,matterId:string) {
  human(actor);need(actor,'client');
- insist(await stmt(db,"SELECT 1 FROM s_portal_grants g JOIN s_matters m ON m.id=g.matter_id WHERE g.email=? AND g.matter_id=? AND g.revoked_at IS NULL AND NOT EXISTS(SELECT 1 FROM s_ethical_walls w WHERE w.matter_id=m.id AND w.dissolved_at IS NULL)",actor.email,matterId).first(),'Matter not found',404);
+ insist(await stmt(db,`SELECT ${portalAccess('?',readerKinds)} ok`,actor.email,matterId).first<Data>().then(r=>r?.ok),'Matter not found',404);
  const list=await rows(db,"SELECT * FROM s_matter_notes WHERE matter_id=? AND visibility='team' AND client_visible=1 ORDER BY occurred_at DESC,id",matterId);
  return {matterId,entries:list.map(n=>({id:n.id,kind:n.kind,at:n.occurred_at,title:n.title,body:n.body}))};
 }
