@@ -75,6 +75,8 @@ import {workload,myHandoffs,handOff,acknowledgeHandoff} from './workload';
 import {listTasks,createTask,assignTask,completeTask,bulkTasks,myNotifications,readNotification} from './tasks';
 import {agenda,exportAgenda,absenceState,recordAbsence,assignCoverage,assignDeadlineOwner} from './agenda';
 import {providerState,reviewProvider} from './providers';
+import {addNote} from './matter-notes';
+import {matterTimeline,clientTimeline} from './timeline';
 import {followupSettings,saveFollowupSettings,recordConsent,startFollowup,recordFollowupEvent,optOut,leadFollowups} from './followups';
 import {listOffers,saveOffer,listConsultations,cancelConsultation} from './consultations';
 import {publicOffer,bookConsultation,manageView,rescheduleConsultation,cancelByProspect} from './consult-public';
@@ -135,6 +137,9 @@ api.post('/api/satchel/consult/manage/:token/reschedule',async c=>c.json(await r
 api.post('/api/satchel/consult/manage/:token/cancel',async c=>c.json(await cancelByProspect(runtimeBindings(c.env),param(c,'token'),c.req.raw)));
 api.get('/api/satchel/consult/:id',async c=>c.json(await publicOffer(runtimeBindings(c.env),param(c),c.req.query('tz'))));
 api.post('/api/satchel/consult/:id/book',async c=>c.json(await bookConsultation(runtimeBindings(c.env),param(c),c.req.raw)));
+api.post('/api/satchel/matters/:id/notes',as(async(a,c)=>addNote(db(c),a,param(c),await body(c))));
+api.get('/api/satchel/matters/:id/timeline',as((a,c)=>matterTimeline(db(c),a,param(c),c.req.query())));
+api.get('/api/satchel/portal/matters/:id/timeline',as((a,c)=>clientTimeline(db(c),a,param(c))));
 api.get('/api/satchel/integrations',as((a,c)=>integrationState(db(c),a)));
 api.post('/api/satchel/integrations',as(async(a,c)=>createIntegration(runtimeBindings(c.env),a,await body(c))));
 api.post('/api/satchel/integrations/:id/revoke',as((a,c)=>revokeIntegration(db(c),a,param(c))));

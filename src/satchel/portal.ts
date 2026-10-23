@@ -3,7 +3,7 @@ import {atomic,audit,human,id,insist,need,matter,now,rows,stmt,text,type Actor,t
 // A grant shows the matter number, title and status and nothing else; CLIENT-001 owns richer portal content.
 export async function portalState(db:D1Database,actor:Actor){
  human(actor);need(actor,'client');
- return {grants:await rows(db,"SELECT g.id,g.granted_at grantedAt,m.matter_number matterNumber,m.title,m.lifecycle_status status FROM s_portal_grants g JOIN s_matters m ON m.id=g.matter_id WHERE g.email=? AND g.revoked_at IS NULL AND NOT EXISTS(SELECT 1 FROM s_ethical_walls w WHERE w.matter_id=m.id AND w.dissolved_at IS NULL) ORDER BY g.granted_at,g.id",actor.email)};
+ return {grants:await rows(db,"SELECT g.id,g.matter_id matterId,g.granted_at grantedAt,m.matter_number matterNumber,m.title,m.lifecycle_status status FROM s_portal_grants g JOIN s_matters m ON m.id=g.matter_id WHERE g.email=? AND g.revoked_at IS NULL AND NOT EXISTS(SELECT 1 FROM s_ethical_walls w WHERE w.matter_id=m.id AND w.dissolved_at IS NULL) ORDER BY g.granted_at,g.id",actor.email)};
 }
 export async function matterPortal(db:D1Database,actor:Actor,matterId:string){
  human(actor);need(actor,'owner');await matter(db,actor,matterId);
