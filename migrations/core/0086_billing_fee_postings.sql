@@ -1,0 +1,12 @@
+CREATE TABLE s_billing_fee_postings(draft_id TEXT PRIMARY KEY REFERENCES s_billing_fee_drafts(id),effective_date TEXT NOT NULL,review_note TEXT NOT NULL,actor TEXT NOT NULL,at TEXT NOT NULL);
+CREATE TABLE s_billing_fee_allocations(id TEXT PRIMARY KEY,receipt_id TEXT NOT NULL REFERENCES s_billing_receipts(id),draft_id TEXT NOT NULL REFERENCES s_billing_fee_drafts(id),cents INTEGER NOT NULL CHECK(cents>0),effective_date TEXT NOT NULL,actor TEXT NOT NULL,at TEXT NOT NULL);
+CREATE INDEX s_billing_fee_allocations_draft ON s_billing_fee_allocations(draft_id);
+CREATE TRIGGER s_billing_fee_postings_no_update BEFORE UPDATE ON s_billing_fee_postings BEGIN SELECT RAISE(ABORT,'reviewed fee postings are append-only'); END;
+CREATE TRIGGER s_billing_fee_postings_no_delete BEFORE DELETE ON s_billing_fee_postings BEGIN SELECT RAISE(ABORT,'reviewed fee postings are append-only'); END;
+CREATE TRIGGER s_billing_fee_allocations_no_update BEFORE UPDATE ON s_billing_fee_allocations BEGIN SELECT RAISE(ABORT,'fee payments are append-only'); END;
+CREATE TRIGGER s_billing_fee_allocations_no_delete BEFORE DELETE ON s_billing_fee_allocations BEGIN SELECT RAISE(ABORT,'fee payments are append-only'); END;
+CREATE TRIGGER s_billing_fee_postings_money_revision AFTER INSERT ON s_billing_fee_postings BEGIN UPDATE s_billing_money_revision SET revision=revision+1 WHERE id=1; END;
+CREATE TRIGGER s_billing_fee_allocations_money_revision AFTER INSERT ON s_billing_fee_allocations BEGIN UPDATE s_billing_money_revision SET revision=revision+1 WHERE id=1; END;
+CREATE TRIGGER s_billing_fee_waivers_money_revision AFTER INSERT ON s_billing_fee_waivers BEGIN UPDATE s_billing_money_revision SET revision=revision+1 WHERE id=1; END;
+CREATE TRIGGER s_invoice_voids_refuse_paid_fee BEFORE INSERT ON s_invoice_voids WHEN EXISTS(SELECT 1 FROM s_billing_fee_allocations a JOIN s_billing_fee_drafts d ON d.id=a.draft_id WHERE d.bill_id=NEW.bill_id AND NOT EXISTS(SELECT 1 FROM s_billing_receipt_reversals r WHERE r.receipt_id=a.receipt_id)) BEGIN SELECT RAISE(ABORT,'constraint: reverse offline fee receipts before voiding'); END;
+CREATE TRIGGER s_invoice_voids_refuse_writeoff BEFORE INSERT ON s_invoice_voids WHEN EXISTS(SELECT 1 FROM s_billing_writeoffs w JOIN s_billing_writeoff_decisions d ON d.writeoff_id=w.id WHERE w.bill_id=NEW.bill_id) BEGIN SELECT RAISE(ABORT,'constraint: resolve finance write-offs before voiding'); END;

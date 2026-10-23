@@ -1,3 +1,4 @@
+import {feePaymentParts,feePaymentWrites} from './billing-fee-money';
 import {atomic,audit,date,digest,Fault,human,id,insist,integer,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
 import {accessGuard,guard} from './trust-guards';
 import {invoiceFunds} from './trust-transfers';
@@ -21,14 +22,16 @@ async function invoice(db:D1Database,a:Actor,billId:string,payer:string):Promise
  insist(s.client===payer,'Allocate only to invoices of the recorded payer',409);insist(!b.corrects_bill_id&&['approved','exported'].includes(b.status),'Choose a live original invoice; corrections belong to its balance',409);
  return {...b,snapshot:s,funds:await invoiceFunds(db,b.id)};
 }
-async function split(db:D1Database,b:Data,cents:number){
- insist(cents<=b.funds.reservable_cents,'Allocation exceeds the unpaid amount after pending trust reservations',409);
+async function split(db:D1Database,b:Data,cents:number,effective?:string){
+ const baseCents=Math.min(cents,Math.max(0,b.funds.reservable_cents));insist(cents<=b.funds.due_cents-b.funds.reserved_cents,'Allocation exceeds the unpaid amount after pending trust reservations',409);
+ const feeCents=cents-baseCents;insist(!feeCents||effective,'Use the separate finance waiver for late fees',409);const feeParts=feeCents?await feePaymentParts(db,b.id,feeCents,effective!):[];
  const used=await stmt(db,`SELECT ${offlinePaidSql('b.id',undefined,'earned_cents')}+${writeoffSql('b.id',undefined,'earned_cents')}+COALESCE((SELECT SUM(COALESCE(a.earned_cents,p.cents)) FROM s_operating_payments p LEFT JOIN s_tax_trust_allocations a ON a.transfer_id=p.transfer_id WHERE p.bill_id=b.id AND NOT EXISTS(SELECT 1 FROM s_operating_payment_reversals r WHERE r.payment_id=p.id)),0) earned FROM s_bills b WHERE b.id=?`,b.id).first<Data>();
- const earned=Math.min(cents,Math.max(0,b.funds.earned_cents-used!.earned));return {earned,tax:cents-earned};
+ const earned=Math.min(baseCents,Math.max(0,b.funds.earned_cents-used!.earned));return {baseCents,earned,tax:baseCents-earned,feeParts};
 }
 async function receiptAccess(db:D1Database,a:Actor,receiptId:string):Promise<Data>{
  const r=await stmt(db,'SELECT * FROM s_billing_receipts WHERE id=?',receiptId).first<Data>();insist(r,'Receipt not found',404);await matter(db,a,r.source_matter_id);
- const allocations=await rows(db,'SELECT a.*,b.matter_id,i.number FROM s_billing_allocations a JOIN s_bills b ON b.id=a.bill_id JOIN s_invoice_issues i ON i.bill_id=b.id WHERE receipt_id=? ORDER BY a.effective_date,a.at,a.id',r.id);
+ let allocations=await rows(db,'SELECT a.*,b.matter_id,i.number FROM s_billing_allocations a JOIN s_bills b ON b.id=a.bill_id JOIN s_invoice_issues i ON i.bill_id=b.id WHERE receipt_id=? ORDER BY a.effective_date,a.at,a.id',r.id);
+ const feeAllocations=await rows(db,"SELECT a.*,d.bill_id,b.matter_id,i.number,'late_fee' kind FROM s_billing_fee_allocations a JOIN s_billing_fee_drafts d ON d.id=a.draft_id JOIN s_bills b ON b.id=d.bill_id JOIN s_invoice_issues i ON i.bill_id=b.id WHERE a.receipt_id=?",r.id);allocations=[...allocations,...feeAllocations].sort((x,y)=>x.effective_date.localeCompare(y.effective_date)||x.at.localeCompare(y.at)||x.id.localeCompare(y.id));
  for(const x of allocations)await matter(db,a,x.matter_id);
  const reversal=await stmt(db,'SELECT * FROM s_billing_receipt_reversals WHERE receipt_id=?',r.id).first<Data>();
  return {...r,allocations,reversal,unapplied_cents:reversal?0:r.cents-allocations.reduce((n,x)=>n+x.cents,0)};
@@ -61,11 +64,11 @@ export async function recordOfflinePayment(db:D1Database,a:Actor,matterId:string
  const allocations:Data[]=[],checks:D1PreparedStatement[]=[accessGuard(db,a,matterId),unchanged(db,revision),guard(db,"EXISTS(SELECT 1 FROM s_trust_accounts WHERE id=? AND kind='operating')",accountId)];
  let remaining=cents;
  const candidates=mode==='explicit'?input.allocations:await rows(db,"SELECT b.id billId FROM s_bills b JOIN s_invoice_issues i ON i.bill_id=b.id WHERE b.matter_id=? AND b.corrects_bill_id IS NULL AND b.status IN('approved','exported') ORDER BY json_extract(b.snapshot,'$.date'),b.created_at,b.id",matterId);
- for(const x of candidates){const bill=await invoice(db,a,x.billId,payer),amount=mode==='oldest'?Math.min(remaining,Math.max(0,bill.funds.reservable_cents)):x.cents;if(!amount)continue;
+ for(const x of candidates){const bill=await invoice(db,a,x.billId,payer),amount=mode==='oldest'?Math.min(remaining,Math.max(0,bill.funds.due_cents-bill.funds.reserved_cents)):x.cents;if(!amount)continue;
   insist(amount<=remaining,'Allocations exceed the received payment');insist(deposit>=bill.snapshot.date,'Payment allocation cannot precede the invoice date');
-  allocations.push({bill,cents:amount,...await split(db,bill,amount)});checks.push(accessGuard(db,a,bill.matter_id));remaining-=amount;
+  allocations.push({bill,cents:amount,...await split(db,bill,amount,deposit)});checks.push(accessGuard(db,a,bill.matter_id));remaining-=amount;
  }
- const receiptId=id(),at=now(),writes=[...checks,stmt(db,'INSERT INTO s_billing_receipts VALUES(?,?,?,?,?,?,?,?,?,?,?)',receiptId,matterId,payer,b.method,reference,received,deposit,accountId,cents,a.email,at),...allocations.map(x=>stmt(db,'INSERT INTO s_billing_allocations VALUES(?,?,?,?,?,?,?,?,?)',id(),receiptId,x.bill.id,x.cents,x.earned,x.tax,deposit,a.email,at)),audit(db,a,'billing.offline_received',receiptId,reference,{matterId,cents,allocationCount:allocations.length})];
+ const receiptId=id(),at=now(),writes=[...checks,stmt(db,'INSERT INTO s_billing_receipts VALUES(?,?,?,?,?,?,?,?,?,?,?)',receiptId,matterId,payer,b.method,reference,received,deposit,accountId,cents,a.email,at),...allocations.flatMap(x=>[...(x.baseCents?[stmt(db,'INSERT INTO s_billing_allocations VALUES(?,?,?,?,?,?,?,?,?)',id(),receiptId,x.bill.id,x.baseCents,x.earned,x.tax,deposit,a.email,at)]:[]),...feePaymentWrites(db,a,receiptId,x.feeParts,deposit,at)]),audit(db,a,'billing.offline_received',receiptId,reference,{matterId,cents,allocationCount:allocations.length})];
  const result=await post(db,a,key,'receipt',input,receiptId,writes);return receiptAccess(db,a,result);
 }
 export async function applyOfflineCredit(db:D1Database,a:Actor,receiptId:string,b:Data){
@@ -73,7 +76,7 @@ export async function applyOfflineCredit(db:D1Database,a:Actor,receiptId:string,
  const input={receiptId,effective,allocations},prior=await replay(db,key,'credit',await digest(JSON.stringify(input)));if(prior)return receiptAccess(db,a,prior.result_id);
  insist(!r.reversal,'A reversed receipt has no available credit',409);insist(effective>=r.deposit_date,'Credit application cannot precede its deposit');
  let remaining=r.unapplied_cents;const writes:D1PreparedStatement[]=[unchanged(db,revision),accessGuard(db,a,r.source_matter_id)];
- for(const x of allocations){const bill=await invoice(db,a,x.billId,r.payer);insist(effective>=bill.snapshot.date,'Credit application cannot precede the invoice date');insist(x.cents<=remaining,'Allocation exceeds unapplied credit',409);const components=await split(db,bill,x.cents);remaining-=x.cents;writes.push(accessGuard(db,a,bill.matter_id),stmt(db,'INSERT INTO s_billing_allocations VALUES(?,?,?,?,?,?,?,?,?)',id(),r.id,bill.id,x.cents,components.earned,components.tax,effective,a.email,now()));}
+ for(const x of allocations){const bill=await invoice(db,a,x.billId,r.payer);insist(effective>=bill.snapshot.date,'Credit application cannot precede the invoice date');insist(x.cents<=remaining,'Allocation exceeds unapplied credit',409);const components=await split(db,bill,x.cents,effective);remaining-=x.cents;const at=now();writes.push(accessGuard(db,a,bill.matter_id),...(components.baseCents?[stmt(db,'INSERT INTO s_billing_allocations VALUES(?,?,?,?,?,?,?,?,?)',id(),r.id,bill.id,components.baseCents,components.earned,components.tax,effective,a.email,at)]:[]),...feePaymentWrites(db,a,r.id,components.feeParts,effective,at));}
  for(const x of r.allocations)writes.push(accessGuard(db,a,x.matter_id));writes.push(audit(db,a,'billing.credit_applied',r.id,'',{matterId:r.source_matter_id}));
  await post(db,a,key,'credit',input,r.id,writes);return receiptAccess(db,a,r.id);
 }

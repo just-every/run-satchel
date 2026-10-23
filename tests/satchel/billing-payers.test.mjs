@@ -4,7 +4,7 @@ import {harness} from './harness.mjs';
 import {paymentFixture} from './billing-payments-fixture.mjs';
 test('principal split-payer and FX reviews reconcile exact original and USD cents while denying issuance, recipient exposure and trust conversion',async()=>{
  const h=await harness();try{
-  const f=await paymentFixture(h),bill=await f.issue(100000,'One thousand dollar payer allocation'),base='/matters/'+f.m.id,path=base+'/payer-reviews';
+  await h.json('/team',{email:'owner@example.test',name:'Principal',role:'trust_officer'},h.owner);const f=await paymentFixture(h),bill=await f.issue(100000,'One thousand dollar payer allocation'),base='/matters/'+f.m.id,path=base+'/payer-reviews';
   await h.json('/team',{email:'billing@example.test',name:'Billing',role:'billing'},h.owner);await h.json('/team/invite',{email:'billing@example.test'},h.owner);const billing=await h.login('billing@example.test');await h.json(base+'/access',{email:'billing@example.test'},h.owner);
   const input={billId:bill.id,requestKey:'synthetic-satchel-401',reference:'Principal reviewed native client and insurer split agreement',reviewed:true,currency:'USD',mode:'fixed',payers:[{label:'Barton Workshop LLC',kind:'client',value:60000},{label:'Synthetic insurer',kind:'insurer',value:40000}]};
   await h.json(path,input,billing,403);await h.json(path,undefined,billing,403);await h.json(path,{...input,reviewed:false},h.owner,400);await h.json(path,{...input,payers:[...input.payers,{label:'Extra payer',kind:'third_party',value:1}]},h.owner,400);
