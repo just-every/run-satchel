@@ -59,6 +59,7 @@ export async function prepareProduction(db:D1Database,actor:Actor,matterId:strin
    try{original=await PDFDocument.load(bytes);}catch{insist(false,'The source must be a readable, unencrypted PDF');}
    const pageCount=original.getPageCount();insist(pageCount>0&&pageCount<=500,'A source must have between 1 and 500 pages');
    insist(redactedPages.every(n=>n<=pageCount),'A redacted page is outside the source');
+   insist(redactedPages.length===0||redactedPages.length===pageCount,'Selective page redaction is unavailable: redact every page in this source or withhold the original');
    insist(sequence+pageCount-1<=99999999,'Bates numbering exceeds eight digits');
    const output=await PDFDocument.create(),font=await output.embedFont(StandardFonts.Helvetica);
    output.setCreationDate(new Date(at));output.setModificationDate(new Date(at));
