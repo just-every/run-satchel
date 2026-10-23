@@ -85,13 +85,13 @@ test('controlled production pins originals, removes whole-page content, freezes 
   const files=unzipSync(bytes),manifest=JSON.parse(strFromU8(files['manifest.json'])),log=JSON.parse(strFromU8(files['privilege-log.json']));
   assert.deepEqual(manifest,packet.snapshot);assert.equal(log.length,2);assert.deepEqual(Object.keys(files).sort(),['001.pdf','manifest.json','privilege-log.json']);
   assert.equal(createHash('sha256').update(files['001.pdf']).digest('hex'),manifest.items[0].producedSha256);
-  const rendered=await getDocument({data:new Uint8Array(files['001.pdf']),useSystemFonts:true}).promise;
+  const task=getDocument({data:new Uint8Array(files['001.pdf']),useSystemFonts:true}),rendered=await task.promise;
   try{
    assert.equal(rendered.numPages,2);const text=[];
    for(let n=1;n<=2;n++)text.push((await(await rendered.getPage(n)).getTextContent()).items.map(x=>x.str??'').join(' '));
    assert.match(text[0],/Public treatment record/);assert.match(text[0],/SYN-00000001/);assert.equal(text[1].trim(),'SYN-00000002');
    assert.ok(!text.join(' ').includes('synthetic-satchel-1'));assert.equal(await rendered.getAttachments(),null);assert.ok(!(await rendered.getMetadata()).info.Title);
-  }finally{await rendered.destroy();}
+  }finally{await task.destroy();}
   assert.deepEqual(Buffer.from(await(await h.request('/api/satchel/documents/'+source.id+'/file?version=1',undefined,h.owner)).arrayBuffer()),original);
   await h.json(door+'/approve',{sha256:'wrong',reviewNote:'Wrong packet'},h.owner,409);
   await h.json(base+'/productions',body,h.owner,409); // Bates collisions never consume a second packet.
@@ -120,7 +120,39 @@ test('controlled production pins originals, removes whole-page content, freezes 
   assert.equal((await h.request('/api/satchel'+door+'/file',undefined,h.owner)).status,404);assert.deepEqual(await h.json(base+'/productions',undefined,h.owner),[]);
   // The later erasure journal also fences an earlier archive that still held a packet.
   const journal=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();
-  await restored.close();restored=await harness();await restored.json('/restore',{archive,journal,confirm:'RESTORE'},restored.owner);
+  await restored.close();restored=await harness();await restored.json('/restore',{archive,journal,confirm:'RESTORE'},restored.owner,409);
+  await restored.json('/restore',{archive:journal,confirm:'RESTORE'},restored.owner);
   assert.equal((await restored.request('/api/satchel'+door+'/file',undefined,restored.owner)).status,404);
+ }finally{await restored?.close();await h.close();}
+});
+
+test('native medical chronology requires health setup, pins source pages, reconciles overlapping bills only on counsel review, and erases its derivatives',async()=>{
+ const {PDFDocument,StandardFonts}=await import('pdf-lib');const h=await harness();let restored;
+ try{
+  const m=await open(h,'Medical chronology'),base='/matters/'+m.id,door=base+'/chronologies',pdf=await PDFDocument.create(),font=await pdf.embedFont(StandardFonts.Helvetica);
+  for(const line of ['synthetic-satchel-5 treatment packet','synthetic-satchel-6 overlapping bill']){const p=pdf.addPage([400,500]);p.drawText(line,{x:30,y:400,font,size:12});}
+  const bytes=Buffer.from(await pdf.save()),upload=name=>h.json(base+'/documents',{name,mime:'application/pdf',visibility:'matter',contentBase64:bytes.toString('base64')},h.owner),source=await upload('Treatment.pdf'),bill=await upload('Overlapping-bill.pdf');
+  const entry=(extra={})=>({documentId:source.id,version:1,page:1,kind:'treatment',provider:'Clinic',date:'2026-01-01',treatment:'synthetic-satchel-7 reviewed visit',...extra});
+  const packet={reportedTotalCents:2000,gapDays:30,entries:[entry(),entry({date:'2026-03-01',page:2}),entry({kind:'bill',chargeCents:2000,page:2}),entry({documentId:bill.id,kind:'bill',chargeCents:2000,page:2})]};
+  assert.equal((await h.json(door,undefined,h.owner)).setup,null);await h.json(door,packet,h.owner,409);
+  await h.json(door+'/setup',{authorizationReference:'Received records authorization',agreementReference:'Native storage agreement',confirmed:false},h.owner,400);
+  await h.json(door+'/setup',{authorizationReference:'Received records authorization',agreementReference:'Native storage agreement',confirmed:true},h.owner);
+  await h.json(door,{...packet,entries:[entry({page:3})]},h.owner,400);
+  const draft=await h.json(door,packet,h.owner);
+  assert.equal(draft.status,'draft');assert.equal(draft.snapshot.grossTotalCents,4000);assert.equal(draft.snapshot.unreviewedDifferenceCents,2000);assert.deepEqual(draft.snapshot.duplicates,[{index:3,possibleDuplicateOf:2}]);assert.equal(draft.snapshot.intervals[0].days,59);
+  assert.equal(draft.snapshot.entries[0].sourceSha256,source.versions[0].sha256);assert.equal(draft.snapshot.entries[3].sourceName,'Overlapping-bill.pdf');assert.equal(draft.snapshot.entries[3].page,2);
+  const publish='/chronologies/'+draft.id+'/publish',review={sha256:draft.sha256,reviewNote:'Counsel checked every source page and duplicate charge',decisions:[{index:3,decision:'exclude',note:'Same bill charge in overlapping packet'}]};
+  await h.json(publish,{...review,decisions:[]},h.owner,400);await h.json(publish,{...review,sha256:'wrong'},h.owner,409);
+  await h.json('/team',{email:'lawyer@example.test',name:'Counsel',role:'lawyer'},h.owner);await h.json('/team/invite',{email:'lawyer@example.test'},h.owner);const lawyer=await h.login('lawyer@example.test');await h.json(base+'/access',{email:'lawyer@example.test'},h.owner);
+  await h.json(door,undefined,lawyer,403);await h.json(door+'/setup',{authorizationReference:'No',agreementReference:'No',confirmed:true},lawyer,403);await h.json(publish,review,lawyer,403);
+  const published=await h.json(publish,review,h.owner);assert.equal(published.review.reconciledTotalCents,2000);assert.equal(published.review.differenceCents,0);await h.json(publish,review,h.owner,409);
+  assert.deepEqual(Buffer.from(await(await h.request('/api/satchel/documents/'+source.id+'/file?version=1',undefined,h.owner)).arrayBuffer()),bytes);
+  const audit=(await h.json('/audit?matterId='+m.id+'&action=chronology.published',undefined,h.owner)).records[0];assert.equal(audit.evidence.record.recordType,'s_document_chronologies');assert.equal(audit.evidence.record.sha256,draft.sha256);
+  await h.restart();const state=await h.json(door,undefined,h.owner);assert.equal(state.chronologies[0].published_by,'owner@example.test');
+  const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();restored=await harness();await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);assert.deepEqual(await restored.json(door,undefined,restored.owner),state);
+  await h.json('/retention',{matterId:m.id,documentId:source.id,disposeAfter:'2020-01-01',basis:'Expired received packet'},h.owner);
+  const disposal=await h.json('/documents/'+source.id+'/dispose',{confirm:source.title,reason:'Counsel authorized disposal'},h.owner);assert.equal(disposal.journal.derivatives.chronologies,1);
+  assert.deepEqual((await h.json(door,undefined,h.owner)).chronologies,[]);await h.json(publish,review,h.owner,404);
+  const after=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(!after.includes('synthetic-satchel-7 reviewed visit'));
  }finally{await restored?.close();await h.close();}
 });

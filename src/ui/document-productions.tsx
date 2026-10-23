@@ -22,7 +22,7 @@ export function DocumentProductions({matterId,actor,documents,run,tick}:{matterI
    <Field label="Intended recipient name" name="recipientName"/><Field label="Intended recipient email" name="recipientEmail" type="email"/>
    <Field label="Bates prefix" name="batesPrefix" value="PROD-"/><Field label="First Bates number" name="batesStart" type="number" value={1}/>
    {available.map(d=><details key={d.id}><summary>{d.title} · version {d.currentVersion}</summary>
-    <Field label={'Production choice for '+d.title} name={d.id+'.disposition'}><select name={d.id+'.disposition'} defaultValue="exclude"><option value="exclude">Do not select</option><option value="produce">Produce PDF</option><option value="withhold">Withhold entire original</option></select></Field>
+    <Field label={'Production choice for '+d.title} name={d.id+'.disposition'}><select aria-label={'Production choice for '+d.title} name={d.id+'.disposition'} defaultValue="exclude"><option value="exclude">Do not select</option><option value="produce">Produce PDF</option><option value="withhold">Withhold entire original</option></select></Field>
     <Field label={'Privilege label for '+d.title} name={d.id+'.privilege'} value="None"/>
     <Field label={'Whole pages to redact in '+d.title+' (comma separated)'} name={d.id+'.pages'} required={false}/>
     <Field label={'Withholding or redaction reason for '+d.title} name={d.id+'.reason'} required={false}/>
