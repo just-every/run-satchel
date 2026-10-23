@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {harness} from './harness.mjs';
+import {harness,open} from './harness.mjs';
 import {reportFoundation} from './report-fixture.mjs';
 import {reviewed} from './invoice-numbering-fixture.mjs';
 import {foundation} from './trust-fixture.mjs';
@@ -114,5 +114,59 @@ test('FIRM-008 custom roles gate bank, contacts, documents, settings, agent keys
   // Roles and assignments survive an archive restore.
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),target=await harness();
   try{await target.json('/restore',{archive,confirm:'RESTORE'},target.owner);const restored=await target.json('/roles',undefined,target.owner);assert.deepEqual(restored.roles.map(r=>r.name).sort(),['Area ceiling','Bank ceiling']);assert.deepEqual(restored.roles.find(r=>r.name==='Bank ceiling').members.sort(),['assistant@example.test','trust_officer@example.test']);}finally{await target.close();}
+ }finally{await h.close();}
+});
+
+test('matter field projections require document permission',async()=>{
+ const h=await harness();try{
+  const f=await reportFoundation(h),base='/matters/'+f.active.id;
+  await h.json(base+'/access',{email:'assistant@example.test'},h.owner);
+  const doc=await h.json(base+'/documents',{name:'synthetic-satchel-1',mime:'text/plain',visibility:'matter',contentBase64:Buffer.from('synthetic-satchel-1').toString('base64')},h.owner);
+  const preview=await h.json(base+'/document-sets/preview',{documents:[{id:doc.id,revision:doc.revision}],documentType:'Complaint'},h.owner);
+  await h.json(base+'/document-sets/apply',{previewId:preview.id},h.owner);
+  const type=(await h.json('/matter-types',{name:'Litigation records',practiceCode:'LIT',definition:{required:[],fields:[],records:['Complaint']}},h.owner)).types[0];
+  const fields=await h.json(base+'/fields',undefined,h.owner);
+  await h.json(base+'/fields',{revision:fields.profile.revision,typeId:type.id,typeVersion:type.version},h.owner);
+  assert.ok(JSON.stringify(await h.json(base+'/fields',undefined,f.assistant)).includes(doc.id));
+  const role=await h.json('/roles',{name:'Document ceiling',permissions:{...everything,documents:'none'},reason:'Withhold documents'},h.owner);
+  await assign(h,'assistant@example.test','Assistant','assistant',role.id);
+  const response=await h.request('/api/satchel'+base+'/fields',undefined,f.assistant);
+  assert.equal(response.status,403,await response.text());
+ }finally{await h.close();}
+});
+async function compositeCounsel(h){
+ await h.json('/team',{email:'lawyer@example.test',name:'Counsel',role:'lawyer'},h.owner);
+ await h.json('/team/invite',{email:'lawyer@example.test'},h.owner);const lawyer=await h.login('lawyer@example.test');
+ const m=await open(h),base='/matters/'+m.id;await h.json(base+'/access',{email:'lawyer@example.test'},h.owner);
+ const entry=await h.json(base+'/entries',{kind:'time',date:'2026-10-01',description:'synthetic-satchel-2',minutes:60,rateCents:41000},h.owner);
+ return {lawyer,m,base,entry};
+}
+test('lifecycle projections require financial source permissions',async()=>{
+ const h=await harness();try{
+  const f=await compositeCounsel(h);
+  assert.ok(JSON.stringify(await h.json(f.base+'/lifecycle',undefined,f.lawyer)).includes('41000'));
+  const statuses=[];
+  for(const ceiling of [{billing:'none'},{rates:'none'},{rates:'own'},{bank:'none'}]){
+   const role=await h.json('/roles',{name:'Lifecycle ceiling '+statuses.length,permissions:{...everything,...ceiling},reason:'Restrict source data'},h.owner);
+   await assign(h,'lawyer@example.test','Counsel','lawyer',role.id);
+   for(const [suffix,body] of [['/lifecycle',undefined],['/closure-preview',{}]])statuses.push((await h.request('/api/satchel'+f.base+suffix,body,f.lawyer)).status);
+  }
+  assert.deepEqual(statuses,Array(8).fill(403));
+ }finally{await h.close();}
+});
+test('audit reads and raw exports require permissions for their source records',async()=>{
+ const h=await harness();try{
+  const f=await compositeCounsel(h);
+  await h.json(f.base+'/wall',{custodianEmail:'lawyer@example.test',members:['owner@example.test'],reason:'Counsel custody',revision:null},h.owner);
+  const path='/audit?matterId='+f.m.id,exportPath='/audit/export?matterId='+f.m.id;
+  assert.ok(JSON.stringify(await h.json(path,undefined,f.lawyer)).includes('41000'));
+  assert.ok((await(await h.request('/api/satchel'+exportPath,undefined,f.lawyer)).text()).includes('41000'));
+  const statuses=[];
+  for(const ceiling of [{rates:'none'},{rates:'own'},{billing:'none'},{documents:'none'},{bank:'balances'},{contacts:'none'}]){
+   const role=await h.json('/roles',{name:'Audit ceiling '+statuses.length,permissions:{...everything,settings:'read',...ceiling},reason:'Restrict source data'},h.owner);
+   await assign(h,'lawyer@example.test','Counsel','lawyer',role.id);
+   for(const p of [path,exportPath]){const r=await h.request('/api/satchel'+p,undefined,f.lawyer);statuses.push(r.status);await r.text();}
+  }
+  assert.deepEqual(statuses,Array(12).fill(403));
  }finally{await h.close();}
 });
