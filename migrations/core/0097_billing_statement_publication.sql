@@ -1,0 +1,13 @@
+CREATE TABLE s_billing_statement_recipients(id TEXT PRIMARY KEY,request_key TEXT NOT NULL UNIQUE,statement_id TEXT NOT NULL REFERENCES s_billing_statements(id),email TEXT NOT NULL,reason TEXT NOT NULL,pdf_digest TEXT NOT NULL,actor TEXT NOT NULL,at TEXT NOT NULL);
+CREATE TABLE s_billing_statement_withdrawals(recipient_id TEXT PRIMARY KEY REFERENCES s_billing_statement_recipients(id),reason TEXT NOT NULL,actor TEXT NOT NULL,at TEXT NOT NULL);
+CREATE TABLE s_billing_statement_views(id TEXT PRIMARY KEY,recipient_id TEXT NOT NULL REFERENCES s_billing_statement_recipients(id),email TEXT NOT NULL,pdf_digest TEXT NOT NULL,at TEXT NOT NULL);
+CREATE TRIGGER s_billing_statement_recipients_no_update BEFORE UPDATE ON s_billing_statement_recipients BEGIN SELECT RAISE(ABORT,'statement publication is append-only'); END;
+CREATE TRIGGER s_billing_statement_recipients_no_delete BEFORE DELETE ON s_billing_statement_recipients BEGIN SELECT RAISE(ABORT,'statement publication is append-only'); END;
+CREATE TRIGGER s_billing_statement_withdrawals_no_update BEFORE UPDATE ON s_billing_statement_withdrawals BEGIN SELECT RAISE(ABORT,'statement withdrawal is append-only'); END;
+CREATE TRIGGER s_billing_statement_withdrawals_no_delete BEFORE DELETE ON s_billing_statement_withdrawals BEGIN SELECT RAISE(ABORT,'statement withdrawal is append-only'); END;
+CREATE TRIGGER s_billing_statement_views_no_update BEFORE UPDATE ON s_billing_statement_views BEGIN SELECT RAISE(ABORT,'statement access events are append-only'); END;
+CREATE TRIGGER s_billing_statement_views_no_delete BEFORE DELETE ON s_billing_statement_views BEGIN SELECT RAISE(ABORT,'statement access events are append-only'); END;
+CREATE TRIGGER s_billing_statement_recipient_unique BEFORE INSERT ON s_billing_statement_recipients WHEN EXISTS(SELECT 1 FROM s_billing_statement_recipients p WHERE p.statement_id=NEW.statement_id AND p.email=NEW.email AND NOT EXISTS(SELECT 1 FROM s_billing_statement_withdrawals w WHERE w.recipient_id=p.id)) BEGIN SELECT RAISE(ABORT,'constraint: this exact statement is already published to this recipient'); END;
+CREATE TABLE s_billing_statement_recipient_grants(recipient_id TEXT NOT NULL REFERENCES s_billing_statement_recipients(id),matter_id TEXT NOT NULL REFERENCES s_matters(id),portal_grant_id TEXT NOT NULL REFERENCES s_portal_grants(id),PRIMARY KEY(recipient_id,matter_id));
+CREATE TRIGGER s_billing_statement_recipient_grants_no_update BEFORE UPDATE ON s_billing_statement_recipient_grants BEGIN SELECT RAISE(ABORT,'statement authority bindings are immutable'); END;
+CREATE TRIGGER s_billing_statement_recipient_grants_no_delete BEFORE DELETE ON s_billing_statement_recipient_grants BEGIN SELECT RAISE(ABORT,'statement authority bindings are immutable'); END;

@@ -24,6 +24,8 @@ export const areaRules:[RegExp,string[]][]=[
  rule('/(matters/'+seg+'/statements|statements/'+seg+'/pdf)',['billing','rates:all']),
  rule('/(matters/'+seg+'/late-fees|bills/'+seg+'/(fee-exclusions|late-fees)|late-fee-drafts/'+seg+'/(waive|post))',['billing']),
  rule('/matters/'+seg+'/payer-reviews',['billing']),
+ rule('/(portal/statements|portal/statements/'+seg+'/pdf)',open),
+ rule('/(statements/'+seg+'/publish|statement-recipients/'+seg+'/withdraw)',['billing','rates:all']),
  rule('/matters/'+seg+'/rates',['rates']),
  rule('/agent/matters/'+seg,['billing','documents']),
  rule('/trust',['bank:balances']),rule('/trust/'+any,['bank']),

@@ -1,3 +1,4 @@
+import {PortalStatements} from './billing-statements';
 import {useEffect,useState} from 'react';
 import {api,Empty,Field,Form,type Row,type Run} from './common';
 import {PortalInvoices,PortalShares} from './client-shares';
@@ -17,7 +18,7 @@ export function ClientPortal({me}:{me:Row}){
  return <div className="workspace"><header><a className="brand" href="/app"><img src="/brand/mark.svg" alt=""/><span data-rer-name>Satchel</span></a><span>Client portal</span><a href="/signin">Sign in</a></header><main><div className="page-heading"><div><p className="eyebrow">SHARED WITH YOU</p><h1>Your matters</h1></div><div className="heading-tools"><span className="badge">{me.name} · client</span></div></div>
   {error&&<p className="error" role="alert">{error}</p>}
   {!grants?<p>Opening your matters…</p>:!grants.length?<Empty>Your firm has not shared a matter with you yet.</Empty>:<section className="panel"><h2>Shared matters</h2>{grants.map(g=><article className="record" key={g.id}><strong>{g.matterNumber} · {g.title}</strong><p>{g.status} · shared {g.grantedAt.slice(0,10)}</p><p>{labels[g.kind]}</p>{g.kind!=='payer'&&<><ClientTimeline matterId={g.matterId}/><PortalShares matterId={g.matterId}/><PortalRequests matterId={g.matterId}/><PortalThreads matterId={g.matterId}/></>}{['payer','client'].includes(g.kind)&&<PortalInvoices matterId={g.matterId}/>}</article>)}</section>}
- </main></div>;
+ <PortalStatements/></main></div>;
 }
 function ClientTimeline({matterId}:{matterId:string}){
  const [entries,setEntries]=useState<Row[]|null>(null);

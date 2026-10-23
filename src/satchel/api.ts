@@ -1,6 +1,6 @@
 import {payerReviews,reviewPayers} from './billing-payers';
 import {lateFeeState,saveFeeProfile,saveFeeHold,draftLateFee,waiveLateFee,postLateFee} from './billing-late-fees';
-import {statementState,prepareStatement,statementFile} from './billing-statements';
+import {statementState,prepareStatement,statementFile,publishStatement,withdrawStatement,portalStatements,portalStatementFile} from './billing-statements';
 import {templateState,saveTemplate,assignTemplate,retireTemplate} from './billing-templates';
 import {billingLedger,agingCsv} from './billing-ledger';
 import {billingPayments,recordOfflinePayment,applyOfflineCredit,reverseOfflinePayment,requestWriteoff,approveWriteoff} from './billing-payments';
@@ -136,6 +136,10 @@ api.post('/api/satchel/late-fee-drafts/:id/post',as(async(a,c)=>postLateFee(db(c
 api.post('/api/satchel/late-fee-drafts/:id/waive',as(async(a,c)=>waiveLateFee(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/matters/:id/payer-reviews',as((a,c)=>payerReviews(db(c),a,param(c))));
 api.post('/api/satchel/matters/:id/payer-reviews',as(async(a,c)=>reviewPayers(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/statements/:id/publish',as(async(a,c)=>publishStatement(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/statement-recipients/:id/withdraw',as(async(a,c)=>withdrawStatement(db(c),a,param(c),await body(c))));
+api.get('/api/satchel/portal/statements',as((a,c)=>portalStatements(db(c),a)));
+api.get('/api/satchel/portal/statements/:id/pdf',as((a,c)=>portalStatementFile(db(c),a,param(c))));
 api.get('/api/satchel/invoice-numbering',as((a,c)=>invoiceSettings(db(c),a)));
 api.post('/api/satchel/invoice-numbering',as(async(a,c)=>saveInvoiceScheme(db(c),a,await body(c))));
 api.post('/api/satchel/invoice-numbering/import',as(async(a,c)=>registerImportedNumbers(db(c),a,await body(c))));
