@@ -16,6 +16,7 @@ test('LICENSE, homepage, run page, README and owner guides agree: MIT, free Satc
  }
  assert.match(guide,/MIT license/);assert.match(guide,/own Cloudflare account/);assert.match(guide,/Satchel adds no charge, markup or resale fee/);
   assert.match(guide,/100% free.{1,8}describes Satchel software/);
+ assert.match(await text('dist/site/contract.html'),/100% free.{1,8}describes Satchel software only/);
  // The homepage and run page offer no price, plan, trial or license-key step.
  for(const page of [home,run])assert.doesNotMatch(page,/\b(pricing|subscribe|subscription plan|free trial|license key|per seat|per user|upgrade to)\b/i);
  // Every guide that tells a reader to run Satchel points to the provider-billing guide.
