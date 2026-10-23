@@ -65,7 +65,7 @@ export async function recordOfflinePayment(db:D1Database,a:Actor,matterId:string
   insist(amount<=remaining,'Allocations exceed the received payment');insist(deposit>=bill.snapshot.date,'Payment allocation cannot precede the invoice date');
   allocations.push({bill,cents:amount,...await split(db,bill,amount)});checks.push(accessGuard(db,a,bill.matter_id));remaining-=amount;
  }
- const receiptId=id(),at=now(),writes=[...checks,stmt(db,'INSERT INTO s_billing_receipts VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',receiptId,matterId,payer,b.method,reference,received,deposit,accountId,cents,a.email,at),...allocations.map(x=>stmt(db,'INSERT INTO s_billing_allocations VALUES(?,?,?,?,?,?,?,?,?)',id(),receiptId,x.bill.id,x.cents,x.earned,x.tax,deposit,a.email,at)),audit(db,a,'billing.offline_received',receiptId,reference,{matterId,cents,allocationCount:allocations.length})];
+ const receiptId=id(),at=now(),writes=[...checks,stmt(db,'INSERT INTO s_billing_receipts VALUES(?,?,?,?,?,?,?,?,?,?,?)',receiptId,matterId,payer,b.method,reference,received,deposit,accountId,cents,a.email,at),...allocations.map(x=>stmt(db,'INSERT INTO s_billing_allocations VALUES(?,?,?,?,?,?,?,?,?)',id(),receiptId,x.bill.id,x.cents,x.earned,x.tax,deposit,a.email,at)),audit(db,a,'billing.offline_received',receiptId,reference,{matterId,cents,allocationCount:allocations.length})];
  const result=await post(db,a,key,'receipt',input,receiptId,writes);return receiptAccess(db,a,result);
 }
 export async function applyOfflineCredit(db:D1Database,a:Actor,receiptId:string,b:Data){

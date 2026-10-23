@@ -29,3 +29,4 @@ CREATE TRIGGER s_trust_transfers_money_revision AFTER INSERT ON s_trust_transfer
 CREATE TRIGGER s_trust_transfer_actions_money_revision AFTER INSERT ON s_trust_transfer_actions BEGIN UPDATE s_billing_money_revision SET revision=revision+1 WHERE id=1; END;
 CREATE TRIGGER s_bill_tax_approvals_money_revision AFTER INSERT ON s_bill_tax_approvals BEGIN UPDATE s_billing_money_revision SET revision=revision+1 WHERE id=1; END;
 CREATE TRIGGER s_bills_money_revision AFTER UPDATE ON s_bills BEGIN UPDATE s_billing_money_revision SET revision=revision+1 WHERE id=1; END;
+CREATE TRIGGER s_invoice_voids_refuse_offline_payment BEFORE INSERT ON s_invoice_voids WHEN EXISTS(SELECT 1 FROM s_billing_allocations a WHERE a.bill_id=NEW.bill_id AND NOT EXISTS(SELECT 1 FROM s_billing_receipt_reversals r WHERE r.receipt_id=a.receipt_id)) BEGIN SELECT RAISE(ABORT,'constraint: reverse offline receipts before voiding'); END;

@@ -7,12 +7,14 @@ test('offline receipts allocate once, retain credit, require finance write-off a
  const h=await harness();try{
   const f=await paymentFixture(h),base='/matters/'+f.m.id,body=receipt(f);
   await h.json('/team',{email:'billing@example.test',name:'Billing',role:'billing'},h.owner);await h.json('/team',{email:'assistant@example.test',name:'Assistant',role:'assistant'},h.owner);
+  await h.json('/team/invite',{email:'billing@example.test'},h.owner);await h.json('/team/invite',{email:'assistant@example.test'},h.owner);
   const billing=await h.login('billing@example.test'),assistant=await h.login('assistant@example.test');
   await h.json(base+'/access',{email:'billing@example.test'},h.owner);await h.json(base+'/access',{email:'assistant@example.test'},h.owner);
   await h.json(base+'/payments',body,assistant,403);
   await h.json(base+'/payments',{...body,destination:'trust'},billing,400);await h.json(base+'/payments',{...body,accountId:f.trust.id},billing,400);
   await h.json(base+'/payments',{...body,confirmedReceived:false},billing,400);
-  const [p,repeated]=await Promise.all([h.json(base+'/payments',body,billing),h.json(base+'/payments',body,billing)]);assert.equal(repeated.id,p.id);assert.deepEqual(p.allocations.map(x=>x.cents),[10000,20000,15000]);assert.equal(p.unapplied_cents,0);
+  const [p,repeated]=await Promise.all([h.json(base+'/payments',body,billing),h.json(base+'/payments',body,billing)]);assert.equal(repeated.id,p.id);assert.deepEqual(f.bills.map(b=>p.allocations.find(x=>x.bill_id===b.id).cents),[10000,20000,15000]);assert.equal(p.unapplied_cents,0);
+  const live=(await h.json(base+'/billing',undefined,h.owner)).bills.find(b=>b.id===f.bills[0].id);await h.json('/invoices/'+live.id+'/void',{revision:live.revision,reason:'Cannot void paid work'},h.owner,409);
   const state=()=>h.json(base+'/payments',undefined,billing);let s=await state();assert.deepEqual(s.invoices.map(x=>x.balance.due_cents),[0,0,15000]);assert.deepEqual(s.invoices.map(x=>x.balance.status),['paid','paid','partially_paid']);
   await h.json(base+'/payments',{...body,cents:46000},billing,409);assert.equal((await state()).receipts.length,1);
   const wbody={requestKey:'synthetic-satchel-5',cents:15000,date:'2026-10-04',reason:'Finance approved courtesy write-off for service concern'};
