@@ -20,7 +20,10 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`MATTER-009 one search 
   await signIn(page,h,'owner@example.test','Avery Barton');
   const box=page.getByRole('combobox',{name:'Search the firm'}),results=page.getByRole('listbox',{name:'Search results'}),status=page.locator('.firm-search [role=status]');
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);
-  await page.locator('body').click({position:{x:2,y:2}});await page.keyboard.press('/');await page.waitForFunction(()=>document.activeElement?.getAttribute('role')==='combobox');
+  await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Matters',exact:true}).waitFor({state:'visible'});await page.waitForFunction(()=>![...document.querySelectorAll('nav[aria-label=Workspace] button')].some(b=>b.disabled));
+  // The shortcut is a window listener that exists once the workspace has hydrated; press until it takes.
+  for(let attempt=0;attempt<40&&(await page.evaluate(()=>document.activeElement?.getAttribute('role')))!=='combobox';attempt++){await page.locator('body').click({position:{x:2,y:2}});await page.keyboard.press('/');await page.waitForTimeout(250);}
+  assert.equal(await page.evaluate(()=>document.activeElement?.getAttribute('role')),'combobox','"/" focuses the search box');
   await page.keyboard.type('Barton');await results.waitFor();
   for(const type of ['Matters','Contacts','Notes','Tasks','Events','Documents','Email','Invoices'])await results.getByRole('heading',{name:new RegExp('^'+type+' ')}).waitFor();
   assert.match(await status.innerText(),/^\d+ results? in 8 groups$/);
