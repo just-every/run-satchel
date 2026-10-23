@@ -1,3 +1,4 @@
+import {lateFeeState,saveFeeProfile,saveFeeHold,draftLateFee,waiveLateFee} from './billing-late-fees';
 import {statementState,prepareStatement,statementFile} from './billing-statements';
 import {templateState,saveTemplate,assignTemplate,retireTemplate} from './billing-templates';
 import {billingLedger,agingCsv} from './billing-ledger';
@@ -115,6 +116,11 @@ api.post('/api/satchel/invoice-templates/:id/retire',as(async(a,c)=>retireTempla
 api.get('/api/satchel/matters/:id/statements',as((a,c)=>statementState(db(c),a,param(c))));
 api.post('/api/satchel/matters/:id/statements',as(async(a,c)=>prepareStatement(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/statements/:id/pdf',as((a,c)=>statementFile(db(c),a,param(c))));
+api.get('/api/satchel/matters/:id/late-fees',as((a,c)=>lateFeeState(db(c),a,param(c))));
+api.post('/api/satchel/matters/:id/late-fees',as(async(a,c)=>saveFeeProfile(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/bills/:id/fee-exclusions',as(async(a,c)=>saveFeeHold(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/bills/:id/late-fees',as(async(a,c)=>draftLateFee(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/late-fee-drafts/:id/waive',as(async(a,c)=>waiveLateFee(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/invoice-numbering',as((a,c)=>invoiceSettings(db(c),a)));
 api.post('/api/satchel/invoice-numbering',as(async(a,c)=>saveInvoiceScheme(db(c),a,await body(c))));
 api.post('/api/satchel/invoice-numbering/import',as(async(a,c)=>registerImportedNumbers(db(c),a,await body(c))));

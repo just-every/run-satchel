@@ -1,0 +1,12 @@
+CREATE TABLE s_billing_fee_profiles(sequence INTEGER PRIMARY KEY AUTOINCREMENT,id TEXT NOT NULL UNIQUE,scope TEXT NOT NULL CHECK(scope IN('matter','client')),matter_id TEXT REFERENCES s_matters(id),client TEXT,terms TEXT NOT NULL,actor TEXT NOT NULL,at TEXT NOT NULL);
+CREATE TABLE s_billing_fee_holds(sequence INTEGER PRIMARY KEY AUTOINCREMENT,id TEXT NOT NULL UNIQUE,bill_id TEXT NOT NULL REFERENCES s_bills(id),status TEXT NOT NULL CHECK(status IN('clear','disputed','current_plan','unknown')),reference TEXT NOT NULL,actor TEXT NOT NULL,at TEXT NOT NULL);
+CREATE TABLE s_billing_fee_drafts(id TEXT PRIMARY KEY,request_key TEXT NOT NULL UNIQUE,fingerprint TEXT NOT NULL,bill_id TEXT NOT NULL REFERENCES s_bills(id),profile_id TEXT NOT NULL REFERENCES s_billing_fee_profiles(id),as_of TEXT NOT NULL,basis_cents INTEGER NOT NULL,eligible_days INTEGER NOT NULL,cents INTEGER NOT NULL CHECK(cents>=0),snapshot TEXT NOT NULL,actor TEXT NOT NULL,at TEXT NOT NULL);
+CREATE TABLE s_billing_fee_waivers(draft_id TEXT PRIMARY KEY REFERENCES s_billing_fee_drafts(id),reason TEXT NOT NULL,actor TEXT NOT NULL,at TEXT NOT NULL);
+CREATE TRIGGER s_billing_fee_profiles_no_update BEFORE UPDATE ON s_billing_fee_profiles BEGIN SELECT RAISE(ABORT,'fee profiles are immutable'); END;
+CREATE TRIGGER s_billing_fee_profiles_no_delete BEFORE DELETE ON s_billing_fee_profiles BEGIN SELECT RAISE(ABORT,'fee profiles are immutable'); END;
+CREATE TRIGGER s_billing_fee_holds_no_update BEFORE UPDATE ON s_billing_fee_holds BEGIN SELECT RAISE(ABORT,'fee exclusions are append-only'); END;
+CREATE TRIGGER s_billing_fee_holds_no_delete BEFORE DELETE ON s_billing_fee_holds BEGIN SELECT RAISE(ABORT,'fee exclusions are append-only'); END;
+CREATE TRIGGER s_billing_fee_drafts_no_update BEFORE UPDATE ON s_billing_fee_drafts BEGIN SELECT RAISE(ABORT,'late-fee drafts are immutable'); END;
+CREATE TRIGGER s_billing_fee_drafts_no_delete BEFORE DELETE ON s_billing_fee_drafts BEGIN SELECT RAISE(ABORT,'late-fee drafts are immutable'); END;
+CREATE TRIGGER s_billing_fee_waivers_no_update BEFORE UPDATE ON s_billing_fee_waivers BEGIN SELECT RAISE(ABORT,'finance waivers are immutable'); END;
+CREATE TRIGGER s_billing_fee_waivers_no_delete BEFORE DELETE ON s_billing_fee_waivers BEGIN SELECT RAISE(ABORT,'finance waivers are immutable'); END;

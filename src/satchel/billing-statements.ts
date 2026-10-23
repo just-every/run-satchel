@@ -3,7 +3,7 @@ import {atomic,audit,digest,Fault,human,id,insist,matter,need,now,rows,stmt,text
 import {accessGuard,guard} from './trust-guards';
 import {invoiceFunds} from './trust-transfers';
 const staff=(a:Actor)=>{human(a);need(a,'owner','billing');};
-async function statementAccess(db:D1Database,a:Actor,statementId:string){
+async function statementAccess(db:D1Database,a:Actor,statementId:string):Promise<Data>{
  const s=await stmt(db,'SELECT * FROM s_billing_statements WHERE id=?',statementId).first<Data>();insist(s,'Statement not found',404);const members=await rows(db,'SELECT * FROM s_billing_statement_members WHERE statement_id=?',s.id);for(const m of members)await matter(db,a,m.matter_id);return {...s,snapshot:JSON.parse(s.snapshot),members};
 }
 export async function statementState(db:D1Database,a:Actor,matterId:string){

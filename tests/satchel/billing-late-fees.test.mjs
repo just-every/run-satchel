@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {harness} from './harness.mjs';
+import {lateFeeFixture,feeTerms,partialReceipt} from './billing-late-fees-fixture.mjs';
+test('reviewed late-fee drafts use exact as-of unpaid basis, deny unknown/disputed/current plans, and require principal finance waiver without posting',async()=>{
+ const h=await harness();try{
+  const f=await lateFeeFixture(h),base='/matters/'+f.m.id,path='/bills/'+f.bill.id+'/late-fees';
+  await h.json(base+'/late-fees',{...feeTerms,authorized:false},h.owner,400);await h.json(base+'/late-fees',feeTerms,h.owner);await h.json('/matters/'+f.other.id+'/late-fees',{...feeTerms,mode:'none'},h.owner);
+  const req={requestKey:'synthetic-satchel-304',asOf:'2026-10-10'};await h.json(path,req,h.owner,422);await h.json('/bills/'+f.bill.id+'/fee-exclusions',{status:'clear',reference:'Principal reviewed no dispute and no current installment plan'},h.owner);
+  const first=await h.json(path,req,h.owner);assert.equal(first.cents,100);assert.equal(first.snapshot.basisCents,10000);assert.equal(first.snapshot.eligibleDays,30);assert.equal((await h.json(path,req,h.owner)).id,first.id);await h.json(path,{...req,asOf:'2026-10-11'},h.owner,409);
+  await h.json('/bills/'+f.otherBill.id+'/fee-exclusions',{status:'clear',reference:'No dispute or plan'},h.owner);await h.json('/bills/'+f.otherBill.id+'/late-fees',{requestKey:'synthetic-satchel-305',asOf:'2026-10-10'},h.owner,422);
+  await h.json(base+'/payments',partialReceipt(f),h.owner);const second=await h.json(path,{requestKey:'synthetic-satchel-306',asOf:'2026-10-20'},h.owner);assert.equal(second.snapshot.basisCents,5000);assert.equal(second.snapshot.eligibleDays,40);assert.equal(second.cents,66);
+  for(const status of ['disputed','current_plan','unknown']){await h.json('/bills/'+f.bill.id+'/fee-exclusions',{status,reference:'Finance exclusion '+status},h.owner);await h.json(path,{requestKey:'synthetic-satchel-'+status,asOf:'2026-10-20'},h.owner,422);}
+  await h.json('/team',{email:'assistant@example.test',name:'Assistant',role:'assistant'},h.owner);await h.json('/team/invite',{email:'assistant@example.test'},h.owner);const assistant=await h.login('assistant@example.test');await h.json(base+'/access',{email:'assistant@example.test'},h.owner);await h.json('/late-fee-drafts/'+first.id+'/waive',{reason:'No authority'},assistant,403);
+  const waiver={reason:'Principal finance review waives this proposed interest'};await h.json('/late-fee-drafts/'+first.id+'/waive',waiver,h.owner);await h.json('/late-fee-drafts/'+first.id+'/waive',waiver,h.owner);await h.json('/late-fee-drafts/'+first.id+'/waive',{reason:'Different reason'},h.owner,409);
+  const list=await h.json(base+'/late-fees',undefined,h.owner);assert.equal(list.drafts.length,2);assert.equal(list.drafts.find(x=>x.id===first.id).waived_by,'owner@example.test');const before=await h.json(base+'/billing',undefined,h.owner);assert.equal(before.bills.find(x=>x.id===f.bill.id).trustPayment.due_cents,5000);assert.equal((await h.request('/api/satchel/late-fee-drafts/'+second.id+'/post',{},h.owner)).status,404);
+  const audit=await h.json('/audit?action=billing.late_fee_waived',undefined,h.owner);assert.equal(audit.records.length,1);assert.equal(audit.records[0].evidence.record.waiver.reason,waiver.reason);
+  await h.restart();assert.deepEqual(await h.json(base+'/late-fees',undefined,h.owner),list);const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),target=await harness();try{await target.json('/restore',{archive,confirm:'RESTORE'},target.owner);assert.deepEqual(await target.json(base+'/late-fees',undefined,target.owner),list);assert.equal((await target.json(base+'/billing',undefined,target.owner)).bills.find(x=>x.id===f.bill.id).trustPayment.due_cents,5000);}finally{await target.close();}
+ }finally{await h.close();}
+});
