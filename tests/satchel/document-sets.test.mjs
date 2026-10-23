@@ -138,6 +138,8 @@ test('native medical chronology requires health setup, pins source pages, reconc
   await h.json(door+'/setup',{authorizationReference:'Received records authorization',agreementReference:'Native storage agreement',confirmed:false},h.owner,400);
   await h.json(door+'/setup',{authorizationReference:'Received records authorization',agreementReference:'Native storage agreement',confirmed:true},h.owner);
   await h.json(door,{...packet,entries:[entry({page:3})]},h.owner,400);
+  const shared=await h.json(base+'/documents',{name:'Shared.pdf',mime:'application/pdf',visibility:'matter',contentBase64:bytes.toString('base64')},h.owner);
+  await h.json(door,{...packet,entries:[entry({documentId:shared.id})]},h.owner,409);
   const draft=await h.json(door,packet,h.owner);
   assert.equal(draft.status,'draft');assert.equal(draft.snapshot.grossTotalCents,4000);assert.equal(draft.snapshot.unreviewedDifferenceCents,2000);assert.deepEqual(draft.snapshot.duplicates,[{index:3,possibleDuplicateOf:2}]);assert.equal(draft.snapshot.intervals[0].days,59);
   assert.equal(draft.snapshot.entries[0].sourceSha256,source.versions[0].sha256);assert.equal(draft.snapshot.entries[3].sourceName,'Overlapping-bill.pdf');assert.equal(draft.snapshot.entries[3].page,2);

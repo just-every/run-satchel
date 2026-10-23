@@ -435,13 +435,13 @@ Every capability claim in br’s approved homepage register (17 October 2026, 60
 
 Judged from the code and tests at commit `20c49b21b9b23874874816007d08a6736900a409` (21 October 2026).
 
-CAL-008, TIME-003, FIRM-005, INTAKE-005 and INTAKE-010, BILL-016, TIME-006, BILL-015, DOC-002, BILL-004, TIME-004 and INTAKE-001 and their inherited obligations are updated from the code and named tests in this tree; the commit above is the preceding assessment baseline.
+CAL-008, TIME-003, FIRM-005, INTAKE-005 and INTAKE-010, BILL-016, TIME-006, BILL-015, DOC-002, BILL-004, TIME-004, INTAKE-001, DOC-012 and DOC-013 and their inherited obligations are updated from the code and named tests in this tree; the commit above is the preceding assessment baseline.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 14 | 0 | 0 | 14 |
-| Target and push further | 40 | 28 | 56 | 124 |
-| All | 54 | 28 | 56 | 138 |
+| Target and push further | 40 | 30 | 54 | 124 |
+| All | 54 | 30 | 54 | 138 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
