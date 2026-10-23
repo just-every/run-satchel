@@ -5,7 +5,7 @@ import {guard} from './trust-guards';
 import {timezone} from './deadlines';
 import {activeIntakeAssigneeSql} from './intake-forms';
 import {windows} from './consult-slots';
-import {leadCalendar} from './leads';
+import {leadCalendar,visibleLeadSql,visibleParams} from './leads';
 export const offerJson=(o:Data)=>({id:o.id,title:o.title,lawyerEmail:o.lawyer_email,timezone:o.timezone,durationMinutes:o.duration_minutes,bufferBefore:o.buffer_before,bufferAfter:o.buffer_after,windows:JSON.parse(o.windows),noticeHours:o.notice_hours,horizonDays:o.horizon_days,feeCents:o.fee_cents,formId:o.form_id,consentText:o.consent_text,published:Boolean(o.published),revision:o.revision,updatedAt:o.updated_at});
 export async function listOffers(db:D1Database,actor:Actor) {
  human(actor);need(actor,'owner','lawyer');
@@ -32,7 +32,7 @@ export const consultationJson=(c:Data)=>({id:c.id,offerId:c.offer_id,leadId:c.le
 // The responsible lawyer sees their consultations, the principal all, an assistant those on leads assigned to them.
 export async function listConsultations(db:D1Database,actor:Actor) {
  human(actor);need(actor,'owner','lawyer','assistant');
- const list=await rows(db,"SELECT c.*,l.name lead_name,o.title,l.assigned_email FROM s_consultations c JOIN s_leads l ON l.id=c.lead_id JOIN s_consult_offers o ON o.id=c.offer_id WHERE c.end_at>? AND (?='owner' OR c.lawyer_email=? OR l.assigned_email=?) ORDER BY c.start_at,c.id",now(),actor.role,actor.email,actor.email);
+ const list=await rows(db,`SELECT c.*,l.name lead_name,o.title,l.assigned_email FROM s_consultations c JOIN s_leads l ON l.id=c.lead_id JOIN s_consult_offers o ON o.id=c.offer_id WHERE c.end_at>? AND (?='owner' OR c.lawyer_email=? OR l.assigned_email=?) AND ${visibleLeadSql} ORDER BY c.start_at,c.id`,now(),actor.role,actor.email,actor.email,...visibleParams(actor));
  const events=list.length?await rows(db,`SELECT * FROM s_consult_events WHERE consultation_id IN (${list.map(()=>'?').join(',')}) ORDER BY at,id`,...list.map(c=>c.id)):[];
  return {consultations:list.map(c=>({...consultationJson(c),history:events.filter(e=>e.consultation_id===c.id).map(e=>({kind:e.kind,detail:JSON.parse(e.detail),actor:e.actor,at:e.at}))}))};
 }
@@ -49,7 +49,9 @@ export function cancelStatements(db:D1Database,c:Data,reason:string,actor:Data,a
 }
 export async function cancelConsultation(db:D1Database,actor:Actor,consultationId:string,body:Data) {
  human(actor);need(actor,'owner','lawyer');
- const c=await stmt(db,"SELECT * FROM s_consultations WHERE id=? AND status='booked' AND (?='owner' OR lawyer_email=?)",consultationId,actor.role,actor.email).first<Data>();insist(c,'Consultation not found',404);
- await atomic(db,actor,cancelStatements(db,c,text(body.reason,'Reason',1000),actor,now(),(await leadCalendar(db)).today));
+ const access=`FROM s_consultations c JOIN s_leads l ON l.id=c.lead_id WHERE c.id=? AND c.status='booked' AND (?='owner' OR c.lawyer_email=?) AND ${visibleLeadSql}`;
+ const params=[consultationId,actor.role,actor.email,...visibleParams(actor)];
+ const c=await stmt(db,`SELECT c.* ${access}`,...params).first<Data>();insist(c,'Consultation not found',404);
+ await atomic(db,actor,[guard(db,`EXISTS(SELECT 1 ${access})`,...params),...cancelStatements(db,c,text(body.reason,'Reason',1000),actor,now(),(await leadCalendar(db)).today)]);
  return {id:c.id,status:'cancelled'};
 }

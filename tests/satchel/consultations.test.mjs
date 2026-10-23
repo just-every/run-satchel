@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {harness} from './harness.mjs';
+import {harness,open} from './harness.mjs';
 import {formInput,intakeTeam} from './intake-fixture.mjs';
 const zoneDay=(offset,zone)=>{const d=new Date(Date.now()+offset*86400000),parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:zone,weekday:'short'}).formatToParts(d).map(p=>[p.type,p.value]));return ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].indexOf(parts.weekday)+1;};
 const localIn=(iso,zone)=>new Intl.DateTimeFormat('en-US',{timeZone:zone,weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'}).format(new Date(iso));
@@ -59,5 +59,34 @@ test('INTAKE-003 prospects book approved availability across timezones: last slo
   await h.scheduled(Date.parse(target.start)-3600000+60000);assert.equal(h.mails.length,before+1);const cancelled=await h.json('/leads/'+mine.leadId,undefined,lawyer);assert.match(cancelled.nextAction,/Consultation cancelled/);
   await h.json('/consult/'+offer.id+'?tz=UTC',undefined,'',200);
   const stranger=await h.request('/api/satchel/consult/'+offer.id+'/book',{slot:open.slots[1].start,timezone:'UTC',name:'X',email:'x@example.test',summary:'x',consent:true,feeAcknowledged:true,website:'',answers:{children:'no'}},'',{origin:'https://evil.example'});assert.equal(stranger.status,403);
+ }finally{await h.close();}
+});
+
+test('consultation access follows current lead visibility through conversions and merges',async()=>{
+ const h=await harness();try{
+  const people=await intakeTeam(h),lawyer=people['lawyer@example.test'];
+  const offer=await h.json('/consult/offers',{title:'Consultation',lawyerEmail:'lawyer@example.test',timezone:'UTC',durationMinutes:30,windows:[1,2,3,4,5,6,7].map(day=>({day,start:'09:00',end:'10:00'})),noticeHours:0,horizonDays:7,feeCents:0,consentText:'I consent to review of this inquiry.',published:true},h.owner);
+  const outcomes=[];
+  for(const merged of [false,true]){
+   const slot=(await h.json('/consult/'+offer.id+'?tz=UTC')).slots[0];
+   assert.equal((await book(h,offer,slot,'synthetic-satchel-'+Number(merged))).status,200);
+   const c=(await h.json('/consultations',undefined,h.owner)).consultations.find(c=>c.leadName==='synthetic-satchel-'+Number(merged));
+   let lead=await h.json('/leads/'+c.leadId,undefined,h.owner);
+   if(merged){
+    const survivor=await h.json('/leads',{name:'synthetic-satchel-survivor',summary:'Inquiry',referralSource:'Consultation',assignedEmail:'lawyer@example.test'},h.owner);
+    lead=await h.json('/leads/'+lead.id+'/merge',{revision:lead.revision,intoId:survivor.id,intoRevision:survivor.revision,reason:'Same prospect'},h.owner);
+   }
+   const m=await open(h,'Consultation matter '+merged,'synthetic-satchel-client-'+merged,'synthetic-satchel-adverse-'+merged);
+   await h.json('/matters/'+m.id+'/access',{email:'lawyer@example.test'},h.owner);
+   await h.json('/leads/'+lead.id,{revision:lead.revision,matterId:m.id},h.owner);
+   await h.json('/matters/'+m.id+'/wall',{custodianEmail:'lawyer@example.test',members:[],reason:'Representation screen',revision:null},h.owner);
+   await h.json('/leads/'+c.leadId,undefined,h.owner,404);
+   const listed=(await h.json('/consultations',undefined,h.owner)).consultations;
+   const refused=await h.request('/api/satchel/consultations/'+c.id+'/cancel',{reason:'Coverage change'},h.owner);
+   const inside=(await h.json('/consultations',undefined,lawyer)).consultations.find(x=>x.id===c.id);
+   outcomes.push({listed:listed.some(x=>x.id===c.id),cancelStatus:refused.status,insideStatus:inside?.status});
+   if(refused.status===404)await h.json('/consultations/'+c.id+'/cancel',{reason:'Authorized counsel cancellation'},lawyer);
+  }
+  assert.deepEqual(outcomes,[false,true].map(()=>({listed:false,cancelStatus:404,insideStatus:'booked'})));
  }finally{await h.close();}
 });
