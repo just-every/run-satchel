@@ -2,6 +2,7 @@
 // Explicit columns exclude credentials and original file bytes.
 const record=(table:string,columns:string[],matter='NULL',revision='NULL',where='x.id=i.object_id',extra:Record<string,string>={})=>`(SELECT json_object('recordType','${table}','matterId',${matter},'revision',${revision},${[...columns.flatMap(c=>[`'${c}'`,`x.${c}`]),...Object.entries(extra).flatMap(([k,v])=>[`'${k}'`,v])].join(',')}) FROM ${table} x WHERE ${where} LIMIT 1)`;
 const contexts=[
+ record('s_document_productions',['id','matter_id','sha256','size','status','created_by','created_at','approved_by','approved_at','review_note','exported_at','recalled_by','recalled_at','recall_reason'],'x.matter_id','x.sha256',"i.action LIKE 'production.%' AND x.id=i.object_id"),
  record('s_conflict_disposals',['id','waiver_id','reason','journal','approved_by','approved_at'],'(SELECT matter_id FROM s_conflict_waiver_matters WHERE waiver_id=x.waiver_id LIMIT 1)','NULL',"x.waiver_id=i.object_id AND i.action='conflict.original_disposed'"),
  record('s_conflict_routes',['id','search_id','route_id','requester_email','created_at'],'(SELECT matter_id FROM s_ethical_walls WHERE id=x.route_id)'),
  record('s_conflict_route_decisions',['id','referral_id','revision','decision','note','restrictions','excluded_staff','screen_custodian','waiver_id','actor','created_at'],'(SELECT w.matter_id FROM s_conflict_routes r JOIN s_ethical_walls w ON w.id=r.route_id WHERE r.id=x.referral_id)','x.revision'),

@@ -167,7 +167,7 @@ test('FIRM-006 legal holds block erasure and disposal; expired retention asks th
  await h.json('/documents/'+doc.id+'/dispose',{confirm:doc.title,reason:'Retention expired'},assistant,403);
  const disposed=await h.json('/documents/'+doc.id+'/dispose',{confirm:doc.title,reason:'Retention period expired; approved by principal'},h.owner);
  assert.deepEqual(disposed.journal.originals.map(v=>v.version),[1,2]);
- const noDerivatives={previews:0,ocrText:0,searchVectors:0,connectorCaches:0,annotations:0,conflictOriginals:0};assert.deepEqual(disposed.journal.derivatives,noDerivatives);
+ const noDerivatives={productions:0,previews:0,ocrText:0,searchVectors:0,connectorCaches:0,annotations:0,conflictOriginals:0};assert.deepEqual(disposed.journal.derivatives,noDerivatives);
  assert.equal(await viewCount(),0,'Document search no longer finds the disposed document');
  for(const version of [1,2])await h.json('/documents/'+doc.id+'/file?version='+version,undefined,h.owner,404);
  await h.json('/documents/'+doc.id+'/file',undefined,lawyer,404);
