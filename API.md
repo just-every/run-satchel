@@ -158,3 +158,88 @@ Opening acknowledges the disclosed restrictions with `restrictionsAcknowledged: 
 Ethical wall lifecycle (FIRM-003): the current custodian updates `POST /matters/:id/wall` with an inside active counsel `custodianEmail` for handover, or posts `{revision, reason}` to `/ethical-walls/:id/dissolve`. With no active custodian, an inside active lawyer/principal posts `{revision, reason}` to `/ethical-walls/:id/take-custody`. Every change revokes exceptional grants. These native-session doors refuse outsiders, including the principal. Exceptional access never permits whole-firm archives, import originals or aggregates.
 
 Conflict retention (INTAKE-005): `POST /conflicts/:id/dispose` takes `{confirm: <search id>, reason}` in a principal native session. Every affected source/opened matter must have an expired matter schedule and no legal hold. It disposes counsel notes and restriction payloads, including audit payload copies, while retaining ids, decisions, attribution, times and original audit digests. Staff exclusions and walls remain enforced; the disposed search cannot clear an engagement or be given a new disposition. Waiver original bytes retain the separate `/conflict-waivers/:id/dispose` confirmation. `screenRequired: true` on a disposition creates a wall at opening, defaulting its custodian to the recording counsel unless `screenCustodian` explicitly names active inside counsel.
+
+## Native billing receipts, ledgers and reviews
+
+Routes below use the `/api/satchel` prefix.
+
+The principal and billing staff record confirmed outside operating receipts with
+`POST /api/satchel/matters/:id/payments`: `requestKey`, the exact recorded `payer`,
+`destination: "operating"`, `confirmedReceived: true`, `method` (`cash`, `check`,
+`wire`, `ach`), `reference`, `receivedDate`, `depositDate`, `accountId`, integer
+USD `cents`, and either `mode: "oldest"` for this matter or `mode: "explicit"`
+with `allocations: [{billId,cents}]`. Explicit allocations may span accessible
+matters of the same recorded payer. A request reference binds one exact action;
+changed replay refuses. Outside ACH means staff-confirmed receipt, not an
+unconfirmed processor attempt. This does not verify a bank deposit. A custom role must retain full bank access for receipt/deposit doors; complete-rate ledger/statement doors require full rate visibility.
+
+`GET /matters/:id/payments` shows permitted receipts, allocation balances, credit
+and write-off requests. `POST /receipts/:id/apply` takes a new `requestKey`,
+`date` and allocations. `POST /receipts/:id/reverse` takes `requestKey`, `date`
+and `reason` and reverses the complete original receipt and its allocations.
+Allocations consume earned base, then tax, then separately reviewed late fees;
+late fees remain outside trust eligibility. `POST /bills/:id/writeoffs` prepares
+`{requestKey,cents,date,reason}`; only the principal can approve it with
+`POST /writeoffs/:id/approve` and a request reference. Waive late fees through
+their separate finance door. Trust receipts continue through Trust, and active
+receipt payments or approved write-offs refuse an invoice void until resolved. Approved write-offs also refuse additive correction until finance reversal is supported.
+
+`GET /matters/:id/receivables?asOf=YYYY-MM-DD` returns native effective-date totals,
+source transactions, authorized credit sources, recorded unbilled work and aging;
+`receivables.csv` exports native payer/matter/responsible-lawyer rows. Later receipt
+reversals and supported void/rebill do not rewrite earlier cutoffs. Unknown legacy
+terms or lawyers are labelled, not inferred. The prebill preparation body may name
+an active `responsibleAttorney` who currently sees the matter. A hidden receipt's
+reference is withheld, and a financial revision change asks the reader to refresh.
+Provider-pending funds, dispute amounts, full client-wide trust presentation,
+nonhourly unbilled fees, collections and QuickBooks synchronization remain outside
+this native slice.
+
+`GET /matters/:id/invoice-templates` lists immutable versions and assignments.
+Principal/billing staff use `POST /invoice-templates` with a name, optional
+`templateKey`/`previousId`, optional PNG/JPEG `logo: {mime,base64}` up to 1 MiB,
+`remittance`, `terms`, `termsDays` and explicit `options`: `layout` (`summary` or
+`detailed`), boolean `detail`, `hours`, `rates`, `timekeepers`, `utbms`, `noCharge`,
+`discounts`, and `trust`/`prior` (`hide` or `balance`). Firm name/address come from
+FIRM-001. `POST /matters/:id/invoice-templates` assigns a `templateKey` at
+`scope: "matter"`; principal authority is required for client/firm scope.
+`POST /invoice-templates/:id/retire` records a reason. Preparation freezes the
+selected version and balances before exact review; issued PDF bytes remain fixed.
+Trust-balance disclosure/preparation is principal-only. Payment links/QR are
+refused until an authorized invoice payment-page door exists.
+
+`GET/POST /matters/:id/statements` lists/prepares an internal immutable consolidated
+statement. Preparation takes `requestKey` and `invoices: [{id,feeReference,
+responsibleAttorney}]`, keeps the same recorded payer, includes an invoice of the
+current matter and checks every source matter on preparation and download.
+`GET /statements/:id/pdf` rechecks current access to all members. These are staff
+preparations, not recipient grants, portal publication, delivery or recipient view
+receipts. Unsupported correction detail refuses and existing client portal rights
+are unchanged.
+
+Only the principal records `POST /matters/:id/late-fees` reviewed native engagement
+profiles: `scope` (matter/client), `mode` (none/simple_monthly/flat), `termsDays`,
+`graceDays`, `monthlyBps` or `flatCents`, `effectiveFrom`, `reference`, `reviewed`
+and `authorized`. `POST /bills/:id/fee-exclusions` records `status` (clear,
+disputed/current_plan/unknown) and its reviewed reference. Unknown state refuses.
+`POST /bills/:id/late-fees` takes `asOf` and `requestKey` and prepares an exact
+review draft. `POST /late-fee-drafts/:id/post` requires `reviewed: true`, exact
+`reviewedCents` and `reviewNote`; current source, exclusions, terms and period are
+rechecked atomically. Posting is effective today and never automatic. Conservative
+policy pending ct: a 30-day month, floor once to cents, unpaid base/tax only, no
+compounding, new days after the last posted period (including a waived period),
+and a flat fee at most once per invoice. A pending trust application refuses.
+`POST /late-fee-drafts/:id/waive` requires a principal finance reason; paid fees
+first require receipt reversal. No trust debit or external charge is made.
+
+`GET/POST /matters/:id/payer-reviews` is principal-only. Supply `billId`,
+`requestKey`, reviewed fee-agreement `reference`, `reviewed: true`, `mode`
+(fixed/basis_points), and 2–10 `payers: [{label,kind,value}]` (client/insurer/
+third_party). USD is the default. Explicit EUR/GBP/CAD/AUD reviews also require
+`originalMinor`, positive integer `fxNumerator` and `fxDenominator` (USD cents
+per original minor unit), `fxDate` and `fxReference`. Shares reconcile by largest
+remainder, and the total USD conversion rounds half-up once. The review retains
+original currency, rational rate, USD total and difference from the existing USD
+invoice. It issues no foreign invoice, grants no recipient view, reconciles no
+foreign payment and converts no trust ledger; these conservative defaults need ct
+ratification before the remaining foreign-currency doors ship.

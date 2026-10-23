@@ -1,3 +1,4 @@
+import {writeoffSql} from './billing-money-sql';
 import {billTemplate} from './billing-templates';
 import {matterScope} from './matter-scope';
 import {entryEdits,releasedSql} from './released-entries';
@@ -212,6 +213,7 @@ export async function voidBill(db: D1Database, actor: Actor, billId: string, bod
 export async function correctBill(db: D1Database, actor: Actor, billId: string, body: Data) {
  need(actor,'owner','lawyer'); const bill = await getBill(db,actor,billId); reviewedRevision(bill,body);
  insist(bill.status === 'exported', 'Export the approved bill before preparing its correction',409);
+ const rootBillId=bill.snapshot.originalBillId??bill.id;insist((await stmt(db,`SELECT ${writeoffSql()} cents`,rootBillId).first<Data>())!.cents===0,'Resolve approved finance write-offs before preparing an additive correction',409);
  const review = correctionReview(await matterBills(db,bill.matterId),bill), sourceId = text(body.sourceId,'Source entry ID',100);
  const source = review.sources.find(s => s.sourceId === sourceId);
  insist(source, 'Choose an original source entry from this correction branch');
@@ -222,7 +224,7 @@ export async function correctBill(db: D1Database, actor: Actor, billId: string, 
  const {currentAmountCents:_,...line} = source;
  const lines = [{...line,description:reason,amountCents:corrected-prior,priorAmountCents:prior,correctedAmountCents:corrected}];
  return createBill(db,actor,bill.matterId,{title:body.title == null ? `Correction: ${bill.snapshot.title}`.slice(0,200) : text(body.title,'Bill title',200),date:date(body.date),currency:'USD',matterId:bill.matterId,matterNumber:bill.snapshot.matterNumber,matterTitle:bill.snapshot.matterTitle,client:bill.snapshot.client,correctsBillId:bill.id,originalBillId:review.originalBillId,reason,lines,totalCents:sum(lines),...(bill.snapshot.taxReview?{taxBasis:{rule:bill.snapshot.taxReview.snapshot.rule,calculationId:bill.snapshot.taxReview.id,correctedBillId:bill.id}}:{}),...(bill.snapshot.feePlan?{feePlan:bill.snapshot.feePlan,feePeriod:bill.snapshot.feePeriod}:{}),...(ledes ? {ledes:ledes.ledes} : {})},[],[
-  revisionGuard(db,bill),...feeGuards,guard(db,"NOT EXISTS(SELECT 1 FROM s_bills WHERE corrects_bill_id=? AND status<>'void')",bill.id),
+  revisionGuard(db,bill),guard(db,`${writeoffSql()}=0`,rootBillId),...feeGuards,guard(db,"NOT EXISTS(SELECT 1 FROM s_bills WHERE corrects_bill_id=? AND status<>'void')",bill.id),
  ]);
 }
 

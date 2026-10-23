@@ -28,7 +28,7 @@ async function split(db:D1Database,b:Data,cents:number,effective?:string){
  const used=await stmt(db,`SELECT ${offlinePaidSql('b.id',undefined,'earned_cents')}+${writeoffSql('b.id',undefined,'earned_cents')}+COALESCE((SELECT SUM(COALESCE(a.earned_cents,p.cents)) FROM s_operating_payments p LEFT JOIN s_tax_trust_allocations a ON a.transfer_id=p.transfer_id WHERE p.bill_id=b.id AND NOT EXISTS(SELECT 1 FROM s_operating_payment_reversals r WHERE r.payment_id=p.id)),0) earned FROM s_bills b WHERE b.id=?`,b.id).first<Data>();
  const earned=Math.min(baseCents,Math.max(0,b.funds.earned_cents-used!.earned));return {baseCents,earned,tax:baseCents-earned,feeParts};
 }
-async function receiptAccess(db:D1Database,a:Actor,receiptId:string):Promise<Data>{
+export async function receiptAccess(db:D1Database,a:Actor,receiptId:string):Promise<Data>{
  const r=await stmt(db,'SELECT * FROM s_billing_receipts WHERE id=?',receiptId).first<Data>();insist(r,'Receipt not found',404);await matter(db,a,r.source_matter_id);
  let allocations=await rows(db,'SELECT a.*,b.matter_id,i.number FROM s_billing_allocations a JOIN s_bills b ON b.id=a.bill_id JOIN s_invoice_issues i ON i.bill_id=b.id WHERE receipt_id=? ORDER BY a.effective_date,a.at,a.id',r.id);
  const feeAllocations=await rows(db,"SELECT a.*,d.bill_id,b.matter_id,i.number,'late_fee' kind FROM s_billing_fee_allocations a JOIN s_billing_fee_drafts d ON d.id=a.draft_id JOIN s_bills b ON b.id=d.bill_id JOIN s_invoice_issues i ON i.bill_id=b.id WHERE a.receipt_id=?",r.id);allocations=[...allocations,...feeAllocations].sort((x,y)=>x.effective_date.localeCompare(y.effective_date)||x.at.localeCompare(y.at)||x.id.localeCompare(y.id));

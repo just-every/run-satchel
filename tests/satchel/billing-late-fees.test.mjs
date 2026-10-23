@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {harness} from './harness.mjs';
 import {lateFeeFixture,feeTerms,partialReceipt} from './billing-late-fees-fixture.mjs';
-test('reviewed late-fee drafts use exact as-of unpaid basis, deny unknown/disputed/current plans, and require principal finance waiver without posting',async()=>{
+test('reviewed late fees use exact as-of unpaid basis, deny unknown/disputed/current plans, and reconcile posting, receipts and principal finance waivers',async()=>{
  const h=await harness();try{
   const f=await lateFeeFixture(h),base='/matters/'+f.m.id,path='/bills/'+f.bill.id+'/late-fees';
   await h.json(base+'/late-fees',{...feeTerms,authorized:false},h.owner,400);await h.json(base+'/late-fees',feeTerms,h.owner);await h.json('/matters/'+f.other.id+'/late-fees',{...feeTerms,scope:'client',mode:'none'},h.owner);
