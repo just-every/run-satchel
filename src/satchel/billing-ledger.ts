@@ -1,0 +1,31 @@
+import {date,human,insist,matter,need,now,rows,stmt,type Actor,type Data} from './model';
+// Statement dates are effective dates, not a claim about when a bank verified funds.
+export async function billingLedger(db:D1Database,a:Actor,matterId:string,asOfValue:string){
+ human(a);need(a,'owner','billing');const m=await matter(db,a,matterId),asOf=date(asOfValue);insist(asOf<=now().slice(0,10),'Choose an as-of date no later than today');
+ const events:Data[]=[],bills=await rows(db,"SELECT b.*,t.snapshot tax_snapshot,i.number,i.issued_at,v.at void_at,v.reason void_reason FROM s_bills b JOIN s_invoice_issues i ON i.bill_id=b.id LEFT JOIN s_bill_tax_approvals t ON t.bill_id=b.id LEFT JOIN s_invoice_voids v ON v.bill_id=b.id WHERE b.matter_id=? AND json_extract(b.snapshot,'$.date')<=? ORDER BY json_extract(b.snapshot,'$.date'),b.created_at,b.id",matterId,asOf);
+ const aging:Data[]=[];let billed=0,paid=0,writtenOff=0,voided=0;
+ const balances=new Map<string,number>();
+ for(const b of bills){const s=JSON.parse(b.tax_snapshot??b.snapshot);b.snapshot=s;const root=s.originalBillId??b.id;balances.set(root,(balances.get(root)??0)+s.totalCents);billed+=s.totalCents;
+  events.push({id:b.id,kind:b.corrects_bill_id?'correction':'invoice',date:s.date,cents:s.totalCents,billId:b.id,number:b.number,sourceId:b.id,reason:s.reason??s.title});
+  if(b.void_at&&b.void_at.slice(0,10)<=asOf){voided+=s.totalCents;balances.set(root,(balances.get(root)??0)-s.totalCents);events.push({id:'void:'+b.id,kind:'void',date:b.void_at.slice(0,10),cents:-s.totalCents,billId:b.id,number:b.number,sourceId:b.id,reason:b.void_reason});}
+ }
+ for(const b of bills.filter(b=>!b.corrects_bill_id)){
+  const allocations=await rows(db,'SELECT a.*,r.reference,x.effective_date reversed_date,x.id reversal_id,x.reason reversal_reason FROM s_billing_allocations a JOIN s_billing_receipts r ON r.id=a.receipt_id LEFT JOIN s_billing_receipt_reversals x ON x.receipt_id=r.id WHERE a.bill_id=? AND a.effective_date<=? ORDER BY a.effective_date,a.at,a.id',b.id,asOf);
+  for(const x of allocations){paid+=x.cents;balances.set(b.id,(balances.get(b.id)??0)-x.cents);events.push({id:x.id,kind:'offline_payment',date:x.effective_date,cents:-x.cents,billId:b.id,number:b.number,sourceId:x.receipt_id,reference:x.reference});if(x.reversed_date&&x.reversed_date<=asOf){paid-=x.cents;balances.set(b.id,(balances.get(b.id)??0)+x.cents);events.push({id:x.reversal_id+':'+x.id,kind:'payment_reversal',date:x.reversed_date,cents:x.cents,billId:b.id,number:b.number,sourceId:x.reversal_id,originalSourceId:x.receipt_id,reason:x.reversal_reason});}}
+  const writeoffs=await rows(db,'SELECT w.*,d.actor approved_by FROM s_billing_writeoffs w JOIN s_billing_writeoff_decisions d ON d.writeoff_id=w.id WHERE w.bill_id=? AND w.effective_date<=?',b.id,asOf);
+  for(const w of writeoffs){writtenOff+=w.cents;balances.set(b.id,(balances.get(b.id)??0)-w.cents);events.push({id:w.id,kind:'writeoff',date:w.effective_date,cents:-w.cents,billId:b.id,number:b.number,sourceId:w.id,reason:w.reason,approvedBy:w.approved_by});}
+  const trust=await rows(db,'SELECT p.*,r.id reversal_id,r.bank_date reversed_date,r.cents reversed_cents FROM s_operating_payments p LEFT JOIN s_operating_payment_reversals r ON r.payment_id=p.id WHERE p.bill_id=? AND p.bank_date<=?',b.id,asOf);
+  for(const x of trust){paid+=x.cents;balances.set(b.id,(balances.get(b.id)??0)-x.cents);events.push({id:x.id,kind:'trust_application',date:x.bank_date,cents:-x.cents,billId:b.id,number:b.number,sourceId:x.id,...(a.role==='owner'&&(!a.grants||a.grants.bank==='full')?{trustLedgerDebitId:x.trust_entry_id,operatingEntryId:x.operating_entry_id}:{trustSourceWithheld:true})});if(x.reversed_date&&x.reversed_date<=asOf){paid-=x.reversed_cents;balances.set(b.id,(balances.get(b.id)??0)+x.reversed_cents);events.push({id:x.reversal_id,kind:'trust_reversal',date:x.reversed_date,cents:x.reversed_cents,billId:b.id,number:b.number,sourceId:x.reversal_id,originalSourceId:x.id});}}
+  const balance=balances.get(b.id)??0;
+  // Legacy invoices did not freeze due terms. Do not invent an overdue date.
+  if(balance>0)aging.push({billId:b.id,number:b.number,payer:b.snapshot.client,matterId,matterNumber:m.matter_number,responsibleLawyer:null,dueDate:null,daysOverdue:null,bucket:'Terms not recorded',cents:balance});
+ }
+ const receipts=await rows(db,`SELECT r.id,r.cents-COALESCE((SELECT SUM(a.cents) FROM s_billing_allocations a WHERE a.receipt_id=r.id AND a.effective_date<=?),0) cents FROM s_billing_receipts r WHERE r.source_matter_id=? AND r.deposit_date<=? AND NOT EXISTS(SELECT 1 FROM s_billing_receipt_reversals x WHERE x.receipt_id=r.id AND x.effective_date<=?)`,asOf,matterId,asOf,asOf);
+ const open=[...balances.values()].reduce((n,x)=>n+Math.max(0,x),0),credit=[...balances.values()].reduce((n,x)=>n+Math.max(0,-x),0);
+ return {matterId,matterNumber:m.matter_number,payer:m.client,asOf,basis:'Effective invoice/work, allocation/deposit and reversal dates; native operating sources only. Due terms and historical unbilled work are not reconstructed.',totals:{billedCents:billed,voidedCents:voided,paidCents:paid,writeoffCents:writtenOff,openCents:open,invoiceCreditCents:credit,unappliedCents:receipts.reduce((n,r)=>n+r.cents,0),unbilledCents:null},events:events.sort((x,y)=>x.date.localeCompare(y.date)||x.id.localeCompare(y.id)),aging,creditSources:receipts,missing:['Frozen due terms, historical unbilled, disputes, provider-pending ACH, interest, client-wide trust-held and responsible-lawyer attribution are not implemented.']};
+}
+export async function agingCsv(db:D1Database,a:Actor,matterId:string,asOf:string){
+ const s=await billingLedger(db,a,matterId,asOf),cell=(v:unknown)=>'"'+String(v??'').replace(/^[=+\-@]/,"'$&").replaceAll('"','""')+'"';
+ const csv=[['payer','matter','invoice','responsible lawyer','as of','due date','days overdue','bucket','USD cents'],...s.aging.map(x=>[x.payer,x.matterNumber,x.number,'Not recorded',s.asOf,x.dueDate,x.daysOverdue,x.bucket,x.cents])].map(row=>row.map(cell).join(',')).join('\r\n')+'\r\n';
+ return new Response(csv,{headers:{'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="satchel-aging.csv"','cache-control':'no-store'}});
+}

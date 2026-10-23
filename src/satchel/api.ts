@@ -1,3 +1,4 @@
+import {billingLedger,agingCsv} from './billing-ledger';
 import {billingPayments,recordOfflinePayment,applyOfflineCredit,reverseOfflinePayment,requestWriteoff,approveWriteoff} from './billing-payments';
 import {searchFirm} from './search';
 import {disposeConflictWaiver,disposeConflictPayload} from './conflict-custody';
@@ -97,6 +98,8 @@ api.post('/api/satchel/matters/:id/wall',as(async(a,c)=>saveWall(db(c),a,param(c
 api.post('/api/satchel/ethical-walls/:id/requests',as(async(a,c)=>requestWallAccess(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/wall-requests/:id/decide',as(async(a,c)=>decideWallAccess(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/wall-emergencies/:id/revoke',as(async(a,c)=>revokeWallAccess(db(c),a,param(c),await body(c))));
+api.get('/api/satchel/matters/:id/receivables',as((a,c)=>billingLedger(db(c),a,param(c),c.req.query('asOf')??new Date().toISOString().slice(0,10))));
+api.get('/api/satchel/matters/:id/receivables.csv',as((a,c)=>agingCsv(db(c),a,param(c),c.req.query('asOf')??new Date().toISOString().slice(0,10))));
 api.get('/api/satchel/matters/:id/payments',as((a,c)=>billingPayments(db(c),a,param(c))));
 api.post('/api/satchel/matters/:id/payments',as(async(a,c)=>recordOfflinePayment(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/receipts/:id/apply',as(async(a,c)=>applyOfflineCredit(db(c),a,param(c),await body(c))));

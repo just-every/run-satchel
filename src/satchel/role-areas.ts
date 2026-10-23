@@ -18,6 +18,7 @@ export const areaRules:[RegExp,string[]][]=[
  rule('/(bills/'+seg+'/(export|invoice\\.pdf|ledes|ledes-xml))',['billing','rates:all']),
  rule('/(matters/'+seg+'/(billing|entries|bills|budget|fee-plans|fee-plans/run|tax-rules|ledes|ledes-guideline)|entries/'+seg+'/edit|bills/'+seg+'/(approve|correct|void|tax-reviews|ledes-outcomes)|invoice-numbering|invoice-numbering/import|invoices/issue|invoices/'+seg+'/void|time|time/drafts|time/drafts/'+seg+'|time/post|timers|timers/'+seg+'/'+seg+'|ledes|ledes/codes|ledes/timekeepers|v1/matters/'+seg+'/finance|v1/prepare/'+seg+')',['billing']),
  rule('/(matters/'+seg+'/payments|receipts/'+seg+'/(apply|reverse)|bills/'+seg+'/writeoffs|writeoffs/'+seg+'/approve)',['billing']),
+ rule('/matters/'+seg+'/receivables(\\.csv)?',['billing','rates:all']),
  rule('/matters/'+seg+'/rates',['rates']),
  rule('/agent/matters/'+seg,['billing','documents']),
  rule('/trust',['bank:balances']),rule('/trust/'+any,['bank']),
