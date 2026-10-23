@@ -34,7 +34,7 @@ async function boundedMultipart(request:Request){
  const bytes=new Uint8Array(total);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
  try{return await new Response(bytes,{headers:{'content-type':contentType}}).formData();}catch{throw new Fault('Use a valid multipart form upload');}
 }
-function answerValues(questions:IntakeQuestion[],input:unknown){
+export function answerValues(questions:IntakeQuestion[],input:unknown){
  insist(input&&typeof input==='object'&&!Array.isArray(input),'Provide answers as text fields');
  const answers=input as Record<string,unknown>,known=new Set(questions.map(q=>q.key)),active=new Set<string>(),out:{key:string;label:string;value:string}[]=[];
  insist(Object.keys(answers).every(k=>known.has(k)),'An answer does not belong to this form');
@@ -54,7 +54,7 @@ function answerValues(questions:IntakeQuestion[],input:unknown){
  }
  return out;
 }
-async function ipDigest(env:Bindings,formId:string,hour:string,request:Request){
+export async function ipDigest(env:Bindings,formId:string,hour:string,request:Request){
  const ip=request.headers.get('CF-Connecting-IP');insist(ip&&ip.length<=100,'Client network information is unavailable',400);
  const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(env.SESSION_SECRET),{name:'HMAC',hash:'SHA-256'},false,['sign']);
  return Array.from(new Uint8Array(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(`satchel-intake\n${formId}\n${hour}\n${ip}`))),n=>n.toString(16).padStart(2,'0')).join('');

@@ -1,17 +1,19 @@
 import {IntakeHistory} from './intake-history';
+import {LeadFollowups} from './followups';
 import {LeadPractice} from './lead-practice';
 import {useEffect,useState} from 'react';
 import {api,Empty,Field,Form,type Row,type Run} from './common';
 // INTAKE-002: lead pipeline, due follow-ups and the conversion report.
 const qualification:Record<string,string>={pending:'pending qualification',qualified:'qualified',not_qualified:'not qualified'};
 const percent=(part:number,whole:number)=>whole?`${Math.floor((part*100)/whole+0.5)}%`:'—';
-function Lead({l,state,data,counsel,run}:{l:Row;state:Row;data:Row;counsel:boolean;run:Run}){
+function Lead({l,state,data,counsel,run,tick}:{l:Row;state:Row;data:Row;counsel:boolean;run:Run;tick:number}){
  return <article className="record" aria-label={'Lead '+l.name}><strong>{l.name} · {l.stageName??'No stage'}</strong>
   <p>{l.summary}</p><p>{[l.email,l.phone].filter(Boolean).join(' · ')}</p><IntakeHistory leadId={l.id} revision={l.revision}/>
   <p>{l.practiceCode??'No practice'} · {l.assignedEmail??'Unassigned'} · {qualification[l.qualification]} · referred by {l.referralSource}</p>
   <p>{l.nextAction?`Next: ${l.nextAction}${l.nextActionDate?' by '+l.nextActionDate:''}`:'No next action'}{l.overdue?' · overdue':''}{l.consultationOutcome?` · Consultation: ${l.consultationOutcome}`:''}</p>
   {l.stalled.length>0&&<p className="notice">Stalled: {l.stalled.join('; ')}</p>}
   {l.duplicates.map((d:Row)=><div key={d.id}><p className="notice">Possible duplicate of {d.name} ({d.reason})</p>{counsel&&<details><summary>Merge {l.name} into {d.name}</summary><Form label="Merge duplicate" submit={async f=>run(async()=>{const into=await api('/leads/'+d.id);await api('/leads/'+l.id+'/merge',{revision:l.revision,intoId:d.id,intoRevision:into.revision,reason:f.reason});},'Duplicate merged; its source is kept')}><Field label="Reason" name="reason"/></Form></details>}</div>)}
+  <LeadFollowups lead={l} run={run} tick={tick}/>
   <details><summary>Update {l.name}</summary><Form label="Save lead" submit={f=>run(()=>api('/leads/'+l.id,{revision:l.revision,stageId:f.stageId,practiceCode:f.practiceCode,qualification:f.qualification,consultationOutcome:f.consultationOutcome,nextAction:f.nextAction,nextActionDate:f.nextActionDate,...(counsel?{assignedEmail:f.assignedEmail}:{})}),'Lead saved')}>
    <Field label="Stage" name="stageId"><select name="stageId" defaultValue={l.stageId??''}><option value="">No stage</option>{data.stages.map((s:Row)=><option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
    <LeadPractice areas={state.firm?.practiceAreas??[]} code={l.practiceCode}/>
@@ -29,7 +31,7 @@ export function Leads({state,run,tick}:{state:Row;run:Run;tick:number}){
  if(!data||!report)return <section className="panel" aria-busy="true"><h2>Lead pipeline</h2><p>Opening leads…</p></section>;
  return <section className="panel"><h2>Lead pipeline</h2>
   <h3>Your due follow-ups</h3>{!data.dueQueue.length?<p>Nothing due today.</p>:<ul aria-label="Your due follow-ups">{data.dueQueue.map((l:Row)=><li key={l.id}>{l.name}: {l.nextAction} · {l.nextActionDate}{l.overdue?' · overdue':' · due today'}</li>)}</ul>}
-  <h3>Open leads</h3>{!data.leads.length&&<Empty>No open leads.</Empty>}{data.leads.map((l:Row)=><Lead key={l.id} l={l} state={state} data={data} counsel={counsel} run={run}/>)}
+  <h3>Open leads</h3>{!data.leads.length&&<Empty>No open leads.</Empty>}{data.leads.map((l:Row)=><Lead key={l.id} l={l} state={state} data={data} counsel={counsel} run={run} tick={tick}/>)}
   {data.closed.length>0&&<details><summary>Closed leads</summary>{data.closed.map((l:Row)=><article className="record" key={l.id}><strong>{l.name} · {l.status}</strong><p>{l.summary}</p><IntakeHistory leadId={l.id} revision={l.revision}/></article>)}</details>}
   <details><summary>Add a lead</summary><Form label="Add lead" submit={f=>run(()=>api('/leads',{name:f.name,email:f.email,phone:f.phone,summary:f.summary,referralSource:f.referralSource,stageId:f.stageId,practiceCode:f.practiceCode,nextAction:f.nextAction,nextActionDate:f.nextActionDate||undefined,...(counsel?{assignedEmail:f.assignedEmail}:{})}),'Lead added')}>
    <Field label="Prospect name" name="name"/><Field label="Email" name="email" type="email" required={false}/><Field label="Phone" name="phone" required={false}/><Field label="Inquiry summary" name="summary"/><Field label="Referral source" name="referralSource"/>

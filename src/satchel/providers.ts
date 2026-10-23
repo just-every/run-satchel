@@ -32,6 +32,10 @@ export async function reviewProvider(db:D1Database,actor:Actor,providerId:string
  await atomic(db,actor,[stmt(db,'INSERT INTO s_provider_reviews(id,provider_id,terms_url,disclosure_version,reviewed_by,reviewed_at) VALUES(?,?,?,?,?,?)',reviewId,p.id,url.href,disclosureVersion,actor.email,at),audit(db,actor,'provider.reviewed',p.id,`Provider terms and direct firm billing reviewed; Satchel charge none: ${url.href}`)]);
  return {id:reviewId,providerId:p.id,termsUrl:url.href,reviewedAt:at};
 }
+export async function reviewOf(db:D1Database,providerId:ProviderId) {
+ const r=await stmt(db,'SELECT terms_url,reviewed_by,reviewed_at FROM s_provider_reviews WHERE provider_id=? AND disclosure_version=? ORDER BY reviewed_at DESC LIMIT 1',known(providerId).id,disclosureVersion).first<Data>();
+ return r?{termsUrl:r.terms_url as string,reviewedBy:r.reviewed_by as string,reviewedAt:r.reviewed_at as string}:null;
+}
 // Every connector or sender checks this before it contacts a provider; a missing or outdated review refuses it.
 export async function requireProviderReview(db:D1Database,providerId:ProviderId) {
  const p=known(providerId),r=await stmt(db,'SELECT 1 ok FROM s_provider_reviews WHERE provider_id=? AND disclosure_version=?',p.id,disclosureVersion).first();

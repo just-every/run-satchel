@@ -105,7 +105,14 @@ export async function availability(db: D1Database, actor: Actor, query: { from?:
   const list = await load(db, `(p.created_by=? OR EXISTS(SELECT 1 FROM s_appointment_attendees x WHERE x.appointment_id=p.id AND x.email=?)) AND EXISTS(SELECT 1 FROM oa_operators viewer WHERE viewer.id=? AND ${wallAllows('p.matter_id','viewer.email')})`, email, email, actor.id);
   const visible = new Set((await rows(db, `SELECT m.id FROM s_matters m WHERE ${seeable('m.id')}`, actor.role, actor.email)).map(m => m.id));
   const busy = list.flatMap(a => a.occurrences.filter(o => o.status !== 'cancelled' && o.date >= r.from && o.date <= r.to).map(o => visible.has(a.matterId) ? { start: o.start, end: o.end, title: a.title, matterId: a.matterId, matterNumber: a.matterNumber } : { start: o.start, end: o.end })).sort((x, y) => x.start.localeCompare(y.start));
-  result.push({ email, busy });
+  const consults = (await rows(db, "SELECT start_at,end_at FROM s_consultations WHERE lawyer_email=? AND status='booked' AND substr(start_at,1,10)>=? AND substr(start_at,1,10)<=?", email, r.from, r.to)).map(c => ({ start: c.start_at, end: c.end_at }));
+  result.push({ email, busy: [...busy, ...consults].sort((x, y) => x.start.localeCompare(y.start)) });
  }
  return { ...r, people: result };
+}
+
+// Intervals during which a staff member is already committed to a matter appointment (INTAKE-003 offers none of them).
+export async function staffBusy(db: D1Database, email: string, from: number, to: number) {
+ const list = await load(db, '(p.created_by=? OR EXISTS(SELECT 1 FROM s_appointment_attendees x WHERE x.appointment_id=p.id AND x.email=?))', email, email);
+ return list.flatMap(a => a.occurrences.filter(o => o.status !== 'cancelled' && Date.parse(o.end) > from && Date.parse(o.start) < to).map(o => ({ start: Date.parse(o.start), end: Date.parse(o.end) })));
 }

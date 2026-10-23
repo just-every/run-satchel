@@ -1,0 +1,10 @@
+-- INTAKE-008: consented, bounded follow-up sequences. A message is sent only while the lead's own recorded consent
+-- is active (a contact merge supplies none), inside quiet-hour and contact limits, and until a reply, opt-out,
+-- conflict stop, decline or conversion stops it and names the next human action.
+CREATE TABLE s_followup_settings(kind TEXT PRIMARY KEY CHECK(kind IN('consultation_reminder','unanswered_inquiry','engagement_chase')),enabled INTEGER NOT NULL CHECK(enabled IN(0,1)),channel TEXT NOT NULL CHECK(channel='email'),steps TEXT NOT NULL CHECK(json_valid(steps)),quiet_start TEXT NOT NULL,quiet_end TEXT NOT NULL,timezone TEXT NOT NULL,max_contacts INTEGER NOT NULL CHECK(max_contacts BETWEEN 1 AND 20),revision TEXT NOT NULL,updated_by TEXT NOT NULL,updated_at TEXT NOT NULL);
+CREATE TABLE s_lead_consents(id TEXT PRIMARY KEY,lead_id TEXT NOT NULL REFERENCES s_leads(id),channel TEXT NOT NULL CHECK(channel='email'),source TEXT NOT NULL,text TEXT NOT NULL,recorded_by TEXT NOT NULL,granted_at TEXT NOT NULL,revoked_at TEXT,revoked_reason TEXT);
+CREATE UNIQUE INDEX s_lead_consent_active ON s_lead_consents(lead_id,channel) WHERE revoked_at IS NULL;
+CREATE TABLE s_followups(id TEXT PRIMARY KEY,lead_id TEXT NOT NULL REFERENCES s_leads(id),kind TEXT NOT NULL CHECK(kind IN('consultation_reminder','unanswered_inquiry','engagement_chase')),status TEXT NOT NULL CHECK(status IN('active','completed','stopped')),anchor_at TEXT NOT NULL,context TEXT NOT NULL CHECK(json_valid(context)),stop_reason TEXT,stopped_at TEXT,next_action TEXT,human_owner TEXT,created_by TEXT NOT NULL,created_at TEXT NOT NULL);
+CREATE INDEX s_followups_lead ON s_followups(lead_id,status);
+CREATE TABLE s_followup_sends(id TEXT PRIMARY KEY,followup_id TEXT NOT NULL REFERENCES s_followups(id),step INTEGER NOT NULL,due_at TEXT NOT NULL,status TEXT NOT NULL CHECK(status IN('queued','sending','sent','failed','uncertain','cancelled')),claim TEXT,provider TEXT,provider_id TEXT,detail TEXT NOT NULL DEFAULT '',attempted_at TEXT,UNIQUE(followup_id,step));
+CREATE INDEX s_followup_sends_due ON s_followup_sends(status,due_at);
