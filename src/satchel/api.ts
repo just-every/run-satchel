@@ -1,3 +1,4 @@
+import {listProductions,prepareProduction,productionAction,productionFile} from './document-productions';
 import {searchFirm} from './search';
 import {disposeConflictWaiver,disposeConflictPayload} from './conflict-custody';
 import {conflictReview,saveConflictReview,routeConflictMatch,listConflictReferrals,decideConflictReferral,waiverFile,savedConflictSearches,removeEngagementExclusion} from './conflict-dispositions';
@@ -293,6 +294,11 @@ api.post('/api/satchel/ledes/codes',as(async(a,c)=>saveCode(db(c),a,await body(c
 api.post('/api/satchel/ledes/timekeepers',as(async(a,c)=>saveTimekeeper(db(c),a,await body(c))));
 api.get('/api/satchel/matters/:id/ledes',as((a,c)=>matterLedes(db(c),a,param(c))));
 api.post('/api/satchel/matters/:id/ledes-guideline',as(async(a,c)=>saveGuideline(db(c),a,param(c),await body(c))));
+api.get('/api/satchel/matters/:id/productions',as((a,c)=>listProductions(db(c),a,param(c))));
+api.post('/api/satchel/matters/:id/productions',as(async(a,c)=>prepareProduction(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/productions/:id/:op',as(async(a,c)=>productionAction(db(c),a,param(c),param(c,'op'),await body(c))));
+api.get('/api/satchel/productions/:id/preview',as((a,c)=>productionFile(db(c),a,param(c),true)));
+api.get('/api/satchel/productions/:id/file',as((a,c)=>productionFile(db(c),a,param(c))));
 api.get('/api/satchel/matters/:id/documents',as((a,c)=>listDocuments(db(c),a,param(c))));
 api.get('/api/satchel/matters/:id/document-sets',as((a,c)=>documentSetState(db(c),a,param(c))));
 api.post('/api/satchel/matters/:id/document-sets/:op',as(async(a,c)=>documentSetAction(db(c),a,param(c),param(c,'op'),await body(c))));
