@@ -2,7 +2,7 @@ import {wallAllows,matterScope} from './matter-scope';
 // MATTER-003: dependent matter work. A task linked to a legal deadline takes its date
 // from that deadline; reassignment, coverage and bulk updates never change a deadline.
 import { atomic, audit, human, id, insist, integer, matter, need, now, rows, stmt, text, type Actor, type Data } from './model';
-import { calendarDate, visibleDeadline } from './deadlines';
+import { calendarDate, visibleDeadline, visibility } from './deadlines';
 import { matterGuard } from './documents';
 import { firmToday } from './retention';
 
@@ -25,18 +25,19 @@ function nextDue(day: string, recurrence: string) {
 }
 
 export async function listTasks(db: D1Database, actor: Actor, matterId: string) {
- const m = await matter(db, actor, matterId), today = await firmToday(db);
- const tasks = await rows(db, `SELECT t.*,d.date deadline_date,d.status deadline_status,d.title deadline_title,o.display_name owner_name FROM s_tasks t LEFT JOIN s_deadlines d ON d.id=t.deadline_id LEFT JOIN oa_operators o ON o.email=t.owner_email WHERE t.matter_id=? ORDER BY t.status DESC,COALESCE(d.date,t.due_date,'9999'),t.created_at,t.id`, m.id);
+ const m = await matter(db, actor, matterId), today = await firmToday(db), access = visibility(actor);
+ const tasks = await rows(db, `SELECT t.*,d.date deadline_date,d.status deadline_status,d.title deadline_title,o.display_name owner_name FROM s_tasks t LEFT JOIN s_deadlines d ON d.id=t.deadline_id LEFT JOIN oa_operators o ON o.email=t.owner_email WHERE t.matter_id=? AND (t.deadline_id IS NULL OR EXISTS(SELECT 1 FROM s_deadlines t WHERE t.id=d.id AND ${access.sql})) ORDER BY t.status DESC,COALESCE(d.date,t.due_date,'9999'),t.created_at,t.id`, m.id, ...access.params);
  const deps = await rows(db, 'SELECT x.* FROM s_task_dependencies x JOIN s_tasks t ON t.id=x.task_id WHERE t.matter_id=?', m.id);
  const events = await rows(db, 'SELECT e.* FROM s_task_events e JOIN s_tasks t ON t.id=e.task_id WHERE t.matter_id=? ORDER BY e.at,e.id', m.id);
  const absences = await rows(db, "SELECT a.*,(SELECT covering_email FROM s_absence_coverage c WHERE c.absence_id=a.id ORDER BY assigned_at DESC,id DESC LIMIT 1) covering_email FROM s_absences a");
+ const visibleIds = new Set(tasks.map(t => t.id));
  return tasks.map(t => {
   const due = t.deadline_id ? t.deadline_date : t.due_date, on = due && due > today ? due : today;
   const away = t.owner_email && t.status === 'open' ? absences.find(a => a.email === t.owner_email && a.start_date <= on && on <= a.end_date) : undefined;
   const prerequisites = tasks.filter(p => deps.some(d => d.task_id === t.id && d.prerequisite_id === p.id));
   const subtasks = tasks.filter(s => s.parent_id === t.id);
   const blockers = [...prerequisites.filter(p => p.status === 'open').map(p => ({ id: p.id, title: p.title, kind: 'prerequisite' })), ...subtasks.filter(s => s.status === 'open').map(s => ({ id: s.id, title: s.title, kind: 'subtask' }))];
-  return { id: t.id, matterId: t.matter_id, parentId: t.parent_id, title: t.title, priority: t.priority, dueDate: due, legalDate: t.deadline_id ? { deadlineId: t.deadline_id, title: t.deadline_title, status: t.deadline_status } : null, owner: t.owner_email, ownerName: t.owner_name ?? t.owner_email, recurrence: t.recurrence, seriesId: t.series_id, status: t.status, completedBy: t.completed_by, completedAt: t.completed_at, evidence: t.completion_evidence, revision: t.revision, prerequisites: prerequisites.map(p => ({ id: p.id, title: p.title, status: p.status })), subtasks: subtasks.map(s => s.id), blockers, coverage: away ? { absent: away.email, coveredBy: away.covering_email ?? null } : null, history: events.filter(e => e.task_id === t.id).map(e => ({ kind: e.kind, actor: e.actor, at: e.at, detail: JSON.parse(e.detail) })) };
+  return { id: t.id, matterId: t.matter_id, parentId: visibleIds.has(t.parent_id) ? t.parent_id : null, title: t.title, priority: t.priority, dueDate: due, legalDate: t.deadline_id ? { deadlineId: t.deadline_id, title: t.deadline_title, status: t.deadline_status } : null, owner: t.owner_email, ownerName: t.owner_name ?? t.owner_email, recurrence: t.recurrence, seriesId: t.series_id, status: t.status, completedBy: t.completed_by, completedAt: t.completed_at, evidence: t.completion_evidence, revision: t.revision, prerequisites: prerequisites.map(p => ({ id: p.id, title: p.title, status: p.status })), subtasks: subtasks.map(s => s.id), blockers, coverage: away ? { absent: away.email, coveredBy: away.covering_email ?? null } : null, history: events.filter(e => e.task_id === t.id).map(e => { const detail = JSON.parse(e.detail); if (Array.isArray(detail.prerequisites)) detail.prerequisites = detail.prerequisites.filter((p: string) => visibleIds.has(p)); if (detail.parentId && !visibleIds.has(detail.parentId)) detail.parentId = null; return { kind: e.kind, actor: e.actor, at: e.at, detail }; }) };
  });
 }
 

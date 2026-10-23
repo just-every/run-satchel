@@ -55,3 +55,21 @@ test('MATTER-003 dependent discovery tasks: owners, priorities, subtasks, recurr
   for(const action of ['task.created','task.reassigned','task.completed','task.bulk_updated'])assert.ok(trail.includes(action),action);
  }finally{await h.close();}
 });
+
+test('task lists omit deadlines and dependency references from private sources',async()=>{
+ const h=await harness();try{
+  await h.json('/team',{email:'assistant@example.test',name:'Assistant',role:'assistant'},h.owner);
+  await h.json('/team/invite',{email:'assistant@example.test'},h.owner);const assistant=await h.login('assistant@example.test');
+  const m=await open(h),base='/matters/'+m.id;
+  await h.json(base+'/access',{email:'assistant@example.test'},h.owner);
+  const doc=await h.json(base+'/documents',{name:'synthetic-satchel-1',mime:'text/plain',visibility:'private',contentBase64:Buffer.from('synthetic-satchel-1').toString('base64')},h.owner);
+  const date=await h.json(base+'/deadlines',{title:'Private settlement acceptance',date:'2026-11-15',timezone:'UTC',source:'Private original',documentId:doc.id},h.owner);
+  assert.ok(!(await h.json(base+'/deadlines',undefined,assistant)).some(d=>d.id===date.id));
+  const hidden=await h.json(base+'/tasks',{title:'Review private acceptance',deadlineId:date.id},h.owner);
+  const visible=await h.json(base+'/tasks',{title:'Prepare public correspondence',prerequisites:[hidden.id],parentId:hidden.id},h.owner);
+  const inside=await h.json(base+'/tasks',undefined,h.owner);assert.equal(inside.find(t=>t.id===hidden.id).legalDate.title,date.title);
+  const outside=await h.json(base+'/tasks',undefined,assistant),publicTask=outside.find(t=>t.id===visible.id);
+  assert.ok(publicTask);assert.deepEqual(publicTask.prerequisites,[]);assert.equal(publicTask.parentId,null);
+  for(const secret of [hidden.id,hidden.title,date.id,date.title,date.date])assert.ok(!JSON.stringify(outside).includes(secret),'Private source omitted: '+secret);
+ }finally{await h.close();}
+});
