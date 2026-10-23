@@ -38,6 +38,7 @@ export async function prepareProduction(db:D1Database,actor:Actor,matterId:strin
  insist(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient.email),'Supply a recipient email');
  const documents:Data[]=[],items:Data[]=[],files:Record<string,Uint8Array>={},labels:string[]=[],seen=new Set<string>(),at=now(),productionId=id();
  for(const selected of body.items){
+  insist(selected&&typeof selected==='object'&&!Array.isArray(selected),'Supply a source selection');
   const d=await visibleDocument(db,actor,text(selected.documentId,'Source document',100));
   insist(d.matter_id===matterId&&!d.erased_at,'Source document not found',404);
   insist(!seen.has(d.id),'Select each source once');seen.add(d.id);
