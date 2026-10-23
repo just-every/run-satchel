@@ -30,7 +30,7 @@ async function message(env:Bindings,d:Data,firm:string){
 }
 export async function runFollowups(env:Bindings,atMs:number){
  const db=env.DB,at=new Date(atMs).toISOString();
- await db.batch([stmt(db,"UPDATE s_followup_sends SET status='uncertain',detail='The worker stopped before the provider answered; check the provider before contacting again. No automatic resend.' WHERE status='sending' AND attempted_at<?",new Date(atMs-15*60000).toISOString())]);
+ await db.batch([stmt(db,'DELETE FROM s_consult_rate_limits WHERE expires_at<?',at),stmt(db,"UPDATE s_followup_sends SET status='uncertain',detail='The worker stopped before the provider answered; check the provider before contacting again. No automatic resend.' WHERE status='sending' AND attempted_at<?",new Date(atMs-15*60000).toISOString())]);
  const due=await rows(db,"SELECT s.*,f.lead_id,f.kind,f.context,l.email,l.name FROM s_followup_sends s JOIN s_followups f ON f.id=s.followup_id JOIN s_leads l ON l.id=f.lead_id WHERE s.status='queued' AND s.due_at<=? ORDER BY s.due_at,s.step,s.id LIMIT 100",at);
  const settings=new Map((await rows(db,'SELECT * FROM s_followup_settings')).map(s=>[s.kind,s])),firm=(await stmt(db,'SELECT name FROM s_firm WHERE id=1').first<Data>())?.name??'the firm';
  let sent=0;
