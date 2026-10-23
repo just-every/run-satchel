@@ -147,6 +147,9 @@ test('native medical chronology requires health setup, pins source pages, reconc
   await h.json('/documents/'+source.id+'/file?version=1',undefined,lawyer,404);await h.json(door,undefined,lawyer,403);await h.json(door+'/setup',{authorizationReference:'No',agreementReference:'No',confirmed:true},lawyer,403);await h.json(publish,review,lawyer,403);
   const published=await h.json(publish,review,h.owner);assert.equal(published.review.reconciledTotalCents,2000);assert.equal(published.review.differenceCents,0);await h.json(publish,review,h.owner,409);
   assert.deepEqual(Buffer.from(await(await h.request('/api/satchel/documents/'+source.id+'/file?version=1',undefined,h.owner)).arrayBuffer()),bytes);
+  await h.json(base+'/wall',{custodianEmail:'lawyer@example.test',members:['owner@example.test'],reason:'Authorized counsel audit boundary',revision:null},h.owner);
+  assert.equal((await h.json('/audit?matterId='+m.id+'&action=chronology.published',undefined,lawyer)).total,0);
+  assert.equal(await(await h.request('/api/satchel/audit/export?matterId='+m.id+'&action=chronology.published',undefined,lawyer)).text(),'');
   const audit=(await h.json('/audit?matterId='+m.id+'&action=chronology.published',undefined,h.owner)).records[0];assert.equal(audit.evidence.record.recordType,'s_document_chronologies');assert.equal(audit.evidence.record.sha256,draft.sha256);
   await h.restart();const state=await h.json(door,undefined,h.owner);assert.equal(state.chronologies[0].published_by,'owner@example.test');
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();restored=await harness();await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);assert.deepEqual(await restored.json(door,undefined,restored.owner),state);
