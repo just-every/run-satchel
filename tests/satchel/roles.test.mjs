@@ -19,7 +19,7 @@ test('FIRM-002 each built-in role reaches only its own legal, billing, trust, re
   await denied(h,{...c,owner:h.owner},['lawyer','assistant','trust_officer','billing','accountant'],'/portal',undefined);
   const shared=await h.json(base+'/portal',{email:'client@example.test',reason:'Client asked to follow the lease review'},h.owner);assert.equal(shared.grants.length,1);
   await h.json(base+'/portal',{email:'assistant@example.test',reason:'Not a client'},h.owner,404);await denied(h,c,all,base+'/portal',{email:'client@example.test',reason:'No authority'});
-  const portal=await h.json('/portal',undefined,c.client);assert.equal(portal.grants.length,1);assert.equal(portal.grants[0].matterNumber,f.m.matter_number??portal.grants[0].matterNumber);assert.equal(portal.grants[0].title,f.m.title);assert.deepEqual(Object.keys(portal.grants[0]).sort(),['grantedAt','id','matterId','matterNumber','status','title']);
+  const portal=await h.json('/portal',undefined,c.client);assert.equal(portal.grants.length,1);assert.equal(portal.grants[0].matterNumber,f.m.matter_number??portal.grants[0].matterNumber);assert.equal(portal.grants[0].title,f.m.title);assert.deepEqual(Object.keys(portal.grants[0]).sort(),['grantedAt','id','kind','matterId','matterNumber','status','title']);
   for(const path of ['/search?q=Barton','/state','/matters/'+f.m.id,base+'/billing','/trust','/time','/team','/audit','/reports','/matters/'+f.other.id])await h.json(path,undefined,c.client,403);
   await h.json('/matters/'+f.m.id+'/entries',{kind:'time',date:'2026-10-01',description:'Client write',minutes:6,rateCents:100},c.client,403);
   await h.json('/keys',{label:'client key'},c.client,403);
