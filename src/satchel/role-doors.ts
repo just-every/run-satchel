@@ -8,7 +8,7 @@ const door=(method:'GET'|'POST',path:string):Door=>[method,new RegExp('^'+path.r
 const shared=[door('GET','/search'),door('GET','/me'),door('GET','/state'),door('GET','/firm'),door('GET','/notifications'),door('POST','/notifications/:id/read'),door('GET','/matters/:id'),door('GET','/matters/:id/billing')];
 const billing=[...shared,door('POST','/matters/:id/bills'),door('GET','/bills/:id/export'),door('GET','/bills/:id/invoice.pdf'),door('GET','/bills/:id/ledes'),door('GET','/bills/:id/ledes-xml'),door('POST','/invoices/issue'),door('GET','/invoice-numbering')];
 const accountant=[...shared,door('GET','/trust'),door('GET','/trust/:rest'),door('POST','/trust/periods'),door('POST','/trust/entries/:id/clear'),door('POST','/trust/checks/:id/match')];
-const client=[door('GET','/me'),door('GET','/portal'),door('GET','/portal/matters/:id/timeline')];
+const client=[door('GET','/me'),door('GET','/portal'),door('GET','/portal/matters/:id/timeline'),door('GET','/portal/matters/:id/shares'),door('POST','/portal/shares/:id/acknowledge'),door('POST','/portal/shares/:id/complete')];
 export const roleDoors:Partial<Record<Actor['role'],Door[]>>={billing,accountant,client};
 export const agentRoles:Actor['role'][]=['owner','lawyer','assistant','trust_officer'];
 export function localPath(path:string){return path.replace(/^\/api\/satchel/,'')||'/';}

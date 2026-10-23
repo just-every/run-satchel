@@ -77,6 +77,7 @@ import {agenda,exportAgenda,absenceState,recordAbsence,assignCoverage,assignDead
 import {providerState,reviewProvider} from './providers';
 import {addNote} from './matter-notes';
 import {matterTimeline,clientTimeline} from './timeline';
+import {shareWithClient,revokeShare,clientShares,portalShares,acknowledgeShare,completeShare} from './client-shares';
 import {followupSettings,saveFollowupSettings,recordConsent,startFollowup,recordFollowupEvent,optOut,leadFollowups} from './followups';
 import {listOffers,saveOffer,listConsultations,cancelConsultation} from './consultations';
 import {publicOffer,bookConsultation,manageView,rescheduleConsultation,cancelByProspect} from './consult-public';
@@ -140,6 +141,12 @@ api.post('/api/satchel/consult/:id/book',async c=>c.json(await bookConsultation(
 api.post('/api/satchel/matters/:id/notes',as(async(a,c)=>addNote(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/matters/:id/timeline',as((a,c)=>matterTimeline(db(c),a,param(c),c.req.query())));
 api.get('/api/satchel/portal/matters/:id/timeline',as((a,c)=>clientTimeline(db(c),a,param(c))));
+api.get('/api/satchel/matters/:id/client-shares',as((a,c)=>clientShares(db(c),a,param(c))));
+api.post('/api/satchel/matters/:id/client-shares',as(async(a,c)=>shareWithClient(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/client-shares/:id/revoke',as((a,c)=>revokeShare(db(c),a,param(c))));
+api.get('/api/satchel/portal/matters/:id/shares',as((a,c)=>portalShares(db(c),a,param(c))));
+api.post('/api/satchel/portal/shares/:id/acknowledge',as(async(a,c)=>acknowledgeShare(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/portal/shares/:id/complete',as(async(a,c)=>completeShare(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/integrations',as((a,c)=>integrationState(db(c),a)));
 api.post('/api/satchel/integrations',as(async(a,c)=>createIntegration(runtimeBindings(c.env),a,await body(c))));
 api.post('/api/satchel/integrations/:id/revoke',as((a,c)=>revokeIntegration(db(c),a,param(c))));
