@@ -102,10 +102,10 @@ export async function productionAction(db:D1Database,actor:Actor,productionId:st
  if(op==='approve'){
   insist(p.status==='draft','Only a draft can be approved',409);
   insist(body.sha256===p.sha256,'Review the exact packet hash before approving',409);
-  writes.push(stmt(db,"UPDATE s_document_productions SET status='approved',approved_by=?,approved_at=?,review_note=? WHERE id=?",actor.email,at,text(body.reviewNote,'Counsel review note',2000),p.id));
+  writes.push(stmt(db,"UPDATE s_document_productions SET status='approved',approved_by=?,approved_at=?,review_note=?,review_note_sha256=? WHERE id=?",actor.email,at,text(body.reviewNote,'Counsel review note',2000),await digest(text(body.reviewNote,'Counsel review note',2000)),p.id));
  }else if(op==='recall'){
   insist(['draft','approved'].includes(p.status)&&!p.exported_at,'Only a packet that has not been exported can be recalled',409);
-  writes.push(stmt(db,"UPDATE s_document_productions SET status='recalled',recalled_by=?,recalled_at=?,recall_reason=? WHERE id=?",actor.email,at,text(body.reason,'Recall reason',1000),p.id));
+  writes.push(stmt(db,"UPDATE s_document_productions SET status='recalled',recalled_by=?,recalled_at=?,recall_reason=?,recall_reason_sha256=? WHERE id=?",actor.email,at,text(body.reason,'Recall reason',1000),await digest(text(body.reason,'Recall reason',1000)),p.id));
  }else insist(false,'Unknown production action',404);
  writes.push(audit(db,actor,'production.'+(op==='approve'?'approved':'recalled'),p.id,JSON.stringify({sha256:p.sha256}),{matterId:p.matter_id}));
  await atomic(db,actor,writes);return json((await load(db,actor,p.id)).p);

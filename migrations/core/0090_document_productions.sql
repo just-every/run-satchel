@@ -4,8 +4,8 @@ CREATE TABLE s_document_productions (
  snapshot TEXT, artifact_base64 TEXT, sha256 TEXT NOT NULL, size INTEGER NOT NULL,
  status TEXT NOT NULL CHECK(status IN ('draft','approved','recalled','erased')),
  created_by TEXT NOT NULL, created_at TEXT NOT NULL,
- approved_by TEXT, approved_at TEXT, review_note TEXT,
- exported_at TEXT, recalled_by TEXT, recalled_at TEXT, recall_reason TEXT
+ approved_by TEXT, approved_at TEXT, review_note TEXT, review_note_sha256 TEXT,
+ exported_at TEXT, recalled_by TEXT, recalled_at TEXT, recall_reason TEXT, recall_reason_sha256 TEXT
 );
 CREATE TABLE s_production_sources (
  production_id TEXT NOT NULL REFERENCES s_document_productions(id),
