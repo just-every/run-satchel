@@ -8,7 +8,7 @@ export function DocumentProductions({matterId,actor,documents,run,tick}:{matterI
  if(!allowed)return null;
  const available=documents.filter(d=>!d.erasedAt);
  return <section className="panel" aria-label="Evidence productions"><h2>Evidence productions</h2>
-  <p>Prepare PDF originals for counsel review. Redaction replaces each selected whole page with a new black page; unredacted originals remain separate. Maximum 20 sources, 500 produced pages and 1 MiB per packet. Other file formats can be withheld in the privilege log.</p>
+  <p>Prepare PDF originals for counsel review. Redaction must replace every page in a selected PDF with new black pages; unredacted originals remain separate. Selective page redaction is unavailable. Maximum 20 sources, 500 produced pages and 1 MiB per packet. Other file formats can be withheld in the privilege log.</p>
   <p>No email or external share is created. The intended recipient is recorded for manual delivery; an internal export is not delivery proof.</p>
   <Form label="Prepare production" submit={data=>run(async()=>{
    const items=available.filter(d=>data[d.id+'.disposition']!=='exclude').map(d=>({

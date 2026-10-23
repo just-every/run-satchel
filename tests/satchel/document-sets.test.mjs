@@ -75,7 +75,7 @@ test('controlled production pins originals, removes whole-page content, freezes 
   const original=Buffer.from(await pdf.save()),upload=(name,bytes,visibility='matter')=>h.json(base+'/documents',{name,mime:'application/pdf',contentBase64:bytes.toString('base64'),visibility},h.owner);
   const source=await upload('Record.pdf',original),withheld=await upload('Counsel-private.pdf',original,'private');
   const selected=(d,extra={})=>({documentId:d.id,revision:d.revision,version:1,privilege:'None',withheld:false,redactedPages:[],...extra});
-  const body={recipientName:'Opposing counsel',recipientEmail:'counsel@example.test',batesPrefix:'SYN-',batesStart:1,items:[selected(source,{redactedPages:[2],reason:'Counsel work product',privilege:'Work product'}),selected(withheld,{withheld:true,reason:'Attorney client privilege',privilege:'Attorney client'})]};
+  const body={recipientName:'Opposing counsel',recipientEmail:'counsel@example.test',batesPrefix:'SYN-',batesStart:1,items:[selected(source,{redactedPages:[1,2],reason:'Counsel work product',privilege:'Work product'}),selected(withheld,{withheld:true,reason:'Attorney client privilege',privilege:'Attorney client'})]};
   const packet=await h.json(base+'/productions',body,h.owner),door='/productions/'+packet.id;
   assert.equal(packet.status,'draft');assert.equal(packet.snapshot.items[0].firstBates,'SYN-00000001');assert.equal(packet.snapshot.items[0].lastBates,'SYN-00000002');assert.equal(packet.snapshot.recipient.email,body.recipientEmail);
   assert.equal((await h.request('/api/satchel'+door+'/file',undefined,h.owner)).status,409);
@@ -89,13 +89,14 @@ test('controlled production pins originals, removes whole-page content, freezes 
   try{
    assert.equal(rendered.numPages,2);const text=[];
    for(let n=1;n<=2;n++)text.push((await(await rendered.getPage(n)).getTextContent()).items.map(x=>x.str??'').join(' '));
-   assert.match(text[0],/Public treatment record/);assert.match(text[0],/SYN-00000001/);assert.equal(text[1].trim(),'SYN-00000002');
+   assert.equal(text[0].trim(),'SYN-00000001');assert.equal(text[1].trim(),'SYN-00000002');
    assert.ok(!text.join(' ').includes('synthetic-satchel-1'));assert.equal(await rendered.getAttachments(),null);assert.ok(!(await rendered.getMetadata()).info.Title);
   }finally{await task.destroy();}
   assert.deepEqual(Buffer.from(await(await h.request('/api/satchel/documents/'+source.id+'/file?version=1',undefined,h.owner)).arrayBuffer()),original);
   await h.json(door+'/approve',{sha256:'wrong',reviewNote:'Wrong packet'},h.owner,409);
   await h.json(base+'/productions',body,h.owner,409); // Bates collisions never consume a second packet.
   await h.json(base+'/productions',{...body,batesStart:20,items:[selected(source,{revision:'stale'})]},h.owner,409);
+  await h.json(base+'/productions',{...body,batesStart:20,items:[selected(source,{redactedPages:[2],reason:'Partial redaction refused'})]},h.owner,400);
   await h.json(base+'/productions',{...body,batesStart:20,items:[selected(source,{redactedPages:[3],reason:'Outside source'})]},h.owner,400);
   await h.json('/team',{email:'lawyer@example.test',name:'Counsel',role:'lawyer'},h.owner);await h.json('/team/invite',{email:'lawyer@example.test'},h.owner);const lawyer=await h.login('lawyer@example.test');await h.json(base+'/access',{email:'lawyer@example.test'},h.owner);
   assert.deepEqual(await h.json(base+'/productions',undefined,lawyer),[]);assert.equal((await h.request('/api/satchel'+door+'/preview',undefined,lawyer)).status,404);

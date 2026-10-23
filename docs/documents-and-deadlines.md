@@ -54,9 +54,9 @@ Folder counts, tag/type totals, saved-filter counts and duplicate warnings inclu
 
 ## Prepare an internal evidence production
 
-The principal or a lawyer opens **Evidence productions** in Documents. Enter the intended recipient, a Bates prefix of uppercase letters, digits and hyphens, and the first number. Expand each source and choose **Produce PDF**, **Withhold entire original**, or **Do not select**. Enter a privilege label. For redaction, list whole page numbers separated by commas and give a reason; withheld originals also require a reason.
+The principal or a lawyer opens **Evidence productions** in Documents. Enter the intended recipient, a Bates prefix of uppercase letters, digits and hyphens, and the first number. Expand each source and choose **Produce PDF**, **Withhold entire original**, or **Do not select**. Enter a privilege label. For redaction, list every page number in the selected PDF, separated by commas, and give a reason; withheld originals also require a reason.
 
-Choose **Prepare production**. Review the source versions, Bates range, manifest and privilege log, then download the review packet. Each produced PDF has its own hash; the ZIP includes manifest.json and privilege-log.json. A redacted page is a new black page with a Bates footer: its source content is not copied. Unredacted originals remain separately available through the original-file door.
+Choose **Prepare production**. Review the source versions, Bates range, manifest and privilege log, then download the review packet. Each produced PDF has its own hash; the ZIP includes manifest.json and privilege-log.json. Every redacted page is a new black page with a Bates footer: none of that source PDF is copied. Selective page redaction is refused because shared PDF resources can retain content from omitted pages. Unredacted originals remain separately available through the original-file door.
 
 Enter a counsel review note and choose **Approve exact production** before exporting the packet. Approval binds the exact ZIP hash. Bates labels are never reused within a matter, including recalled packets. The current limits are 20 source documents, 500 produced pages and 1 MiB for the complete ZIP; output accepts PDF originals, while withholding can reference any retained original format.
 
