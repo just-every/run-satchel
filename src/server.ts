@@ -4,6 +4,7 @@ import {dispatchWebhooks} from './satchel/webhooks'
 import {purgeIntakeSecurity} from './satchel/intake-submissions'
 import {runReminders} from './satchel/reminder-scheduler'
 import {runFollowups} from './satchel/followup-worker'
+import {runReportSchedules} from './satchel/report-schedules'
 import { withDemo } from './modules/demo/index.mjs'
 import { seedDemo } from './demo'
 import { rejectedResponse } from './base/rejected-response'
@@ -27,7 +28,7 @@ function noTransform(response: Response): Response {
 }
 
 export default withDemo({
-  async scheduled(controller,env) { await Promise.all([scheduledFees(runtimeBindings(env).DB,controller.scheduledTime),dispatchWebhooks(runtimeBindings(env)),runReminders(runtimeBindings(env),controller.scheduledTime),runFollowups(runtimeBindings(env),controller.scheduledTime),purgeIntakeSecurity(runtimeBindings(env).DB,new Date(controller.scheduledTime).toISOString()),recoverIntakeUploads(runtimeBindings(env),new Date(controller.scheduledTime).toISOString())]) },
+  async scheduled(controller,env) { await Promise.all([scheduledFees(runtimeBindings(env).DB,controller.scheduledTime),dispatchWebhooks(runtimeBindings(env)),runReminders(runtimeBindings(env),controller.scheduledTime),runFollowups(runtimeBindings(env),controller.scheduledTime),runReportSchedules(runtimeBindings(env),controller.scheduledTime),purgeIntakeSecurity(runtimeBindings(env).DB,new Date(controller.scheduledTime).toISOString()),recoverIntakeUploads(runtimeBindings(env),new Date(controller.scheduledTime).toISOString())]) },
   async fetch(request, env, execution) {
     const asset = await staticAssetResponse(request, env)
     if (asset) return asset
