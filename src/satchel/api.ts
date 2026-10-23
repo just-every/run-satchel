@@ -74,6 +74,7 @@ import {firmSettings,saveFirm,importFirm,exportFirm} from './firm';
 import {workload,myHandoffs,handOff,acknowledgeHandoff} from './workload';
 import {listTasks,createTask,assignTask,completeTask,bulkTasks,myNotifications,readNotification} from './tasks';
 import {agenda,exportAgenda,absenceState,recordAbsence,assignCoverage,assignDeadlineOwner} from './agenda';
+import {providerState,reviewProvider} from './providers';
 import {matterCalendar,firmCalendar,bookAppointment,changeOccurrence,availability} from './appointments';
 import {placeHold,releaseHold,setSchedule,retentionState,disposeDocument} from './retention';
 type C=Context<{Bindings:Bindings}>;
@@ -113,6 +114,8 @@ api.post('/api/satchel/matters/:id/assembly',as(async(a,c)=>prepareAssembly(db(c
 api.post('/api/satchel/assembly/revisions/:id/approve',as(async(a,c)=>approveAssembly(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/assembly/revisions/:id/preview',as((a,c)=>assemblyPreview(db(c),a,param(c),c.req.query('format')??'')));
 api.get('/api/satchel/assembly/revisions/:id/file',as((a,c)=>assemblyFile(db(c),a,param(c),c.req.query('format')??'')));
+api.get('/api/satchel/providers',as((a,c)=>providerState(db(c),a)));
+api.post('/api/satchel/providers/:id/review',as(async(a,c)=>reviewProvider(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/integrations',as((a,c)=>integrationState(db(c),a)));
 api.post('/api/satchel/integrations',as(async(a,c)=>createIntegration(runtimeBindings(c.env),a,await body(c))));
 api.post('/api/satchel/integrations/:id/revoke',as((a,c)=>revokeIntegration(db(c),a,param(c))));
