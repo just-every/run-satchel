@@ -1,5 +1,5 @@
 /* The run site's base: page, type, the lockup, header, footer and the actions. Tokens come from rer-theme.css
-   (public/brand/tokens.css); this file defines none of its own colors. */
+   and public/fonts/fonts.css; this file defines none of its own colors. */
 *, *::before, *::after { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
 body { margin: 0; background: var(--paper); color: var(--text); font: 400 17px/1.5 var(--font-ui); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; overflow-x: clip; }

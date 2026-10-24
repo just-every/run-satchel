@@ -1,26 +1,51 @@
-/* Figtree (headings, the wordmark and body text) and JetBrains Mono (code and the terminal), both under the
-   SIL Open Font License 1.1 and self-hosted from public/fonts/. No page makes a third-party font request. */
-@font-face {
-  font-family: 'Figtree';
-  font-style: normal;
-  font-weight: 300 900;
-  font-display: swap;
-  src: url('/fonts/figtree/figtree-latin-wght-normal.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+/* Satchel's look beyond its theme. /rer-theme.css holds only what rer's theme reader takes (the --rer-* theme
+   tokens and the faces), so everything else Satchel's pages wear is here: Satchel's own tokens, Base's other --rer-*
+   names, the frame rules for Base's sign-in pages and /setup, and the rules for Base's Run and not-found pages. The
+   app and its root document and /setup (src/base/font-head.ts), the Lobby and Base's Run, contract and not-found
+   pages (the edition identity's fonts) and the run site's own pages (src/site/pages.tsx) link this file before the
+   theme; the sign-in pages (src/auth.server.ts) and the development sign-in and hand-off pages (src/server.dev.ts)
+   add it after their own style. It declares no face (the theme does): rer's demo host inlines this path and the
+   theme into the hosted demo's gate, and no other file. */
+/* Satchel's tokens, defined once. The run site, the app (satchel.css), sign-in, /setup, the Lobby and Base's Run,
+   contract and not-found pages read them from this file.
+   The look (design desk, 17 Oct 2026): cool off-white paper and petrol-teal ink, a petrol Run button, walnut binder
+   tabs on light sections and brass on dark ones, the cognac of the satchel, Figtree heavy headings with tight tracking. */
+:root {
+  --paper: #f4f7f6; --paper-white: #ffffff; --paper-client: #e9f1f1; --surface: #ffffff; --surface-sunk: #eef3f2;
+  --ink: #0e333c; --text: #10232e; --muted: #5a6670; --muted-2: #7c838c; --hairline: #dfe6e7; --line-strong: #c8d3d5;
+  --petrol: #0f5c66; --petrol-deep: #0e3f47; --petrol-night: #0f3b42; --teal: #0e7c76; --ink-pill: var(--petrol);
+  --walnut: #6b3e22; --walnut-edge: #8a6247; --brass: #dca03c; --brass-shade: #a8741f; --brass-glow: #fcbc4b;
+  --cognac: #8a4a24; --cognac-ink: #7a3f1d; --cognac-tint: #f4e3cc; --leather: #854224; --leather-shade: #6c3218;
+  --amber: #d18a1d; --amber-bg: #fdf1df; --amber-ink: #874810; --amber-pill: #f4b858;
+  --green: #1f8a4c; --green-bg: #e7f3eb; --green-ink: #146336;
+  --red: #ef5a48; --red-bg: #fce8e4; --red-ink: #c93a2b;
+  --honey: #f9dfad; --honey-ink: #613104; --clay: #b88848; --chestnut: #794723; --peach: #fbe3c2;
+  --mark-ink: #1c2528; --mark-cream: #f5ebdb;
+  --focus: #0e7c76;
+  --font-display: 'Figtree', 'Helvetica Neue', Arial, sans-serif; --font-ui: 'Figtree', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --radius-card: 14px; --radius-panel: 14px; --radius-mat: 22px; --radius-band: 28px; --radius-pill: 999px; --radius-button: 6px;
+  --shadow-card: 0 1px 2px rgba(14, 51, 60, .06), 0 14px 34px -16px rgba(14, 51, 60, .26);
+  --shadow-float: 0 2px 4px rgba(14, 51, 60, .06), 0 24px 48px -20px rgba(14, 51, 60, .34);
+  --shadow-mat: 0 18px 36px -18px rgba(14, 40, 44, .55); --space: 4px;
+
+  /* Base's other --rer-* names, which Base reads beside the theme's tokens: the mono stack, the dark code card, the
+     button radius and the wordmark. */
+  --rer-font-mono:var(--font-mono);
+  --rer-code-background:var(--petrol-night); --rer-code-text:#eef6f6;
+  --rer-button-radius:var(--radius-button);
+  --rer-wordmark-weight:750; --rer-wordmark-tracking:-.025em;
 }
-@font-face {
-  font-family: 'Figtree';
-  font-style: normal;
-  font-weight: 300 900;
-  font-display: swap;
-  src: url('/fonts/figtree/figtree-latin-ext-wght-normal.woff2') format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-@font-face {
-  font-family: 'JetBrains Mono';
-  font-style: normal;
-  font-weight: 100 800;
-  font-display: swap;
-  src: url('/fonts/jetbrains-mono/jetbrains-mono-latin-wght-normal.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
+
+/* Satchel’s declared frame theme; Base owns the forms and their behavior. */
+/* Base's sign-in pages add this file after their own style. Their colour for a secondary link (.secondary-link a)
+   won its tie with the a rule below while these rules sat in the theme, before that style, so the a rule's colour
+   skips those links (:where() keeps its specificity); its underline offset, which no tie decides, still reaches them. */
+.rer-themed.rer-themed *{box-sizing:border-box}html.rer-themed.rer-themed{color-scheme:light;background:var(--paper);color:var(--ink)}.rer-themed.rer-themed body{margin:0;min-height:100vh;padding:64px 24px 64px 64px;display:grid;place-items:center;font:16px/1.6 var(--font-ui);-webkit-font-smoothing:antialiased}.rer-themed.rer-themed body::before,.rer-themed.rer-themed body::after{content:'';position:fixed;left:0;pointer-events:none}.rer-themed.rer-themed body::before{top:0;bottom:0;width:40px;background:var(--leather) url('/brand/leather.webp') center/256px;box-shadow:inset -2px 0 4px var(--leather-shade)}.rer-themed.rer-themed body::after{top:43%;width:36px;height:80px;background:url('/brand/clasp.svg') center/contain no-repeat}.rer-themed.rer-themed main{width:100%;max-width:710px;padding:56px 64px 64px;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--radius-panel);box-shadow:var(--shadow-card);overflow-wrap:anywhere}.rer-themed.rer-themed .brand,.rer-themed.rer-themed .rer-brand{display:flex;align-items:center;justify-content:center;gap:16px;margin:0 0 56px;font:500 42px/1.2 var(--font-display);color:var(--ink)}.rer-themed.rer-themed .brand::before,.rer-themed.rer-themed .rer-brand::before{content:'';width:44px;height:44px;background:url('/brand/mark.svg') center/contain no-repeat}.rer-themed.rer-themed .mark{display:none}.rer-themed.rer-themed h1,.rer-themed.rer-themed h2{font-family:var(--font-display);font-weight:500;letter-spacing:-.02em;text-wrap:balance}.rer-themed.rer-themed h1{font-size:48px;line-height:1.2;text-align:center;margin:0 0 48px}.rer-themed.rer-themed h2{font-size:26px;margin:32px 0 16px}.rer-themed.rer-themed p{margin:0 0 24px;color:var(--muted)}.rer-themed.rer-themed label{display:block;font-size:15px;font-weight:500;margin:0 0 8px}.rer-themed.rer-themed input:not([type=checkbox]):not([type=hidden]){display:block;width:100%;min-height:48px;margin:0 0 24px;padding:10px 14px;border:1px solid var(--hairline);border-radius:8px;background:var(--surface);color:var(--ink);font:inherit}.rer-themed.rer-themed input[type=checkbox]{width:20px;height:20px;margin:3px 10px 0 0;accent-color:var(--cognac);flex:none}.rer-themed.rer-themed label:has(input[type=checkbox]),.rer-themed.rer-themed .check{display:flex;align-items:flex-start;font-weight:400;line-height:1.5}.rer-themed.rer-themed form{margin:0}.rer-themed.rer-themed form p{margin:0 0 24px}.rer-themed.rer-themed button,.rer-themed.rer-themed .action{display:block;width:100%;min-height:52px;border:1px solid var(--ink-pill);border-radius:var(--radius-pill);padding:12px 20px;background:var(--ink-pill);color:#fff;font:500 16px/1.5 var(--font-ui);cursor:pointer;text-align:center;text-decoration:none;margin-top:24px}.rer-themed.rer-themed button:hover,.rer-themed.rer-themed .action:hover{background:#30302e}.rer-themed.rer-themed button.secondary{background:transparent;color:var(--ink);border-color:var(--ink)}.rer-themed.rer-themed a:not(:where(.secondary-link a)){color:var(--ink)}.rer-themed.rer-themed a{text-underline-offset:4px}.rer-themed.rer-themed :focus-visible{outline:3px solid var(--focus);outline-offset:3px}.rer-themed.rer-themed dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 24px;margin:0 0 32px}.rer-themed.rer-themed dt{color:var(--muted)}.rer-themed.rer-themed dd{margin:0}.rer-themed.rer-themed .stack{display:grid;gap:12px;margin-bottom:24px}.rer-themed.rer-themed .divider{text-align:center}.rer-themed.rer-themed .notice{padding:12px 16px;border-radius:8px;background:var(--cognac-tint);color:var(--cognac-ink)}.rer-themed.rer-themed .notice[role=alert]{background:#fff1ed;color:#873a2b}.rer-themed.rer-themed .secondary-link{text-align:center;font-size:14px;margin:24px 0 0}@media(max-width:700px){.rer-themed.rer-themed body{padding:64px 20px 40px;place-items:start center}.rer-themed.rer-themed body::before{width:100%;height:12px;bottom:auto;background-size:160px}.rer-themed.rer-themed body::after{top:0;left:auto;right:24px;width:18px;height:28px;background-position:center bottom}.rer-themed.rer-themed main{padding:32px 24px 36px}.rer-themed.rer-themed .brand,.rer-themed.rer-themed .rer-brand{font-size:30px;gap:12px;margin-bottom:36px}.rer-themed.rer-themed .brand::before,.rer-themed.rer-themed .rer-brand::before{width:32px;height:32px}.rer-themed.rer-themed h1{font-size:34px;margin-bottom:32px}.rer-themed.rer-themed dl{grid-template-columns:1fr;gap:2px}.rer-themed.rer-themed dd{margin-bottom:12px}}
+
+/* Base's Run and not-found pages: heavy Figtree headings and the desk's white cards on the paper. */
+body:has(.steps) h1, body:has(.hero) h1 { font-weight: 850; letter-spacing: -.045em; line-height: 1; }
+body:has(.steps) .step h2 { font-weight: 800; letter-spacing: -.025em; }
+body:has(.steps) .step { background: var(--surface); border-color: var(--hairline); box-shadow: var(--shadow-card); backdrop-filter: none; }
+body:has(.steps) .num { font-weight: 800; }
+body:has(.steps) .facts { background: var(--paper); border-radius: var(--radius-panel); padding: 16px 20px; }
