@@ -34,7 +34,13 @@ test('CLIENT-001 two co-clients, a payer and a delegate each reach only their ow
   assert.equal((await file(payer)).status,404);assert.equal((await file(stranger)).status,404);
   await h.json('/portal/matters/'+m.id+'/shares',undefined,payer,404);await h.json('/portal/matters/'+m.id+'/timeline',undefined,payer,404);await h.json('/portal/matters/'+m.id+'/shares',undefined,stranger,404);
   // The payer reads issued invoices and their PDFs, and nothing else; co-clients see the same issued invoices as clients; delegates do not.
-  await h.json('/invoice-numbering',scheme(),h.owner);const bill=await draft(h,m),approved=await reviewed(h,m,bill),issued=await h.json('/invoices/issue',{bills:[{id:approved.id,revision:approved.revision}]},h.owner);
+  await h.json('/invoice-numbering',scheme(),h.owner);const bill=await draft(h,m);
+  assert.deepEqual((await h.json('/portal/matters/'+m.id+'/invoices',undefined,payer)).invoices,[],'A payer cannot see an unissued draft invoice');
+  assert.equal((await h.request('/api/satchel/portal/invoices/'+bill.id+'/pdf',undefined,payer)).status,404,'A draft PDF is refused by direct URL');
+  const approved=await reviewed(h,m,bill);
+  assert.deepEqual((await h.json('/portal/matters/'+m.id+'/invoices',undefined,payer)).invoices,[],'Approval alone does not expose an unissued invoice to the payer');
+  assert.equal((await h.request('/api/satchel/portal/invoices/'+approved.id+'/pdf',undefined,payer)).status,404,'An approved but unissued PDF is refused by direct URL');
+  const issued=await h.json('/invoices/issue',{bills:[{id:approved.id,revision:approved.revision}]},h.owner);
   const invoices=await h.json('/portal/matters/'+m.id+'/invoices',undefined,payer);assert.equal(invoices.invoices.length,1);assert.equal(invoices.invoices[0].number,issued.issues[0].number);assert.equal(invoices.invoices[0].totalCents,37500);
   const pdf=await h.request('/api/satchel'+invoices.invoices[0].pdfUrl.replace('/api/satchel',''),undefined,payer);assert.equal(pdf.status,200);assert.equal(pdf.headers.get('content-type'),'application/pdf');assert.match(Buffer.from(await pdf.arrayBuffer()).subarray(0,5).toString(),/%PDF-/);
   assert.equal((await h.json('/portal/matters/'+m.id+'/invoices',undefined,client)).invoices.length,1);for(const reader of [coclient,second])assert.deepEqual(await h.json('/portal/matters/'+m.id+'/invoices',undefined,reader),await h.json('/portal/matters/'+m.id+'/invoices',undefined,client),'A co-client sees the same issued invoices as the client');await h.json('/portal/matters/'+m.id+'/invoices',undefined,delegate,404);await h.json('/portal/matters/'+m.id+'/invoices',undefined,stranger,404);
@@ -46,20 +52,28 @@ test('CLIENT-001 two co-clients, a payer and a delegate each reach only their ow
   assert.equal(pClient.shares.items.some(i=>i.title==='Settlement release.txt'),true);assert.equal(pClient.invoices.invoices.length,1);assert.equal(pPayer.shares,null);assert.equal(pPayer.timeline,null);assert.equal(pPayer.invoices.invoices.length,1);assert.equal(pDelegate.invoices,null);assert.equal(pDelegate.identity.delegateOf,'client@example.test');
   for(const [email,cookie] of [['client@example.test',client],['cocl@example.test',coclient],['second@example.test',second],['deleg@example.test',delegate]]){const preview=await seen(email);assert.deepEqual(preview.threads,await h.json('/portal/matters/'+m.id+'/threads',undefined,cookie));assert.deepEqual(preview.requests,await h.json('/portal/matters/'+m.id+'/requests',undefined,cookie));assert.equal(preview.threads.threads.find(t=>t.id===thread.id).unread,1,'Preview does not mark client messages read');}
   assert.equal(pPayer.threads,null);assert.equal(pPayer.requests,null);
+  // Exercise the direct thread door in each identity's own session, beyond list and preview checks.
+  const openThread=(cookie,expected=200)=>h.json('/portal/threads/'+thread.id+'/open',{},cookie,expected);
+  for(const reader of [client,coclient,second,delegate])assert.equal((await openThread(reader)).threads[0].messages[0].body,'Please review the shared release.');
+  for(const [cookie,status] of [[payer,404],[stranger,404],[lawyer,403],[assistant,403],[h.owner,403],['',401]])await openThread(cookie,status);
+
   assert.ok(!JSON.stringify([pClient,pPayer,pDelegate]).includes('Privileged'));await h.json(base+'/portal-preview?email=stranger@example.test',undefined,lawyer,404);await h.json(base+'/portal-preview?email=client@example.test',undefined,assistant,403);await h.json(base+'/portal-preview?email=client@example.test',undefined,client,403);
   const previews=(await h.json('/audit?action=portal.previewed',undefined,h.owner)).records;assert.ok(previews.length>=3);assert.ok(previews.every(r=>r.actor.email==='lawyer@example.test'&&Number.isFinite(Date.parse(r.at))),'The principal sees every staff preview with actor and time');
   for(const cookie of [client,coclient,second,payer,delegate])await h.json('/search?q=Privileged',undefined,cookie,403);
   // Deactivating the represented client closes the delegate too, including the audited preview.
   await h.json('/team',{email:'client@example.test',name:'client',role:'client',active:false},h.owner);
+  await openThread(client,403);await openThread(delegate,404);
   assert.equal((await file(delegate)).status,404);assert.deepEqual((await h.json('/portal',undefined,delegate)).grants,[]);assert.equal((await seen('deleg@example.test')).shares,null);
   await h.json('/team',{email:'client@example.test',name:'client',role:'client',active:true},h.owner);
   assert.equal((await file(delegate)).status,200);
   // Revoking the delegate closes their URLs at once and leaves the client; revoking the client also closes any delegate.
   const grants=(await h.json(base+'/portal',undefined,h.owner)).grants,byEmail=e=>grants.find(g=>g.email===e&&!g.revokedAt);
   await h.json('/portal-grants/'+byEmail('deleg@example.test').id+'/revoke',{reason:'Delegate no longer acts for the client'},h.owner);
+  await openThread(delegate,404);
   assert.equal((await file(delegate)).status,404);assert.equal((await file(client)).status,200);assert.deepEqual((await h.json('/portal',undefined,delegate)).grants,[]);
   await grant({email:'deleg@example.test',kind:'delegate',delegateOf:'client@example.test'});assert.equal((await file(delegate)).status,200);
   await h.json('/portal-grants/'+byEmail('client@example.test').id+'/revoke',{reason:'Engagement ended'},h.owner);
+  await openThread(client,404);await openThread(delegate,404);
   assert.equal((await file(client)).status,404);assert.equal((await file(delegate)).status,404,'A delegate has no access once the client’s grant is withdrawn');assert.equal((await file(coclient)).status,200,'A co-client keeps their own grant');
   for(const action of ['portal.granted','portal.revoked']){
    const records=(await h.json('/audit?action='+action,undefined,h.owner)).records;
@@ -73,6 +87,7 @@ test('CLIENT-001 two co-clients, a payer and a delegate each reach only their ow
   // An ethical wall closes every portal read door even when the person retains a grant.
   await h.json(base+'/wall',{custodianEmail:'lawyer@example.test',members:[],reason:'Separate conflicting representation',revision:null},h.owner);
   for(const cookie of [client,coclient,second,payer,delegate]){
+   await openThread(cookie,404);
    assert.deepEqual((await h.json('/portal',undefined,cookie)).grants,[],'A wall hides the matter itself from every portal identity');
    for(const door of ['shares','timeline','threads','requests','invoices'])await h.json('/portal/matters/'+m.id+'/'+door,undefined,cookie,404);
   }

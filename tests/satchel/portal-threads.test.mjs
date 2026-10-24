@@ -56,6 +56,21 @@ test('CLIENT-002 a confidential attachment, a client reply, the retained thread,
   assert.deepEqual((await h.json('/threads/unread',undefined,assistant)).queue.map(q=>[q.threadId,q.unread]),[[thread.id,1]]);assert.deepEqual((await h.json('/threads/unread',undefined,other)).queue,[]);assert.deepEqual((await h.json('/threads/unread',undefined,lawyer)).queue,[]);
   assert.equal((await h.json(base+'/threads',undefined,other)).threads.length,0);await h.json('/threads/'+thread.id+'/read',{},other,404);await h.json('/threads/'+thread.id+'/messages',{body:'x'},other,404);
   assert.ok(h.mails.at(-1).to.includes('assistant@example.test')&&!JSON.stringify(h.mails.at(-1)).includes('signed page'),'The staff notification names no content either');
+  // Both sides retain original messages: mutation verbs and edit or delete actions are refused.
+  const originalMessages=reply.threads.find(t=>t.id===thread.id).messages;
+  for(const [cookie,prefix,message] of [[h.owner,'/threads/',first],[lawyer,'/threads/',first],[assistant,'/threads/',first],[client,'/portal/threads/',originalMessages[1]],[coclient,'/portal/threads/',first],[delegate,'/portal/threads/',first]]){
+   const path='/api/satchel'+prefix+thread.id+'/messages/'+message.id;
+   for(const method of ['PATCH','PUT','DELETE']){
+    const response=await h.raw(path,{method,body:JSON.stringify({body:'Replaced confidential text'})},cookie);
+    assert.ok([403,404,405].includes(response.status),method+' refuses message mutation');
+   }
+   for(const action of ['edit','delete']){
+    const response=await h.request(path+'/'+action,{body:'Replaced confidential text'},cookie);
+    assert.ok([403,404,405].includes(response.status),'A direct '+action+' action is refused');
+   }
+  }
+  const unchanged=(await h.json('/portal/matters/'+m.id+'/threads',undefined,client)).threads.find(t=>t.id===thread.id).messages;
+  assert.deepEqual(unchanged.map(({id,body,attachments})=>({id,body,attachments})),originalMessages.map(({id,body,attachments})=>({id,body,attachments})),'Refused edits and deletion preserve both original messages and attachment references');
   // Staff reading, reassignment and the retained record.
   const read=await h.json('/threads/'+thread.id+'/read',{},assistant),after=read.threads.find(t=>t.id===thread.id);assert.equal(after.unread,0);assert.deepEqual(after.messages[1].readBy.map(r=>r.by),['assistant@example.test']);assert.deepEqual((await h.json('/threads/unread',undefined,assistant)).queue,[]);
   await h.json('/threads/'+thread.id+'/assign',{assignedTo:'other@example.test'},assistant,403);await h.json('/threads/'+thread.id+'/assign',{assignedTo:'unassigned@example.test'},lawyer,400);await h.json('/threads/'+thread.id+'/assign',{assignedTo:'client@example.test'},lawyer,400);

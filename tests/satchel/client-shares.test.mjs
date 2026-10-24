@@ -35,11 +35,15 @@ test('CLIENT-004 a lawyer shares a preparation task, a hearing and a confirmed d
   const coclient=people['cocl@example.test'],delegate=people['deleg@example.test'],payer=people['payer@example.test'];
   for(const reader of [coclient,delegate])assert.deepEqual((await h.json('/portal/matters/'+m.id+'/shares',undefined,reader)).items.map(i=>i.id),portal.items.map(i=>i.id));
   await h.json('/portal/matters/'+m.id+'/shares',undefined,payer,404);await h.json('/portal/shares/'+task.id+'/complete',{},payer,404);await h.json('/portal/shares/'+event.id+'/acknowledge',{},payer,404);
+  // Retain every calendar date and task due date before any client action.
+  const calendarBefore=await h.json(base+'/calendar',undefined,lawyer),tasksBefore=await h.json(base+'/tasks',undefined,lawyer);
   // Acknowledge each; complete only the client task, once; the staff record stays the firm's.
   for(const item of portal.items)await h.json('/portal/shares/'+item.id+'/acknowledge',{note:item.kind==='event'?'I will be there':''},client);
   await h.json('/portal/shares/'+event.id+'/acknowledge',{},client,409);
   await h.json('/portal/shares/'+event.id+'/complete',{},client,400);await h.json('/portal/shares/'+legal.id+'/complete',{},client,400);
   const done=await h.json('/portal/shares/'+task.id+'/complete',{note:'Uploaded to the folder'},client);assert.ok(done.items.find(i=>i.kind==='task').completedAt);assert.equal(done.items.find(i=>i.kind==='task').canComplete,false);
+  assert.deepEqual(await h.json(base+'/calendar',undefined,lawyer),calendarBefore,'Client task completion preserves every hearing occurrence, time, timezone and legal date');
+  assert.deepEqual(await h.json(base+'/tasks',undefined,lawyer),tasksBefore,'Client task completion preserves every firm task due date and legal task state');
   await h.json('/portal/shares/'+task.id+'/complete',{},client,409);
   assert.equal((await h.json('/portal/matters/'+m.id+'/shares',undefined,coclient)).items.find(i=>i.id===task.id).completedAt,null,'Completion belongs to the acknowledging identity');
   assert.equal((await h.json(base+'/tasks',undefined,h.owner)).find(t=>t.id===prep.id).status,'open','A client completion never closes the firm’s task');
@@ -60,6 +64,8 @@ test('CLIENT-004 a lawyer shares a preparation task, a hearing and a confirmed d
   const calendar=await h.json(base+'/calendar',undefined,lawyer);
   assert.equal(calendar.appointments.find(a=>a.id===hearing.id).occurrences[0].date,'2026-11-18','Acknowledgment payload cannot move the hearing');
   assert.equal(calendar.deadlines.find(d=>d.id===deadline.id).status,'confirmed','Acknowledgment cannot complete a legal date');
+  assert.deepEqual(calendar,calendarBefore,'Refused client changes and acknowledgment input preserve every calendar date');
+  assert.deepEqual(await h.json(base+'/tasks',undefined,lawyer),tasksBefore,'Refused client changes preserve every task date');
   await h.json('/client-shares/'+reshared.id+'/revoke',{},lawyer);
   await h.restart();
   const history=(await h.json(base+'/client-shares',undefined,lawyer)).shares;
