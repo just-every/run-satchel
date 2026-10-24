@@ -7,25 +7,29 @@ import {atomic,audit,digest,human,id,insist,matter,need,now,rows,stmt,text,type 
 import {matterGuard,decode,mediaType} from './documents';
 import {portalAccess,readerKinds} from './portal';
 import {guard} from './trust-guards';
+import {matterScope} from './matter-scope';
 import {reviewOf} from './providers';
 const system={id:'portal-notifications',email:'portal',role:'system',channel:'automation'} as any;
 async function attachments(body:Data) {
  const list=body.attachments===undefined?[]:body.attachments;insist(Array.isArray(list)&&list.length<=3,'Attach at most three files');
  return Promise.all(list.map(async(a:Data)=>{const bytes=decode(a.contentBase64);return {id:id(),name:text(a.name,'File name',200),mime:mediaType(bytes),size:bytes.length,sha256:await digest(bytes),content:a.contentBase64 as string};}));
 }
-// Every active reader of the matter, as the people a message reaches.
+// Assignments and notifications require current staff authority, including ethical walls and exclusions.
+const staffAccess=()=>`EXISTS(SELECT 1 FROM oa_operators o LEFT JOIN s_members member ON member.email=o.email WHERE o.email=? AND o.status='active' AND (o.role='owner' OR (member.active=1 AND member.role IN('lawyer','assistant'))) AND EXISTS(SELECT 1 FROM s_matters staff_matter WHERE staff_matter.id=? AND ${matterScope('staff_matter.id').replace('SELECT ? AS role,? AS email',"SELECT CASE WHEN o.role='owner' THEN 'owner' ELSE member.role END AS role,o.email AS email")}))`;
 async function readers(db:D1Database,matterId:string) {
- return (await rows(db,"SELECT DISTINCT g.email FROM s_portal_grants g JOIN s_matters m ON m.id=g.matter_id WHERE g.matter_id=? AND g.revoked_at IS NULL AND g.kind IN('client','co_client','delegate') AND (g.kind<>'delegate' OR EXISTS(SELECT 1 FROM s_portal_grants p WHERE p.email=g.delegate_of AND p.matter_id=g.matter_id AND p.revoked_at IS NULL AND p.kind IN('client','co_client'))) AND NOT EXISTS(SELECT 1 FROM s_ethical_walls w WHERE w.matter_id=m.id AND w.dissolved_at IS NULL) ORDER BY g.email",matterId)).map(r=>r.email as string);
+ return (await rows(db,`SELECT DISTINCT candidate.email FROM s_portal_grants candidate WHERE candidate.matter_id=? AND ${portalAccess('candidate.matter_id',readerKinds).replace('g.email=?','g.email=candidate.email')} ORDER BY candidate.email`,matterId)).map(r=>r.email as string);
 }
 async function notify(env:Bindings,messageId:string,recipients:string[],subjectKind:'client'|'staff') {
  const db=env.DB,at=now(),mail=operatorMail(env),firm=(await stmt(db,'SELECT name FROM s_firm WHERE id=1').first<Data>())?.name??'your firm',authority=await reviewOf(db,'mail');
  for(const to of recipients){
   let status='not_sent',provider:string|null=null,providerId:string|null=null,detail='No notification was sent: the firm has not recorded its mail provider review';
-  if(authority&&mail&&env.MAIL_FROM){
+  const allowed=await stmt(db,`SELECT ${subjectKind==='client'?portalAccess('?',readerKinds):staffAccess()} ok`,to,(await stmt(db,'SELECT t.matter_id FROM s_portal_messages m JOIN s_portal_threads t ON t.id=m.thread_id WHERE m.id=?',messageId).first<Data>())?.matter_id).first<Data>();
+  if(!allowed?.ok)detail='No notification was sent: the recipient no longer has access to this matter';
+  else if(authority&&mail&&env.MAIL_FROM){
    try{const r=await mail.send({deliveryId:id(),from:env.MAIL_FROM,to:[to],subject:subjectKind==='client'?`A new secure message from ${firm}`:'A new portal message',text:`You have a new secure message. Sign in to read it: ${env.AUTH_ORIGIN}/app\n\nThis email contains no message content.`,html:'',headers:{}});
     status=r.status==='accepted'||r.status==='development'?'accepted':r.status==='uncertain'?'uncertain':'failed';provider=r.provider;providerId=r.providerMessageId??null;detail=status==='accepted'?'Provider accepted the notification; mailbox delivery is unconfirmed.':`Provider result: ${r.status}`;}
    catch{status='uncertain';detail='The provider outcome is uncertain; no automatic resend.';}
-  }else if(authority)detail='The firm mail provider or sender is not configured';
+  }else if(allowed?.ok&&authority)detail='The firm mail provider or sender is not configured';
   await db.batch([stmt(db,'INSERT INTO s_portal_notifications(id,message_id,recipient,status,provider,provider_id,detail,at) VALUES(?,?,?,?,?,?,?,?)',id(),messageId,to,status,provider,providerId,detail,at),audit(db,system,'portal.notified',messageId,JSON.stringify({recipient:to,status}))]);
  }
 }
@@ -50,9 +54,9 @@ async function post(env:Bindings,actor:Actor,threadId:string|null,matterId:strin
 export async function startThread(env:Bindings,actor:Actor,matterId:string,body:Data) {
  human(actor);need(actor,'owner','lawyer','assistant');const m=await matter(env.DB,actor,matterId),to=await readers(env.DB,m.id);insist(to.length>0,'No client has portal access to this matter',409);
  const assigned=body.assignedTo?text(body.assignedTo,'Assigned staff',254).toLowerCase():actor.email;
- insist(await stmt(env.DB,"SELECT 1 FROM s_members WHERE email=? AND active=1 AND role IN('lawyer','assistant') UNION SELECT 1 FROM oa_operators WHERE lower(email)=? AND role='owner' AND status='active'",assigned,assigned).first(),'Assign the thread to an active lawyer, assistant or the principal');
+ insist((await stmt(env.DB,`SELECT ${staffAccess()} ok`,assigned,m.id).first<Data>())?.ok,'Assign the thread to active staff who can see this matter');
  const p=await post(env,actor,null,m.id,text(body.subject,'Subject',200),assigned,body,'staff');
- await atomic(env.DB,actor,[...matterGuard(env.DB,actor,m.id),...p.writes]);await notify(env,p.messageId,to,'client');
+ await atomic(env.DB,actor,[...matterGuard(env.DB,actor,m.id),guard(env.DB,staffAccess(),assigned,m.id),...p.writes]);await notify(env,p.messageId,to,'client');
  return staffThreads(env.DB,actor,m.id);
 }
 export async function staffReply(env:Bindings,actor:Actor,threadId:string,body:Data) {
@@ -63,9 +67,8 @@ export async function staffReply(env:Bindings,actor:Actor,threadId:string,body:D
 }
 export async function assignThread(db:D1Database,actor:Actor,threadId:string,body:Data) {
  human(actor);need(actor,'owner','lawyer');const t=await stmt(db,'SELECT * FROM s_portal_threads WHERE id=?',threadId).first<Data>();insist(t,'Thread not found',404);await matter(db,actor,t.matter_id);
- const to=text(body.assignedTo,'Assigned staff',254).toLowerCase();insist(await stmt(db,"SELECT 1 FROM s_members WHERE email=? AND active=1 AND role IN('lawyer','assistant') UNION SELECT 1 FROM oa_operators WHERE lower(email)=? AND role='owner' AND status='active'",to,to).first(),'Assign the thread to an active lawyer, assistant or the principal');
- insist(await stmt(db,'SELECT 1 FROM s_matter_access WHERE email=? AND matter_id=? UNION SELECT 1 FROM oa_operators WHERE email=? AND role=\'owner\'',to,t.matter_id,to).first(),'That person cannot see this matter; grant matter access first');
- await atomic(db,actor,[...matterGuard(db,actor,t.matter_id),stmt(db,'UPDATE s_portal_threads SET assigned_to=? WHERE id=?',to,t.id),audit(db,actor,'portal.thread_assigned',t.id,JSON.stringify({from:t.assigned_to,to}),{matterId:t.matter_id})]);
+ const to=text(body.assignedTo,'Assigned staff',254).toLowerCase();insist((await stmt(db,`SELECT ${staffAccess()} ok`,to,t.matter_id).first<Data>())?.ok,'Assign the thread to active staff who can see this matter');
+ await atomic(db,actor,[...matterGuard(db,actor,t.matter_id),guard(db,staffAccess(),to,t.matter_id),stmt(db,'UPDATE s_portal_threads SET assigned_to=? WHERE id=?',to,t.id),audit(db,actor,'portal.thread_assigned',t.id,JSON.stringify({from:t.assigned_to,to}),{matterId:t.matter_id})]);
  return staffThreads(db,actor,t.matter_id);
 }
 export async function staffThreads(db:D1Database,actor:Actor,matterId:string) {
@@ -104,7 +107,7 @@ export async function portalOpen(db:D1Database,actor:Actor,threadId:string) {
 }
 export async function portalReply(env:Bindings,actor:Actor,threadId:string,body:Data) {
  const t=await readerThread(env.DB,actor,threadId),p=await post(env,actor,t.id,t.matter_id,null,null,body,'client');
- await env.DB.batch([guard(env.DB,grantedReader('?'),actor.email,t.matter_id),...p.writes]);
+ await atomic(env.DB,actor,[guard(env.DB,grantedReader('?'),actor.email,t.matter_id),...p.writes]);
  await notify(env,p.messageId,[t.assigned_to],'staff');
  return portalThreads(env.DB,actor,t.matter_id);
 }

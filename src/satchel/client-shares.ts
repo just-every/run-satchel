@@ -5,6 +5,7 @@ import {atomic,audit,digest,human,id,insist,matter,need,now,rows,stmt,text,type 
 import {portalAccess,readerKinds} from './portal';
 import {decode} from './documents';
 import {matterGuard} from './documents';
+import {guard} from './trust-guards';
 import {matterCalendar} from './appointments';
 import {listTasks} from './tasks';
 export async function shareWithClient(db:D1Database,actor:Actor,matterId:string,body:Data) {
@@ -54,7 +55,7 @@ async function record(db:D1Database,actor:Actor,shareId:string,kind:'acknowledge
  const s=await mine(db,actor,shareId);
  if(kind==='completed')insist(s.kind==='task','Only a client task can be marked done here; the firm keeps its dates and deadlines',400);
  const note=body.note===undefined||body.note===''?'':text(body.note,'Note',1000),at=now();
- try{await db.batch([stmt(db,'INSERT INTO s_client_acks(id,share_id,kind,client_email,note,at) VALUES(?,?,?,?,?,?)',id(),s.id,kind,actor.email,note,at),audit(db,actor,'client.'+(kind==='completed'?'task_completed':'acknowledged'),s.id,JSON.stringify({kind:s.kind,recordId:s.record_id,note}),{matterId:s.matter_id})]);}
+ try{await atomic(db,actor,[guard(db,`EXISTS(SELECT 1 FROM s_client_shares s WHERE s.id=? AND s.revoked_at IS NULL AND ${portalAccess('s.matter_id',readerKinds)})`,s.id,actor.email),stmt(db,'INSERT INTO s_client_acks(id,share_id,kind,client_email,note,at) VALUES(?,?,?,?,?,?)',id(),s.id,kind,actor.email,note,at),audit(db,actor,'client.'+(kind==='completed'?'task_completed':'acknowledged'),s.id,JSON.stringify({kind:s.kind,recordId:s.record_id,note}),{matterId:s.matter_id})]);}
  catch(e){if(/UNIQUE|constraint/i.test(String(e)))insist(false,'You already recorded this',409);throw e;}
  return portalShares(db,actor,s.matter_id);
 }

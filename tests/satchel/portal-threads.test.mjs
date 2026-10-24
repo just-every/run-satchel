@@ -6,16 +6,19 @@ test('CLIENT-002 a confidential attachment, a client reply, the retained thread,
  const h=await harness();
  try{
   const m=await open(h),base='/matters/'+m.id,people={};
-  const roster=[['lawyer@example.test','lawyer'],['assistant@example.test','assistant'],['other@example.test','assistant'],['client@example.test','client'],['cocl@example.test','client'],['payer@example.test','client'],['stranger@example.test','client'],['deleg@example.test','client']];
+  const roster=[['lawyer@example.test','lawyer'],['assistant@example.test','assistant'],['other@example.test','assistant'],['client@example.test','client'],['cocl@example.test','client'],['payer@example.test','client'],['stranger@example.test','client'],['deleg@example.test','client'],['unassigned@example.test','assistant']];
   for(const [email,role] of roster){await h.json('/team',{email,name:email.split('@')[0],role},h.owner);await h.json('/team/invite',{email},h.owner);people[email]=await h.login(email);}
   const [lawyer,assistant,other,client,coclient,payer,stranger,delegate]=roster.map(([e])=>people[e]);
   for(const e of ['lawyer@example.test','assistant@example.test','other@example.test'])await h.json(base+'/access',{email:e},h.owner);
   await h.json(base+'/portal',{email:'client@example.test',reason:'Client'},h.owner);await h.json(base+'/portal',{email:'cocl@example.test',kind:'co_client',reason:'Co-client'},h.owner);await h.json(base+'/portal',{email:'payer@example.test',kind:'payer',reason:'Payer'},h.owner);
+  const unassigned=people['unassigned@example.test'];
+  await h.json(base+'/threads',{subject:'Refused assignment',body:'Private',assignedTo:'unassigned@example.test'},lawyer,400);
   const secret='Settle at 40k; the privileged analysis is attached.';
   // Without the firm's recorded mail review no notification is sent, and that is recorded.
   const quiet=await h.json(base+'/threads',{subject:'Settlement posture',body:'Quiet start',assignedTo:'assistant@example.test'},lawyer);assert.deepEqual(quiet.threads[0].messages[0].notifications.map(n=>n.status),['not_sent','not_sent']);
   await h.json('/providers/mail/review',{termsUrl:'https://resend.com/legal/terms-of-service',confirmed:true},h.owner);
   await h.json(base+'/threads',{subject:'x',body:secret},client,403);await h.json('/matters/missing/threads',{subject:'x',body:'x'},lawyer,404);
+  for(const attachments of [Array.from({length:4},(_,i)=>file('synthetic-satchel-'+i+'.txt','synthetic-satchel-'+i)),[file('synthetic-satchel-large.txt','x'.repeat(1024*1024+1))]])await h.json(base+'/threads',{subject:'Refused files',body:'Private',attachments},lawyer,400);
   const before=h.mails.length,started=await h.json(base+'/threads',{subject:'Confidential: settlement analysis',body:secret,attachments:[file('Analysis.txt','Privileged settlement analysis.')],assignedTo:'assistant@example.test'},lawyer);
   const thread=started.threads.find(t=>t.subject==='Confidential: settlement analysis'),first=thread.messages[0];assert.equal(first.attachments[0].name,'Analysis.txt');assert.deepEqual(first.notifications.map(n=>[n.to,n.status]).sort(),[['client@example.test','accepted'],['cocl@example.test','accepted']]);
   const sent=h.mails.slice(before);assert.deepEqual(sent.map(x=>x.to[0]).sort(),['client@example.test','cocl@example.test']);
@@ -38,9 +41,15 @@ test('CLIENT-002 a confidential attachment, a client reply, the retained thread,
   assert.ok(h.mails.at(-1).to.includes('assistant@example.test')&&!JSON.stringify(h.mails.at(-1)).includes('signed page'),'The staff notification names no content either');
   // Staff reading, reassignment and the retained record.
   const read=await h.json('/threads/'+thread.id+'/read',{},assistant),after=read.threads.find(t=>t.id===thread.id);assert.equal(after.unread,0);assert.deepEqual(after.messages[1].readBy.map(r=>r.by),['assistant@example.test']);assert.deepEqual((await h.json('/threads/unread',undefined,assistant)).queue,[]);
-  await h.json('/threads/'+thread.id+'/assign',{assignedTo:'other@example.test'},assistant,403);await h.json('/threads/'+thread.id+'/assign',{assignedTo:'client@example.test'},lawyer,400);
+  await h.json('/threads/'+thread.id+'/assign',{assignedTo:'other@example.test'},assistant,403);await h.json('/threads/'+thread.id+'/assign',{assignedTo:'unassigned@example.test'},lawyer,400);await h.json('/threads/'+thread.id+'/assign',{assignedTo:'client@example.test'},lawyer,400);
   const reassigned=await h.json('/threads/'+thread.id+'/assign',{assignedTo:'other@example.test'},lawyer);assert.equal(reassigned.threads.find(t=>t.id===thread.id).assignedTo,'other@example.test');assert.equal((await h.json(base+'/threads',undefined,other)).threads.length,1);assert.deepEqual((await h.json(base+'/threads',undefined,assistant)).threads.map(t=>t.subject),['Settlement posture'],'An assistant sees only the threads assigned to them');
   const answer=await h.json('/threads/'+thread.id+'/messages',{body:'Thank you.'},other);assert.deepEqual(answer.threads.find(t=>t.id===thread.id).messages.map(x=>x.side),['staff','client','staff']);
+  // Losing matter access closes ownership and suppresses even the minimal staff notification.
+  await h.json(base+'/access',{email:'other@example.test',remove:true},h.owner);
+  const mailsBefore=h.mails.length;await h.json('/portal/threads/'+thread.id+'/messages',{body:'Please assign another reviewer.'},client);assert.equal(h.mails.length,mailsBefore);
+  const retained=(await h.json(base+'/threads',undefined,lawyer)).threads.find(t=>t.id===thread.id);assert.deepEqual(retained.messages.at(-1).notifications.map(n=>[n.to,n.status]),[['other@example.test','not_sent']]);assert.deepEqual((await h.json('/threads/unread',undefined,other)).queue,[]);
+  await h.json('/threads/'+thread.id+'/assign',{assignedTo:'lawyer@example.test'},lawyer);assert.equal((await h.json('/threads/unread',undefined,lawyer)).queue[0].threadId,thread.id);
+  await h.restart();assert.equal((await h.json(base+'/threads',undefined,lawyer)).threads.find(t=>t.id===thread.id).messages.length,4);
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(archive.includes('Settle at 40k'));
   // A withdrawn grant removes the thread from that person's portal at once.
   const grants=(await h.json(base+'/portal',undefined,h.owner)).grants;await h.json('/portal-grants/'+grants.find(g=>g.email==='cocl@example.test').id+'/revoke',{reason:'Left the matter'},h.owner);
