@@ -3,6 +3,10 @@ import {api,Empty,Field,Form,type Row,type Run} from './common';
 import {PortalInvoices,PortalShares} from './client-shares';
 import {PortalThreads} from './portal-threads';
 import {PortalRequests} from './client-requests';
+export function PortalReportSummaries(){
+ const [items,setItems]=useState<Row[]>([]);useEffect(()=>{api('/report-summaries').then(r=>setItems(r.summaries)).catch(()=>setItems([]));},[]);
+ return items.length?<section aria-label="Weekly report summaries"><h2>Weekly summaries</h2><ul>{items.map(s=><li key={s.id}>{s.summary.title}: {s.summary.overdue} overdue of {s.summary.count} shared items</li>)}</ul></section>:null;
+}
 const labels:Record<string,string>={client:'You are the client on this matter.',co_client:'You are a co-client on this matter.',payer:'You can see this matter’s invoices.',delegate:'You are acting for a client on this matter.'};
 const kindNames:Record<string,string>={client:'Client',co_client:'Co-client',payer:'Payer',delegate:'Delegate'};
 function PortalPreview({matterId,email,kind}:{matterId:string;email:string;kind:string}){
@@ -16,7 +20,7 @@ export function ClientPortal({me}:{me:Row}){
  useEffect(()=>{api('/portal').then(r=>setGrants(r.grants)).catch(e=>setError(e.message));},[]);
  return <div className="workspace"><header><a className="brand" href="/app"><img src="/brand/mark.svg" alt=""/><span data-rer-name>Satchel</span></a><span>Client portal</span><a href="/signin">Sign in</a></header><main><div className="page-heading"><div><p className="eyebrow">SHARED WITH YOU</p><h1>Your matters</h1></div><div className="heading-tools"><span className="badge">{me.name} · client</span></div></div>
   {error&&<p className="error" role="alert">{error}</p>}
-  {!grants?<p>Opening your matters…</p>:!grants.length?<Empty>Your firm has not shared a matter with you yet.</Empty>:<section className="panel"><h2>Shared matters</h2>{grants.map(g=><article className="record" key={g.id}><strong>{g.kind==='payer'?'Issued invoices':<>{g.matterNumber} · {g.title}</>}</strong>{g.kind!=='payer'&&<p>{g.status} · shared {g.grantedAt.slice(0,10)}</p>}<p>{labels[g.kind]}</p>{g.kind!=='payer'&&<><ClientTimeline matterId={g.matterId}/><PortalShares matterId={g.matterId}/><PortalRequests matterId={g.matterId}/><PortalThreads matterId={g.matterId}/></>}{['payer','client','co_client'].includes(g.kind)&&<PortalInvoices matterId={g.matterId}/>}</article>)}</section>}
+  <PortalReportSummaries/>{!grants?<p>Opening your matters…</p>:!grants.length?<Empty>Your firm has not shared a matter with you yet.</Empty>:<section className="panel"><h2>Shared matters</h2>{grants.map(g=><article className="record" key={g.id}><strong>{g.kind==='payer'?'Issued invoices':<>{g.matterNumber} · {g.title}</>}</strong>{g.kind!=='payer'&&<p>{g.status} · shared {g.grantedAt.slice(0,10)}</p>}<p>{labels[g.kind]}</p>{g.kind!=='payer'&&<><ClientTimeline matterId={g.matterId}/><PortalShares matterId={g.matterId}/><PortalRequests matterId={g.matterId}/><PortalThreads matterId={g.matterId}/></>}{['payer','client','co_client'].includes(g.kind)&&<PortalInvoices matterId={g.matterId}/>}</article>)}</section>}
  </main></div>;
 }
 function ClientTimeline({matterId}:{matterId:string}){

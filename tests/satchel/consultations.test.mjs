@@ -39,9 +39,14 @@ test('INTAKE-003 prospects book approved availability across timezones: last slo
   // Elena's linked records: one lead assigned to the lawyer, one immutable intake record with her answers.
   const mine=booked.find(c=>c.leadName==='Elena Rivera'),lead=await h.json('/leads/'+mine.leadId,undefined,lawyer);assert.equal(lead.assignedEmail,'lawyer@example.test');assert.ok(lead.history.some(e=>e.kind==='consultation_booked'&&e.detail.intakeSubmissionId));
   const intake=await h.json('/leads/'+mine.leadId+'/intake',undefined,lawyer);assert.equal(intake.submissions.length,1);assert.deepEqual(intake.submissions[0].answers.map(a=>a.value),['no']);
+  const event=mine.history.find(e=>e.kind==='booked');
+  assert.equal(event.detail.feeAcknowledgment.amountCents,15000);assert.equal(event.detail.feeAcknowledgment.version,'consultation-fee-v1');assert.match(event.detail.feeAcknowledgment.text,/due at the consultation; nothing is collected here/);assert.ok(Date.parse(event.detail.feeAcknowledgment.at));
+  assert.equal(event.detail.reminderConsentRecord.channel,'email');assert.equal(event.detail.reminderConsentRecord.version,'consultation-email-v1');assert.match(event.detail.reminderConsentRecord.text,/Email me reminders/);assert.ok(Date.parse(event.detail.reminderConsentRecord.at));
+  assert.equal(booked.find(c=>c.leadName==='Tom Hale').history.find(e=>e.kind==='booked').detail.reminderConsent,false);
   await h.json('/consult/manage/not-a-token',undefined,'',404);
+  await h.json('/consult/manage/'+elena.manageToken.slice(0,-1)+'x',undefined,'',404);
   // Tom cancels through his link; Elena reschedules from Los Angeles into the freed slot: still one appointment.
-  const manage=t=>'/consult/manage/'+t,tomView=await h.json(manage(tom.manageToken)+'?tz=Asia/Tokyo');assert.equal(tomView.status,'booked');
+  const manage=t=>'/consult/manage/'+t,tomView=await h.json(manage(tom.manageToken)+'?tz=Asia/Tokyo');assert.equal(tomView.status,'booked');assert.equal(tomView.expiresAt,tomView.start);assert.equal(tomView.id,tom.consultationId);assert.doesNotMatch(JSON.stringify(tomView),/parenting|leadId|email|summary|matterId/);
   assert.equal((await h.request('/api/satchel'+manage(tom.manageToken)+'/cancel',{})).status,200);
   const view=await h.json(manage(elena.manageToken)+'?tz=America/Los_Angeles');assert.ok(view.slots.length>=1);const target=view.slots.find(s=>s.start!==view.start&&s.start===tomView.start);assert.ok(target,'The cancelled slot is available again');
   assert.equal(target.local,localIn(target.start,'America/Los_Angeles'));
@@ -88,5 +93,18 @@ test('consultation access follows current lead visibility through conversions an
    if(refused.status===404)await h.json('/consultations/'+c.id+'/cancel',{reason:'Authorized counsel cancellation'},lawyer);
   }
   assert.deepEqual(outcomes,[false,true].map(()=>({listed:false,cancelStatus:404,insideStatus:'booked'})));
+ }finally{await h.close();}
+});
+
+test('Consultations and matter appointments cannot win the same lawyer interval, including a calendar move racing reschedule',async()=>{
+ const h=await harness();try{
+  await intakeTeam(h);const m=await open(h);await h.json('/matters/'+m.id+'/access',{email:'lawyer@example.test'},h.owner);
+  const offer=await h.json('/consult/offers',{title:'synthetic-satchel-1',lawyerEmail:'lawyer@example.test',timezone:'UTC',durationMinutes:60,bufferBefore:15,bufferAfter:15,windows:[1,2,3,4,5,6,7].map(day=>({day,start:'09:00',end:'10:00'})),noticeHours:0,horizonDays:7,feeCents:0,consentText:'I consent to review of this inquiry.',published:true},h.owner);
+  const slots=(await h.json('/consult/'+offer.id+'?tz=UTC')).slots,at=slots[0].start;
+  const appointment={title:'synthetic-satchel-calendar',timezone:'UTC',date:at.slice(0,10),time:'09:00',durationMinutes:30,attendees:['lawyer@example.test']};
+  const race=await Promise.all([book(h,offer,slots[0],'synthetic-satchel-2'),h.request('/api/satchel/matters/'+m.id+'/appointments',appointment,h.owner)]);assert.deepEqual(race.map(r=>r.status).sort(),[200,409]);
+  const booked=await(await book(h,offer,slots[1],'synthetic-satchel-3')).json();
+  const another=await h.json('/matters/'+m.id+'/appointments',{...appointment,date:slots[2].start.slice(0,10)},h.owner);
+  const target=slots[3];const moving=await Promise.all([h.request('/api/satchel/consult/manage/'+booked.manageToken+'/reschedule',{slot:target.start,timezone:'UTC'}),h.request('/api/satchel/appointments/'+another.id+'/occurrences/0/move',{date:target.start.slice(0,10),time:'09:00',reason:'Coverage'},h.owner)]);assert.deepEqual(moving.map(r=>r.status).sort(),[200,409]);
  }finally{await h.close();}
 });

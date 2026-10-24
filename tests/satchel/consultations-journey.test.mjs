@@ -16,6 +16,7 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`INTAKE-003 / INTAKE-00
   await guest.goto(h.origin+'/book/'+offer.id);await guest.getByRole('heading',{level:1,name:'Initial consultation'}).waitFor();await guest.getByText('GMT+9').first().waitFor();
   assert.deepEqual(await iconOnly(guest),[]);assert.equal(await guest.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);
   await guest.getByRole('radio').first().check();await guest.getByLabel('Full name').fill('Elena Rivera');await guest.getByLabel('Email address').fill('elena@example.test');await guest.getByLabel('Matter summary').fill('Parenting arrangements');
+  await guest.getByText(/Submitting creates no attorney-client relationship/).waitFor();assert.equal(await guest.getByRole('checkbox',{name:/Email me reminders/}).isChecked(),false);await guest.getByRole('checkbox',{name:/consultation fee/}).getAttribute('required').then(v=>assert.notEqual(v,null));
   await guest.getByRole('checkbox',{name:/I consent to this firm/}).check();await guest.getByRole('checkbox',{name:/consultation fee/}).check();await guest.getByRole('checkbox',{name:/Email me reminders/}).check();
   if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(guest,guest.locator('main'),process.env.SATCHEL_SCREENSHOTS,'book-'+width);
   await guest.getByRole('button',{name:'Book this time'}).click();await guest.getByRole('heading',{name:'Consultation booked'}).waitFor();await guest.getByText('Nothing was charged now').waitFor();

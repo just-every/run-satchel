@@ -50,12 +50,13 @@ export async function recordConsent(db:D1Database,actor:Actor,leadId:string,body
   stmt(db,'INSERT INTO s_lead_events(id,lead_id,kind,detail,actor,at) VALUES(?,?,?,?,?,?)',id(),lead.id,'consent_recorded',JSON.stringify({channel:'email',source,text:words}),actor.email,at),audit(db,actor,'lead.consent_recorded',lead.id,JSON.stringify({channel:'email',source}))]);
  return leadFollowups(db,actor,lead.id);
 }
+export function sequencePlan(kind:Kind,steps:Data[],anchorMs:number,nowMs:number){return steps.map((s,step)=>({step,due:kind==='consultation_reminder'?anchorMs-s.beforeMinutes*60000:anchorMs+s.afterMinutes*60000})).filter(s=>s.due>nowMs);}
 export async function sequenceStatements(env:Bindings,kind:Kind,lead:Data,anchorMs:number,context:Data,actorEmail:string,nowMs:number) {
  const setting=await stmt(env.DB,'SELECT * FROM s_followup_settings WHERE kind=? AND enabled=1',kind).first<Data>();
  insist(setting,'This follow-up sequence is not enabled. The principal enables it in follow-up settings.',409);
  await requireProviderReview(env.DB,'mail');
  insist(lead.email&&lead.status==='open','Only an open lead with an email address can be contacted',409);
- const followupId=id(),at=new Date(nowMs).toISOString(),plan=(JSON.parse(setting.steps) as Data[]).map((s,step)=>({step,due:kind==='consultation_reminder'?anchorMs-s.beforeMinutes*60000:anchorMs+s.afterMinutes*60000})).filter(s=>s.due>nowMs);
+ const followupId=id(),at=new Date(nowMs).toISOString(),plan=sequencePlan(kind,JSON.parse(setting.steps),anchorMs,nowMs);
  insist(plan.length>0,'Every reminder time has already passed',409);
  return {followupId,statements:[
   guard(env.DB,"EXISTS(SELECT 1 FROM s_lead_consents WHERE lead_id=? AND channel='email' AND revoked_at IS NULL) AND EXISTS(SELECT 1 FROM s_leads WHERE id=? AND status='open') AND NOT EXISTS(SELECT 1 FROM s_followups WHERE lead_id=? AND kind=? AND status='active' AND (?<>'consultation_reminder'))",lead.id,lead.id,lead.id,kind,kind),

@@ -10,11 +10,11 @@ import {guard} from './trust-guards';
 import {matterScope} from './matter-scope';
 import {reviewOf} from './providers';
 const system={id:'portal-notifications',email:'portal',role:'system',channel:'automation'} as any;
-function scanTextAttachment(name:string,bytes:Uint8Array){
+export function scanTextAttachment(name:string,bytes:Uint8Array){
   // This native allowlist accepts inert UTF-8 text only. Binary formats require a separate trusted scanner.
   insist(/^[^\/\\\x00-\x1f\x7f]+\.txt$/i.test(name),'Only plain-text .txt attachments are supported');
   insist(mediaType(bytes)==='text/plain','Unscanned or unparseable attachments are refused');
-  const plain=new TextDecoder('utf-8',{fatal:true}).decode(bytes);
+  let plain:string;try{plain=new TextDecoder('utf-8',{fatal:true}).decode(bytes);}catch{insist(false,'Unscanned or unparseable attachments are refused');}
   insist(!/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\u202a-\u202e\u2066-\u2069]/u.test(plain)&&!/<[!/?a-z]/i.test(plain),'Attachment failed the server text safety scan');
 }
 async function attachments(body:Data) {

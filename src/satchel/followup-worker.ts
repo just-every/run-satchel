@@ -1,3 +1,4 @@
+import {runRequestReminders} from './request-reminders';
 import type {Bindings} from '../auth.server';
 import {operatorMail} from '../mail.server.mjs';
 import {audit,id,rows,stmt,type Data} from './model';
@@ -9,7 +10,7 @@ const system={id:'scheduled-followups',email:'scheduler',role:'system',channel:'
 const week=7*86400000;
 // Contact limit: sends to one lead (all kinds) in the trailing seven days.
 const eligible=`EXISTS(SELECT 1 FROM s_followups f JOIN s_leads l ON l.id=f.lead_id WHERE f.id=s_followup_sends.followup_id AND f.status='active' AND l.status='open' AND l.email<>'' AND EXISTS(SELECT 1 FROM s_lead_consents c WHERE c.lead_id=l.id AND c.channel='email' AND c.revoked_at IS NULL))`;
-const underLimit=`(SELECT COUNT(*) FROM s_followup_sends x JOIN s_followups g ON g.id=x.followup_id WHERE g.lead_id=(SELECT lead_id FROM s_followups WHERE id=s_followup_sends.followup_id) AND x.status IN('sending','sent','uncertain') AND x.attempted_at>?)<?`;
+const underLimit=`((SELECT COUNT(*) FROM s_followup_sends x JOIN s_followups g ON g.id=x.followup_id WHERE g.lead_id=(SELECT lead_id FROM s_followups WHERE id=s_followup_sends.followup_id) AND x.status IN('sending','sent','uncertain') AND x.attempted_at>?)+(SELECT COUNT(*) FROM s_request_reminder_sends x JOIN s_request_reminders r ON r.id=x.reminder_id WHERE r.email=(SELECT l.email FROM s_followups f JOIN s_leads l ON l.id=f.lead_id WHERE f.id=s_followup_sends.followup_id) AND x.status IN('sending','sent','uncertain') AND x.attempted_at>?))<?`;
 async function outcome(db:D1Database,d:Data,claim:string,status:string,provider:string,providerId:string|null,detail:string){
  const [done]=await Promise.all([stmt(db,"UPDATE s_followup_sends SET status=?,provider=?,provider_id=?,detail=? WHERE id=? AND claim=? AND status='sending'",status,provider,providerId,detail,d.id,claim).run()]);
  await db.batch([audit(db,system,'followup.send_result',d.id,JSON.stringify({leadId:d.lead_id,kind:d.kind,step:d.step,status,provider,providerId,detail})),
@@ -29,6 +30,7 @@ async function message(env:Bindings,d:Data,firm:string){
   :{subject:`Your engagement with ${firm}`,text:`${firm} is following up about next steps on your engagement. Reply to this message with any questions.${stop}`};
 }
 export async function runFollowups(env:Bindings,atMs:number){
+ await runRequestReminders(env,atMs);
  const db=env.DB,at=new Date(atMs).toISOString();
  await db.batch([stmt(db,'DELETE FROM s_consult_rate_limits WHERE expires_at<?',at),stmt(db,"UPDATE s_followup_sends SET status='uncertain',detail='The worker stopped before the provider answered; check the provider before contacting again. No automatic resend.' WHERE status='sending' AND attempted_at<?",new Date(atMs-15*60000).toISOString())]);
  const due=await rows(db,"SELECT s.*,f.lead_id,f.kind,f.context,l.email,l.name FROM s_followup_sends s JOIN s_followups f ON f.id=s.followup_id JOIN s_leads l ON l.id=f.lead_id WHERE s.status='queued' AND s.due_at<=? ORDER BY s.due_at,s.step,s.id LIMIT 100",at);
@@ -38,7 +40,7 @@ export async function runFollowups(env:Bindings,atMs:number){
   const setting=settings.get(d.kind);
   if(!setting?.enabled){await stmt(db,"UPDATE s_followup_sends SET status='cancelled',detail='The sequence is disabled' WHERE id=? AND status='queued'",d.id).run();continue;}
   if(isQuiet(atMs,setting.timezone,setting.quiet_start,setting.quiet_end))continue;
-  const claim=id(),claimed=await stmt(db,`UPDATE s_followup_sends SET status='sending',claim=?,attempted_at=? WHERE id=? AND status='queued' AND ${eligible} AND ${underLimit}`,claim,at,d.id,new Date(atMs-week).toISOString(),setting.max_contacts).run();
+  const claim=id(),claimed=await stmt(db,`UPDATE s_followup_sends SET status='sending',claim=?,attempted_at=? WHERE id=? AND status='queued' AND ${eligible} AND ${underLimit}`,claim,at,d.id,new Date(atMs-week).toISOString(),new Date(atMs-week).toISOString(),setting.max_contacts).run();
   if(!claimed.meta.changes){
    const ok=await stmt(db,`SELECT 1 FROM s_followup_sends WHERE id=? AND ${eligible}`,d.id).first();
    if(!ok){const lead={id:d.lead_id};await db.batch([stmt(db,"UPDATE s_followup_sends SET status='cancelled',detail='Consent, lead status or sequence changed' WHERE id=? AND status='queued'",d.id),...stopStatements(db,lead,'consent_or_status_changed','Review the lead: its consent or status changed before the next message',null,system.email,at)]);}

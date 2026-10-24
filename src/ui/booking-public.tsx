@@ -27,8 +27,8 @@ export function PublicBooking({offerId}:{offerId:string}){
     <div className="field"><label htmlFor="book-phone">Phone number</label><input id="book-phone" name="phone" type="tel" maxLength={40}/></div><div className="field summary"><label htmlFor="book-summary">Matter summary *</label><textarea id="book-summary" name="summary" required maxLength={2000}/></div>
     {offer.questions.map((q:Row)=><div className="field" key={q.key}><label htmlFor={'book-'+q.key}>{q.label}{q.required?' *':''}</label><input id={'book-'+q.key} type="text" required={q.required} value={answers[q.key]??''} onChange={e=>setAnswers({...answers,[q.key]:e.target.value})}/></div>)}
     <div className="website" aria-hidden="true"><label>Website<input name="website" tabIndex={-1} autoComplete="off"/></label></div>
-    <label className="consent"><input name="consent" type="checkbox" required/><span>{offer.consentText} *</span></label>
-    {offer.feeCents>0&&<label className="consent"><input name="feeAcknowledged" type="checkbox" required/><span>I understand the consultation fee of {dollars(offer.feeCents)} is due at the consultation; nothing is charged now. *</span></label>}
+    <label className="consent"><input name="consent" type="checkbox" required/><span>{offer.consentText} * Submitting creates no attorney-client relationship.</span></label>
+    {offer.feeCents>0&&<label className="consent"><input name="feeAcknowledged" type="checkbox" required/><span>I understand the consultation fee of {dollars(offer.feeCents)} is due at the consultation; nothing is collected here. *</span></label>}
     <label className="consent"><input name="reminderConsent" type="checkbox"/><span>Email me reminders about this consultation. I can stop them at any time.</span></label>
     <button type="submit" disabled={busy}>{busy?'Booking…':'Book this time'}</button></fieldset>}
   </form>}
