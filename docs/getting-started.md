@@ -4,14 +4,13 @@ Satchel keeps your firm's matters, time, disbursements, original files, deadline
 
 ## Start Satchel
 
-Run these two lines in a terminal. They are the same two lines as the [Run Satchel](https://run-satchel.com/run) page:
+Run this line in a terminal. It is the same line as the [Run Satchel](https://run-satchel.com/run) page:
 
 ```sh
-curl -fsSL https://runeditrun.com/install.sh | sh
-rer dev just-every/run-satchel
+curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-satchel
 ```
 
-The first line installs `rer` for you alone, with its own Node if you have no Node 22 or later. It changes no shell settings: if it prints an `export PATH=…` line, run that line before the second. The second line gets Satchel, installs everything and starts it. Already have Node 22 or later? `npx -y @runeditrun/rer dev just-every/run-satchel` does both in one line. To start it again later, run `cd run-satchel && rer dev`.
+Git is required; rer brings Node and pnpm. Already have Node 22 or later? `npx -y @runeditrun/rer dev just-every/run-satchel` does the same. The line installs `rer` for you alone, with its own Node if you have no Node 22 or later, then gets Satchel into `run-satchel`, installs everything and starts it. If the installer prints an `export PATH=…` line, run that line too. To start it again later, run the same line from the same folder, or `cd run-satchel && rer dev`.
 
 The first launch can take several minutes. If it is interrupted, run the same command again. Open the printed `RER_OPEN` link, confirm the owner on **Finish setup**, and enter the workspace. Keep that link private: it is a local sign-in credential. The printed `RER_READY` address is the running app's address.
 

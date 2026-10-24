@@ -2,7 +2,10 @@ import { links } from '../../shell/links'
 import { clio, usd } from '../matter'
 import { Check, Icon, Tab } from '../parts'
 
-const COMMAND = 'npx -y @runeditrun/rer dev just-every/run-satchel'
+// The one start line every Run Edit Run page shows, and the alternative for people who already have Node.
+const COMMAND = 'curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-satchel'
+const ALTERNATIVE = 'npx -y @runeditrun/rer dev just-every/run-satchel'
+const words = (line: string) => line.split(' ').map((word, i) => <span key={i} className="word">{i ? ' ' : ''}<span>{word}</span></span>)
 const COMMENT = '# Run it on your own computer or server.'
 
 /** TAB 9: the Clio import with real counts, the one line that starts Satchel, and what it doesn't do. */
@@ -29,9 +32,9 @@ export function MovingIn() {
           <p className="progress"><span>100%</span></p>
           <ul>{rows.map(([text, ok]) => <li key={text}>{ok ? <Check /> : <Icon name="warn" className="warn-solid" />}<span>{text}</span></li>)}</ul>
         </div>
-        <div className="terminal" role="img" aria-label={`One command: ${COMMAND}. Run it on your own computer or server.`}>
+        <div className="terminal" role="img" aria-label={`One command: ${COMMAND}. Already have Node 22 or later? ${ALTERNATIVE} does the same. Run it on your own computer or server.`}>
           <div className="terminal-bar" aria-hidden="true"><span /><span /><span /></div>
-          <pre aria-hidden="true"><span><span className="prompt">$</span> {COMMAND.split(' ').map((word, i) => <span key={i} className="word">{i ? ' ' : ''}<span>{word}</span></span>)}</span><span className="comment">{COMMENT}</span></pre>
+          <pre aria-hidden="true"><span><span className="prompt">$</span> {words(COMMAND)}</span><span className="comment">{words(`# Already have Node 22 or later? ${ALTERNATIVE}`)}</span><span className="comment">{COMMENT}</span></pre>
         </div>
         <div className="card limits">
           <h3><span className="info" aria-hidden="true">i</span>What it doesn’t do.</h3>
