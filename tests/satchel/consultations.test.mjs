@@ -111,8 +111,8 @@ test('Consultations and matter appointments cannot win the same lawyer interval,
 
 test('A signed consultation manage link expires at the appointment start and cannot read or cancel after expiry',async()=>{
  const h=await harness();try{
-  const startMs=Math.ceil((Date.now()+3000)/60000)*60000,start=new Date(startMs),end=new Date(startMs+10*60000),clock=d=>d.toISOString().slice(11,16);
-  const offer=await h.json('/consult/offers',{title:'synthetic-satchel-expiry',lawyerEmail:'owner@example.test',timezone:'UTC',durationMinutes:10,windows:[{day:start.getUTCDay()||7,start:clock(start),end:clock(end)}],noticeHours:0,horizonDays:1,feeCents:0,consentText:'I consent to review of this inquiry.',published:true},h.owner);
+  const startMs=Math.ceil((Date.now()+3000)/60000)*60000,start=new Date(startMs),zone=start.getUTCHours()===23?['Etc','GMT+12'].join('/'):'UTC',shift=zone==='UTC'?0:12*3600000,localStart=new Date(startMs-shift),end=new Date(startMs-shift+10*60000),clock=d=>d.toISOString().slice(11,16);
+  const offer=await h.json('/consult/offers',{title:'synthetic-satchel-expiry',lawyerEmail:'owner@example.test',timezone:zone,durationMinutes:10,windows:[{day:localStart.getUTCDay()||7,start:clock(localStart),end:clock(end)}],noticeHours:0,horizonDays:1,feeCents:0,consentText:'I consent to review of this inquiry.',published:true},h.owner);
   const booked=await(await book(h,offer,{start:start.toISOString()},'synthetic-satchel-expiry')).json();assert.ok(booked.manageToken);const path='/consult/manage/'+booked.manageToken;
   const view=await h.json(path);assert.equal(view.id,booked.consultationId);assert.equal(view.expiresAt,start.toISOString());
   await new Promise(resolve=>setTimeout(resolve,Math.max(0,startMs-Date.now()+100)));
