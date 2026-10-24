@@ -10,9 +10,18 @@ import {guard} from './trust-guards';
 import {matterScope} from './matter-scope';
 import {reviewOf} from './providers';
 const system={id:'portal-notifications',email:'portal',role:'system',channel:'automation'} as any;
+function scanTextAttachment(name:string,bytes:Uint8Array){
+  // This native allowlist accepts inert UTF-8 text only. Binary formats require a separate trusted scanner.
+  insist(/^[^\/\\\x00-\x1f\x7f]+\.txt$/i.test(name),'Only plain-text .txt attachments are supported');
+  insist(mediaType(bytes)==='text/plain','Unscanned or unparseable attachments are refused');
+  const plain=new TextDecoder('utf-8',{fatal:true}).decode(bytes);
+  insist(!/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\u202a-\u202e\u2066-\u2069]/u.test(plain)&&!/<[!/?a-z]/i.test(plain)&&!plain.includes('EICAR-STANDARD-ANTIVIRUS-TEST-FILE'),'Attachment failed the server text safety scan');
+}
 async function attachments(body:Data) {
  const list=body.attachments===undefined?[]:body.attachments;insist(Array.isArray(list)&&list.length<=3,'Attach at most three files');
- return Promise.all(list.map(async(a:Data)=>{const bytes=decode(a.contentBase64);return {id:id(),name:text(a.name,'File name',200),mime:mediaType(bytes),size:bytes.length,sha256:await digest(bytes),content:a.contentBase64 as string};}));
+ return Promise.all(list.map(async(a:Data)=>{const bytes=decode(a.contentBase64),name=text(a.name,'File name',200);
+  scanTextAttachment(name,bytes);
+  return {id:id(),name,mime:'text/plain',size:bytes.length,sha256:await digest(bytes),content:a.contentBase64 as string};}));
 }
 // Assignments and notifications require current staff authority, including ethical walls and exclusions.
 const staffAccess=()=>`EXISTS(SELECT 1 FROM oa_operators o LEFT JOIN s_members member ON member.email=o.email WHERE o.email=? AND o.status='active' AND (o.role='owner' OR (member.active=1 AND member.role IN('lawyer','assistant'))) AND EXISTS(SELECT 1 FROM s_matters staff_matter WHERE staff_matter.id=? AND ${matterScope('staff_matter.id').replace('SELECT ? AS role,? AS email',"SELECT CASE WHEN o.role='owner' THEN 'owner' ELSE member.role END AS role,o.email AS email")}))`;
@@ -20,13 +29,13 @@ async function readers(db:D1Database,matterId:string) {
  return (await rows(db,`SELECT DISTINCT candidate.email FROM s_portal_grants candidate WHERE candidate.matter_id=? AND ${portalAccess('candidate.matter_id',readerKinds).replace('g.email=?','g.email=candidate.email')} ORDER BY candidate.email`,matterId)).map(r=>r.email as string);
 }
 async function notify(env:Bindings,messageId:string,recipients:string[],subjectKind:'client'|'staff') {
- const db=env.DB,at=now(),mail=operatorMail(env),firm=(await stmt(db,'SELECT name FROM s_firm WHERE id=1').first<Data>())?.name??'your firm',authority=await reviewOf(db,'mail');
+ const db=env.DB,at=now(),mail=operatorMail(env),authority=await reviewOf(db,'mail');
  for(const to of recipients){
   let status='not_sent',provider:string|null=null,providerId:string|null=null,detail='No notification was sent: the firm has not recorded its mail provider review';
   const allowed=await stmt(db,`SELECT ${subjectKind==='client'?portalAccess('?',readerKinds):staffAccess()+" AND EXISTS(SELECT 1 FROM s_portal_messages message JOIN s_portal_threads thread ON thread.id=message.thread_id WHERE message.id=? AND thread.assigned_to=?)"} ok`,to,(await stmt(db,'SELECT t.matter_id FROM s_portal_messages m JOIN s_portal_threads t ON t.id=m.thread_id WHERE m.id=?',messageId).first<Data>())?.matter_id,...(subjectKind==='staff'?[messageId,to]:[])).first<Data>();
   if(!allowed?.ok)detail='No notification was sent: the recipient no longer has access to this matter';
   else if(authority&&mail&&env.MAIL_FROM){
-   try{const r=await mail.send({deliveryId:id(),from:env.MAIL_FROM,to:[to],subject:subjectKind==='client'?`A new secure message from ${firm}`:'A new portal message',text:`You have a new secure message. Sign in to read it: ${env.AUTH_ORIGIN}/app\n\nThis email contains no message content.`,html:'',headers:{}});
+   try{const r=await mail.send({deliveryId:id(),from:env.MAIL_FROM,to:[to],subject:'A new secure message',text:`You have a new secure message. Sign in to read it: ${env.AUTH_ORIGIN}/app\n\nThis email contains no message content.`,html:'',headers:{}});
     status=r.status==='accepted'||r.status==='development'?'accepted':r.status==='uncertain'?'uncertain':'failed';provider=r.provider;providerId=r.providerMessageId??null;detail=status==='accepted'?'Provider accepted the notification; mailbox delivery is unconfirmed.':`Provider result: ${r.status}`;}
    catch{status='uncertain';detail='The provider outcome is uncertain; no automatic resend.';}
   }else if(allowed?.ok&&authority)detail='The firm mail provider or sender is not configured';
@@ -115,7 +124,7 @@ export async function attachmentFile(db:D1Database,actor:Actor,attachmentId:stri
  human(actor);let a:Data|null;
  if(side==='client'){need(actor,'client');a=await stmt(db,`SELECT a.*,t.matter_id FROM s_portal_attachments a JOIN s_portal_messages m ON m.id=a.message_id JOIN s_portal_threads t ON t.id=m.thread_id WHERE a.id=? AND ${grantedReader('t.matter_id')}`,attachmentId,actor.email).first<Data>();}
  else{need(actor,'owner','lawyer','assistant');a=await stmt(db,'SELECT a.*,t.matter_id,t.assigned_to,t.created_by FROM s_portal_attachments a JOIN s_portal_messages m ON m.id=a.message_id JOIN s_portal_threads t ON t.id=m.thread_id WHERE a.id=?',attachmentId).first<Data>();if(a)await matter(db,actor,a.matter_id);if(a&&actor.role==='assistant'&&a.assigned_to!==actor.email&&a.created_by!==actor.email)a=null;}
- insist(a,'Attachment not found',404);const bytes=decode(a.content_base64);insist(bytes.length===a.size&&await digest(bytes)===a.sha256,'Stored attachment failed its integrity check',503);
+ insist(a,'Attachment not found',404);const bytes=decode(a.content_base64);scanTextAttachment(a.name,bytes);insist(bytes.length===a.size&&await digest(bytes)===a.sha256,'Stored attachment failed its integrity check',503);
  await db.batch([audit(db,actor,'portal.attachment_downloaded',a.id,JSON.stringify({name:a.name,sha256:a.sha256}),{matterId:a.matter_id})]);
  const filename=encodeURIComponent(a.name).replace(/['()*]/g,c=>`%${c.charCodeAt(0).toString(16).toUpperCase()}`);
  return new Response(bytes,{headers:{'content-type':a.mime,'content-length':String(bytes.length),'content-disposition':`attachment; filename*=UTF-8''${filename}`,'cache-control':'no-store','x-content-type-options':'nosniff','content-security-policy':"sandbox; default-src 'none'; base-uri 'none'",'referrer-policy':'no-referrer'}});

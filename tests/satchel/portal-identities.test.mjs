@@ -43,7 +43,7 @@ test('CLIENT-001 two co-clients, a payer and a delegate each reach only their ow
   for(const [email,cookie] of [['client@example.test',client],['cocl@example.test',coclient],['second@example.test',second],['deleg@example.test',delegate]]){const preview=await seen(email);assert.deepEqual(preview.threads,await h.json('/portal/matters/'+m.id+'/threads',undefined,cookie));assert.deepEqual(preview.requests,await h.json('/portal/matters/'+m.id+'/requests',undefined,cookie));assert.equal(preview.threads.threads.find(t=>t.id===thread.id).unread,1,'Preview does not mark client messages read');}
   assert.equal(pPayer.threads,null);assert.equal(pPayer.requests,null);
   assert.ok(!JSON.stringify([pClient,pPayer,pDelegate]).includes('Privileged'));await h.json(base+'/portal-preview?email=stranger@example.test',undefined,lawyer,404);await h.json(base+'/portal-preview?email=client@example.test',undefined,assistant,403);await h.json(base+'/portal-preview?email=client@example.test',undefined,client,403);
-  assert.ok((await h.json('/audit?action=portal.previewed',undefined,h.owner)).records.length>=3);
+  const previews=(await h.json('/audit?action=portal.previewed',undefined,h.owner)).records;assert.ok(previews.length>=3);assert.ok(previews.every(r=>r.actor.email==='lawyer@example.test'&&Number.isFinite(Date.parse(r.at))),'The principal sees every staff preview with actor and time');
   for(const cookie of [client,coclient,second,payer,delegate])await h.json('/search?q=Privileged',undefined,cookie,403);
   // Deactivating the represented client closes the delegate too, including the audited preview.
   await h.json('/team',{email:'client@example.test',name:'client',role:'client',active:false},h.owner);
@@ -57,6 +57,14 @@ test('CLIENT-001 two co-clients, a payer and a delegate each reach only their ow
   await grant({email:'deleg@example.test',kind:'delegate',delegateOf:'client@example.test'});assert.equal((await file(delegate)).status,200);
   await h.json('/portal-grants/'+byEmail('client@example.test').id+'/revoke',{reason:'Engagement ended'},h.owner);
   assert.equal((await file(client)).status,404);assert.equal((await file(delegate)).status,404,'A delegate has no access once the client’s grant is withdrawn');assert.equal((await file(coclient)).status,200,'A co-client keeps their own grant');
+  for(const action of ['portal.granted','portal.revoked']){
+   const records=(await h.json('/audit?action='+action,undefined,h.owner)).records;
+   assert.ok(records.length>0,'Grant and revocation audit rows exist');
+   assert.ok(records.every(r=>r.actor.email==='owner@example.test'&&Number.isFinite(Date.parse(r.at))),'Grant and revocation audit rows name the actor and time');
+   assert.ok(records.some(r=>r.objectId===byEmail('client@example.test').id),'The original client grant is retained in the audit');
+  }
+  await h.json('/portal/matters/'+m.id+'/requests',undefined,payer,404);
+  for(const path of [base+'/timeline',base+'/documents',base+'/threads','/state','/search?q=release'])await h.json(path,undefined,payer,403);
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(archive.includes('co_client'));
   // An ethical wall closes every portal read door even when the person retains a grant.
   await h.json(base+'/wall',{custodianEmail:'lawyer@example.test',members:[],reason:'Separate conflicting representation',revision:null},h.owner);

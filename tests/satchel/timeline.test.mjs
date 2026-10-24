@@ -27,6 +27,15 @@ test('MATTER-005 a matter timeline merges notes, calls, commitments, filed email
   await h.json(base+'/notes',{kind:'note',title:'Correction',body:'Served Tuesday, not Monday.',visibility:'team',corrects:strategy.id},assistant,404);
   const fix=await h.json(base+'/notes',{kind:'note',title:'Correction: served Tuesday',body:'Served Tuesday, not Monday.',visibility:'team',clientVisible:true,corrects:progress.id},lawyer);assert.equal(fix.corrects,progress.id);
   const publicCorrection=await h.json(base+'/notes',{kind:'note',title:'Public correction',body:'A public update without private strategy.',visibility:'team',clientVisible:true,corrects:strategy.id},lawyer);
+  const widening=(await h.json('/audit?action=matter.note_added',undefined,h.owner)).records.find(r=>r.objectId===publicCorrection.id);
+  assert.equal(widening.actor.email,'lawyer@example.test');assert.ok(Number.isFinite(Date.parse(widening.at)));
+  assert.equal(widening.detail.corrects,strategy.id,'Widening creates a new audited entry linked to the original');
+  assert.equal((await h.json(base+'/timeline',undefined,lawyer)).entries.find(e=>e.source.id===strategy.id).visibility,'private','Widening leaves the original private');
+  for(const method of ['PATCH','PUT','DELETE']){
+   const response=await h.raw('/api/satchel/matters/'+m.id+'/notes/'+strategy.id,{method,headers:{'content-type':'application/json'},body:JSON.stringify({body:'Changed',visibility:'team',clientVisible:true})},lawyer);
+   assert.ok([403,404,405].includes(response.status),'Editing or deleting an entry is refused');
+  }
+  assert.equal((await h.json(base+'/timeline',undefined,lawyer)).entries.find(e=>e.source.id===strategy.id).summary,strategy.body,'Refused edits preserve the original');
   // Other records: a filed email, a task, an appointment, a bill.
   const email=await h.json(base+'/documents',{name:'Landlord reply.eml',mime:'message/rfc822',visibility:'matter',contentBase64:Buffer.from('From: landlord@example.test\r\nSubject: Reply\r\n\r\nWe received the notice.').toString('base64')},h.owner);
   const task=await h.json(base+'/tasks',{title:'Draft the reply',priority:'normal'},h.owner);
@@ -66,6 +75,16 @@ test('MATTER-005 a matter timeline merges notes, calls, commitments, filed email
   assert.ok(JSON.stringify(await find('adverse-possession',lawyer)).includes(strategy.id));
   for(const reader of [h.owner,assistant])assert.equal((await find('adverse-possession',reader)).total,0,'A private note is neither a result, a count nor a snippet');
   assert.ok(JSON.stringify(await find('landlord was served',assistant)).includes(progress.id));
+  // The principal's audited archive retains private notes after author departure and during a legal hold.
+  await h.json('/holds',{matterId:m.id,reason:'Preserve the complete matter during litigation'},h.owner);
+  await h.json('/team',{email:'lawyer@example.test',name:'Departed counsel',role:'lawyer',active:false},h.owner);
+  await h.restart();
+  for(const reader of [assistant,client])assert.equal((await h.request('/api/satchel/backup',undefined,reader)).status,403,'Private-note archives are principal-only');
+  const heldArchive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();
+  assert.ok(heldArchive.includes(strategy.id)&&heldArchive.includes(strategy.body),'Principal export survives author removal and a legal hold');
+  const exported=(await h.json('/audit?action=firm.archive_exported',undefined,h.owner)).records;
+  assert.ok(exported.some(r=>r.actor.email==='owner@example.test'&&Number.isFinite(Date.parse(r.at))&&r.detail.bytes>0),'Export is an audited read by the principal');
+  await h.json('/team',{email:'lawyer@example.test',name:'Counsel',role:'lawyer',active:true},h.owner);
   // Walls and withdrawn grants close both timelines; entries survive in the firm archive.
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(archive.includes(progress.id));
   await h.json('/portal-grants/'+(await h.json(base+'/portal',undefined,h.owner)).grants[0].id+'/revoke',{reason:'Engagement ended'},h.owner);await h.json('/portal/matters/'+m.id+'/timeline',undefined,client,404);

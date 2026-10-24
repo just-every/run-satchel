@@ -6,7 +6,7 @@ test('CLIENT-002 a confidential attachment, a client reply, the retained thread,
  let mailOutcome='accepted';
  const h=await harness({mailResponse:message=>mailOutcome==='uncertain'&&/secure message/.test(message.subject)?new Response('',{status:503}):Response.json({id:'synthetic-satchel-mail'})});
  try{
-  const m=await open(h),base='/matters/'+m.id,people={};
+  const m=await open(h,'synthetic-satchel-confidential-matter'),base='/matters/'+m.id,people={};
   const roster=[['lawyer@example.test','lawyer'],['assistant@example.test','assistant'],['other@example.test','assistant'],['client@example.test','client'],['cocl@example.test','client'],['payer@example.test','client'],['stranger@example.test','client'],['deleg@example.test','client'],['unassigned@example.test','assistant']];
   for(const [email,role] of roster){await h.json('/team',{email,name:email.split('@')[0],role},h.owner);await h.json('/team/invite',{email},h.owner);people[email]=await h.login(email);}
   const [lawyer,assistant,other,client,coclient,payer,stranger,delegate]=roster.map(([e])=>people[e]);
@@ -20,10 +20,19 @@ test('CLIENT-002 a confidential attachment, a client reply, the retained thread,
   await h.json('/providers/mail/review',{termsUrl:'https://resend.com/legal/terms-of-service',confirmed:true},h.owner);
   await h.json(base+'/threads',{subject:'x',body:secret},client,403);await h.json('/matters/missing/threads',{subject:'x',body:'x'},lawyer,404);
   for(const attachments of [Array.from({length:4},(_,i)=>file('synthetic-satchel-'+i+'.txt','synthetic-satchel-'+i)),[file('synthetic-satchel-large.txt','x'.repeat(1024*1024+1))]])await h.json(base+'/threads',{subject:'Refused files',body:'Private',attachments},lawyer,400);
+  for(const [name,bytes] of [
+   ['synthetic-satchel-disallowed.html',Buffer.from('<script>alert(1)</script>')],
+   ['synthetic-satchel-unscanned.txt',Buffer.from([0,255,1,2])],
+   ['synthetic-satchel-unparseable.txt',Buffer.from('%PDF-1.7 truncated')],
+   ['synthetic-satchel-spoofed.txt',Buffer.from('<script>alert(1)</script>')]
+  ]){
+   const refused=await h.json(base+'/threads',{subject:'Refused files',body:'Private',attachments:[{name,contentBase64:bytes.toString('base64'),scanStatus:'clean',mime:'text/plain'}]},lawyer,400);
+   assert.match(refused.error,/plain-text|Unscanned|safety scan/,'The server refuses disallowed, unscanned and unparseable bytes regardless of client claims');
+  }
   const before=h.mails.length,started=await h.json(base+'/threads',{subject:'Confidential: settlement analysis',body:secret,attachments:[file('Analysis.txt','Privileged settlement analysis.')],assignedTo:'assistant@example.test'},lawyer);
   const thread=started.threads.find(t=>t.subject==='Confidential: settlement analysis'),first=thread.messages[0];assert.equal(first.attachments[0].name,'Analysis.txt');assert.deepEqual(first.notifications.map(n=>[n.to,n.status]).sort(),[['client@example.test','accepted'],['cocl@example.test','accepted']]);
   const sent=h.mails.slice(before);assert.deepEqual(sent.map(x=>x.to[0]).sort(),['client@example.test','cocl@example.test']);
-  for(const mail of sent){const all=JSON.stringify(mail);assert.ok(!all.includes('settle')&&!all.includes('Settle')&&!all.includes('Analysis')&&!all.includes('Confidential'),'The notification names no content');assert.match(mail.text,/contains no message content/);}
+  for(const mail of sent){assert.equal(mail.subject,'A new secure message');assert.ok(!JSON.stringify(mail).includes(m.title),'Mail subject and body carry no matter name');const all=JSON.stringify(mail);assert.ok(!all.includes('settle')&&!all.includes('Settle')&&!all.includes('Analysis')&&!all.includes('Confidential'),'The notification names no content');assert.match(mail.text,/contains no message content/);}
   await h.json(base+'/portal',{email:'deleg@example.test',kind:'delegate',delegateOf:'client@example.test',reason:'Acts for the client'},h.owner);
   // The client portal lists the thread with an unread count; opening it records read state; the payer and a stranger see nothing.
   assert.equal((await h.json('/portal/matters/'+m.id+'/threads',undefined,client)).threads.find(t=>t.id===thread.id).unread,1);await h.json('/portal/matters/'+m.id+'/threads',undefined,payer,404);await h.json('/portal/matters/'+m.id+'/threads',undefined,stranger,404);
@@ -36,6 +45,13 @@ test('CLIENT-002 a confidential attachment, a client reply, the retained thread,
   for(const [path,cookie] of [['/portal/attachments/'+attachment,client],['/portal/attachments/'+attachment,coclient],['/portal/attachments/'+attachment,delegate],['/attachments/'+attachment,assistant],['/attachments/'+attachment,lawyer]]){const r=await get(path,cookie);assert.equal(r.status,200);assert.equal(await r.text(),'Privileged settlement analysis.');assert.equal(r.headers.get('cache-control'),'no-store');}
   for(const [path,cookie] of [['/portal/attachments/'+attachment,payer],['/portal/attachments/'+attachment,stranger],['/attachments/'+attachment,other],['/portal/attachments/'+attachment,lawyer],['/attachments/'+attachment,client]])assert.ok([403,404].includes((await get(path,cookie)).status),path);
   // The client replies with an attachment; the assigned staff see it in the unread queue, not the unassigned assistant.
+  for(const attachments of [
+   Array.from({length:4},(_,i)=>file('synthetic-satchel-'+i+'.txt','content')),
+   [file('synthetic-satchel-large.txt','x'.repeat(1024*1024+1))],
+   [file('synthetic-satchel-disallowed.html','<script>alert(1)</script>')],
+   [{name:'synthetic-satchel-unscanned.txt',contentBase64:Buffer.from([0,255]).toString('base64'),scanStatus:'clean'}]
+  ])await h.json('/portal/threads/'+thread.id+'/messages',{body:'Refused attachment',attachments},client,400);
+  assert.equal((await h.json('/portal/matters/'+m.id+'/threads',undefined,client)).threads.find(t=>t.id===thread.id).messages.length,1,'Refused attachments never create a message');
   const reply=await h.json('/portal/threads/'+thread.id+'/messages',{body:'I agree. Here is the signed page.',attachments:[file('Signed.txt','Signed page')]},client);assert.equal(reply.threads.find(t=>t.id===thread.id).messages.length,2);
   assert.deepEqual((await h.json('/threads/unread',undefined,assistant)).queue.map(q=>[q.threadId,q.unread]),[[thread.id,1]]);assert.deepEqual((await h.json('/threads/unread',undefined,other)).queue,[]);assert.deepEqual((await h.json('/threads/unread',undefined,lawyer)).queue,[]);
   assert.equal((await h.json(base+'/threads',undefined,other)).threads.length,0);await h.json('/threads/'+thread.id+'/read',{},other,404);await h.json('/threads/'+thread.id+'/messages',{body:'x'},other,404);
