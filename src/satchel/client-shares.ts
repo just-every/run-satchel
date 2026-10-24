@@ -71,15 +71,15 @@ export async function portalFile(db:D1Database,actor:Actor,shareId:string) {
  const filename=encodeURIComponent(v.name).replace(/['()*]/g,c=>`%${c.charCodeAt(0).toString(16).toUpperCase()}`);
  return new Response(bytes,{headers:{'content-type':v.mime,'content-length':String(bytes.length),'content-disposition':`attachment; filename*=UTF-8''${filename}`,'cache-control':'no-store','x-content-type-options':'nosniff','content-security-policy':"sandbox; default-src 'none'; base-uri 'none'",'referrer-policy':'no-referrer'}});
 }
-// A payer's door: issued invoices for the matter and nothing else. Clients see the same list; co-clients and delegates do not.
+// A payer's door: issued invoices for the matter and nothing else. Clients and co-clients see the same list; delegates do not.
 export async function portalInvoices(db:D1Database,actor:Actor,matterId:string) {
- human(actor);need(actor,'client');insist(await stmt(db,`SELECT ${portalAccess('?',['client','payer'])} ok`,actor.email,matterId).first<Data>().then(r=>r?.ok),'Matter not found',404);
+ human(actor);need(actor,'client');insist(await stmt(db,`SELECT ${portalAccess('?',['client','co_client','payer'])} ok`,actor.email,matterId).first<Data>().then(r=>r?.ok),'Matter not found',404);
  const list=await rows(db,"SELECT b.id,i.number,i.issued_at,b.status,json_extract(b.snapshot,'$.totalCents') total FROM s_invoice_issues i JOIN s_bills b ON b.id=i.bill_id WHERE b.matter_id=? AND b.status<>'void' ORDER BY i.issued_at,i.number",matterId);
  return {matterId,invoices:list.map(b=>({id:b.id,number:b.number,issuedAt:b.issued_at,totalCents:b.total,status:b.status,pdfUrl:'/api/satchel/portal/invoices/'+b.id+'/pdf'}))};
 }
 export async function portalInvoicePdf(db:D1Database,actor:Actor,billId:string) {
  human(actor);need(actor,'client');
- const row=await stmt(db,`SELECT i.pdf_base64,i.number,i.pdf_digest FROM s_invoice_issues i JOIN s_bills b ON b.id=i.bill_id WHERE i.bill_id=? AND b.status<>'void' AND ${portalAccess('b.matter_id',['client','payer'])}`,billId,actor.email).first<Data>();insist(row,'Invoice not found',404);
+ const row=await stmt(db,`SELECT i.pdf_base64,i.number,i.pdf_digest FROM s_invoice_issues i JOIN s_bills b ON b.id=i.bill_id WHERE i.bill_id=? AND b.status<>'void' AND ${portalAccess('b.matter_id',['client','co_client','payer'])}`,billId,actor.email).first<Data>();insist(row,'Invoice not found',404);
  const bytes=decode(row.pdf_base64);insist(await digest(bytes)===row.pdf_digest,'Stored invoice failed its integrity check',503);
  await db.batch([audit(db,actor,'client.invoice_downloaded',billId,JSON.stringify({number:row.number}))]);
  return new Response(bytes,{headers:{'content-type':'application/pdf','content-length':String(bytes.length),'content-disposition':`attachment; filename="${String(row.number).replace(/[^A-Za-z0-9._-]/g,'_')}.pdf"`,'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});

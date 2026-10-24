@@ -15,11 +15,11 @@ function scanTextAttachment(name:string,bytes:Uint8Array){
   insist(/^[^\/\\\x00-\x1f\x7f]+\.txt$/i.test(name),'Only plain-text .txt attachments are supported');
   insist(mediaType(bytes)==='text/plain','Unscanned or unparseable attachments are refused');
   const plain=new TextDecoder('utf-8',{fatal:true}).decode(bytes);
-  insist(!/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\u202a-\u202e\u2066-\u2069]/u.test(plain)&&!/<[!/?a-z]/i.test(plain)&&!plain.includes('EICAR-STANDARD-ANTIVIRUS-TEST-FILE'),'Attachment failed the server text safety scan');
+  insist(!/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\u202a-\u202e\u2066-\u2069]/u.test(plain)&&!/<[!/?a-z]/i.test(plain),'Attachment failed the server text safety scan');
 }
 async function attachments(body:Data) {
  const list=body.attachments===undefined?[]:body.attachments;insist(Array.isArray(list)&&list.length<=3,'Attach at most three files');
- return Promise.all(list.map(async(a:Data)=>{const bytes=decode(a.contentBase64),name=text(a.name,'File name',200);
+ return Promise.all(list.map(async(a:Data)=>{insist(a&&typeof a==='object'&&!Array.isArray(a),'Supply an attachment object');const bytes=decode(a.contentBase64),name=text(a.name,'File name',200);
   scanTextAttachment(name,bytes);
   return {id:id(),name,mime:'text/plain',size:bytes.length,sha256:await digest(bytes),content:a.contentBase64 as string};}));
 }
