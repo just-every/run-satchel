@@ -33,6 +33,7 @@ export async function saveSchedule(db:D1Database,actor:Actor,body:Data) {
  if(previous)insist(body.revision===previous.revision,'The schedule changed. Refresh before saving.',409);
  insist(['workload','deadlines'].includes(body.dashboard),'Choose the workload or deadlines report');insist(['email','portal'].includes(body.channel),'Choose email or portal delivery');
  const raw=body.filters&&typeof body.filters==='object'&&!Array.isArray(body.filters)?body.filters:{},filters:Data={};for(const k of filterKeys)if(raw[k])filters[k]=text(raw[k],'Report filter',254);
+ await reportState(db,actor,filters);
  const recipients=[...new Set((Array.isArray(body.recipients)?body.recipients:[]).map((e:unknown)=>text(e,'Recipient',254).toLowerCase()))];insist(recipients.length>=1&&recipients.length<=20,'Choose one to 20 recipients');
  for(const email of recipients)insist(await reportActor(db,email),`${email} cannot open reports`,400);
  const value={name:text(body.name,'Report name',160),weekday:integer(body.weekday,'Weekday',1,7),time:clock(body.time,'Send time'),zone:timezone(body.timezone)},scheduleId=previous?.id??id(),revision=id(),at=now();
@@ -106,6 +107,7 @@ function latestSlot(s:Data,atMs:number){
 }
 export async function runReportSchedules(env:Bindings,atMs:number) {
  const db=env.DB,at=new Date(atMs).toISOString(),mail=operatorMail(env),authority=await reviewOf(db,'mail');let made=0;
+ for(const stale of await rows(db,"SELECT d.id,d.schedule_id,d.recipient,s.owner_email FROM s_report_deliveries d JOIN s_report_schedules s ON s.id=d.schedule_id WHERE d.status='queued' AND d.at<?",new Date(atMs-15*60000).toISOString()))await db.batch([stmt(db,"UPDATE s_report_deliveries SET status='uncertain',detail='Worker outcome unknown; no automatic resend' WHERE id=? AND status='queued'",stale.id),stmt(db,"INSERT INTO s_report_exceptions(id,schedule_id,delivery_id,recipient,owner_email,due_date,status,created_at) SELECT ?,?,?,?,?,?,'open',? WHERE NOT EXISTS(SELECT 1 FROM s_report_exceptions WHERE delivery_id=?)",id(),stale.schedule_id,stale.id,stale.recipient,stale.owner_email,new Date(atMs+86400000).toISOString().slice(0,10),at,stale.id)]);
  for(const s of await rows(db,'SELECT * FROM s_report_schedules WHERE active=1')){
   const slotMs=latestSlot(s,atMs);if(slotMs===null||slotMs<Date.parse(s.created_at)||atMs-slotMs>36*3600000)continue;const slot=new Date(slotMs).toISOString();
   for(const email of JSON.parse(s.recipients) as string[]){
