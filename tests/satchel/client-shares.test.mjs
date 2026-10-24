@@ -10,6 +10,7 @@ test('CLIENT-004 a lawyer shares a preparation task, a hearing and a confirmed d
   for(const email of ['lawyer@example.test','assistant@example.test'])await h.json(base+'/access',{email},h.owner);
   await h.json(base+'/portal',{email:'client@example.test',reason:'Client follows the lease review'},h.owner);
   for(const [email,kind] of [['cocl@example.test','co_client'],['payer@example.test','payer'],['deleg@example.test','delegate']])await h.json(base+'/portal',{email,kind,reason:'Explicit portal authority',...(kind==='delegate'?{delegateOf:'client@example.test'}:{})},h.owner);
+  const mailCount=h.mails.length;
   const prep=await h.json(base+'/tasks',{title:'Gather your lease and rent receipts',priority:'normal',dueDate:'2026-11-05'},h.owner);
   const firmTask=await h.json(base+'/tasks',{title:'Internal: review exhibits',priority:'normal'},h.owner);
   const hearing=await h.json(base+'/appointments',{title:'Hearing: motion to dismiss',date:'2026-11-18',time:'09:30',timezone:'America/New_York',durationMinutes:60,location:'Courtroom 4B',attendees:[]},h.owner);
@@ -50,6 +51,21 @@ test('CLIENT-004 a lawyer shares a preparation task, a hearing and a confirmed d
   assert.deepEqual(staff.shares.find(s=>s.kind==='task').acks.map(a=>a.kind),['acknowledged','completed']);
   await h.json('/client-shares/'+mineShare.id+'/revoke',{},assistant,403);await h.json('/client-shares/'+mineShare.id+'/revoke',{},lawyer);
   assert.deepEqual((await h.json('/portal/matters/'+m.id+'/shares',undefined,client)).items.map(i=>i.kind).sort(),['deadline','task']);await h.json('/portal/shares/'+mineShare.id+'/acknowledge',{},client,404);
+  await h.json('/portal/shares/'+mineShare.id+'/complete',{},client,404);
+  await share({kind:'event',recordId:hearing.id,instructions:'Use the original court date. Bring photo ID.'});
+  const reshared=(await h.json('/portal/matters/'+m.id+'/shares',undefined,client)).items.find(i=>i.kind==='event');
+  assert.notEqual(reshared.id,mineShare.id,'A renewed share has its own acknowledgment history');
+  assert.equal(reshared.acknowledgedAt,null,'A withdrawn instruction acknowledgment does not carry to new instructions');
+  await h.json('/portal/shares/'+reshared.id+'/acknowledge',{date:'2026-12-01',time:'14:00',status:'completed'},client);
+  const calendar=await h.json(base+'/calendar',undefined,lawyer);
+  assert.equal(calendar.appointments.find(a=>a.id===hearing.id).occurrences[0].date,'2026-11-18','Acknowledgment payload cannot move the hearing');
+  assert.equal(calendar.deadlines.find(d=>d.id===deadline.id).status,'confirmed','Acknowledgment cannot complete a legal date');
+  await h.json('/client-shares/'+reshared.id+'/revoke',{},lawyer);
+  await h.restart();
+  const history=(await h.json(base+'/client-shares',undefined,lawyer)).shares;
+  assert.equal(history.find(s=>s.id===mineShare.id).acks[0].note,'I will be there','Withdrawn instructions retain their original acknowledgment');
+  assert.equal(history.find(s=>s.id===reshared.id).acks.length,1,'Renewed instructions retain a separate acknowledgment after restart');
+  assert.equal(h.mails.length,mailCount,'Sharing, acknowledgment, completion and withdrawal send no automatic notification');
   // Withdrawing the portal grant closes every door at once.
   await h.json('/portal-grants/'+(await h.json(base+'/portal',undefined,h.owner)).grants[0].id+'/revoke',{reason:'Engagement ended'},h.owner);
   await h.json('/portal/matters/'+m.id+'/shares',undefined,client,404);await h.json('/portal/shares/'+legal.id+'/acknowledge',{},client,404);

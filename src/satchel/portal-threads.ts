@@ -80,7 +80,7 @@ export async function staffRead(db:D1Database,actor:Actor,threadId:string) {
  human(actor);need(actor,'owner','lawyer','assistant');const t=await stmt(db,'SELECT * FROM s_portal_threads WHERE id=?',threadId).first<Data>();insist(t,'Thread not found',404);await matter(db,actor,t.matter_id);
  insist(actor.role!=='assistant'||t.assigned_to===actor.email||t.created_by===actor.email,'Thread not found',404);
  const unread=await rows(db,"SELECT m.id FROM s_portal_messages m WHERE m.thread_id=? AND m.sender_side='client' AND NOT EXISTS(SELECT 1 FROM s_portal_reads r WHERE r.message_id=m.id AND r.reader_email=?)",t.id,actor.email),at=now();
- if(unread.length)await db.batch(unread.flatMap(u=>[stmt(db,'INSERT OR IGNORE INTO s_portal_reads(message_id,reader_email,read_at) VALUES(?,?,?)',u.id,actor.email,at),audit(db,actor,'portal.message_read',u.id,JSON.stringify({threadId:t.id}),{matterId:t.matter_id})]));
+ if(unread.length)await atomic(db,actor,[...matterGuard(db,actor,t.matter_id),guard(db,"EXISTS(SELECT 1 FROM s_portal_threads WHERE id=? AND (?<>'assistant' OR assigned_to=? OR created_by=?))",t.id,actor.role,actor.email,actor.email),...unread.flatMap(u=>[stmt(db,'INSERT OR IGNORE INTO s_portal_reads(message_id,reader_email,read_at) VALUES(?,?,?)',u.id,actor.email,at),audit(db,actor,'portal.message_read',u.id,JSON.stringify({threadId:t.id}),{matterId:t.matter_id})])]);
  return staffThreads(db,actor,t.matter_id);
 }
 // The staff unread queue: client messages nobody on the thread's staff has opened, for threads assigned to the reader.
@@ -102,7 +102,7 @@ async function readerThread(db:D1Database,actor:Actor,threadId:string) {
 }
 export async function portalOpen(db:D1Database,actor:Actor,threadId:string) {
  const t=await readerThread(db,actor,threadId),unread=await rows(db,"SELECT m.id FROM s_portal_messages m WHERE m.thread_id=? AND m.sender_side='staff' AND NOT EXISTS(SELECT 1 FROM s_portal_reads r WHERE r.message_id=m.id AND r.reader_email=?)",t.id,actor.email),at=now();
- if(unread.length)await db.batch(unread.flatMap(u=>[stmt(db,'INSERT OR IGNORE INTO s_portal_reads(message_id,reader_email,read_at) VALUES(?,?,?)',u.id,actor.email,at),audit(db,actor,'portal.message_read',u.id,JSON.stringify({threadId:t.id}),{matterId:t.matter_id})]));
+ if(unread.length)await atomic(db,actor,[guard(db,grantedReader('?'),actor.email,t.matter_id),...unread.flatMap(u=>[stmt(db,'INSERT OR IGNORE INTO s_portal_reads(message_id,reader_email,read_at) VALUES(?,?,?)',u.id,actor.email,at),audit(db,actor,'portal.message_read',u.id,JSON.stringify({threadId:t.id}),{matterId:t.matter_id})])]);
  return portalThreads(db,actor,t.matter_id);
 }
 export async function portalReply(env:Bindings,actor:Actor,threadId:string,body:Data) {

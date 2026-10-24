@@ -22,7 +22,7 @@ export function ClientPortal({me}:{me:Row}){
 function ClientTimeline({matterId}:{matterId:string}){
  const [entries,setEntries]=useState<Row[]|null>(null);
  useEffect(()=>{api('/portal/matters/'+matterId+'/timeline').then(r=>setEntries(r.entries)).catch(()=>setEntries([]));},[matterId]);
- return <div aria-label="Shared updates"><h3>Shared updates</h3>{!entries?<p>Opening updates…</p>:!entries.length?<p>Your firm has not shared an update on this matter yet.</p>:<ol>{entries.map(e=><li key={e.id}><strong>{e.title}</strong> · {new Date(e.at).toLocaleDateString('en-US',{dateStyle:'medium'})}<p>{e.body}</p></li>)}</ol>}</div>;
+ return <div aria-label="Shared updates"><h3>Shared updates</h3>{!entries?<p>Opening updates…</p>:!entries.length?<p>Your firm has not shared an update on this matter yet.</p>:<ol>{entries.map(e=><li key={e.id}><strong>{e.title}</strong> · {new Date(e.at).toLocaleDateString('en-US',{dateStyle:'medium'})}<p>{e.body}</p>{e.correction&&<p>Corrects: {e.correction.title}. Original entry retained.</p>}</li>)}</ol>}</div>;
 }
 // The principal shares one matter with one client member at a time, with a recorded reason, and can withdraw it.
 export function PortalSharing({state,run,tick}:{state:Row;run:Run;tick:number}){

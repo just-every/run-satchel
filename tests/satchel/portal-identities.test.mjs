@@ -58,5 +58,18 @@ test('CLIENT-001 two co-clients, a payer and a delegate each reach only their ow
   await h.json('/portal-grants/'+byEmail('client@example.test').id+'/revoke',{reason:'Engagement ended'},h.owner);
   assert.equal((await file(client)).status,404);assert.equal((await file(delegate)).status,404,'A delegate has no access once the client’s grant is withdrawn');assert.equal((await file(coclient)).status,200,'A co-client keeps their own grant');
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(archive.includes('co_client'));
+  // An ethical wall closes every portal read door even when the person retains a grant.
+  await h.json(base+'/wall',{custodianEmail:'lawyer@example.test',members:[],reason:'Separate conflicting representation',revision:null},h.owner);
+  for(const cookie of [client,coclient,second,payer,delegate]){
+   assert.deepEqual((await h.json('/portal',undefined,cookie)).grants,[],'A wall hides the matter itself from every portal identity');
+   for(const door of ['shares','timeline','threads','requests','invoices'])await h.json('/portal/matters/'+m.id+'/'+door,undefined,cookie,404);
+  }
+  assert.equal((await file(coclient)).status,404,'A wall closes a previously authorized shared-file URL');
+  assert.equal((await h.request('/api/satchel/portal/invoices/'+approved.id+'/pdf',undefined,payer)).status,404,'A wall closes an issued-invoice PDF URL');
+  for(const email of ['cocl@example.test','second@example.test','payer@example.test']){
+   const preview=await seen(email);
+   for(const door of ['shares','timeline','threads','requests','invoices'])assert.equal(preview[door],null,'The custodian preview obeys the same wall as the portal identity');
+  }
+  await h.json(base+'/portal-preview?email=cocl@example.test',undefined,h.owner,404);
  }finally{await h.close();}
 });

@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {harness,open} from './harness.mjs';
 const file=(name,text)=>({name,contentBase64:Buffer.from(text).toString('base64')});
 test('CLIENT-002 a confidential attachment, a client reply, the retained thread, read states, the unread queue and notifications that carry no content',async()=>{
- const h=await harness();
+ let mailOutcome='accepted';
+ const h=await harness({mailResponse:message=>mailOutcome==='uncertain'&&/secure message/.test(message.subject)?new Response('',{status:503}):Response.json({id:'synthetic-satchel-mail'})});
  try{
   const m=await open(h),base='/matters/'+m.id,people={};
   const roster=[['lawyer@example.test','lawyer'],['assistant@example.test','assistant'],['other@example.test','assistant'],['client@example.test','client'],['cocl@example.test','client'],['payer@example.test','client'],['stranger@example.test','client'],['deleg@example.test','client'],['unassigned@example.test','assistant']];
@@ -50,9 +51,27 @@ test('CLIENT-002 a confidential attachment, a client reply, the retained thread,
   const retained=(await h.json(base+'/threads',undefined,lawyer)).threads.find(t=>t.id===thread.id);assert.deepEqual(retained.messages.at(-1).notifications.map(n=>[n.to,n.status]),[['other@example.test','not_sent']]);assert.deepEqual((await h.json('/threads/unread',undefined,other)).queue,[]);
   await h.json('/threads/'+thread.id+'/assign',{assignedTo:'lawyer@example.test'},lawyer);assert.equal((await h.json('/threads/unread',undefined,lawyer)).queue[0].threadId,thread.id);
   await h.restart();assert.equal((await h.json(base+'/threads',undefined,lawyer)).threads.find(t=>t.id===thread.id).messages.length,4);
+  // An uncertain provider response retains the message, does not assert delivery and never resends on reads or restart.
+  mailOutcome='uncertain';
+  const uncertain=(await h.json(base+'/threads',{subject:'Retained despite uncertain notification',body:'Confidential retained text',assignedTo:'lawyer@example.test'},lawyer)).threads.find(t=>t.subject==='Retained despite uncertain notification');
+  assert.ok(uncertain.messages[0].notifications.every(n=>n.status==='uncertain'),'Provider uncertainty is distinct from acceptance and delivery');
+  assert.equal(uncertain.messages[0].notifications.length,3);
+  const attempts=h.mails.length;
+  await h.json('/portal/threads/'+uncertain.id+'/open',{},client);
+  const reads=(await h.json('/audit?action=portal.message_read',undefined,h.owner)).records.length;
+  await h.json('/portal/threads/'+uncertain.id+'/open',{},client);
+  assert.equal((await h.json('/audit?action=portal.message_read',undefined,h.owner)).records.length,reads,'Opening an already read message adds no duplicate read receipt');
+  await h.restart();
+  const kept=(await h.json(base+'/threads',undefined,lawyer)).threads.find(t=>t.id===uncertain.id);
+  assert.equal(kept.messages[0].body,'Confidential retained text');
+  assert.ok(kept.messages[0].notifications.every(n=>n.status==='uncertain'));
+  assert.equal(h.mails.length,attempts,'Reading and restarting do not retry an uncertain notification');
+  mailOutcome='accepted';
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(archive.includes('Settle at 40k'));
   // A withdrawn grant removes the thread from that person's portal at once.
   const grants=(await h.json(base+'/portal',undefined,h.owner)).grants;await h.json('/portal-grants/'+grants.find(g=>g.email==='cocl@example.test').id+'/revoke',{reason:'Left the matter'},h.owner);
+  await h.json('/portal/threads/'+thread.id+'/open',{},coclient,404);
+  await h.json('/portal/threads/'+thread.id+'/messages',{body:'Refused after withdrawal'},coclient,404);
   await h.json('/portal/matters/'+m.id+'/threads',undefined,coclient,404);assert.equal((await get('/portal/attachments/'+attachment,coclient)).status,404);assert.equal((await get('/portal/attachments/'+attachment,client)).status,200);
   await h.json('/portal-grants/'+grants.find(g=>g.email==='client@example.test').id+'/revoke',{reason:'Engagement ended'},h.owner);await h.json('/portal/matters/'+m.id+'/threads',undefined,delegate,404);assert.equal((await get('/portal/attachments/'+attachment,delegate)).status,404,'A delegate loses the thread with the client’s grant');
  }finally{await h.close();}

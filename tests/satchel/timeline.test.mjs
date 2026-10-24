@@ -26,6 +26,7 @@ test('MATTER-005 a matter timeline merges notes, calls, commitments, filed email
   await h.json(base+'/notes',{kind:'note',title:'Bad',body:'x',visibility:'team'},people['outsider@example.test'],404);
   await h.json(base+'/notes',{kind:'note',title:'Correction',body:'Served Tuesday, not Monday.',visibility:'team',corrects:strategy.id},assistant,404);
   const fix=await h.json(base+'/notes',{kind:'note',title:'Correction: served Tuesday',body:'Served Tuesday, not Monday.',visibility:'team',clientVisible:true,corrects:progress.id},lawyer);assert.equal(fix.corrects,progress.id);
+  const publicCorrection=await h.json(base+'/notes',{kind:'note',title:'Public correction',body:'A public update without private strategy.',visibility:'team',clientVisible:true,corrects:strategy.id},lawyer);
   // Other records: a filed email, a task, an appointment, a bill.
   const email=await h.json(base+'/documents',{name:'Landlord reply.eml',mime:'message/rfc822',visibility:'matter',contentBase64:Buffer.from('From: landlord@example.test\r\nSubject: Reply\r\n\r\nWe received the notice.').toString('base64')},h.owner);
   const task=await h.json(base+'/tasks',{title:'Draft the reply',priority:'normal'},h.owner);
@@ -49,7 +50,15 @@ test('MATTER-005 a matter timeline merges notes, calls, commitments, filed email
   assert.deepEqual(titles(await h.json(base+'/timeline?q=draft',undefined,h.owner)).sort(),['Draft the reply','Lease advice prebill','Promised a draft by Thursday']);
   assert.deepEqual((await h.json(base+'/timeline?kind=call&from=2026-10-21T00:00:00.000Z',undefined,lawyer)).entries,[]);await h.json(base+'/timeline?kind=bogus',undefined,lawyer,400);
   // The client timeline holds only the entries shared with the client.
-  const view=await h.json('/portal/matters/'+m.id+'/timeline',undefined,client);assert.deepEqual(view.entries.map(e=>e.title).sort(),[fix.title,progress.title].sort());
+  const view=await h.json('/portal/matters/'+m.id+'/timeline',undefined,client);assert.deepEqual(view.entries.map(e=>e.title).sort(),[fix.title,progress.title,publicCorrection.title].sort());
+  assert.deepEqual(view.entries.find(e=>e.id===fix.id).correction,{id:progress.id,title:progress.title},'A shared correction identifies the original shared entry');
+  assert.equal(view.entries.find(e=>e.id===publicCorrection.id).correction,null,'A public correction never discloses its private original');
+  assert.equal((await h.json(base+'/timeline',undefined,h.owner)).entries.find(e=>e.source.id===publicCorrection.id).correction,null,'Even the principal receives no private correction source');
+  assert.deepEqual(mine.entries.find(e=>e.source.id===publicCorrection.id).correction,{id:strategy.id,title:strategy.title},'The author retains their private correction source');
+  await h.restart();
+  const retained=await h.json('/portal/matters/'+m.id+'/timeline',undefined,client);
+  assert.equal(retained.entries.find(e=>e.id===progress.id).body,'The landlord was served on Monday.','Append-only correction preserves the original text after restart');
+  assert.equal(retained.entries.find(e=>e.id===fix.id).body,'Served Tuesday, not Monday.');
   assert.ok(!JSON.stringify(view).includes('adverse-possession')&&!JSON.stringify(view).includes('Landlord reply')&&!JSON.stringify(view).includes('Promised a draft'));
   await h.json(base+'/timeline',undefined,client,403);await h.json(base+'/notes',{kind:'note',title:'x',body:'x',visibility:'team'},client,403);await h.json('/portal/matters/'+m.id+'/timeline',undefined,lawyer,403);
   // Search finds team notes for everyone who sees them, and the private note only for its author.

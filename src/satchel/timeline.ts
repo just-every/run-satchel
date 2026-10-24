@@ -10,16 +10,19 @@ import {listDocuments} from './documents';
 import {matterCalendar} from './appointments';
 import {listBilling} from './billing';
 export const timelineKinds=['note','call','commitment','email','document','task','deadline','appointment','bill','payment'] as const;
-type Entry={id:string;kind:string;at:string;title:string;summary:string;by:string|null;visibility:string;mentions:string[];source:{type:string;id:string;tab:string}};
-const entry=(kind:string,id:string,at:string,title:string,summary:string,by:string|null,tab:string,extra:Partial<Entry>={}):Entry=>({id:kind+':'+id,kind,at,title,summary,by,visibility:'team',mentions:[],source:{type:kind,id,tab},...extra});
+type Entry={id:string;kind:string;at:string;title:string;summary:string;by:string|null;visibility:string;mentions:string[];correction:{id:string;title:string}|null;source:{type:string;id:string;tab:string}};
+const entry=(kind:string,id:string,at:string,title:string,summary:string,by:string|null,tab:string,extra:Partial<Entry>={}):Entry=>({id:kind+':'+id,kind,at,title,summary,by,visibility:'team',mentions:[],correction:null,source:{type:kind,id,tab},...extra});
 const moment=(value:unknown)=>{const t=Date.parse(String(value));return Number.isFinite(t)?new Date(t).toISOString():String(value);};
 export async function matterTimeline(db:D1Database,actor:Actor,matterId:string,query:Data) {
  human(actor);need(actor,'owner','lawyer','assistant','trust_officer','billing','accountant');
  const m=await matter(db,actor,matterId),base='/matters/'+m.id,out:Entry[]=[];
  const wanted=query.kind?String(query.kind).split(',').filter(Boolean):[...timelineKinds];insist(wanted.every(k=>(timelineKinds as readonly string[]).includes(k)),'Choose known entry kinds');
  const from=query.from?moment(query.from):'',to=query.to?moment(query.to):'',mine=query.mentions==='me';
- if(permitted(actor,base+'/notes'))for(const n of (await rows(db,`SELECT n.* FROM s_matter_notes n WHERE n.matter_id=? AND ${readableNotes()}`,m.id,actor.email)).map(noteJson))
-  out.push(entry(n.kind,n.id,n.occurredAt,n.title,n.body.slice(0,300),n.author,'Matters',{visibility:n.visibility+(n.clientVisible?' · client-visible':''),mentions:n.mentions}));
+ if(permitted(actor,base+'/notes')){
+  const notes=(await rows(db,`SELECT n.* FROM s_matter_notes n WHERE n.matter_id=? AND ${readableNotes()}`,m.id,actor.email)).map(noteJson);
+  for(const n of notes){const original=notes.find(o=>o.id===n.corrects);
+   out.push(entry(n.kind,n.id,n.occurredAt,n.title,n.body.slice(0,300),n.author,'Matters',{visibility:n.visibility+(n.clientVisible?' · client-visible':''),mentions:n.mentions,correction:original?{id:original.id,title:original.title}:null}));}
+ }
  if(permitted(actor,base+'/tasks'))for(const t of await listTasks(db,actor,m.id)){out.push(entry('task',t.id,moment(t.history[0]?.at??t.dueDate),t.title,'Task · '+t.status+(t.dueDate?' · due '+t.dueDate:''),t.history[0]?.actor??null,'Tasks'));if(t.completedAt)out.push(entry('task',t.id+':done',moment(t.completedAt),t.title+' completed',t.evidence??'','completed by '+t.completedBy,'Tasks'));}
  if(permitted(actor,base+'/calendar')){const c=await matterCalendar(db,actor,m.id);
   for(const a of c.appointments as Data[])out.push(entry('appointment',a.id,moment(a.occurrences[0]?.start??a.createdAt),a.title,'Appointment · '+(a.occurrences[0]?.date??''),a.createdBy,'Calendar'));
@@ -36,5 +39,5 @@ export async function clientTimeline(db:D1Database,actor:Actor,matterId:string) 
  human(actor);need(actor,'client');
  insist(await stmt(db,`SELECT ${portalAccess('?',readerKinds)} ok`,actor.email,matterId).first<Data>().then(r=>r?.ok),'Matter not found',404);
  const list=await rows(db,"SELECT * FROM s_matter_notes WHERE matter_id=? AND visibility='team' AND client_visible=1 ORDER BY occurred_at DESC,id",matterId);
- return {matterId,entries:list.map(n=>({id:n.id,kind:n.kind,at:n.occurred_at,title:n.title,body:n.body}))};
+ return {matterId,entries:list.map(n=>({id:n.id,kind:n.kind,at:n.occurred_at,title:n.title,body:n.body,correction:(()=>{const original=list.find(o=>o.id===n.corrects);return original?{id:original.id,title:original.title}:null;})()}))};
 }
