@@ -1,3 +1,4 @@
+import {stopRequestReminders} from './request-reminders';
 import {matterScope} from './matter-scope';
 // MATTER-004: reviewed workflow runs on one matter. Counsel previews a version, approves
 // selected steps, stops or restarts the run; each approved step creates its record once.
@@ -105,7 +106,7 @@ export async function receiveDocumentRequest(db:D1Database,actor:Actor,requestId
  await matter(db,actor,q.matter_id);insist(q.status==='open','This request is already received',409);
  const d=await visibleDocument(db,actor,text(body.documentId,'Received document',100));insist(d.matter_id===q.matter_id&&!d.erased_at,'Choose a retained document on this matter',409);
  const at=now();
- await atomic(db,actor,[...matterGuard(db,actor,q.matter_id),stmt(db,"UPDATE s_document_requests SET status='received',document_id=?,received_by=?,received_at=? WHERE id=? AND status='open'",d.id,actor.email,at,q.id),
+ await atomic(db,actor,[...matterGuard(db,actor,q.matter_id),...stopRequestReminders(db,q.id,'accepted',at),stmt(db,"UPDATE s_document_requests SET status='received',document_id=?,received_by=?,received_at=? WHERE id=? AND status='open'",d.id,actor.email,at,q.id),
   audit(db,actor,'document_request.received',q.id,JSON.stringify({matterId:q.matter_id,documentId:d.id,date:date(at.slice(0,10))}),{matterId:q.matter_id})]);
  return matterWorkflows(db,actor,q.matter_id);
 }
