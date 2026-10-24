@@ -8,7 +8,7 @@ const kindNames:Record<string,string>={client:'Client',co_client:'Co-client',pay
 function PortalPreview({matterId,email,kind}:{matterId:string;email:string;kind:string}){
  const [view,setView]=useState<Row|null>(null),[error,setError]=useState('');
  return <div><button type="button" className="quiet" onClick={()=>{setError('');api('/matters/'+matterId+'/portal-preview?email='+encodeURIComponent(email)).then(setView).catch(e=>setError(e.message));}}>Preview what {email} sees</button>{error&&<p className="error" role="alert">{error}</p>}
-  {view&&<section aria-label={'Preview for '+email}><p>{kindNames[kind]} view: {view.timeline?view.timeline.entries.length+' shared updates':'no timeline'} · {view.shares?view.shares.items.map((i:Row)=>i.title).join(', ')||'nothing shared':'no tasks, events or files'} · {view.invoices?view.invoices.invoices.length+' invoices':'no invoices'}</p></section>}</div>;
+  {view&&<section aria-label={'Preview for '+email}><p>{kindNames[kind]} view: {view.timeline?view.timeline.entries.length+' shared updates':'no timeline'} · {view.shares?view.shares.items.map((i:Row)=>i.title).join(', ')||'nothing shared':'no tasks, events or files'} · {view.invoices?view.invoices.invoices.length+' invoices':'no invoices'} · {view.threads?view.threads.threads.length+' message threads':'no messages'} · {view.requests?view.requests.requests.length+' document requests':'no document requests'}</p></section>}</div>;
 }
 // A client signs in to this page only: it lists the matters the principal explicitly shared.
 export function ClientPortal({me}:{me:Row}){

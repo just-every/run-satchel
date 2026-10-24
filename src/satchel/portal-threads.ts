@@ -23,7 +23,7 @@ async function notify(env:Bindings,messageId:string,recipients:string[],subjectK
  const db=env.DB,at=now(),mail=operatorMail(env),firm=(await stmt(db,'SELECT name FROM s_firm WHERE id=1').first<Data>())?.name??'your firm',authority=await reviewOf(db,'mail');
  for(const to of recipients){
   let status='not_sent',provider:string|null=null,providerId:string|null=null,detail='No notification was sent: the firm has not recorded its mail provider review';
-  const allowed=await stmt(db,`SELECT ${subjectKind==='client'?portalAccess('?',readerKinds):staffAccess()} ok`,to,(await stmt(db,'SELECT t.matter_id FROM s_portal_messages m JOIN s_portal_threads t ON t.id=m.thread_id WHERE m.id=?',messageId).first<Data>())?.matter_id).first<Data>();
+  const allowed=await stmt(db,`SELECT ${subjectKind==='client'?portalAccess('?',readerKinds):staffAccess()+" AND EXISTS(SELECT 1 FROM s_portal_messages message JOIN s_portal_threads thread ON thread.id=message.thread_id WHERE message.id=? AND thread.assigned_to=?)"} ok`,to,(await stmt(db,'SELECT t.matter_id FROM s_portal_messages m JOIN s_portal_threads t ON t.id=m.thread_id WHERE m.id=?',messageId).first<Data>())?.matter_id,...(subjectKind==='staff'?[messageId,to]:[])).first<Data>();
   if(!allowed?.ok)detail='No notification was sent: the recipient no longer has access to this matter';
   else if(authority&&mail&&env.MAIL_FROM){
    try{const r=await mail.send({deliveryId:id(),from:env.MAIL_FROM,to:[to],subject:subjectKind==='client'?`A new secure message from ${firm}`:'A new portal message',text:`You have a new secure message. Sign in to read it: ${env.AUTH_ORIGIN}/app\n\nThis email contains no message content.`,html:'',headers:{}});

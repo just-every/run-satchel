@@ -28,10 +28,10 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`CLIENT-002 staff send 
   const link=await messages.getByRole('link',{name:'Download Analysis.txt'}).getAttribute('href');const download=await client.request.get(h.origin+link);assert.equal(download.status(),200);assert.equal(await download.text(),'Privileged settlement analysis.');
   await messages.getByLabel('Your reply to Confidential: settlement analysis').fill('I agree. Here is the signed page.');await messages.getByLabel('Attachment for Confidential: settlement analysis').setInputFiles({name:'Signed.txt',mimeType:'text/plain',buffer:Buffer.from('Signed page')});await messages.getByRole('button',{name:'Reply to Confidential: settlement analysis'}).click();await messages.getByText('I agree. Here is the signed page.').waitFor();await messages.getByRole('link',{name:'Download Signed.txt'}).waitFor();
   assert.deepEqual(await iconOnly(client),[]);assert.equal(await client.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);
-  if(process.env.SATCHEL_SCREENSHOTS)await client.screenshot({path:`${process.env.SATCHEL_SCREENSHOTS}/portal-threads-${width}.png`});
+  if(process.env.SATCHEL_SCREENSHOTS)await messages.screenshot({path:`${process.env.SATCHEL_SCREENSHOTS}/portal-threads-${width}.png`});
   // Staff see the reply as unread, read it, and the read state is recorded.
   await lawyer.reload();await lawyer.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Matters',exact:true}).click();await thread.getByText('Confidential: settlement analysis · 1 unread').waitFor();
-  if(process.env.SATCHEL_SCREENSHOTS)await lawyer.screenshot({path:`${process.env.SATCHEL_SCREENSHOTS}/staff-threads-${width}.png`});
+  if(process.env.SATCHEL_SCREENSHOTS)await thread.screenshot({path:`${process.env.SATCHEL_SCREENSHOTS}/staff-threads-${width}.png`});
   await thread.getByRole('button',{name:'Mark Confidential: settlement analysis read'}).click();await lawyer.getByRole('status').getByText('Marked read').waitFor();await thread.getByText('Read by lawyer@example.test').waitFor();
   assert.deepEqual(errors,[]);
  }finally{await browser.close();await h.close();}
