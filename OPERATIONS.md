@@ -62,3 +62,24 @@ instructions under `node_modules/@runeditrun/rer/modules/deploy-kit`; account sc
 resource ownership, migrations, receipt and health checks are defined there.
 Local validation does not prove hosted acceptance, provider delivery or remote
 health.
+
+## Hosted installation package
+
+`packaging.json` declares Satchel's Worker, the DB database, the ORIGINALS
+bucket and the unchanged migration directory. Run `pnpm run build`, then
+`pnpm delivery:spec` to update the committed import specification.
+`pnpm check:deployment-spec` compares that specification with the real build.
+The descriptor's verification operation requires that comparison.
+
+Run `node scripts/delivery/base/cli.mjs package --config packaging.json --output rer-package`
+to produce the descriptor, dispatch-only Managed workflow and delivery artifact.
+The package directory and `delivery-artifact` directory are generated outputs.
+Packaging creates no installation, deployment, tag or release.
+
+Managed hosting assigns the RER mail provider, sender, relay URL and private
+API key. Assisted hosting asks for the selected provider's sender and private
+API key, plus the relay URL for RER or the account ID for Cloudflare.
+Resend and SendGrid connect directly to the selected provider. Provider
+configuration does not grant authority for firm reminders or scheduled sends;
+the principal must still record the existing provider review. Local development
+uses the private local outbox and sends no external email.

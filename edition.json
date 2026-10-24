@@ -31,7 +31,38 @@
           "scripts",
           "migrations",
           "public",
-          "tests"
+          "tests",
+          "src/server.dev.ts",
+          "src/auth.server.ts",
+          "src/mail.server.mjs"
+        ],
+        "origin": {
+          "repository": "runeditrun/base",
+          "revision": "4280971d7c0295b8a88c3e1179048efcbbe14f30",
+          "paths": [
+            "modules/delivery-producer/setup-manifest.mjs",
+            "foundation/template/src/server.dev.ts",
+            "foundation/template/src/auth.server.ts",
+            "foundation/template/src/mail.server.mjs"
+          ]
+        },
+        "mappings": [
+          {
+            "path": "scripts/delivery/base/setup-manifest.mjs",
+            "originPath": "modules/delivery-producer/setup-manifest.mjs"
+          },
+          {
+            "path": "src/server.dev.ts",
+            "originPath": "foundation/template/src/server.dev.ts"
+          },
+          {
+            "path": "src/auth.server.ts",
+            "originPath": "foundation/template/src/auth.server.ts"
+          },
+          {
+            "path": "src/mail.server.mjs",
+            "originPath": "foundation/template/src/mail.server.mjs"
+          }
         ]
       }
     }

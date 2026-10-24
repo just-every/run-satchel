@@ -3,5 +3,25 @@
   "projectId": "legal/satchel",
   "name": "Satchel",
   "sourceRepository": "https://github.com/just-every/run-satchel",
-  "license": "MIT"
+  "license": "MIT",
+  "deployment": {
+    "target": "cloudflare-workers",
+    "artifactFile": "rer-worker-artifact.json"
+  },
+  "operations": {
+    "setup": "pnpm install --frozen-lockfile && pnpm exec rer install",
+    "build": "pnpm run build",
+    "verify": "pnpm run verify && pnpm check:deployment-spec && pnpm exec rer check --profile first-party",
+    "artifact": "node scripts/delivery/base/cli.mjs artifact --config packaging.json",
+    "recovery": "Follow OPERATIONS.md: stop writes and scheduled sends, retain the exact source and private configuration, export the database and ORIGINALS bucket, restore into fresh empty resources with unchanged migration bytes, run setup for a fresh owner, then re-export and compare native rows and original files before routing traffic."
+  },
+  "verification": {
+    "migrationDirectories": [
+      "migrations/core"
+    ]
+  },
+  "setup": {
+    "path": "rer-setup.json",
+    "sha256": "e77e78ad28c97a8002f14718ab4fe8d0f50bca7c34ae570c5ae33056908df6ef"
+  }
 }

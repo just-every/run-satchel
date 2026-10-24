@@ -29,7 +29,9 @@
     "rer": "rer",
     "test:satchel": "rer queue test:satchel -- node --test --test-concurrency=1 tests/satchel/*.test.mjs",
     "build:site": "rer build --site",
-    "test:site": "node --test --test-concurrency=1 tests/site/*.test.mjs"
+    "test:site": "node --test --test-concurrency=1 tests/site/*.test.mjs",
+    "delivery:spec": "node scripts/build-deployment-spec.mjs",
+    "check:deployment-spec": "node scripts/build-deployment-spec.mjs --check"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "1.1.1",
