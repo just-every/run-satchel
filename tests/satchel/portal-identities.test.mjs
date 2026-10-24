@@ -18,6 +18,10 @@ test('CLIENT-001 two co-clients, a payer and a delegate each reach only their ow
   const delegated=await grant({email:'deleg@example.test',kind:'delegate',delegateOf:'client@example.test'});assert.deepEqual(delegated.grants.map(g=>g.kind).sort(),['client','co_client','co_client','delegate','payer']);
   for(const [cookie,kind] of [[client,'client'],[coclient,'co_client'],[second,'co_client'],[payer,'payer'],[delegate,'delegate']])assert.deepEqual((await h.json('/portal',undefined,cookie)).grants.map(g=>g.kind),[kind]);
   assert.deepEqual((await h.json('/portal',undefined,stranger)).grants,[]);
+  const payerIndex=(await h.json('/portal',undefined,payer)).grants[0];
+  for(const field of ['title','status','matterNumber'])assert.equal(payerIndex[field],null,'Payer bootstrap reveals no matter metadata');
+  assert.ok(!JSON.stringify(payerIndex).includes(m.title),'Payer reads issued invoices without a matter title');
+
   // One release is shared; an internal document and a private one are not.
   const release=await h.json(base+'/documents',{name:'Settlement release.txt',mime:'text/plain',visibility:'matter',contentBase64:Buffer.from('Release of all claims, v1.').toString('base64')},h.owner);
   const privateDoc=await h.json(base+'/documents',{name:'Privileged draft.txt',mime:'text/plain',visibility:'private',contentBase64:Buffer.from('Privileged').toString('base64')},h.owner);
