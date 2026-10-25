@@ -124,3 +124,77 @@ test('Withdrawing consent blocks the next reviewed correspondence send and requi
   await consent(contact.id,'allowed');await h.json('/mail-attempts/'+next.attemptId+'/send',{},lawyer,409);const fresh=await h.json(base+'/correspondence',letter,lawyer);await h.json('/mail-attempts/'+fresh.attemptId+'/send',{},lawyer);assert.equal(h.mails.length,count+2,'Renewed consent needs a new exact review');
  }finally{await h.close();}
 });
+
+const reminderAt='2026-11-01T12:00:00.000Z';
+async function reminderSetup(h,maxContacts=3){
+ const setup=await mailSetup(h),{m,base,lawyer,contact,consent}=setup;
+ await h.json('/providers/mail/review',{termsUrl:'https://resend.com/legal/terms-of-service',confirmed:true},h.owner);await consent(contact.id,'allowed');
+ await h.json(base+'/stage-profile',{revision:null,lawyerEmail:'lawyer@example.test'},h.owner);
+ const invoice=await h.json('/client-reminder-templates',{kind:'invoice',confirmed:true,reason:'Counsel approves exact sign-in-only invoice notice'},lawyer);
+ const appointment=await h.json('/client-reminder-templates',{kind:'appointment',confirmed:true,reason:'Counsel approves exact confidential appointment notice'},lawyer);
+ const decision={enabled:true,invoiceTemplate:invoice.id,appointmentTemplate:appointment.id,maxContacts,reason:'Responsible counsel opts this matter into these exact templates'};
+ const authorize=()=>h.json(base+'/client-reminders',decision,lawyer);
+ await authorize();
+ await h.json('/invoice-numbering',scheme(),h.owner);const bill=await approvedInvoice(h,m,await draft(h,m));await h.json('/invoices/issue',{bills:[{id:bill.id,revision:bill.revision}]},h.owner);
+ const event=await h.json(base+'/appointments',{title:'Private client appointment',date:'2026-11-05',time:'10:00',durationMinutes:45,timezone:'UTC',frequency:'once',interval:1,occurrences:1,attendees:['lawyer@example.test']},lawyer);
+ const schedule=(kind='invoice',dueAt=reminderAt)=>h.json(base+'/client-reminders/schedule',{recipient:'client@example.test',dueAt,...(kind==='invoice'?{billId:bill.id}:{appointmentId:event.id})},lawyer);
+ return {...setup,invoice,appointment,decision,authorize,schedule,bill,event,state:()=>h.json(base+'/client-reminders',undefined,lawyer)};
+}
+test('Client reminders require per-matter opt-in from current responsible counsel and stop after authority changes',async()=>{
+ const h=await harness();try{
+  const s=await reminderSetup(h),{base,lawyer,assistant}=s;
+  await h.json(base+'/client-reminders',s.decision,h.owner,403);await h.json(base+'/client-reminders',s.decision,assistant,403);
+  await h.json(base+'/client-reminders',{...s.decision,enabled:false,reason:'Responsible counsel withdraws automation'},lawyer);
+  await h.json(base+'/client-reminders/schedule',{recipient:letter.recipient,billId:s.bill.id,dueAt:reminderAt},lawyer,409);
+  await s.authorize();await s.schedule();const count=h.mails.length;
+  await h.json(base+'/client-reminders',{...s.decision,enabled:false,reason:'Withdraw before the next send'},lawyer);await h.scheduled(reminderAt);assert.equal(h.mails.length,count);
+  await s.authorize();await s.schedule('appointment');let profile=(await h.json(base+'/stage',undefined,h.owner)).profile;
+  await h.json(base+'/stage-profile',{revision:profile.revision,lawyerEmail:'owner@example.test'},h.owner);await h.scheduled(reminderAt);assert.equal(h.mails.length,count,'Reassignment invalidates former counsel authority');
+ }finally{await h.close();}
+});
+test('Client reminder templates are approved once as exact immutable versions retained by scheduled jobs',async()=>{
+ const h=await harness();try{
+  const s=await reminderSetup(h);await h.json('/client-reminder-templates',{kind:'invoice',reason:'Unconfirmed'},s.lawyer,400);await h.json('/client-reminder-templates',{kind:'invoice',confirmed:true,reason:'Not counsel'},s.assistant,403);
+  const job=await s.schedule();const newer=await h.json('/client-reminder-templates',{kind:'invoice',confirmed:true,reason:'A later separate approval',body:'Private matter and amount'},s.lawyer);
+  assert.notEqual(newer.id,s.invoice.id);await h.restart();const before=await s.state();assert.equal(before.jobs.find(j=>j.id===job.id).template_id,s.invoice.id);
+  assert.equal(before.templates.find(t=>t.id===s.invoice.id).body,s.invoice.body);assert.equal(newer.body,s.invoice.body,'Unapproved supplied content cannot change confidential template bytes');
+  await h.scheduled(reminderAt);assert.equal((await s.state()).jobs.find(j=>j.id===job.id).outcome,'accepted');assert.equal(h.mails.at(-1).text,s.invoice.body+' '+h.origin+'/app');
+ }finally{await h.close();}
+});
+test('Scheduled invoice and appointment reminders survive restart, share a recipient rate cap, and never automatically resend unknown acknowledgments',async()=>{
+ let lost=false;
+ const h=await harness({mailResponse:message=>lost&&message.subject==='An appointment reminder is available'?new Response('unavailable',{status:503}):Response.json({id:'synthetic-satchel-2'})});try{
+  const s=await reminderSetup(h,2);await s.schedule();await s.schedule('appointment');await s.schedule('invoice','2026-11-01T12:01:00.000Z');const count=h.mails.length;
+  await h.scheduled('2026-11-01T11:59:00.000Z');assert.equal(h.mails.length,count);await h.restart();lost=true;await h.scheduled('2026-11-01T12:02:00.000Z');
+  assert.equal(h.mails.length,count+2);let state=await s.state();assert.equal(state.jobs.filter(j=>j.outcome==='accepted').length,1);assert.equal(state.jobs.filter(j=>j.outcome==='uncertain').length,1);assert.equal(state.jobs.filter(j=>j.status==='stopped').length,1);
+  for(const mail of h.mails.slice(count)){assert.equal(mail.html,'');assert.equal(mail.attachments,undefined);assert.match(mail.text,/Sign in to the secure portal/);for(const privateText of [s.m.title,s.bill.number,'375.00','Private client appointment'])assert.ok(!JSON.stringify(mail).includes(privateText));}
+  await h.restart();await h.scheduled('2026-11-02T12:00:00.000Z');assert.equal(h.mails.length,count+2,'Unknown acknowledgment and cap never retry automatically');
+
+ }finally{await h.close();}
+});
+test('Client reminder withdrawal and merged consent, portal revocation, permission and matter walls are rechecked before scheduled sends',async()=>{
+ const h=await harness();try{
+  const s=await reminderSetup(h),count=h.mails.length;await s.schedule();await s.consent(s.contact.id,'denied');await h.scheduled(reminderAt);assert.equal(h.mails.length,count,'Withdrawal stops the next send');
+  await s.consent(s.contact.id,'allowed');await s.schedule('appointment');const graph=await h.json('/contacts',undefined,h.owner),duplicate=await h.json('/contacts',{revision:graph.revision,kind:'person',name:'Reminder duplicate',emails:['duplicate@example.test']},h.owner);
+  const preview=await h.json('/contacts/merge-preview',{survivorId:s.contact.id,duplicateId:duplicate.id,reason:'Reviewed same identity'},h.owner);await h.json('/contacts/merge',{previewId:preview.id},h.owner);await h.scheduled(reminderAt);assert.equal(h.mails.length,count,'One unconsented merged identity stops scheduled mail');
+  await s.consent(duplicate.id,'allowed');await s.schedule('invoice','2026-11-01T12:01:00.000Z');await h.scheduled('2026-11-01T12:02:00.000Z');assert.equal(h.mails.length,count+1,'All merged identities consented permits scheduled mail');
+  await s.schedule('appointment','2026-11-01T12:03:00.000Z');const portal=await h.json(s.base+'/portal',undefined,h.owner);await h.json('/portal-grants/'+portal.grants.find(g=>!g.revokedAt).id+'/revoke',{reason:'Client portal authority withdrawn'},h.owner);await h.scheduled('2026-11-01T12:04:00.000Z');assert.equal(h.mails.length,count+1);
+  await h.json(s.base+'/portal',{email:letter.recipient,reason:'New reviewed grant'},h.owner);await s.schedule('invoice','2026-11-01T12:05:00.000Z');await h.json(s.base+'/access',{email:'lawyer@example.test',remove:true},h.owner);await h.scheduled('2026-11-01T12:06:00.000Z');assert.equal(h.mails.length,count+1);
+  await h.json(s.base+'/access',{email:'lawyer@example.test'},h.owner);await s.schedule('appointment','2026-11-01T12:07:00.000Z');
+  const role=await h.json('/roles',{name:'Read-only correspondence',permissions:{rates:'all',bank:'none',reports:'own',contacts:'read',documents:'read',billing:'read',settings:'none'},reason:'Counsel no longer has sending permissions'},h.owner);
+  await h.json('/team',{email:'lawyer@example.test',name:'Counsel',role:'lawyer',customRoleId:role.id},h.owner);await h.scheduled('2026-11-01T12:08:00.000Z');assert.equal(h.mails.length,count+1,'Current custom permissions are checked at execution');
+  await h.json('/team',{email:'lawyer@example.test',name:'Counsel',role:'lawyer',customRoleId:null},h.owner);await s.schedule('appointment','2026-11-01T12:09:00.000Z');await h.json(s.base+'/wall',{reason:'Restricted client',custodianEmail:'owner@example.test',members:['owner@example.test'],revision:null},h.owner);await h.scheduled('2026-11-01T12:10:00.000Z');assert.equal(h.mails.length,count+1);
+ }finally{await h.close();}
+});
+test('Every scheduled client reminder send retains its approved template version in durable audit and needs a new decision after uncertainty',async()=>{
+ let lost=true;
+ const h=await harness({mailResponse:message=>lost&&message.subject==='An invoice is available'?new Response('unavailable',{status:503}):Response.json({id:'synthetic-satchel-3'})});try{
+  const s=await reminderSetup(h),job=await s.schedule(),count=h.mails.length;await h.scheduled(reminderAt);await h.restart();await h.scheduled(reminderAt);assert.equal(h.mails.length,count+1);
+  const state=await s.state(),j=state.jobs.find(j=>j.id===job.id);assert.equal(j.outcome,'uncertain');
+  const result=await h.json('/audit?matterId='+s.m.id+'&action=correspondence.send_result',undefined,h.owner);assert.match(JSON.stringify(result),new RegExp(s.invoice.id));
+  const next=await h.json('/mail-attempts/'+j.attempt_id+'/resend-review',{reason:'Provider inspected; counsel expressly accepts duplicate risk for one more attempt'},s.lawyer);lost=false;
+  await h.json('/mail-attempts/'+next.attemptId+'/send',{},s.lawyer);await h.json('/mail-attempts/'+next.attemptId+'/send',{},s.lawyer);assert.equal(h.mails.length,count+2,'One new audited decision sends once');
+  const after=await h.json('/audit?matterId='+s.m.id+'&action=correspondence.send_result',undefined,h.owner);assert.equal(after.records.length,2);for(const record of after.records)assert.match(JSON.stringify(record),new RegExp(s.invoice.id));
+  const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();for(const table of ['s_client_reminder_templates','s_client_reminder_authorizations','s_client_reminder_jobs'])assert.ok(archive.includes(table));
+ }finally{await h.close();}
+});

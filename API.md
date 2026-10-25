@@ -158,3 +158,51 @@ Opening acknowledges the disclosed restrictions with `restrictionsAcknowledged: 
 Ethical wall lifecycle (FIRM-003): the current custodian updates `POST /matters/:id/wall` with an inside active counsel `custodianEmail` for handover, or posts `{revision, reason}` to `/ethical-walls/:id/dissolve`. With no active custodian, an inside active lawyer/principal posts `{revision, reason}` to `/ethical-walls/:id/take-custody`. Every change revokes exceptional grants. These native-session doors refuse outsiders, including the principal. Exceptional access never permits whole-firm archives, import originals or aggregates.
 
 Conflict retention (INTAKE-005): `POST /conflicts/:id/dispose` takes `{confirm: <search id>, reason}` in a principal native session. Every affected source/opened matter must have an expired matter schedule and no legal hold. It disposes counsel notes and restriction payloads, including audit payload copies, while retaining ids, decisions, attribution, times and original audit digests. Staff exclusions and walls remain enforced; the disposed search cannot clear an engagement or be given a new disposition. Waiver original bytes retain the separate `/conflict-waivers/:id/dispose` confirmation. `screenRequired: true` on a disposition creates a wall at opening, defaulting its custodian to the recording counsel unless `screenCustodian` explicitly names active inside counsel.
+
+
+## Automated client reminders
+
+All routes below use a human native session under `/api/satchel`. Agent keys cannot
+approve templates, opt in a matter or schedule these messages. Custom roles need
+write permission for contacts, documents and billing. The principal can assign the
+responsible counsel through the existing matter stage-profile route; only that
+currently responsible counsel may enable, withdraw or schedule reminders.
+
+- `GET /matters/:id/client-reminders` returns `availableTemplates` for review,
+  immutable approved `templates`, the matter's append-only `authorizations` and
+  durable `jobs` with provider outcomes or explicit stop reasons.
+- `POST /client-reminder-templates` takes `{kind, confirmed:true, reason}`.
+  `kind` is `invoice` or `appointment`. Counsel approves the exact previewed
+  plain-text content once; the returned `id` is its immutable version. Supplied
+  subject, body, markup and attachments cannot alter these confidential templates.
+- `POST /matters/:id/client-reminders` takes
+  `{enabled, invoiceTemplate, appointmentTemplate, maxContacts, reason}`.
+  Both approved template versions are required when enabling. `maxContacts` is
+  from 1 through 7, counting all attempted reminder sends to that recipient across
+  matters and both kinds during the trailing seven days, including uncertainty and
+  refusals at the provider. A new decision supersedes the old one and stops its
+  pending jobs; changing responsible counsel also invalidates old authority.
+- `POST /matters/:id/client-reminders/schedule` takes
+  `{recipient, dueAt, billId}` or `{recipient, dueAt, appointmentId}`. `dueAt` is
+  a canonical UTC instant, such as `2026-11-01T12:00:00.000Z`. It records one
+  durable reminder under the current authorization and exact source version.
+  The invoice must already be issued and active. A changed or cancelled source
+  stops its reminder instead of silently changing the approved instructions.
+
+The existing scheduled worker processes due jobs. At the final durable send claim
+it rechecks the active responsible counsel, current custom permissions and matter
+walls, the latest per-matter opt-in, active portal authority, affirmative consent
+on every merged identity, source version and recipient rate cap. A denial stops
+that job with its reason; renewal requires a fresh explicit scheduling decision.
+Invoice and appointment notices contain only generic sign-in instructions and a
+link to the authenticated portal. No amount, matter name, appointment facts,
+invoice contents, markup or outbound attachment is sent.
+
+The existing **Reviewed email** screen displays each generated message, retained
+approved template version, attempts and provider outcomes. A send-start audit and
+its result retain the template version. Unknown acknowledgments never retry
+automatically, including after restart. The existing explicit **Review another
+attempt** action requires a new audited human decision and still applies current
+authority and the reminder rate cap. Provider acceptance is not mailbox delivery.
+The dedicated live-mail key is not provisioned; this implementation has native
+handler and provider-edge proof, not live-provider delivery proof.

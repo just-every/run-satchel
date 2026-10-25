@@ -2,6 +2,9 @@
 // Explicit columns exclude credentials and original file bytes.
 const record=(table:string,columns:string[],matter='NULL',revision='NULL',where='x.id=i.object_id',extra:Record<string,string>={})=>`(SELECT json_object('recordType','${table}','matterId',${matter},'revision',${revision},${[...columns.flatMap(c=>[`'${c}'`,`x.${c}`]),...Object.entries(extra).flatMap(([k,v])=>[`'${k}'`,v])].join(',')}) FROM ${table} x WHERE ${where} LIMIT 1)`;
 const contexts=[
+ record('s_client_reminder_templates',['id','kind','subject','body','approved_by','approved_at','reason'],'NULL','x.id',"i.action='client_reminder.template_approved' AND x.id=i.object_id"),
+ record('s_client_reminder_authorizations',['id','matter_id','enabled','counsel_id','counsel_email','invoice_template','appointment_template','max_contacts','decided_at','reason'],'x.matter_id','x.id',"i.action='client_reminder.authorized' AND x.id=i.object_id"),
+ record('s_client_reminder_jobs',['id','matter_id','authorization_id','template_id','recipient','bill_id','appointment_id','source_revision','due_at','status','attempt_id'],'x.matter_id','x.template_id',"i.action LIKE 'client_reminder.%' AND x.id=i.object_id"),
  record('s_correspondence',['id','matter_id','recipient','bill_id','bill_digest','contact_revision','reviewed_by','reviewed_at','review_note'],'x.matter_id','x.id',"i.action='correspondence.reviewed' AND x.id=i.object_id"),
  record('s_correspondence_attempts',['id','correspondence_id','decision_by','decision_at','decision_note','contact_revision','status','provider','provider_id','detail','attempted_at'],'(SELECT matter_id FROM s_correspondence WHERE id=x.correspondence_id)','x.id',"i.action LIKE 'correspondence.%' AND x.id=i.object_id"),
  record('s_health_setup',['matter_id','authorization_reference','agreement_reference','reviewed_by','reviewed_at'],'x.matter_id','x.reviewed_at',"i.action='chronology.health_setup' AND x.matter_id=i.object_id"),

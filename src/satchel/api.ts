@@ -1,3 +1,4 @@
+import {clientReminderState,approveClientReminderTemplate,authorizeClientReminders,scheduleClientReminder} from './client-reminders';
 import {correspondenceState,reviewCorrespondence,sendCorrespondence,resendCorrespondence,reconcileCorrespondence} from './correspondence';
 import {chronologyState,configureHealth,importChronology,publishChronology} from './document-chronologies';
 import {listProductions,prepareProduction,productionAction,productionFile} from './document-productions';
@@ -128,6 +129,10 @@ api.post('/api/satchel/matters/:id/assembly',as(async(a,c)=>prepareAssembly(db(c
 api.post('/api/satchel/assembly/revisions/:id/approve',as(async(a,c)=>approveAssembly(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/assembly/revisions/:id/preview',as((a,c)=>assemblyPreview(db(c),a,param(c),c.req.query('format')??'')));
 api.get('/api/satchel/assembly/revisions/:id/file',as((a,c)=>assemblyFile(db(c),a,param(c),c.req.query('format')??'')));
+api.get('/api/satchel/matters/:id/client-reminders',as((a,c)=>clientReminderState(db(c),a,param(c))));
+api.post('/api/satchel/client-reminder-templates',as(async(a,c)=>approveClientReminderTemplate(db(c),a,await body(c))));
+api.post('/api/satchel/matters/:id/client-reminders',as(async(a,c)=>authorizeClientReminders(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/matters/:id/client-reminders/schedule',as(async(a,c)=>scheduleClientReminder(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/matters/:id/correspondence',as((a,c)=>correspondenceState(db(c),a,param(c))));
 api.post('/api/satchel/matters/:id/correspondence',as(async(a,c)=>reviewCorrespondence(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/mail-attempts/:id/send',as((a,c)=>sendCorrespondence(runtimeBindings(c.env),a,param(c))));

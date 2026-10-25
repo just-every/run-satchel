@@ -1,3 +1,4 @@
+import {runClientReminders} from './satchel/client-reminders';
 import { withDemo } from './modules/demo/index.mjs'
 import {scheduledFees} from './satchel/fee-scheduler'
 import {recoverIntakeUploads} from './satchel/intake-files'
@@ -28,7 +29,7 @@ function noTransform(response: Response): Response {
 }
 
 export default withDemo({
-  async scheduled(controller,env) { await Promise.all([scheduledFees(runtimeBindings(env).DB,controller.scheduledTime),dispatchWebhooks(runtimeBindings(env)),runReminders(runtimeBindings(env),controller.scheduledTime),runFollowups(runtimeBindings(env),controller.scheduledTime),runReportSchedules(runtimeBindings(env),controller.scheduledTime),purgeIntakeSecurity(runtimeBindings(env).DB,new Date(controller.scheduledTime).toISOString()),recoverIntakeUploads(runtimeBindings(env),new Date(controller.scheduledTime).toISOString())]) },
+  async scheduled(controller,env) { await Promise.all([runClientReminders(runtimeBindings(env),controller.scheduledTime),scheduledFees(runtimeBindings(env).DB,controller.scheduledTime),dispatchWebhooks(runtimeBindings(env)),runReminders(runtimeBindings(env),controller.scheduledTime),runFollowups(runtimeBindings(env),controller.scheduledTime),runReportSchedules(runtimeBindings(env),controller.scheduledTime),purgeIntakeSecurity(runtimeBindings(env).DB,new Date(controller.scheduledTime).toISOString()),recoverIntakeUploads(runtimeBindings(env),new Date(controller.scheduledTime).toISOString())]) },
   async fetch(request, env, execution) {
     const asset = await staticAssetResponse(request, env)
     if (asset) return asset

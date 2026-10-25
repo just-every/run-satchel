@@ -60,3 +60,31 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`Reviewed letter and in
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);assert.deepEqual(await page.evaluate(()=>[...document.querySelectorAll('button,a[href],[role=button]')].filter(e=>!e.textContent.trim()&&!e.querySelector('input,img[alt]')).map(e=>e.outerHTML.slice(0,200))),[]);assert.deepEqual(errors,[]);
  }finally{await browser.close();await h.close();}
 });
+
+for(const [width,height] of [[1440,1000],[390,844]])test(`Scheduled client reminders show approved template versions and durable outcomes at ${width}px`,async()=>{
+ const h=await harness(),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});
+ try{
+  await h.json('/providers/mail/review',{termsUrl:'https://resend.com/legal/terms-of-service',confirmed:true},h.owner);
+  const m=await open(h,'Client reminder journey','Reminder Client','Reminder Adverse'),base='/matters/'+m.id;
+  await h.json('/team',{email:'client@example.test',name:'Casey Client',role:'client'},h.owner);await h.json(base+'/portal',{email:'client@example.test',reason:'Reviewed portal authority'},h.owner);
+  let graph=await h.json('/contacts',undefined,h.owner);const contact=graph.contacts.find(c=>c.name==='Reminder Client');
+  await h.json('/contacts',{id:contact.id,revision:graph.revision,kind:'person',name:contact.name,emails:['client@example.test']},h.owner);graph=await h.json('/contacts',undefined,h.owner);
+  await h.json('/contacts/'+contact.id+'/consent',{revision:graph.revision,channel:'email',decision:'allowed',evidenceDate:'2026-10-20',source:'Synthetic affirmative reminder consent'},h.owner);
+  await h.json(base+'/stage-profile',{revision:null,lawyerEmail:'owner@example.test'},h.owner);
+  const invoice=await h.json('/client-reminder-templates',{kind:'invoice',confirmed:true,reason:'Counsel approves exact invoice sign-in notice'},h.owner),appointment=await h.json('/client-reminder-templates',{kind:'appointment',confirmed:true,reason:'Counsel approves exact appointment sign-in notice'},h.owner);
+  await h.json(base+'/client-reminders',{enabled:true,invoiceTemplate:invoice.id,appointmentTemplate:appointment.id,maxContacts:3,reason:'Responsible counsel opts in this matter'},h.owner);
+  await h.json('/invoice-numbering',scheme(),h.owner);const bill=await reviewed(h,m,await draft(h,m));await h.json('/invoices/issue',{bills:[{id:bill.id,revision:bill.revision}]},h.owner);
+  const event=await h.json(base+'/appointments',{title:'Private appointment',date:'2026-11-05',time:'10:00',durationMinutes:45,timezone:'UTC',frequency:'once',interval:1,occurrences:1,attendees:['owner@example.test']},h.owner);
+  for(const source of [{billId:bill.id},{appointmentId:event.id}])await h.json(base+'/client-reminders/schedule',{recipient:'client@example.test',dueAt:'2026-11-01T12:00:00.000Z',...source},h.owner);
+  await h.restart();await h.scheduled('2026-11-01T12:01:00.000Z');
+  const page=await(await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true})).newPage(),errors=[];page.setDefaultTimeout(15000);page.on('pageerror',e=>errors.push(String(e)));
+  await page.goto(h.origin+'/signin');await page.getByLabel('Email',{exact:true}).fill('owner@example.test');await page.getByRole('button',{name:'Email a sign-in link'}).click();await page.getByText('a sign-in link is on its way').waitFor();
+  const mail=h.mails.toReversed().find(m=>m.to.includes('owner@example.test')&&/auth\/confirm/.test(m.text??m.html)),link=(mail.text??mail.html).match(/https:\/\/[^\s"<]+\/auth\/confirm\?token=[^\s"&<]+/)[0];await page.goto(link);await page.getByRole('button',{name:'Confirm',exact:true}).click();await page.waitForURL(/\/setup/);await page.getByLabel('Your name').fill('Avery Barton');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup'}).click();await page.waitForURL(/\/app/);
+  await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Matters',exact:true}).click();const panel=page.getByRole('region',{name:'Reviewed email'});await panel.waitFor();
+  for(const t of [invoice,appointment]){const message=panel.getByRole('article',{name:'Email '+t.subject});await message.getByText('Attempt 1 · accepted',{exact:true}).waitFor();await message.getByText('Decision by owner@example.test: Approved template version '+t.id,{exact:true}).waitFor();}
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);
+  assert.deepEqual(await panel.locator('button,a[href],[role=button]').evaluateAll(elements=>elements.filter(e=>!e.textContent.trim()).map(e=>e.outerHTML)),[],'Every control in this populated screen has a visible text label');
+  if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,panel,process.env.SATCHEL_SCREENSHOTS,'client-reminders-'+width);
+  assert.deepEqual(errors,[]);
+ }finally{await browser.close();await h.close();}
+});

@@ -1,3 +1,4 @@
+import {reminderSendGuards} from './client-reminders';
 import type {Bindings} from '../auth.server';
 import {operatorMail} from '../mail.server.mjs';
 import {atomic,audit,human,id,insist,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
@@ -9,7 +10,7 @@ import {requireProviderReview} from './providers';
 
 function counsel(actor:Actor){human(actor);need(actor,'owner','lawyer');}
 const nextAction=(status:string)=>status==='ready'?'Send this exact reviewed message':status==='delivered'?'Delivery reported by the provider; no resend needed':status==='accepted'?'Await provider delivery outcome; acceptance is not delivery':status==='development'?'Development output only; configure the firm provider':status==='bounced'||status==='complained'?'Contact the recipient through an authorized channel; review consent before any new decision':'Check the provider before deciding whether to resend. No automatic resend.';
-async function eligible(db:D1Database,actor:Actor,m:Data){
+export async function eligible(db:D1Database,actor:Actor,m:Data){
  counsel(actor);await matter(db,actor,m.matter_id);await requireProviderReview(db,'mail');
  const data=await contactData(db),graph=contactGraph(data),contacts=graph.contacts.filter(c=>c.emails.some(e=>e.toLowerCase()===m.recipient));
  insist(contacts.length===1&&contacts[0].effectiveConsent.email==='allowed','Record explicit email consent for every merged identity; a merge supplies no consent',409);
@@ -19,7 +20,7 @@ async function eligible(db:D1Database,actor:Actor,m:Data){
  if(m.bill_id)insist(await stmt(db,"SELECT 1 FROM s_invoice_issues i JOIN s_bills b ON b.id=i.bill_id WHERE i.bill_id=? AND b.matter_id=? AND b.status<>'void' AND i.pdf_digest=?",m.bill_id,m.matter_id,m.bill_digest).first(),'Select an existing issued invoice that has not been voided',409);
  return data.revision;
 }
-function fences(db:D1Database,actor:Actor,m:Data,revision:number){return [accessGuard(db,actor,m.matter_id),...contactRevisionGuard(db,revision),guard(db,portalAccess('?',m.bill_id?portalKinds:readerKinds),m.recipient,m.matter_id),...(m.bill_id?[guard(db,"EXISTS(SELECT 1 FROM s_bills b JOIN s_invoice_issues i ON i.bill_id=b.id WHERE b.id=? AND b.status<>'void' AND i.pdf_digest=?)",m.bill_id,m.bill_digest)]:[])];}
+export function fences(db:D1Database,actor:Actor,m:Data,revision:number){return [accessGuard(db,actor,m.matter_id),...contactRevisionGuard(db,revision),guard(db,portalAccess('?',m.bill_id?portalKinds:readerKinds),m.recipient,m.matter_id),...(m.bill_id?[guard(db,"EXISTS(SELECT 1 FROM s_bills b JOIN s_invoice_issues i ON i.bill_id=b.id WHERE b.id=? AND b.status<>'void' AND i.pdf_digest=?)",m.bill_id,m.bill_digest)]:[])];}
 export async function correspondenceState(db:D1Database,actor:Actor,matterId:string){
  counsel(actor);await matter(db,actor,matterId);
  const messages=await rows(db,'SELECT * FROM s_correspondence WHERE matter_id=? ORDER BY reviewed_at,id',matterId);
@@ -42,17 +43,17 @@ export async function reviewCorrespondence(db:D1Database,actor:Actor,matterId:st
  await atomic(db,actor,[...fences(db,actor,m,revision),stmt(db,'INSERT INTO s_correspondence VALUES(?,?,?,?,?,?,?,?,?,?,?)',m.id,matterId,m.recipient,m.subject,m.body,billId,m.bill_digest,revision,actor.email,at,note),stmt(db,'INSERT INTO s_correspondence_attempts(id,correspondence_id,decision_by,decision_at,decision_note,contact_revision) VALUES(?,?,?,?,?,?)',attempt,m.id,actor.email,at,note,revision),audit(db,actor,'correspondence.reviewed',m.id,JSON.stringify({recipient:m.recipient,billId,attempt}),{matterId})]);
  return {id:m.id,attemptId:attempt};
 }
-async function load(db:D1Database,actor:Actor,attemptId:string){counsel(actor);const a=await stmt(db,'SELECT a.*,m.matter_id,m.recipient,m.subject,m.body,m.bill_id,m.bill_digest FROM s_correspondence_attempts a JOIN s_correspondence m ON m.id=a.correspondence_id WHERE a.id=?',attemptId).first<Data>();insist(a,'Mail attempt not found',404);await matter(db,actor,a.matter_id);return a;}
-export async function sendCorrespondence(env:Bindings,actor:Actor,attemptId:string){
+async function load(db:D1Database,actor:Actor,attemptId:string){counsel(actor);const a=await stmt(db,'SELECT a.*,m.matter_id,m.recipient,m.subject,m.body,m.bill_id,m.bill_digest,(SELECT template_id FROM s_client_reminder_jobs WHERE correspondence_id=m.id) template_version FROM s_correspondence_attempts a JOIN s_correspondence m ON m.id=a.correspondence_id WHERE a.id=?',attemptId).first<Data>();insist(a,'Mail attempt not found',404);await matter(db,actor,a.matter_id);return a;}
+export async function sendCorrespondence(env:Bindings,actor:Actor,attemptId:string,atMs=Date.now()){
  const db=env.DB,a=await load(db,actor,attemptId);
  if(a.status!=='ready')return correspondenceState(db,actor,a.matter_id);
  const revision=await eligible(db,actor,a);insist(revision===a.contact_revision,'Contact authority changed; make a fresh review decision',409);
  const mail=operatorMail(env);insist(mail&&env.MAIL_FROM,'Configure the firm mail provider and sender; nothing was sent',409);
- const at=now();
- await atomic(db,actor,[...fences(db,actor,a,revision),guard(db,"EXISTS(SELECT 1 FROM s_correspondence_attempts WHERE id=? AND status='ready')",a.id),stmt(db,"UPDATE s_correspondence_attempts SET status='sending',provider=?,attempted_at=? WHERE id=?",env.MAIL_PROVIDER??'unconfigured',at,a.id),audit(db,actor,'correspondence.send_started',a.id,'One durable attempt claimed before contacting the provider',{matterId:a.matter_id})]);
+ const at=new Date(atMs).toISOString(),reminderGuards=await reminderSendGuards(db,actor,a,atMs);
+ await atomic(db,actor,[...fences(db,actor,a,revision),...reminderGuards,guard(db,"EXISTS(SELECT 1 FROM s_correspondence_attempts WHERE id=? AND status='ready')",a.id),stmt(db,"UPDATE s_correspondence_attempts SET status='sending',provider=?,attempted_at=? WHERE id=?",env.MAIL_PROVIDER??'unconfigured',at,a.id),audit(db,actor,'correspondence.send_started',a.id,JSON.stringify({decision:'One durable attempt claimed before contacting the provider',templateVersion:a.template_version??null}),{matterId:a.matter_id})]);
  let status='uncertain',provider=env.MAIL_PROVIDER??'unconfigured',providerId:string|null=null,detail='Provider acknowledgment was lost. No automatic resend.';
- try{const r=await mail.send({deliveryId:a.id,from:env.MAIL_FROM,to:[a.recipient],subject:a.subject,text:a.body+(a.bill_id?' '+env.AUTH_ORIGIN+'/app':''),html:'',headers:{}});provider=r.provider;providerId=r.providerMessageId??null;status=r.status==='accepted'?'accepted':r.status==='development'?'development':r.status==='uncertain'?'uncertain':'failed';detail=status==='accepted'?'Provider accepted; mailbox delivery is unconfirmed.':status==='uncertain'?'Provider acknowledgment is uncertain. No automatic resend.':status==='development'?'Development output only; no provider delivery.':'Provider refused this attempt. Review before any new decision.';}catch{}
- await db.batch([stmt(db,"UPDATE s_correspondence_attempts SET status=?,provider=?,provider_id=?,detail=? WHERE id=? AND status='sending'",status,provider,providerId,detail,a.id),audit(db,actor,'correspondence.send_result',a.id,JSON.stringify({status,provider,providerId}),{matterId:a.matter_id})]);
+ try{const r=await mail.send({deliveryId:a.id,from:env.MAIL_FROM,to:[a.recipient],subject:a.subject,text:a.body+(a.bill_id||a.template_version?' '+env.AUTH_ORIGIN+'/app':''),html:'',headers:{}});provider=r.provider;providerId=r.providerMessageId??null;status=r.status==='accepted'?'accepted':r.status==='development'?'development':r.status==='uncertain'?'uncertain':'failed';detail=status==='accepted'?'Provider accepted; mailbox delivery is unconfirmed.':status==='uncertain'?'Provider acknowledgment is uncertain. No automatic resend.':status==='development'?'Development output only; no provider delivery.':'Provider refused this attempt. Review before any new decision.';}catch{}
+ await db.batch([stmt(db,"UPDATE s_correspondence_attempts SET status=?,provider=?,provider_id=?,detail=? WHERE id=? AND status='sending'",status,provider,providerId,detail,a.id),audit(db,actor,'correspondence.send_result',a.id,JSON.stringify({status,provider,providerId,templateVersion:(await stmt(db,'SELECT template_id FROM s_client_reminder_jobs WHERE correspondence_id=?',a.correspondence_id).first<Data>())?.template_id??null}),{matterId:a.matter_id})]);
  return correspondenceState(db,actor,a.matter_id);
 }
 export async function resendCorrespondence(db:D1Database,actor:Actor,attemptId:string,b:Data){
