@@ -87,7 +87,10 @@
     "0089_report_schedules.sql",
     "0090_dependency_keys_sealed.sql",
     "0090_document_productions.sql",
-    "0091_document_chronologies.sql"
+    "0091_document_chronologies.sql",
+    "0092_saved_reports.sql",
+    "0093_request_reminders.sql",
+    "0094_correspondence.sql"
   ],
   "breaking": false,
   "agentUpdateInstructions": "Read CONTRACT.md and OPERATIONS.md before configuring the installation. Preserve the existing archive identity and keep applied migration bytes unchanged."
