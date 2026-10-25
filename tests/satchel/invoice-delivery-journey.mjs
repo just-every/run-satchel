@@ -3,7 +3,7 @@ import {invoiceLogo} from './invoice-delivery-fixture.mjs';
 import {capturePanel} from './browser-shots.mjs';
 
 // Extend the existing reviewed-invoice provider journey; callers own its signed-in page and fixture.
-export async function invoiceDeliveryJourney({page,h,m,bill,width}){
+export async function invoiceDeliveryJourney({page,h,m,bill,deliveryEdge,width}){
  const navigation=page.getByRole('navigation',{name:'Workspace'});
  await navigation.getByRole('button',{name:'Firm',exact:true}).click();
  const templates=page.getByRole('region',{name:'Invoice templates'});await templates.waitFor();
@@ -26,6 +26,11 @@ export async function invoiceDeliveryJourney({page,h,m,bill,width}){
  await delivery.getByRole('link',{name:/Payer statement · client@example.test/}).waitFor();
  const file=await h.request((await record.getByRole('link',{name:'Download delivered PDF'}).getAttribute('href')),undefined,h.owner);assert.equal(file.status,200);assert.equal(file.headers.get('content-type'),'application/pdf');
  if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,article,process.env.SATCHEL_SCREENSHOTS,'invoice-delivery-'+width);
+ const delivered=(await h.json('/matters/'+m.id+'/invoice-deliveries',undefined,h.owner)).deliveries.find(d=>d.bill_id===bill.id);
+ await deliveryEdge.bounce(h,delivered.attempts.at(-1));await page.reload();await navigation.getByRole('button',{name:'Time & bills',exact:true}).click();await openDelivery();await record.getByText('Provider bounced',{exact:false}).waitFor();
+ if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,record,process.env.SATCHEL_SCREENSHOTS,'invoice-bounced-'+width);
+ await record.getByLabel('Sending authority and provider check',{exact:true}).fill('Counsel inspected the bounce, rechecked consent and authorizes exactly one further attempt.');await record.getByLabel('I checked the prior outcome and authorize exactly one notification').check();await record.getByRole('button',{name:'Authorize one resend',exact:true}).click();await page.getByRole('status').getByText('One notification authorized',{exact:true}).waitFor();await openDelivery();deliveryEdge.uncertain(true);await record.getByRole('button',{name:'Send authorized sign-in notification',exact:true}).click();await page.getByRole('status').getByText('Notification attempt recorded',{exact:true}).waitFor();await openDelivery();await record.getByText('Provider acknowledgment is uncertain.',{exact:false}).waitFor();assert.equal(await record.getByRole('button',{name:'Send authorized sign-in notification',exact:true}).count(),0);
+ if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,record,process.env.SATCHEL_SCREENSHOTS,'invoice-uncertain-'+width);deliveryEdge.uncertain(false);
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0,'Invoice delivery fits the viewport');
  assert.deepEqual(await delivery.locator('button,a[href],[role=button]').evaluateAll(elements=>elements.filter(e=>!e.textContent.trim()).map(e=>e.outerHTML)),[]);
 }

@@ -265,6 +265,7 @@ test('Reviewed invoice delivery retains branded payer artifacts, verifies provid
   const clientDelivery=await make('client@example.test','Synthetic Satchel Client'),insurerDelivery=await make('insurer@example.test','Synthetic Satchel Insurer');
   const client=await h.login('client@example.test'),insurer=await h.login('insurer@example.test');
   const download=async(delivery,cookie=h.owner)=>{const r=await h.request('/api/satchel/invoice-deliveries/'+delivery.id+'/pdf',undefined,cookie);assert.equal(r.status,200,await r.clone().text());assert.equal(r.headers.get('cache-control'),'no-store');return Buffer.from(await r.arrayBuffer());};
+  const portalInvoices=await h.json('/portal/matters/'+m.id+'/invoices',undefined,client);assert.equal(portalInvoices.invoices.find(i=>i.id===bill.id).pdfUrl,'/api/satchel/invoice-deliveries/'+clientDelivery.id+'/pdf');
   const delivered=await download(clientDelivery,client),text=await pdfText(delivered),pdf=await PDFDocument.load(delivered);
   for(const value of ['Synthetic Satchel Counsel','100 Example Street','Remit to Synthetic Satchel Counsel','Due within 30 days','Matter trust balance USD 0.00',issued.number,'Confidential privileged services'])assert.ok(text.includes(value),value);
   assert.equal(hash(delivered),clientDelivery.pdfDigest);assert.ok(pdf.getPage(0).node.Resources().lookup(PDFName.of('XObject'),PDFDict).keys().length>0);

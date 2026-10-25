@@ -7,7 +7,7 @@ import {promisify} from 'node:util';
 import assert from 'node:assert/strict';
 import {paymentFixture} from './stripe-fixture.mjs';
 import {capturePanel} from './browser-shots.mjs';
-export async function stripeBrowser({page,browser,h,edge,width}){
+export async function stripeBrowser({page,browser,h,edge,deliveryEdge,width}){
  const s=await paymentFixture(h);
  await page.reload();await page.getByRole('navigation',{name:'Workspace'}).waitFor();
  await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Team & safety',exact:true}).click();
@@ -36,7 +36,10 @@ export async function stripeBrowser({page,browser,h,edge,width}){
  await h.json('/contacts',{id:contact.id,revision:graph.revision,kind:'person',name:contact.name,emails:['client@example.test']},h.owner);graph=await h.json('/contacts',undefined,h.owner);
  await h.json('/contacts/'+contact.id+'/consent',{revision:graph.revision,channel:'email',decision:'allowed',evidenceDate:'2026-10-20',source:'Synthetic affirmative invoice notification consent'},h.owner);
  await page.goto(h.origin+'/app');await page.getByRole('navigation',{name:'Workspace'}).waitFor();
- await invoiceDeliveryJourney({page,h,m:s.m,bill:s.card,width});
+ await invoiceDeliveryJourney({page,h,m:s.m,bill:s.card,deliveryEdge,width});
+ const portalContext=await browser.newContext({viewport:page.viewportSize(),ignoreHTTPSErrors:true});
+ await portalContext.addCookies(s.client.split('; ').map(c=>{const i=c.indexOf('=');return {name:c.slice(0,i),value:c.slice(i+1),url:h.origin,secure:true};}));
+ try{const portal=await portalContext.newPage();await portal.goto(h.origin+'/app');const statements=portal.getByRole('region',{name:'Payer statements'});await statements.getByRole('link',{name:/Statement/}).waitFor();await statements.scrollIntoViewIfNeeded();if(process.env.SATCHEL_SCREENSHOTS)await portal.screenshot({path:process.env.SATCHEL_SCREENSHOTS+'/client-payer-statements-'+width+'.png'});const url=await statements.getByRole('link',{name:/Statement/}).getAttribute('href');assert.equal((await portal.request.get(h.origin+url)).status(),200);assert.equal(await portal.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);}finally{await portalContext.close();}
  if(width===1440&&process.platform==='darwin'){
   const delivered=(await h.json('/matters/'+s.m.id+'/invoice-deliveries',undefined,h.owner)).deliveries.find(d=>d.bill_id===s.card.id),bytes=await(await h.request(delivered.pdfUrl,undefined,h.owner)).arrayBuffer(),directory=await mkdtemp(join(tmpdir(),'satchel-qr-'));
   try{const filename=join(directory,'invoice.pdf');await writeFile(filename,Buffer.from(bytes));await promisify(execFile)('swift',['tests/satchel/invoice-qr-scan.swift',filename,h.origin+'/app/invoices/'+s.card.id+'/pay'],{timeout:60000});}finally{await rm(directory,{recursive:true,force:true});}

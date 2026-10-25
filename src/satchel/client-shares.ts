@@ -74,8 +74,8 @@ export async function portalFile(db:D1Database,actor:Actor,shareId:string) {
 // A payer's door: issued invoices for the matter and nothing else. Clients and co-clients see the same list; delegates do not.
 export async function portalInvoices(db:D1Database,actor:Actor,matterId:string) {
  human(actor);need(actor,'client');insist(await stmt(db,`SELECT ${portalAccess('?',['client','co_client','payer'])} ok`,actor.email,matterId).first<Data>().then(r=>r?.ok),'Matter not found',404);
- const list=await rows(db,"SELECT b.id,i.number,i.issued_at,b.status,json_extract(b.snapshot,'$.totalCents') total FROM s_invoice_issues i JOIN s_bills b ON b.id=i.bill_id WHERE b.matter_id=? AND b.status<>'void' ORDER BY i.issued_at,i.number",matterId);
- return {matterId,invoices:list.map(b=>({id:b.id,number:b.number,issuedAt:b.issued_at,totalCents:b.total,status:b.status,pdfUrl:'/api/satchel/portal/invoices/'+b.id+'/pdf'}))};
+ const list=await rows(db,"SELECT b.id,i.number,i.issued_at,b.status,json_extract(COALESCE(t.snapshot,b.snapshot),'$.totalCents') total,(SELECT d.id FROM s_invoice_deliveries d WHERE d.bill_id=b.id AND d.recipient=? ORDER BY d.created_at DESC,d.id DESC LIMIT 1) delivery_id FROM s_invoice_issues i JOIN s_bills b ON b.id=i.bill_id LEFT JOIN s_bill_tax_approvals t ON t.bill_id=b.id WHERE b.matter_id=? AND b.status<>'void' ORDER BY i.issued_at,i.number",actor.email,matterId);
+ return {matterId,invoices:list.map(b=>({id:b.id,number:b.number,issuedAt:b.issued_at,totalCents:b.total,status:b.status,pdfUrl:b.delivery_id?'/api/satchel/invoice-deliveries/'+b.delivery_id+'/pdf':'/api/satchel/portal/invoices/'+b.id+'/pdf'}))};
 }
 export async function portalInvoicePdf(db:D1Database,actor:Actor,billId:string) {
  human(actor);need(actor,'client');
