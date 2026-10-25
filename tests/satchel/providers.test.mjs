@@ -27,7 +27,7 @@ test('provider charges: every provider bills the firm directly, review of its te
  }finally{await h.close();}
 });
 
-import {scheme,draft,reviewed} from './invoice-numbering-fixture.mjs';
+import {scheme,draft,reviewed as approvedInvoice} from './invoice-numbering-fixture.mjs';
 async function mailSetup(h){
  const m=await open(h,'Reviewed client mail','Mail Client','Mail Adverse'),base='/matters/'+m.id;
  for(const [email,role] of [['client@example.test','client'],['lawyer@example.test','lawyer'],['assistant@example.test','assistant']]){await h.json('/team',{email,role,name:role},h.owner);await h.json('/team/invite',{email},h.owner);}
@@ -64,33 +64,63 @@ test('Reviewed correspondence sends once, reconciles provider bounce and complai
   const n=h.mails.length;await h.restart();await h.scheduled('2026-11-01T12:00:00Z');await h.json(uncertainSend,{},lawyer);assert.equal(h.mails.length,n);state=await h.json(base+'/correspondence',undefined,lawyer);assert.equal(state.messages.find(m=>m.id===uncertain.id).attempts.length,1);
   await h.json('/mail-attempts/'+uncertain.attemptId+'/resend-review',{reason:''},lawyer,400);
   const retry=await h.json('/mail-attempts/'+uncertain.attemptId+'/resend-review',{reason:'Provider inspected; counsel accepts duplicate-delivery risk and authorizes another attempt'},lawyer);
-  lost=false;state=await h.json('/mail-attempts/'+retry.attemptId+'/send',{},lawyer);u=state.messages.find(m=>m.id===uncertain.id);assert.equal(u.attempts.length,2);assert.equal(u.attempts.filter(a=>a.status==='uncertain').length,1);assert.equal(u.attempts.filter(a=>a.status==='accepted').length,1);assert.notEqual(u.attempts[0].id,u.attempts[1].id);
+  lost=false;state=await h.json('/mail-attempts/'+retry.attemptId+'/send',{},lawyer);u=state.messages.find(m=>m.id===uncertain.id);assert.equal(u.attempts.length,2);assert.equal(u.attempts.filter(a=>a.status==='uncertain').length,1);assert.equal(u.attempts.filter(a=>a.status==='accepted').length,1);assert.notEqual(u.attempts[0].id,u.attempts[1].id);assert.equal(h.mails.length,n+1,'A new audited decision sends once');await h.json('/mail-attempts/'+retry.attemptId+'/send',{},lawyer);assert.equal(h.mails.length,n+1);
   outcome='delivered';state=await h.json('/mail-attempts/'+retry.attemptId+'/reconcile',{},lawyer);assert.equal(state.messages.find(m=>m.id===uncertain.id).attempts.find(a=>a.id===retry.attemptId).outcome,'delivered');
-  await h.json('/invoice-numbering',scheme(),h.owner);const bill=await reviewed(h,m,await draft(h,m));await h.json('/invoices/issue',{bills:[{id:bill.id,revision:bill.revision}]},h.owner);
-  await h.json(base+'/correspondence',{...letter,billId:'unissued'},lawyer,409);
-  const invoice=await h.json(base+'/correspondence',{...letter,billId:bill.id},lawyer);await h.json('/mail-attempts/'+invoice.attemptId+'/send',{},lawyer);
-  const notification=h.mails.at(-1);assert.equal(notification.subject,'An invoice is available');assert.match(notification.text,/secure portal/);assert.ok(notification.text.includes(h.origin+'/app'));assert.ok(!notification.text.includes(m.title)&&!notification.text.includes('375.00'));assert.equal(notification.attachments,undefined);
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(archive.includes('s_correspondence_events'));assert.ok(archive.includes(letter.body));
   const audit=await h.json('/audit?matterId='+m.id+'&action=correspondence.resend_reviewed',undefined,h.owner);assert.equal(audit.records.length,1);
  }finally{await h.close();}
 });
-test('Correspondence rechecks consent, merged identities, matter access and recipient revocation at review and send',async()=>{
+test('Correspondence requires affirmative consent on every merged identity before sending',async()=>{
+ const h=await harness();try{
+  const {base,lawyer,contact,consent}=await mailSetup(h);
+  await h.json('/providers/mail/review',{termsUrl:'https://resend.com/legal/terms-of-service',confirmed:true},h.owner);
+  const count=h.mails.length;await h.json(base+'/correspondence',letter,lawyer,409);await consent(contact.id,'allowed');
+  const graph=await h.json('/contacts',undefined,h.owner),duplicate=await h.json('/contacts',{revision:graph.revision,kind:'person',name:'Mail duplicate',emails:['duplicate@example.test']},h.owner);
+  const preview=await h.json('/contacts/merge-preview',{survivorId:contact.id,duplicateId:duplicate.id,reason:'Reviewed same identity'},h.owner);await h.json('/contacts/merge',{previewId:preview.id},h.owner);
+  await h.json(base+'/correspondence',letter,lawyer,409);await consent(duplicate.id,'denied');await h.json(base+'/correspondence',letter,lawyer,409);
+  assert.equal(h.mails.length,count,'One unknown or denied merged identity prevents any provider submission');
+  await consent(duplicate.id,'allowed');const fresh=await h.json(base+'/correspondence',letter,lawyer);
+  await h.json('/mail-attempts/'+fresh.attemptId+'/send',{},lawyer);assert.equal(h.mails.length,count+1,'All merged identities consented permits one send');
+ }finally{await h.close();}
+});
+test('Correspondence rechecks portal authority, counsel permission and matter access at send',async()=>{
  const h=await harness();try{
   const {base,lawyer,assistant,contact,consent}=await mailSetup(h);
   await h.json('/providers/mail/review',{termsUrl:'https://resend.com/legal/terms-of-service',confirmed:true},h.owner);await consent(contact.id,'allowed');
   const first=await h.json(base+'/correspondence',letter,lawyer),count=h.mails.length;
-  await consent(contact.id,'denied');await h.json('/mail-attempts/'+first.attemptId+'/send',{},lawyer,409);await h.json(base+'/correspondence',letter,lawyer,409);assert.equal(h.mails.length,count);
-  await consent(contact.id,'allowed');await h.json('/mail-attempts/'+first.attemptId+'/send',{},lawyer,409);
+  await h.json('/mail-attempts/'+first.attemptId+'/send',{},lawyer);assert.equal(h.mails.length,count+1,'Current portal authority permits a send');
   const second=await h.json(base+'/correspondence',letter,lawyer);
+  await h.json('/mail-attempts/'+second.attemptId+'/send',{},assistant,403);
   await h.json(base+'/access',{email:'lawyer@example.test',remove:true},h.owner);await h.json(base+'/correspondence',undefined,lawyer,404);await h.json('/mail-attempts/'+second.attemptId+'/send',{},lawyer,404);await h.json(base+'/access',{email:'lawyer@example.test'},h.owner);
-  let grants=await h.json(base+'/portal',undefined,h.owner);await h.json('/portal-grants/'+grants.grants.find(g=>!g.revokedAt).id+'/revoke',{reason:'Client authority withdrawn'},h.owner);await h.json('/mail-attempts/'+second.attemptId+'/send',{},lawyer,409);await h.json(base+'/correspondence',letter,lawyer,409);
-  await h.json(base+'/portal',{email:letter.recipient,reason:'Fresh grant'},h.owner);
-  const graph=await h.json('/contacts',undefined,h.owner),duplicate=await h.json('/contacts',{revision:graph.revision,kind:'person',name:'Mail duplicate',emails:['duplicate@example.test']},h.owner);
-  let preview=await h.json('/contacts/merge-preview',{survivorId:contact.id,duplicateId:duplicate.id,reason:'Reviewed same identity'},h.owner);await h.json('/contacts/merge',{previewId:preview.id},h.owner);
-  await h.json(base+'/correspondence',letter,lawyer,409);await consent(duplicate.id,'denied');await h.json(base+'/correspondence',letter,lawyer,409);await consent(duplicate.id,'allowed');const fresh=await h.json(base+'/correspondence',letter,lawyer);
-  await h.json('/mail-attempts/'+fresh.attemptId+'/send',{},assistant,403);
+  const grants=await h.json(base+'/portal',undefined,h.owner);await h.json('/portal-grants/'+grants.grants.find(g=>!g.revokedAt).id+'/revoke',{reason:'Client authority withdrawn'},h.owner);await h.json('/mail-attempts/'+second.attemptId+'/send',{},lawyer,409);await h.json(base+'/correspondence',letter,lawyer,409);
+  await h.json(base+'/portal',{email:letter.recipient,reason:'Fresh grant'},h.owner);const fresh=await h.json(base+'/correspondence',letter,lawyer);
   await h.json(base+'/wall',{reason:'Confidential client matter',custodianEmail:'owner@example.test',members:['owner@example.test'],revision:null},h.owner);
   await h.json('/mail-attempts/'+fresh.attemptId+'/send',{},lawyer,404);await h.json(base+'/correspondence',letter,h.owner,409);
-  assert.equal(h.mails.length,count,'Every refused action sends nothing');
+  assert.equal(h.mails.length,count+1,'Every refused action sends nothing');
+ }finally{await h.close();}
+});
+test('Correspondence sends plain text without attachments and issued invoice notices disclose only sign-in instructions',async()=>{
+ const h=await harness();try{
+  const {m,base,lawyer,contact,consent}=await mailSetup(h);
+  await h.json('/providers/mail/review',{termsUrl:'https://resend.com/legal/terms-of-service',confirmed:true},h.owner);await consent(contact.id,'allowed');
+  const reviewed=await h.json(base+'/correspondence',{...letter,html:'<b>Unreviewed markup</b>',attachments:[{filename:'private.txt',content:'private bytes'}]},lawyer);
+  await h.json('/mail-attempts/'+reviewed.attemptId+'/send',{},lawyer);
+  const payload=h.mails.at(-1);assert.equal(payload.text,letter.body);assert.equal(payload.html,'');assert.equal(payload.attachments,undefined);assert.ok(!JSON.stringify(payload).includes('private bytes'));
+  await h.json('/invoice-numbering',scheme(),h.owner);const bill=await approvedInvoice(h,m,await draft(h,m));
+  const count=h.mails.length;await h.json(base+'/correspondence',{...letter,billId:bill.id},lawyer,409);assert.equal(h.mails.length,count,'An approved but unissued invoice sends no notice');
+  await h.json('/invoices/issue',{bills:[{id:bill.id,revision:bill.revision}]},h.owner);
+  await h.json(base+'/correspondence',{...letter,billId:'unissued'},lawyer,409);
+  const invoice=await h.json(base+'/correspondence',{...letter,billId:bill.id},lawyer);await h.json('/mail-attempts/'+invoice.attemptId+'/send',{},lawyer);
+  const notification=h.mails.at(-1);assert.equal(notification.subject,'An invoice is available');assert.equal(notification.text,'An invoice is available. Sign in to the secure portal to review it. '+h.origin+'/app');assert.equal(notification.html,'');assert.equal(notification.attachments,undefined);
+  for(const forbidden of [m.title,m.client,bill.number,'375.00','37500',letter.body])if(forbidden)assert.ok(!JSON.stringify(notification).includes(forbidden),String(forbidden));
+ }finally{await h.close();}
+});
+test('Withdrawing consent blocks the next reviewed correspondence send and requires fresh review after renewed consent',async()=>{
+ const h=await harness();try{
+  const {base,lawyer,contact,consent}=await mailSetup(h);
+  await h.json('/providers/mail/review',{termsUrl:'https://resend.com/legal/terms-of-service',confirmed:true},h.owner);await consent(contact.id,'allowed');
+  const first=await h.json(base+'/correspondence',letter,lawyer),count=h.mails.length;await h.json('/mail-attempts/'+first.attemptId+'/send',{},lawyer);assert.equal(h.mails.length,count+1);
+  const next=await h.json(base+'/correspondence',letter,lawyer);await consent(contact.id,'denied');await h.json('/mail-attempts/'+next.attemptId+'/send',{},lawyer,409);await h.json(base+'/correspondence',letter,lawyer,409);assert.equal(h.mails.length,count+1,'Withdrawal stops the next send');
+  await consent(contact.id,'allowed');await h.json('/mail-attempts/'+next.attemptId+'/send',{},lawyer,409);const fresh=await h.json(base+'/correspondence',letter,lawyer);await h.json('/mail-attempts/'+fresh.attemptId+'/send',{},lawyer);assert.equal(h.mails.length,count+2,'Renewed consent needs a new exact review');
  }finally{await h.close();}
 });
