@@ -8,6 +8,7 @@ const seg='[^/]+',any='.*';
 const rule=(pattern:string,areas:string[]):[RegExp,string[]]=>[new RegExp('^'+pattern+'$'),areas];
 const open:string[]=[];
 export const areaRules:[RegExp,string[]][]=[
+ rule('/(stripe/events|providers/sendgrid/events)',open),
  rule('/(invoice-templates|invoice-notification-templates)',['billing','rates:all']),
  rule('/(matters/'+seg+'/invoice-deliveries|bills/'+seg+'/deliveries|invoice-deliveries/'+seg+'/authorize|invoice-notification-attempts/'+seg+'/send)',['billing','rates:all','contacts:read']),
  rule('/(invoice-deliveries/'+seg+'/pdf|portal/matters/'+seg+'/payer-statements|payer-statements/'+seg+'/pdf)',open),

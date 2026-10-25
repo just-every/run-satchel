@@ -3,6 +3,7 @@ import {atomic,audit,human,id,insist,integer,need,now,rows,stmt,text,type Actor,
 import {guard} from './trust-guards';
 import {invoiceQr} from './invoice-qr';
 import type {InvoiceBranding} from './invoice-pdf';
+import {requireArea} from './role-areas';
 
 export const invoiceNotification={subject:'A secure portal update',body:'Sign in to your secure portal to review an update.'};
 export async function invoiceTemplates(db:D1Database,actor:Actor){
@@ -28,11 +29,12 @@ export async function approveInvoiceNotification(db:D1Database,actor:Actor,b:Dat
  await atomic(db,actor,[stmt(db,'INSERT INTO s_invoice_notification_templates VALUES(?,?,?,?,?,?)',template,invoiceNotification.subject,invoiceNotification.body,actor.email,at,reason),audit(db,actor,'invoice.notification_approved',template,JSON.stringify({...invoiceNotification,reason}))]);return {id:template,...invoiceNotification};
 }
 // The caller may use this in the existing atomic issue renderer. No template selected means legacy PDF behavior.
-export async function buildInvoiceBranding(db:D1Database,bill:Data,origin:string,templateId?:string,payerName?:string):Promise<InvoiceBranding|undefined>{
+export async function buildInvoiceBranding(db:D1Database,bill:Data,origin:string,templateId?:string,payerName?:string,actor?:Actor):Promise<InvoiceBranding|undefined>{
  if(!templateId)return undefined;
  const template=await stmt(db,'SELECT * FROM s_invoice_templates WHERE id=?',templateId).first<Data>();insist(template,'Invoice template version not found',404);const config=JSON.parse(template.config);
+ if(config.includeTrustBalance){insist(actor,'Staff authority is required to include trust information',403);requireArea(actor,'bank','full');}
  const paymentUrl=new URL('/app/invoices/'+encodeURIComponent(bill.id)+'/pay',origin).href;invoiceQr(paymentUrl);
- const at=bill.issued_at??now(),day=new Date(at);day.setUTCDate(day.getUTCDate()+config.dueDays);
+ const at=bill.issued_at??now(),timezone=(await stmt(db,'SELECT timezone FROM s_firm WHERE id=1').first<Data>())?.timezone??'UTC',parts=new Intl.DateTimeFormat('en-US',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(at)),part=(type:string)=>parts.find(p=>p.type===type)!.value,day=new Date(part('year')+'-'+part('month')+'-'+part('day')+'T12:00:00Z');day.setUTCDate(day.getUTCDate()+config.dueDays);
  const trust=config.includeTrustBalance?await stmt(db,'SELECT COALESCE(SUM(e.cents),0) cents FROM s_trust_entries e JOIN s_trust_ledgers l ON l.id=e.ledger_id WHERE l.matter_id=?',bill.matter_id).first<Data>():null;
- return {...config,templateId:template.id,templateVersion:template.version,paymentUrl,dueDate:day.toISOString().slice(0,10),payerName:payerName??bill.snapshot.client,trustBalanceCents:trust?Number(trust.cents):null,trustAsOf:at};
+ return {...config,templateId:template.id,templateVersion:template.version,paymentUrl,dueDate:day.toISOString().slice(0,10),payerName:payerName??bill.snapshot.client,trustBalanceCents:trust?Number(trust.cents):null,trustAsOf:now()};
 }

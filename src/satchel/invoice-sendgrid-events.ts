@@ -22,7 +22,7 @@ export async function invoiceSendgridEvents(request:Request,env:InvoiceDeliveryE
  }catch{insist(false,'Invalid SendGrid event signature',401);}
  let events:Data[];try{events=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(raw));}catch{insist(false,'Invalid event JSON');}
  insist(Array.isArray(events)&&events.length<=1000,'Supply at most 1000 events');
- const writes:D1PreparedStatement[]=[],at=now(),system={email:'sendgrid',role:'system',channel:'provider'} as any;
+ const writes:D1PreparedStatement[]=[],at=now(),system={id:'sendgrid-events',email:'sendgrid',role:'system',channel:'provider'} as any;
  const outcomes:Data={processed:'processed',delivered:'delivered',bounce:'bounced',deferred:'deferred',dropped:'dropped',spamreport:'complained',unsubscribe:'unsubscribed',group_unsubscribe:'unsubscribed'};
  for(const event of events){
   if(!event||typeof event!=='object'||!outcomes[event.event])continue;

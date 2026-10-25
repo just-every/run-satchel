@@ -222,11 +222,11 @@ test('Hosted invoice collection allocates exact card and ACH funds once, preserv
   const returned=edge.event(ach,'charge.refunded','returned');await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(returned)});await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(returned)});
   invoice=await h.json(base(s.ach.id)+'/payment',undefined,s.client);assert.equal(invoice.status,'returned');assert.equal(invoice.paidCents,0);assert.equal(invoice.dueCents,37500);
   await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(paid)});assert.equal((await h.json(base(s.ach.id)+'/payment',undefined,s.client)).status,'returned');
-  await h.json('/stripe/settings',{kind:'trust',confirmed:true},h.owner,409);
+  await h.json('/stripe/settings',{kind:'trust',confirmed:true,processorAccountId:'synthetic-satchel-protected-processor'},h.owner,409);
   const source=await h.json('/matters/'+s.m.id+'/documents',{name:'Protected trust bank arrangement.txt',mime:'text/plain',contentBase64:Buffer.from('Synthetic bank confirmation: principal protected; separate operating funds bear fees and chargebacks.').toString('base64'),visibility:'matter'},h.owner);
   await h.json('/team',{email:'owner@example.test',name:'Principal trust officer',role:'trust_officer'},h.owner);
   const account=await h.json('/trust/accounts',{name:'Protected IOLTA',kind:'trust',bankReference:'synthetic-satchel-bank'},h.owner),ledger=await h.json('/trust/ledgers',{accountId:account.id,matterId:s.m.id},h.owner);
-  await h.json('/stripe/settings',{kind:'trust',confirmed:true,bankAccountId:account.id,documentId:source.id,protectionReference:'Synthetic reviewed protection agreement',principalProtected:true,feesFromOperating:true,chargebacksFromOperating:true},h.owner);
+  await h.json('/stripe/settings',{kind:'trust',confirmed:true,processorAccountId:'synthetic-satchel-protected-processor',externalBankId:'synthetic-satchel-trust-bank',bankAccountId:account.id,documentId:source.id,protectionReference:'Synthetic reviewed protection agreement',principalProtected:true,feesFromOperating:true,chargebacksFromOperating:true},h.owner);
   const trust=await h.json(base(s.ach.id)+'/checkout',{purpose:'trust',ledgerId:ledger.id,cents:10000,requestKey:'synthetic-satchel-trust'},h.owner),trustSession=[...edge.sessions.values()][2],trustEvent=edge.event(trustSession,'checkout.session.completed','paid');assert.ok(trust.id);
   await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(trustEvent)});await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(trustEvent)});
   const state=await h.json('/trust',undefined,h.owner);assert.equal(state.ledgers.find(l=>l.id===ledger.id).balance_cents,10000);assert.equal((await h.json(base(s.ach.id)+'/payment',undefined,s.client)).paidCents,0,'Trust deposits never become operating revenue');
@@ -240,12 +240,12 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
-import {PDFDocument} from 'pdf-lib';
+import {PDFDocument,PDFDict,PDFName} from 'pdf-lib';
 import {getDocument} from 'pdfjs-dist/legacy/build/pdf.mjs';
 import {invoiceTemplate,setupInvoicePayers} from './invoice-delivery-fixture.mjs';
 
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
-async function pdfText(bytes){const doc=await getDocument({data:Uint8Array.from(bytes),useSystemFonts:true}).promise;let text='';for(let i=1;i<=doc.numPages;i++)text+=(await(await doc.getPage(i)).getTextContent()).items.map(x=>x.str).join(' ')+'\n';await doc.destroy();return text;}
+async function pdfText(bytes){const loading=getDocument({data:Uint8Array.from(bytes),useSystemFonts:true}),doc=await loading.promise;let text='';for(let i=1;i<=doc.numPages;i++)text+=(await(await doc.getPage(i)).getTextContent()).items.map(x=>x.str).join(' ')+'\n';await loading.destroy();return text;}
 test('Reviewed invoice delivery retains branded payer artifacts, verifies provider outcomes and requires a new authorized attempt after failure',async()=>{
  const keys=generateKeyPairSync('ec',{namedCurve:'prime256v1'}),publicKey=keys.publicKey.export({type:'spki',format:'der'}).toString('base64'),wire=[];let uncertain=false;
  const h=await harness({bindings:{MAIL_PROVIDER:'sendgrid',SENDGRID_EVENT_PUBLIC_KEY:publicKey},sendgridResponse:async request=>{const body=await request.json();wire.push(body);return uncertain?new Response('',{status:503}):new Response(null,{status:202,headers:{'x-message-id':'synthetic-satchel-'+wire.length}});}});let restored;
@@ -263,7 +263,7 @@ test('Reviewed invoice delivery retains branded payer artifacts, verifies provid
   const download=async(delivery,cookie=h.owner)=>{const r=await h.request('/api/satchel/invoice-deliveries/'+delivery.id+'/pdf',undefined,cookie);assert.equal(r.status,200,await r.clone().text());assert.equal(r.headers.get('cache-control'),'no-store');return Buffer.from(await r.arrayBuffer());};
   const delivered=await download(clientDelivery,client),text=await pdfText(delivered),pdf=await PDFDocument.load(delivered);
   for(const value of ['Synthetic Satchel Counsel','100 Example Street','Remit to Synthetic Satchel Counsel','Due within 30 days','Matter trust balance USD 0.00',issued.number,'Confidential privileged services'])assert.ok(text.includes(value),value);
-  assert.equal(hash(delivered),clientDelivery.pdfDigest);assert.ok(pdf.getPage(0).node.Resources().lookupMaybe(pdf.context.obj('XObject')));
+  assert.equal(hash(delivered),clientDelivery.pdfDigest);assert.ok(pdf.getPage(0).node.Resources().lookup(PDFName.of('XObject'),PDFDict).keys().length>0);
   assert.equal(clientDelivery.paymentUrl,h.origin+'/app/invoices/'+bill.id+'/pay');assert.ok(text.replace(/\s/g,'').includes(clientDelivery.paymentUrl));
   if(process.env.SATCHEL_INVOICE_PDF)await writeFile(process.env.SATCHEL_INVOICE_PDF,delivered);
   if(process.env.SATCHEL_QR_SCAN==='1'){const directory=await mkdtemp(join(tmpdir(),'satchel-qr-'));try{const filename=join(directory,'invoice.pdf');await writeFile(filename,delivered);await promisify(execFile)('swift',['tests/satchel/invoice-qr-scan.swift',filename,clientDelivery.paymentUrl],{timeout:60000});}finally{await rm(directory,{recursive:true,force:true});}}
@@ -272,7 +272,12 @@ test('Reviewed invoice delivery retains branded payer artifacts, verifies provid
   assert.deepEqual(Buffer.from(await(await h.request('/api/satchel/bills/'+bill.id+'/invoice.pdf',undefined,h.owner)).arrayBuffer()),original);
   const statement=await h.json(base+'/payer-statements',{recipient:'insurer@example.test'},billing),statements=await h.json('/portal/matters/'+m.id+'/payer-statements',undefined,insurer);assert.equal(statements.statements.length,1);assert.equal(statements.statements[0].snapshot.invoices.length,1);assert.equal(statements.statements[0].snapshot.totalDueCents,bill.snapshot.totalCents);assert.equal((await h.request('/api/satchel/payer-statements/'+statement.id+'/pdf',undefined,client)).status,404);
   const statementPdf=await h.request('/api/satchel/payer-statements/'+statement.id+'/pdf',undefined,insurer);assert.equal(statementPdf.status,200);assert.match(await pdfText(Buffer.from(await statementPdf.arrayBuffer())),/Payer statement/);
+  const limitedRole=await h.json('/roles',{name:'Invoice operator without banking',permissions:{rates:'all',bank:'none',reports:'own',contacts:'read',documents:'read',billing:'write',settings:'none'},reason:'Separate invoice operations from trust information'},h.owner);
+  await h.json('/team',{email:'limited@example.test',name:'Synthetic Satchel Limited Counsel',role:'lawyer',customRoleId:limitedRole.id},h.owner);await h.json('/team/invite',{email:'limited@example.test'},h.owner);const limited=await h.login('limited@example.test');await h.json(base+'/access',{email:'limited@example.test'},h.owner);
+  assert.equal((await h.request('/api/satchel/invoice-deliveries/'+clientDelivery.id+'/pdf',undefined,limited)).status,403);assert.equal((await h.request('/api/satchel/payer-statements/'+statement.id+'/pdf',undefined,limited)).status,403);await h.json('/bills/'+bill.id+'/deliveries',{recipient:'client@example.test',payerName:'Synthetic Satchel Client',templateId:template.id},limited,403);
   const authorize=(delivery,priorAttemptId,actor=billing)=>h.json('/invoice-deliveries/'+delivery.id+'/authorize',{notificationTemplateId:notification.id,confirmed:true,priorAttemptId,reason:'Reviewed current consent, recipient and provider history; authorize exactly one sign-in notification'},actor);
+  const unused=await authorize(clientDelivery);await payers.consent(payers.client.id,'denied');await h.json('/invoice-notification-attempts/'+unused.attemptId+'/send',{},billing,409);await payers.consent(payers.client.id);
+  const fresh=await authorize(clientDelivery,unused.attemptId);let refreshed=(await h.json(base+'/invoice-deliveries',undefined,billing)).deliveries.find(d=>d.id===clientDelivery.id);assert.equal(refreshed.attempts.find(a=>a.id===unused.attemptId).status,'withdrawn');await h.json('/invoice-notification-attempts/'+fresh.attemptId+'/send',{},billing);
   // A source merge supplies no email consent for the retained duplicate identity.
   const g=await h.json('/contacts',undefined,h.owner),duplicate=await h.json('/contacts',{revision:g.revision,kind:'organization',name:'Synthetic Satchel Insurer duplicate',emails:['duplicate@example.test']},h.owner),preview=await h.json('/contacts/merge-preview',{survivorId:payers.insurer.id,duplicateId:duplicate.id,reason:'Counsel reviewed retained insurer identities'},h.owner);await h.json('/contacts/merge',{previewId:preview.id},h.owner);
   await h.json('/invoice-deliveries/'+insurerDelivery.id+'/authorize',{notificationTemplateId:notification.id,confirmed:true,reason:'Missing merged consent refused'},billing,409);await payers.consent(duplicate.id);

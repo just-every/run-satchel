@@ -49,11 +49,14 @@
         "MAIL_API_KEY"
       ],
       "optionalSecretNames": [
-        "INSTALLATION_KEY_PREVIOUS"
+        "INSTALLATION_KEY_PREVIOUS",
+        "STRIPE_SECRET_KEY",
+        "SENDGRID_EVENT_PUBLIC_KEY"
       ],
       "providerEffects": [
         "outbound-mail",
-        "outbound-webhooks"
+        "outbound-webhooks",
+        "outbound-payments"
       ],
       "surfaces": {
         "app": {

@@ -19,7 +19,7 @@ CREATE TABLE s_invoice_delivery_attempts (
  notification_template_id TEXT NOT NULL REFERENCES s_invoice_notification_templates(id),
  authorized_by TEXT NOT NULL, authorized_at TEXT NOT NULL, reason TEXT NOT NULL,
  contact_revision INTEGER NOT NULL,
- status TEXT NOT NULL DEFAULT 'ready' CHECK(status IN('ready','sending','accepted','uncertain','failed','development','sandbox_validated')),
+ status TEXT NOT NULL DEFAULT 'ready' CHECK(status IN('ready','sending','accepted','uncertain','failed','development','sandbox_validated','withdrawn')),
  provider TEXT, provider_id TEXT, attempted_at TEXT, detail TEXT NOT NULL DEFAULT ''
 );
 CREATE UNIQUE INDEX s_invoice_delivery_ready ON s_invoice_delivery_attempts(delivery_id) WHERE status='ready';

@@ -21,7 +21,7 @@ export function deliveryFences(db:D1Database,actor:Actor,m:Data,revision?:number
 export async function deliveryAccess(db:D1Database,actor:Actor,deliveryId:string){
  human(actor);const d=await stmt(db,'SELECT d.*,b.matter_id,b.status bill_status,i.number FROM s_invoice_deliveries d JOIN s_bills b ON b.id=d.bill_id JOIN s_invoice_issues i ON i.bill_id=b.id WHERE d.id=?',deliveryId).first<Data>();insist(d,'Invoice delivery not found',404);
  if(actor.role==='client')insist(d.recipient===actor.email&&(await stmt(db,`SELECT ${portalAccess('?',invoiceReaders)} ok`,actor.email,d.matter_id).first<Data>())?.ok,'Invoice delivery not found',404);
- else{invoiceStaff(actor);await matter(db,actor,d.matter_id);}
+ else{invoiceStaff(actor);await matter(db,actor,d.matter_id);if(JSON.parse(d.snapshot).branding.trustBalanceCents!==null)requireArea(actor,'bank','full');}
  return d;
 }
 export async function auditDeliveryRead(db:D1Database,actor:Actor,d:Data,action:string){

@@ -1,3 +1,4 @@
+import {buildInvoiceBranding} from './invoice-templates';
 import {atomic,audit,digest,human,id,insist,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
 import {accessGuard,guard} from './trust-guards';
 import {formatInvoice,invoiceCounter} from './invoice-schemes';
@@ -7,7 +8,7 @@ import {freezeLedes,reserveInvoice} from './ledes';
 export async function invoiceIssue(db:D1Database,billId:string){
  return stmt(db,'SELECT bill_id,number,approved_revision,approved_digest,snapshot_digest,pdf_digest,issued_by,issued_at,scheme_id FROM s_invoice_issues WHERE bill_id=?',billId).first<Data>();
 }
-export async function issueInvoices(db:D1Database,actor:Actor,b:Data){
+export async function issueInvoices(db:D1Database,actor:Actor,b:Data,origin?:string){
  human(actor);need(actor,'owner','lawyer','billing');
  insist(Array.isArray(b.bills)&&b.bills.length>0&&b.bills.length<=50,'Select 1–50 approved bills');
  insist(new Set(b.bills.map((x:Data)=>x.id)).size===b.bills.length,'Select each bill only once');
@@ -36,7 +37,8 @@ export async function issueInvoices(db:D1Database,actor:Actor,b:Data){
   if(!number){ordinal=next++;number=formatInvoice(terms,ordinal,year);}
   insist(registered||!await stmt(db,'SELECT 1 FROM s_invoice_numbers WHERE number=?',number).first(),'Invoice number collision; no number was consumed',409);
   const numbered={...snapshot,invoiceNumber:number,...(snapshot.ledes?{ledes:{...snapshot.ledes,invoiceNumber:number}}:{})};
-  const pdf=await invoicePdf({...bill,snapshot:numbered},number,at),pdfDigest=await digest(pdf),snapshotDigest=await digest(JSON.stringify(snapshot));
+  const branding=request.templateId?(insist(origin,'The invoice origin is required'),await buildInvoiceBranding(db,{...bill,snapshot:numbered,issued_at:at},origin,text(request.templateId,'Invoice template revision',100),undefined,actor)):undefined;
+  const pdf=await invoicePdf({...bill,snapshot:numbered},number,at,branding),pdfDigest=await digest(pdf),snapshotDigest=await digest(JSON.stringify(snapshot));
   let binary='';for(const byte of pdf)binary+=String.fromCharCode(byte);
   writes.push(accessGuard(db,actor,bill.matter_id),guard(db,"EXISTS(SELECT 1 FROM s_bills WHERE id=? AND revision=? AND status='approved' AND artifact_digest=?)",billId,bill.revision,bill.artifact_digest));
   if(!registered)writes.push(stmt(db,'INSERT INTO s_invoice_numbers VALUES(?,?,?,?,?,?,?)',number,billId,bill.corrects_bill_id?'correction':'issued',ordinal,scheme.id,'Satchel atomic issue',at));

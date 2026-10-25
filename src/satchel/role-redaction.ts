@@ -52,7 +52,7 @@ function bankView(path:string,value:unknown,level:string):unknown{
 function withoutTrust(value:unknown):unknown{
  if(Array.isArray(value))return value.map(withoutTrust);
  if(!isObject(value))return value;
- return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,k==='trustPayment'?null:withoutTrust(v)]));
+ return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,['trustPayment','trustBalanceCents','trustLedgers'].includes(k)?null:withoutTrust(v)]));
 }
 function firmView(value:unknown):unknown{
  if(!isObject(value)||!isObject(value.firm))return value;

@@ -1,3 +1,4 @@
+import {verifyProtectedStripe} from './stripe-config';
 import {audit,id,insist,now,rows,stmt,text,type Data} from './model';
 import {guard} from './trust-guards';
 import {stripeApi,type StripeEnv} from './stripe-api';
@@ -6,7 +7,9 @@ import {stripeApi,type StripeEnv} from './stripe-api';
 export async function stripeEvent(env:StripeEnv,request:Request){
  const raw=await request.text();insist(raw.length<=100000,'Provider event too large',413);
  const input=JSON.parse(raw),eventId=text(input.id,'Stripe event ID',100);
- const event=await stripeApi(env,'/events/'+encodeURIComponent(eventId));insist(event.id===eventId&&event.livemode===false,'Only verified Stripe sandbox events are accepted',400);
+ const connected=input.account?await stmt(env.DB,"SELECT account_id FROM s_stripe_config WHERE kind='trust' AND account_id=?",text(input.account,'Connected processor account',100)).first<Data>():null;
+ insist(!input.account||connected,'Unknown connected processor account',400);
+ const event=await stripeApi(env,'/events/'+encodeURIComponent(eventId),undefined,undefined,connected?.account_id);insist(event.id===eventId&&event.livemode===false,'Only verified Stripe sandbox events are accepted',400);
  const object=event.data?.object;insist(object,'Invalid provider event',400);
  let attempt:Data|null=null;
  if(object.object==='checkout.session')attempt=await stmt(env.DB,'SELECT * FROM s_stripe_checkouts WHERE session_id=?',object.id).first<Data>();
@@ -21,9 +24,11 @@ export async function stripeEvent(env:StripeEnv,request:Request){
 }
 export async function reconcileStripe(env:StripeEnv,attempt:Data,eventId:string,eventType:string){
  insist(attempt.session_id,'Reconcile the uncertain provider acknowledgment first',409);
- const session=await stripeApi(env,'/checkout/sessions/'+encodeURIComponent(attempt.session_id)+'?expand[]=payment_intent.latest_charge');
  const config=await stmt(env.DB,'SELECT * FROM s_stripe_config WHERE id=?',attempt.config_id).first<Data>();
- const account=await stripeApi(env,'/account');
+ if(config?.kind==='trust')await verifyProtectedStripe(env,config);
+ const processorAccount=config?.kind==='trust'?config.account_id:undefined;
+ const session=await stripeApi(env,'/checkout/sessions/'+encodeURIComponent(attempt.session_id)+'?expand[]=payment_intent.latest_charge',undefined,undefined,processorAccount);
+ const account=await stripeApi(env,'/account',undefined,undefined,processorAccount);
  insist(config&&account.id===config.account_id&&session.livemode===false&&session.id===attempt.session_id&&session.client_reference_id===attempt.id&&session.metadata?.satchel_checkout===attempt.id&&session.amount_total===attempt.cents&&session.currency===attempt.currency,'Stripe reconciliation does not match the approved account and exact invoice allocation',409);
  const pi=session.payment_intent&&typeof session.payment_intent==='object'?session.payment_intent:null,charge=pi?.latest_charge&&typeof pi.latest_charge==='object'?pi.latest_charge:null;
  if(pi)insist(pi.metadata?.satchel_checkout===attempt.id&&pi.amount===attempt.cents&&pi.currency===attempt.currency&&pi.livemode===false,'Stripe intent allocation mismatch',409);

@@ -17,8 +17,10 @@ export function InvoiceNumbering({actor,run,tick}:{actor:Row;run:Run;tick:number
 }
 
 export function InvoiceIssue({bill,actor,run}:{bill:Row;actor:Row;run:Run}){
+ const [templates,setTemplates]=useState<Row[]>([]),[templateId,setTemplateId]=useState('');
+ useEffect(()=>{if(['owner','lawyer','billing'].includes(actor.role)&&bill.status==='approved'&&!bill.issue)api('/invoice-templates').then(s=>{setTemplates(s.templates);setTemplateId(s.templates.at(-1)?.id??'');}).catch(()=>{});},[actor.role,bill.status,bill.issue]);
  if(!['owner','lawyer','billing'].includes(actor.role))return null;
  if(bill.issue)return <p>Invoice <strong>{bill.issue.number}</strong> · issued {bill.issue.issued_at}<br/><small>Approved CSV SHA-256: {bill.issue.approved_digest}</small><br/><a href={`/api/satchel/bills/${bill.id}/invoice.pdf`}>Download issued PDF</a></p>;
  if(bill.status!=='approved')return bill.snapshot.numberingCutover?<p>Draft ID: {bill.id} · no invoice number assigned</p>:null;
- return <button type="button" onClick={()=>run(()=>api('/invoices/issue',{bills:[{id:bill.id,revision:bill.revision}]}),'Invoice issued; exact reviewed PDF retained')}>Issue exact approved invoice</button>;
+ return <>{templates.length>0&&<label>Issued invoice template<select value={templateId} onChange={e=>setTemplateId(e.target.value)}>{templates.map(t=><option key={t.id} value={t.id}>{t.config.firmName} · version {t.version}</option>)}</select></label>}<button type="button" onClick={()=>run(()=>api('/invoices/issue',{bills:[{id:bill.id,revision:bill.revision,...(templateId?{templateId}:{})}]}),'Invoice issued; exact reviewed PDF retained')}>Issue exact approved invoice</button></>;
 }

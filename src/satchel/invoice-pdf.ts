@@ -4,7 +4,7 @@ import {invoiceQr} from './invoice-qr';
 
 export type InvoiceBranding={templateId:string;templateVersion:number;firmName:string;address:string;logoBase64:string;logoMime:'image/png'|'image/jpeg';remittance:string;terms:string;paymentUrl:string;dueDate:string;payerName:string;trustBalanceCents:number|null;trustAsOf:string};
 
-// Frozen issue artifact; template selection/versioning remains BILL-013.
+// Frozen issue artifact, with optional counsel-approved, versioned delivery branding.
 export async function invoicePdf(bill:Data,number:string,issuedAt:string,branding?:InvoiceBranding){
  const pdf=await PDFDocument.create(),font=await pdf.embedFont(StandardFonts.Helvetica);
  pdf.setCreationDate(new Date(issuedAt));pdf.setModificationDate(new Date(issuedAt));
@@ -13,7 +13,11 @@ export async function invoicePdf(bill:Data,number:string,issuedAt:string,brandin
   // Standard PDF fonts cannot encode arbitrary names: refuse before committing,
   // preserving the original approved package and consuming no invoice number.
   const words=value.split(/\s+/);let line='';
-  for(const word of words){if(font.widthOfTextAtSize(line+' '+word,10)>490&&line){draw(line);line=word;}else line+=(line?' ':'')+word;}if(line)draw(line);
+  for(const word of words){
+   if(line&&font.widthOfTextAtSize(line+' '+word,10)>490){draw(line);line='';}
+   if(line)line+=' ';
+   for(const character of word){if(font.widthOfTextAtSize(line+character,10)>490&&line){draw(line);line='';}line+=character;}
+  }if(line)draw(line);
  };
  const draw=(line:string)=>{if(y<45){page=pdf.addPage();y=790;}page.drawText(line,{x:45,y,size:10,font});y-=17;};
  if(branding){
@@ -28,7 +32,7 @@ export async function invoicePdf(bill:Data,number:string,issuedAt:string,brandin
  if(branding){
   write('Payer: '+branding.payerName);write('Due: '+branding.dueDate);write('Payment terms: '+branding.terms);write('Remittance: '+branding.remittance);
   if(branding.trustBalanceCents!==null)write('Matter trust balance USD '+(branding.trustBalanceCents/100).toFixed(2)+' as of '+branding.trustAsOf+' (not a payment or deduction)');
-  if(y<245){page=pdf.addPage();y=790;}
+  if(y<340){page=pdf.addPage();y=790;}
   write('Sign in to review and pay only this invoice:');
   const address=branding.paymentUrl;for(let offset=0;offset<address.length;offset+=80)write(address.slice(offset,offset+80));
   const matrix=invoiceQr(address),unit=3,edge=matrix.length+8,baseY=y-edge*unit;

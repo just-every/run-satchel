@@ -1,8 +1,15 @@
+import {invoiceDeliveryJourney} from './invoice-delivery-journey.mjs';
+import {mkdtemp,writeFile,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
 import assert from 'node:assert/strict';
 import {paymentFixture} from './stripe-fixture.mjs';
 import {capturePanel} from './browser-shots.mjs';
 export async function stripeBrowser({page,browser,h,edge,width}){
  const s=await paymentFixture(h);
+ await page.reload();await page.getByRole('navigation',{name:'Workspace'}).waitFor();
  await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Team & safety',exact:true}).click();
  const settings=page.getByRole('region',{name:'Stripe collection settings'});await settings.getByText('Operating arrangement',{exact:true}).waitFor();
  await settings.getByText('Protected trust arrangement',{exact:true}).click();
@@ -24,4 +31,15 @@ export async function stripeBrowser({page,browser,h,edge,width}){
   const replacement=await s.issue('Corrected operating services');await h.json('/invoices/'+s.ach.id+'/replacement',{replacementBillId:replacement.id,reason:'Counsel names the corrected invoice'},h.owner);
   await client.reload();await panel.getByRole('status').getByText('Voided invoice',{exact:true}).waitFor();await panel.getByRole('link',{name:'Replacement invoice '+replacement.number}).waitFor();assert.equal(await panel.getByRole('button',{name:'Pay by card or ACH'}).count(),0);await shot('invoice-payment-void');
  }finally{await context.close();}
+ await h.json('/providers/mail/review',{termsUrl:'https://resend.com/legal/terms-of-service',confirmed:true},h.owner);
+ let graph=await h.json('/contacts',undefined,h.owner);const contact=graph.contacts.find(c=>c.name===s.m.client);
+ await h.json('/contacts',{id:contact.id,revision:graph.revision,kind:'person',name:contact.name,emails:['client@example.test']},h.owner);graph=await h.json('/contacts',undefined,h.owner);
+ await h.json('/contacts/'+contact.id+'/consent',{revision:graph.revision,channel:'email',decision:'allowed',evidenceDate:'2026-10-20',source:'Synthetic affirmative invoice notification consent'},h.owner);
+ await page.goto(h.origin+'/app');await page.getByRole('navigation',{name:'Workspace'}).waitFor();
+ await invoiceDeliveryJourney({page,h,m:s.m,bill:s.card,width});
+ if(width===1440&&process.platform==='darwin'){
+  const delivered=(await h.json('/matters/'+s.m.id+'/invoice-deliveries',undefined,h.owner)).deliveries.find(d=>d.bill_id===s.card.id),bytes=await(await h.request(delivered.pdfUrl,undefined,h.owner)).arrayBuffer(),directory=await mkdtemp(join(tmpdir(),'satchel-qr-'));
+  try{const filename=join(directory,'invoice.pdf');await writeFile(filename,Buffer.from(bytes));await promisify(execFile)('swift',['tests/satchel/invoice-qr-scan.swift',filename,h.origin+'/app/invoices/'+s.card.id+'/pay'],{timeout:60000});}finally{await rm(directory,{recursive:true,force:true});}
+ }
+
 }
