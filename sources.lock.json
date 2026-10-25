@@ -140,7 +140,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "dec966f6a45dd8d009cc7259e9e671cc6deb1304886523efb9e5d5b695b4b8be",
+      "sha256": "3c32917a42cce77f94ef29b3e7e5a3545c3b2290c8c3beefe964a4a245ad0812",
       "executable": false
     },
     "AGENTS.md": {
@@ -164,7 +164,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "f9d1cf2bf53ddfca52fc204b085f4407926c86b9961011c50f7faca796715257",
+      "sha256": "26fbeb8cdb339bc895220670275c1c98a8b18462fc162b77d6c1c0448b7ffbf4",
       "executable": false
     },
     "DEMO.md": {
@@ -3076,7 +3076,7 @@
       "executable": false
     },
     "src/satchel/client-shares.ts": {
-      "sha256": "dc0395377c242b998109360e69873e9cd671f13b5df18d4d1e005629556cefea",
+      "sha256": "07ac39ac6549fd9fda7c61eb2406436e3c2c0e6b4c1a132541b648802bac32da",
       "executable": false
     },
     "src/satchel/conflict-context.ts": {
@@ -3732,7 +3732,7 @@
       "executable": false
     },
     "src/ui/billing.tsx": {
-      "sha256": "7061deb6f5a4d6c08f0f046471e4200a3ce1ae2afa6cd2925112f706c32e438d",
+      "sha256": "a345d11e94e3d56cb34eb261643c3bb1631f9fea752aced411e208a4244e01d0",
       "executable": false
     },
     "src/ui/booking-public.tsx": {
@@ -4224,11 +4224,15 @@
       "executable": false
     },
     "tests/satchel/invoice-delivery-fixture.mjs": {
-      "sha256": "f9f0dbc0da0340d8199b5e10a1a594d20c17b64550efacefc37c6461d1fc37c6",
+      "sha256": "074d40cdc30b1e42a22a309c21764bf9dbe15a0ecfdbcc4adc2f49a477a9ae64",
       "executable": false
     },
     "tests/satchel/invoice-delivery-journey.mjs": {
-      "sha256": "6969cdabc00555ad7646d5af5ed4872b74b9c5b4b29308bcdabf786e915379ce",
+      "sha256": "fa21ae5b978ad60692330d7d7e02c923abd96d580596ef81d8b4802af6ea687b",
+      "executable": false
+    },
+    "tests/satchel/invoice-mail-edge.mjs": {
+      "sha256": "69742a0141b015a2906880b7a8a9b696b6e07c86c38e277afc1dbd34c012ec94",
       "executable": false
     },
     "tests/satchel/invoice-numbering-fixture.mjs": {
@@ -4324,11 +4328,11 @@
       "executable": false
     },
     "tests/satchel/providers-journey.test.mjs": {
-      "sha256": "864ae65f6314afb029a51d73f2693da5c16ae29521318400a3cd8aa6a6afc3e2",
+      "sha256": "6edc16f0ce27957f513af8eab2d6f591784f013926897c0980d59255d798691c",
       "executable": false
     },
     "tests/satchel/providers.test.mjs": {
-      "sha256": "02d2cddcda9b9274969540409503b43755f716a314228e7cdc5325d83989428a",
+      "sha256": "52fb3efb09f77612268df290b70beef43725a3478f8148fdd1bc4f338c39b4b9",
       "executable": false
     },
     "tests/satchel/rates-journey.test.mjs": {
@@ -4392,7 +4396,7 @@
       "executable": false
     },
     "tests/satchel/stripe-browser.mjs": {
-      "sha256": "c9fed5a4f77c848a63bcc17845f1c9c4da71841aed9599a62eebdcf122efb874",
+      "sha256": "7b8668081a4ce46073ad4e4949c02a226400097bedfd9825d3013b54896957a3",
       "executable": false
     },
     "tests/satchel/stripe-fixture.mjs": {
@@ -4400,7 +4404,7 @@
       "executable": false
     },
     "tests/satchel/stripe-sandbox.mjs": {
-      "sha256": "7f96f00fd4b774720d3a4c382ac3ef025f2caf440fbbc867b6ba77a0284041dc",
+      "sha256": "fc07791545dc5ffc461143f3e54e87161f1993273a297ccec75895fa5b9c6a0d",
       "executable": false
     },
     "tests/satchel/tasks-journey.test.mjs": {

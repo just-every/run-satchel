@@ -1,4 +1,4 @@
-export const invoiceLogo='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=';
+export const invoiceLogo='iVBORw0KGgoAAAANSUhEUgAAAGQAAAA2CAYAAAAxpDyoAAAAx0lEQVR4nO3awQmAMBQFQSuwOAuw/y60BSEaV5nA3h9/rlnWbT/UaXl7gICkAxILSCwgsYDEAhILSKxHQe5+f9kCJLYFSGwLkNgWILEtU0Bmjv7SFiCxLUBiW4DEtgCJbQES2wIktgVIbAuQ2BYgsS2vgVw9zNUHBEgiILGAxAISK/vJYeSoQIAAAQIECJBQQGIBiQUkFpBYQB444MibAVzaByS2D0hsH5DYPiCxfbeDCMgvAxILSCwgsYDEAhILSCwgsYDEOgHu3dFzjs1UJQAAAABJRU5ErkJggg==';
 export const invoiceTemplate=(previousId=null,extra={})=>({previousId,firmName:'Synthetic Satchel Counsel',address:'100 Example Street, New York NY 10001',logoBase64:invoiceLogo,logoMime:'image/png',remittance:'Remit to Synthetic Satchel Counsel, operating account ending 1234',terms:'Due within 30 days. Contact counsel with invoice questions.',dueDays:30,includeTrustBalance:true,reason:'Counsel reviewed exact branding, remittance and trust disclosure',confirmed:true,...extra});
 export async function setupInvoicePayers(h,m){
  const base='/matters/'+m.id;
