@@ -384,7 +384,7 @@ Every capability claim in br’s approved homepage register (17 October 2026, 60
 | 10 | "Intake · Martinez v. Reed · conflict check clear ✓" | `SAT-002`, `INTAKE-001` | done |
 | 11 | "Discovery due Nov 14" | `SAT-008` | done |
 | 12 | "Court date moved → deadlines recalculated · client notified" | `CAL-006`, `CAL-004`, `CLIENT-008` | partial |
-| 13 | "Invoice #2041 · paid online $3,250" | `BILL-005`, `BILL-006` | missing |
+| 13 | "Invoice #2041 · paid online $3,250" | `BILL-005`, `BILL-006` | partial |
 | 14 | "Intake form" (heading, paragraph and card) | `INTAKE-001` | done |
 | 15 | "conflict check across every contact" (1,912 contacts searched, match, partner clears it) | `SAT-002`, `INTAKE-005` | partial |
 | 16 | "former client, closed 2023" on the match | `INTAKE-005`, `MATTER-007` | partial |
@@ -412,7 +412,7 @@ Every capability claim in br’s approved homepage register (17 October 2026, 60
 | 38 | "Hourly" | `SAT-004` | done |
 | 39 | "flat fee or contingency" | `TIME-004`, `TIME-005` | partial |
 | 40 | "with LEDES for insurers" | `TIME-007` | done |
-| 41 | "Clients pay by card or bank transfer from the invoice" (Paid online by card) | `BILL-005`, `BILL-006` | missing |
+| 41 | "Clients pay by card or bank transfer from the invoice" (Paid online by card) | `BILL-005`, `BILL-006` | partial |
 | 42 | Invoice #2041 lines and total | `SAT-005`, `BILL-001` | partial |
 | 43 | Invoice #2033: overdue reminder and payment plan | `BILL-009`, `BILL-008` | missing |
 | 44 | "Trust that reconciles to the cent" (three-way reconciliation each month) | `TRUST-005` | done |
@@ -443,8 +443,8 @@ INTAKE-003, REPORT-003, CLIENT-003, CAL-008, TIME-003, FIRM-005, INTAKE-005 and 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 14 | 0 | 0 | 14 |
-| Target and push further | 49 | 23 | 53 | 125 |
-| All | 63 | 23 | 53 | 139 |
+| Target and push further | 49 | 24 | 52 | 125 |
+| All | 63 | 24 | 52 | 139 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -538,7 +538,7 @@ INTAKE-003, REPORT-003, CLIENT-003, CAL-008, TIME-003, FIRM-005, INTAKE-005 and 
 | `BILL-003` | Split payers and handle foreign invoices | target | missing |  | Fee agreements allocate fixed or percentage responsibility across clients, insurers and third parties with separate privacy and payment status. USD is the US default; explicitly configured foreign-currency invoices preserve original currency, approved FX rate and USD accounting differences. |
 | `BILL-004` | Calculate US billing tax explicitly | target | done | `src/satchel/tax-reviews.ts`; `src/satchel/trust-transfers.ts`; `src/satchel/ledes.ts`; `src/satchel/ledes-xml.ts`; `src/ui/tax-reviews.tsx`; `src/ui/trust-transfers.tsx`; `tests/satchel/tax-reviews.test.mjs` | Every draft requires exact reviewed tax; explicit retained trust eligibility and allocations reconcile tax separately from earnings; client-reviewed 1998B/XML mappings preserve tax through atomic issuance and additive corrections. Named public-door journeys assert taxable/exempt two-jurisdiction provenance, legacy/unknown/stale/mapping/retired-code refusals, concurrency, payment/reversal replay, issued PDFs, XSD-valid exports, immutable restart/restore and 1440/390 screens. No Avalara calculation or provider verification is claimed. |
 | `BILL-005` | Collect through 8am LawPay | target | missing |  | Connect the firm’s contracted LawPay account for hosted card/eCheck payments, trust or operating destination, saved authorization, payment links, text-to-pay links sent through CLIENT-005 and QR payment links on invoices. Billing staff also take a card or eCheck payment a client authorizes by phone by keying it into LawPay’s hosted virtual-terminal fields inside Satchel, recording the client’s authorization and allocating it to the chosen invoice or trust request in the same step; card and account numbers never reach Satchel’s servers, logs or archives. Optional card surcharging applies only to operating payments by credit card, in US states the firm has enabled it for and within card-network caps, is disclosed before payment and is never added to debit cards or trust deposits. Show pending, cleared, failed and returned states; fees and chargebacks must not invade client trust principal. |
-| `BILL-006` | Collect through Stripe legal configurations | target | missing |  | Stripe is an alternative for firm-approved operating payments and any explicitly supported trust configuration, using hosted tokenization and account verification. Trust collection cannot be enabled until the firm verifies a compliant bank/processor arrangement that protects client principal from fees and chargebacks. |
+| `BILL-006` | Collect through Stripe legal configurations | target | partial | `tests/satchel/providers.test.mjs` — Hosted invoice collection allocates exact card and ACH funds once, preserves pending and returned states, and fences trust protection (authenticated issued-invoice allocation, reservations, provider readback, replay, returns, protected trust refusal and approved provider-edge arrangement); `tests/satchel/stripe-sandbox.mjs` (held-key hosted journey, proof pending); `src/satchel/invoice-payment.ts`; `src/satchel/stripe-config.ts`; `src/satchel/stripe-events.ts` | Native hosted operating collection, exact invoice balances, replay guards and protected trust routing are implemented. Hosted card and ACH sandbox collection and populated browser proof remain pending. A real protected trust sandbox arrangement remains blocked: the held account has no protected connected destination and refuses creating one until Connect setup is completed in the provider dashboard. Trust collection stays refused without a separate verified bank destination, processor fee and loss protection, disabled principal-bank debits and retained bank agreement evidence. |
 | `BILL-007` | Reconcile payments refunds and disputes | target | missing |  | Provider events reconcile invoices, receipts, settlement batches, processor fees, bank deposits, ACH returns, refunds and disputes with stable external IDs. Refunds and write-offs require finance approval and append-only corrections; unknown settlement never appears paid. |
 | `BILL-008` | Run consented payment plans | target | missing |  | Authorized staff define installments, start date, balance allocation, payment method mandate and hardship changes. The scheduler charges only under current consent, prevents duplicate attempts and stops/escalates failed, disputed or revoked installments. A plan or saved-card autopay moved in from another system under MOVE-008 starts paused and charges nothing until the client re-authorizes it under LawPay or Stripe. |
 | `BILL-009` | Pursue collections until resolved | target | missing |  | Aging queues, retainer replenishment and overdue invoices drive firm-approved reminder sequences with owner, next due date, attempt/reply states and contact limits. Disputes, promises to pay, hardship and representation changes route to people; confirmed payment, including an offline payment recorded through BILL-012 or a trust application approved through TRUST-004, stops future contact, a partial payment continues the sequence for the remainder only, and reversing that payment reopens the sequence. Voiding an invoice under BILL-016 ends its sequence, and its replacement invoice starts its own without repeating reminders already sent. |

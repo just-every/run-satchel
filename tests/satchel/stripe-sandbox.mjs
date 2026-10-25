@@ -21,11 +21,13 @@ try{
  const shot=async name=>{if(directory){await mkdir(directory,{recursive:true});await page.screenshot({path:directory+'/sandbox-'+name+'.png',fullPage:true});}};
  stage='card-page';await page.goto(h.origin+'/app/invoices/'+s.card.id+'/pay');await page.getByRole('button',{name:'Pay by card or ACH'}).click();await page.waitForURL(/checkout\.stripe\.com/);proof.hosted_card=true;await shot('card-hosted');
  stage='card-input';
- const email=page.locator('#email');if(await email.isVisible())await email.fill('satchel+testing@example.com');
+ await page.locator('#email').waitFor({state:'visible'});await page.locator('#email').fill('satchel+testing@example.com');
+ await page.locator('#billingCountry').selectOption('US');
+ const save=page.getByLabel(/Save my information with Link/);if(await save.count())await save.uncheck();
  const cardTab=page.getByText('Card',{exact:true});if(await cardTab.count())await cardTab.first().click();
  await page.locator('#cardNumber').fill('4242424242424242');await page.locator('#cardExpiry').fill('1230');await page.locator('#cardCvc').fill('123');
  if(await page.locator('#billingName').isVisible())await page.locator('#billingName').fill('Casey Sandbox');
- if(await page.locator('#billingPostalCode').isVisible())await page.locator('#billingPostalCode').fill('10001');
+ await page.locator('#billingPostalCode').fill('10001');
  await shot('card-ready');stage='card-confirm';await page.getByTestId('hosted-payment-submit-button').click();await page.waitForURL(h.origin+'/app/invoices/'+s.card.id+'/pay',{timeout:60000});
  const card=await stripe('/checkout/sessions/'+sessions[0].id);assert.equal(card.payment_status,'paid');proof.card_collected=true;
  const events=await stripe('/events?type=checkout.session.completed&limit=20'),event=events.data.find(e=>e.data.object.id===card.id);assert.ok(event);

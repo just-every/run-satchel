@@ -25,7 +25,7 @@ export async function stripeBrowser({page,browser,h,edge,width}){
   await client.reload();await panel.getByRole('status').getByText('Paid',{exact:true}).waitFor();await shot('invoice-payment-paid');
   await h.json('/portal/invoices/'+s.ach.id+'/checkout',{requestKey:'synthetic-satchel-browser-ach'},s.client);const ach=[...edge.sessions.values()].at(-1);await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(edge.event(ach,'checkout.session.completed','pending'))});
   await client.goto(h.origin+'/app/invoices/'+s.ach.id+'/pay');await panel.getByRole('status').getByText('Payment pending',{exact:true}).waitFor();await shot('invoice-payment-pending');
-  await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(edge.event(ach,'checkout.session.async_payment_succeeded','paid'))});await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(edge.event(ach,'charge.refunded','returned'))});
+  await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(edge.event(ach,'checkout.session.async_payment_succeeded','paid'))});await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(edge.event(ach,'charge.failed','returned',{status:'failed',amount_refunded:0}))});
   await client.reload();await panel.getByRole('status').getByText('Payment returned',{exact:true}).waitFor();await shot('invoice-payment-returned');
   await h.json('/invoices/'+s.ach.id+'/void',{revision:s.ach.revision,reason:'Client requests corrected billing'},h.owner);
   const replacement=await s.issue('Corrected operating services');await h.json('/invoices/'+s.ach.id+'/replacement',{replacementBillId:replacement.id,reason:'Counsel names the corrected invoice'},h.owner);

@@ -3,7 +3,7 @@ import {prepareInvoiceDelivery,invoiceDeliveryState,deliveredInvoiceFile,replace
 import {authorizeInvoiceNotification,sendInvoiceNotification} from './invoice-notifications';
 import {invoiceSendgridEvents} from './invoice-sendgrid-events';
 import {payerStatements,createPayerStatement,payerStatementFile} from './payer-statements';
-import {stripeSettings,approveStripe} from './stripe-config';
+import {stripeSettings,approveStripe,assertStripeEnvironment} from './stripe-config';
 import {invoicePayment,startCheckout} from './invoice-payment';
 import {stripeEvent} from './stripe-events';
 import {clientReminderState,approveClientReminderTemplate,authorizeClientReminders,scheduleClientReminder} from './client-reminders';
@@ -108,10 +108,10 @@ api.onError((e,c)=>{if(e instanceof Fault)return c.json({error:e.message},e.stat
 async function body(c:C):Promise<Data>{const raw=await c.req.text();insist(raw.length<=24_000_000,'Request too large',413);const b=JSON.parse(raw);insist(b&&typeof b==='object'&&!Array.isArray(b),'Supply a JSON object');return b;}
 const db=(c:C)=>runtimeBindings(c.env).DB;
 const param=(c:C,key='id')=>c.req.param(key)!;
-const as=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>{const actor=await person(c.req.raw,c.env);gateRole(actor,c.req.method,c.req.path);gateGrants(actor,c.req.method,c.req.path);await recordWallExpiries(db(c),actor);const result=await fn(actor,c);if(c.req.method==='GET'&&(!(result instanceof Response)||result.ok))await auditWallReads(db(c),actor,c.req.path);return result instanceof Response?result:c.json(await redact(db(c),actor,c.req.path,result));};
-const asAgent=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>{const actor=await agent(c.req.raw,c.env);gateGrants(actor,c.req.method,c.req.path);return c.json(await redact(db(c),actor,c.req.path,await fn(actor,c)));};
+const as=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>{const actor=await person(c.req.raw,c.env);await assertStripeEnvironment(runtimeBindings(c.env));gateRole(actor,c.req.method,c.req.path);gateGrants(actor,c.req.method,c.req.path);await recordWallExpiries(db(c),actor);const result=await fn(actor,c);if(c.req.method==='GET'&&(!(result instanceof Response)||result.ok))await auditWallReads(db(c),actor,c.req.path);return result instanceof Response?result:c.json(await redact(db(c),actor,c.req.path,result));};
+const asAgent=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>{const actor=await agent(c.req.raw,c.env);await assertStripeEnvironment(runtimeBindings(c.env));gateGrants(actor,c.req.method,c.req.path);return c.json(await redact(db(c),actor,c.req.path,await fn(actor,c)));};
 // Integration keys carry their sponsor's custom-role ceiling exactly as the sponsor's own session does.
-const viaIntegration=async(c:C,fn:(i:Integration)=>Promise<unknown>)=>{const i=await integrationAuth(db(c),c.req.raw);gateGrants(i.actor,c.req.method,c.req.path);return c.json(await redact(db(c),i.actor,c.req.path,await fn(i)));};
+const viaIntegration=async(c:C,fn:(i:Integration)=>Promise<unknown>)=>{const i=await integrationAuth(db(c),c.req.raw);await assertStripeEnvironment(runtimeBindings(c.env));gateGrants(i.actor,c.req.method,c.req.path);return c.json(await redact(db(c),i.actor,c.req.path,await fn(i)));};
 api.post('/api/satchel/ethical-walls/:id/take-custody',as(async(a,c)=>takeWallCustody(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/ethical-walls/:id/dissolve',as(async(a,c)=>dissolveWall(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/conflicts/:id/dispose',as(async(a,c)=>disposeConflictPayload(db(c),a,param(c),await body(c),runtimeBindings(c.env).ORIGINALS)));
@@ -235,7 +235,7 @@ api.post('/api/satchel/integrations/:id/dispatch',as(async(a,c)=>dispatchIntegra
 api.get('/api/satchel/v1/matters',c=>viaIntegration(c,i=>integrationMatters(db(c),i,c.req.query())));
 api.get('/api/satchel/v1/matters/:id',c=>viaIntegration(c,async i=>{capability(i,'matters:read');return integrationMatter(db(c),i,param(c));}));
 api.get('/api/satchel/v1/matters/:id/:resource',c=>viaIntegration(c,i=>integrationRecords(db(c),i,param(c),param(c,'resource'),c.req.query())));
-api.get('/api/satchel/v1/documents/:id/file',async c=>{const i=await integrationAuth(db(c),c.req.raw);gateGrants(i.actor,c.req.method,c.req.path);capability(i,'documents:read');const d=await visibleDocument(db(c),i.actor,param(c));await integrationMatter(db(c),i,d.matter_id);return documentFile(db(c),i.actor,d.id,c.req.query('version')?Number(c.req.query('version')):undefined);});
+api.get('/api/satchel/v1/documents/:id/file',async c=>{const i=await integrationAuth(db(c),c.req.raw);await assertStripeEnvironment(runtimeBindings(c.env));gateGrants(i.actor,c.req.method,c.req.path);capability(i,'documents:read');const d=await visibleDocument(db(c),i.actor,param(c));await integrationMatter(db(c),i,d.matter_id);return documentFile(db(c),i.actor,d.id,c.req.query('version')?Number(c.req.query('version')):undefined);});
 api.get('/api/satchel/v1/events',c=>viaIntegration(c,i=>integrationEventPage(db(c),i,c.req.query())));
 api.post('/api/satchel/v1/prepare/:kind',c=>viaIntegration(c,async i=>integrationPrepare(db(c),i,param(c,'kind'),await body(c),c.req.header('Idempotency-Key')??'')));
 api.get('/api/satchel/trust/checks',as((a,c)=>checkState(db(c),a)));

@@ -219,7 +219,7 @@ test('Hosted invoice collection allocates exact card and ACH funds once, preserv
   assert.equal((await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(pending)})).status,200);
   invoice=await h.json(base(s.ach.id)+'/payment',undefined,s.client);assert.equal(invoice.status,'pending');assert.equal(invoice.paidCents,0);assert.equal(invoice.reservedCents,37500);
   const paid=edge.event(ach,'checkout.session.async_payment_succeeded','paid');await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(paid)});
-  const returned=edge.event(ach,'charge.refunded','returned');await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(returned)});await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(returned)});
+  const returned=edge.event(ach,'charge.failed','returned',{status:'failed',amount_refunded:0});await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(returned)});await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(returned)});
   invoice=await h.json(base(s.ach.id)+'/payment',undefined,s.client);assert.equal(invoice.status,'returned');assert.equal(invoice.paidCents,0);assert.equal(invoice.dueCents,37500);
   await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(paid)});assert.equal((await h.json(base(s.ach.id)+'/payment',undefined,s.client)).status,'returned');
   await h.json('/stripe/settings',{kind:'trust',confirmed:true,processorAccountId:'synthetic-satchel-protected-processor'},h.owner,409);
@@ -230,6 +230,10 @@ test('Hosted invoice collection allocates exact card and ACH funds once, preserv
   const trust=await h.json(base(s.ach.id)+'/checkout',{purpose:'trust',ledgerId:ledger.id,cents:10000,requestKey:'synthetic-satchel-trust'},h.owner),trustSession=[...edge.sessions.values()][2],trustEvent=edge.event(trustSession,'checkout.session.completed','paid');assert.ok(trust.id);
   await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(trustEvent)});await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(trustEvent)});
   const state=await h.json('/trust',undefined,h.owner);assert.equal(state.ledgers.find(l=>l.id===ledger.id).balance_cents,10000);assert.equal((await h.json(base(s.ach.id)+'/payment',undefined,s.client)).paidCents,0,'Trust deposits never become operating revenue');
+  const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),restored=await harness(edge);
+  try{await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);const before=await restored.json('/portal/invoices/'+s.card.id+'/payment',undefined,restored.owner);assert.equal(before.paidCents,37500);await restored.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(event)});assert.equal((await restored.json('/portal/invoices/'+s.card.id+'/payment',undefined,restored.owner)).paidCents,37500);assert.equal((await restored.json('/trust',undefined,restored.owner)).ledgers.find(l=>l.id===ledger.id).balance_cents,10000);}finally{await restored.close();}
+  const otherMode=await harness({...edge,bindings:{...edge.bindings,STRIPE_MODE:'live'}});
+  try{await otherMode.json('/restore',{archive,confirm:'RESTORE'},otherMode.owner);await otherMode.json('/portal/invoices/'+s.card.id+'/payment',undefined,otherMode.owner,409);await otherMode.json('/stripe/settings',{kind:'operating',confirmed:true},otherMode.owner,409);}finally{await otherMode.close();}
   await h.json('/matters/'+s.m.id+'/portal',undefined,h.owner);const grants=(await h.json('/matters/'+s.m.id+'/portal',undefined,h.owner)).grants;await h.json('/portal-grants/'+grants[0].id+'/revoke',{reason:'Payment authority withdrawn'},h.owner);await h.json(base(s.ach.id)+'/payment',undefined,s.client,404);
  }finally{await h.close();}
 });

@@ -2,8 +2,12 @@
 
 The principal reviews Stripe's terms in Team & safety, then approves operating
 collection under Stripe collection. Supply `STRIPE_SECRET_KEY` through the
-installation's private environment. This release accepts Stripe test credentials
-and refuses live credentials. Enable card and US bank account payments in the
+installation's private environment. Collection defaults to test mode. A production operator must explicitly configure
+`STRIPE_MODE=live`, use matching credentials and obtain a new principal approval
+for that environment in a separate installation. The stored payment environment
+is immutable: changing the runtime mode refuses private application requests,
+so test receipts never become production money. This campaign uses only held
+test credentials. Enable card and US bank account payments in the
 Stripe payment configuration. Payment details and bank verification remain on
 Stripe's hosted page; Satchel stores neither card numbers nor bank credentials.
 
