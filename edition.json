@@ -15,7 +15,35 @@
         "kind": "local",
         "paths": [
           "src/modules"
-        ]
+        ],
+        "mappings": [
+          {
+            "path": "src/modules/import-kit/README.md",
+            "originPath": "modules/import-kit/README.md"
+          },
+          {
+            "path": "src/modules/mail/README.md",
+            "originPath": "modules/mail/README.md"
+          },
+          {
+            "path": "src/modules/operator-auth/docs/vite-spa.md",
+            "originPath": "modules/operator-auth/docs/vite-spa.md"
+          },
+          {
+            "path": "src/modules/operator-auth/conformance/README.md",
+            "originPath": "modules/operator-auth/conformance/README.md"
+          }
+        ],
+        "origin": {
+          "repository": "runeditrun/base",
+          "revision": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",
+          "paths": [
+            "modules/import-kit/README.md",
+            "modules/mail/README.md",
+            "modules/operator-auth/docs/vite-spa.md",
+            "modules/operator-auth/conformance/README.md"
+          ]
+        }
       }
     },
     {
@@ -38,12 +66,14 @@
         ],
         "origin": {
           "repository": "runeditrun/base",
-          "revision": "4280971d7c0295b8a88c3e1179048efcbbe14f30",
+          "revision": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",
           "paths": [
             "modules/delivery-producer/setup-manifest.mjs",
             "foundation/template/src/server.dev.ts",
             "foundation/template/src/auth.server.ts",
-            "foundation/template/src/mail.server.mjs"
+            "foundation/template/src/mail.server.mjs",
+            "edition-authoring/adopt.mjs",
+            "foundation/runtime/contract-style.ts"
           ]
         },
         "mappings": [
@@ -62,6 +92,14 @@
           {
             "path": "src/mail.server.mjs",
             "originPath": "foundation/template/src/mail.server.mjs"
+          },
+          {
+            "path": "scripts/edition-authoring/adopt.mjs",
+            "originPath": "edition-authoring/adopt.mjs"
+          },
+          {
+            "path": "src/base/contract-style.ts",
+            "originPath": "foundation/runtime/contract-style.ts"
           }
         ]
       }
