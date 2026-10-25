@@ -2,6 +2,8 @@
 // Explicit columns exclude credentials and original file bytes.
 const record=(table:string,columns:string[],matter='NULL',revision='NULL',where='x.id=i.object_id',extra:Record<string,string>={})=>`(SELECT json_object('recordType','${table}','matterId',${matter},'revision',${revision},${[...columns.flatMap(c=>[`'${c}'`,`x.${c}`]),...Object.entries(extra).flatMap(([k,v])=>[`'${k}'`,v])].join(',')}) FROM ${table} x WHERE ${where} LIMIT 1)`;
 const contexts=[
+ record('s_correspondence',['id','matter_id','recipient','bill_id','bill_digest','contact_revision','reviewed_by','reviewed_at','review_note'],'x.matter_id','x.id',"i.action='correspondence.reviewed' AND x.id=i.object_id"),
+ record('s_correspondence_attempts',['id','correspondence_id','decision_by','decision_at','decision_note','contact_revision','status','provider','provider_id','detail','attempted_at'],'(SELECT matter_id FROM s_correspondence WHERE id=x.correspondence_id)','x.id',"i.action LIKE 'correspondence.%' AND x.id=i.object_id"),
  record('s_health_setup',['matter_id','authorization_reference','agreement_reference','reviewed_by','reviewed_at'],'x.matter_id','x.reviewed_at',"i.action='chronology.health_setup' AND x.matter_id=i.object_id"),
  record('s_document_chronologies',['id','matter_id','sha256','status','created_by','created_at','published_by','published_at'],'x.matter_id','x.sha256',"i.action LIKE 'chronology.%' AND x.id=i.object_id"),
  record('s_document_productions',['id','matter_id','sha256','size','status','created_by','created_at','approved_by','approved_at','review_note_sha256','exported_at','recalled_by','recalled_at','recall_reason_sha256'],'x.matter_id','x.sha256',"i.action LIKE 'production.%' AND x.id=i.object_id"),

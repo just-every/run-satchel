@@ -12,13 +12,13 @@ export async function harness(options={}){
  const socket=createServer();await new Promise(r=>socket.listen(0,'127.0.0.1',r));const port=socket.address().port;await new Promise(r=>socket.close(r));
  const directory=await mkdtemp(join(tmpdir(),'satchel-http-')),origin=`https://127.0.0.1:${port}`,mails=[];
  const config=JSON.parse(await readFile('dist/server/wrangler.json','utf8'));
- const vars={AUTH_LOCAL:'false',AUTH_ORIGIN:origin,OWNER_EMAIL:'owner@example.test',SESSION_SECRET:randomBytes(32).toString('hex'),SETUP_TOKEN:randomBytes(32).toString('hex'),MAIL_PROVIDER:'resend',MAIL_FROM:'auth@example.test',MAIL_API_KEY:'test-only-provider-key'};
+ const vars={AUTH_LOCAL:'false',AUTH_ORIGIN:origin,OWNER_EMAIL:'owner@example.test',SESSION_SECRET:randomBytes(32).toString('hex'),SETUP_TOKEN:randomBytes(32).toString('hex'),MAIL_PROVIDER:'resend',MAIL_FROM:'auth@example.test',MAIL_API_KEY:'synthetic-satchel-1'};
  const configOptions={...convertV4MiniflareOptions({
   host:'127.0.0.1',port,https:true,modulesRoot:resolve('dist/server'),modules:[config.main,...(await readdir('dist/server/assets')).filter(f=>f.endsWith('.js')).map(f=>'assets/'+f)].map(f=>({type:'ESModule',path:resolve('dist/server',f)})),
   compatibilityDate:config.compatibility_date,compatibilityFlags:config.compatibility_flags,
   assets:{directory:resolve('dist/client'),routerConfig:{has_user_worker:true}},d1Databases:{DB:'satchel-test'},r2Buckets:{ORIGINALS:'satchel-originals-test'},bindings:vars,
   // Only paid/network boundaries are fake; the built application is unchanged.
-  outboundService:async request=>{if(options.webhookResponse&&request.url==='https://receiver.example.com/events')return options.webhookResponse(request);assert.equal(request.url,'https://api.resend.com/emails');const message=await request.json();mails.push(message);return options.mailResponse?options.mailResponse(message,request):Response.json({id:'test-mail-'+mails.length});},
+  outboundService:async request=>{if(options.webhookResponse&&request.url==='https://receiver.example.com/events')return options.webhookResponse(request);if(options.mailReadback&&request.method==='GET'&&request.url.startsWith('https://api.resend.com/emails/'))return options.mailReadback(request);assert.equal(request.url,'https://api.resend.com/emails');const message=await request.json();mails.push(message);return options.mailResponse?options.mailResponse(message,request):Response.json({id:'test-mail-'+mails.length});},
  }),resourcePersistencePath:join(directory,'state')};
  let mf=new Miniflare(configOptions);
  const request=(path,body,cookie='',extra={})=>mf.dispatchFetch(origin+path,{redirect:'manual',method:body===undefined?'GET':'POST',headers:{origin,host:new URL(origin).host,'CF-Connecting-IP':'192.0.2.1',...(body===undefined?{}:{'content-type':'application/json'}),...(cookie?{cookie}:{}),...extra},...(body===undefined?{}:{body:JSON.stringify(body)})});

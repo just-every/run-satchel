@@ -1,3 +1,4 @@
+import {correspondenceState,reviewCorrespondence,sendCorrespondence,resendCorrespondence,reconcileCorrespondence} from './correspondence';
 import {chronologyState,configureHealth,importChronology,publishChronology} from './document-chronologies';
 import {listProductions,prepareProduction,productionAction,productionFile} from './document-productions';
 import {searchFirm} from './search';
@@ -127,6 +128,11 @@ api.post('/api/satchel/matters/:id/assembly',as(async(a,c)=>prepareAssembly(db(c
 api.post('/api/satchel/assembly/revisions/:id/approve',as(async(a,c)=>approveAssembly(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/assembly/revisions/:id/preview',as((a,c)=>assemblyPreview(db(c),a,param(c),c.req.query('format')??'')));
 api.get('/api/satchel/assembly/revisions/:id/file',as((a,c)=>assemblyFile(db(c),a,param(c),c.req.query('format')??'')));
+api.get('/api/satchel/matters/:id/correspondence',as((a,c)=>correspondenceState(db(c),a,param(c))));
+api.post('/api/satchel/matters/:id/correspondence',as(async(a,c)=>reviewCorrespondence(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/mail-attempts/:id/send',as((a,c)=>sendCorrespondence(runtimeBindings(c.env),a,param(c))));
+api.post('/api/satchel/mail-attempts/:id/resend-review',as(async(a,c)=>resendCorrespondence(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/mail-attempts/:id/reconcile',as((a,c)=>reconcileCorrespondence(runtimeBindings(c.env),a,param(c))));
 api.get('/api/satchel/providers',as((a,c)=>providerState(db(c),a)));
 api.post('/api/satchel/providers/:id/review',as(async(a,c)=>reviewProvider(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/followups/settings',as((a,c)=>followupSettings(db(c),a)));
