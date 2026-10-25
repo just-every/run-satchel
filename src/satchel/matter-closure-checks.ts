@@ -1,6 +1,7 @@
 import { date, insist, stmt, text, type Actor, type Data } from './model';
 import { guard } from './trust-guards';
 import { sourceDocument } from './trust';
+import { stripePendingStatuses } from './processor-balances';
 
 // These queries are also used inside the close transaction. Matching every column
 // and the collection size catches edits, inserts and removals after a preview.
@@ -11,6 +12,7 @@ export function closureSources(matterId: string) {
  const reversals = `SELECT id FROM s_trust_reversals WHERE transfer_id IN (${transfers})`;
  const entries = `SELECT id FROM s_trust_entries WHERE ledger_id IN (${ledgers})`;
  const journal = `SELECT id FROM s_trust_journal_reversals WHERE original_entry_id IN (${entries})`;
+ const stripeCheckouts = 'SELECT sc.id FROM s_stripe_checkouts sc LEFT JOIN s_bills b ON b.id=sc.bill_id LEFT JOIN s_trust_ledgers l ON l.id=sc.ledger_id WHERE ? IN(b.matter_id,l.matter_id)';
  const queries: Record<string, string> = {
   matter: 'SELECT * FROM s_matters WHERE id=?', access: 'SELECT * FROM s_matter_access WHERE matter_id=?',
   tasks: 'SELECT * FROM s_tasks WHERE matter_id=?', taskEvents: `SELECT * FROM s_task_events WHERE task_id IN (${tasks})`,
@@ -29,6 +31,7 @@ export function closureSources(matterId: string) {
   feeOccurrences: 'SELECT * FROM s_fee_occurrences WHERE plan_id IN (SELECT id FROM s_fee_plans WHERE matter_id=?)',
   feeEarningReviews: 'SELECT * FROM s_fee_earning_reviews WHERE bill_id IN (SELECT id FROM s_bills WHERE matter_id=?)',
   entries: 'SELECT * FROM s_entries WHERE matter_id=?', bills: 'SELECT * FROM s_bills WHERE matter_id=?',
+  billTaxApprovals: `SELECT * FROM s_bill_tax_approvals WHERE bill_id IN (${bills})`,
   billingSources: 'SELECT * FROM s_billing_sources WHERE entry_id IN (SELECT id FROM s_entries WHERE matter_id=?)',
   ledgers: 'SELECT * FROM s_trust_ledgers WHERE matter_id=?',
   trustEntries: `SELECT * FROM s_trust_entries WHERE ledger_id IN (${ledgers})`,
@@ -40,6 +43,8 @@ export function closureSources(matterId: string) {
   transferActions: `SELECT * FROM s_trust_transfer_actions WHERE transfer_id IN (${transfers})`,
   payments: `SELECT * FROM s_operating_payments WHERE bill_id IN (${bills})`,
   paymentReversals: `SELECT * FROM s_operating_payment_reversals WHERE payment_id IN (SELECT id FROM s_operating_payments WHERE bill_id IN (${bills}))`,
+  stripeCheckouts: `SELECT id,request_key,bill_id,cents,currency,status,purpose,ledger_id,config_id,created_by,created_at FROM s_stripe_checkouts WHERE id IN (${stripeCheckouts})`,
+  stripeAdjustments: `SELECT * FROM s_stripe_adjustments WHERE checkout_id IN (${stripeCheckouts})`,
   reversals: `SELECT * FROM s_trust_reversals WHERE transfer_id IN (${transfers})`,
   reversalActions: `SELECT * FROM s_trust_reversal_actions WHERE reversal_id IN (${reversals})`,
   journalReversals: `SELECT * FROM s_trust_journal_reversals WHERE original_entry_id IN (${entries})`,
@@ -105,12 +110,14 @@ export function closureChecks(s: Record<string, Data[]>, declarations: Data) {
  for (const bill of s.bills.filter(b => !b.corrects_bill_id && ['approved','exported'].includes(b.status))) {
   const branch = [bill];
   for (let i = 0; i < branch.length; i++) branch.push(...s.bills.filter(b => b.corrects_bill_id === branch[i].id && ['approved','exported'].includes(b.status)));
-  const earned = branch.reduce((n, b) => n + BigInt(JSON.parse(b.snapshot).totalCents), 0n);
-  const paid = s.payments.filter(p => p.bill_id === bill.id).reduce((n, p) => n + BigInt(p.cents) - s.paymentReversals.filter(r => r.payment_id === p.id).reduce((v, r) => v + BigInt(r.cents), 0n), 0n);
+  const earned = branch.reduce((n, b) => n + BigInt(JSON.parse(b.snapshot).totalCents) + BigInt(JSON.parse(s.billTaxApprovals.find(t => t.bill_id === b.id)?.snapshot ?? '{}').taxCents ?? 0), 0n);
+  const processorPaid = s.stripeCheckouts.filter(p => p.bill_id === bill.id && p.purpose === 'operating' && ['paid','returned'].includes(p.status)).reduce((n, p) => n + BigInt(p.cents) - s.stripeAdjustments.filter(a => a.checkout_id === p.id).reduce((v, a) => v + BigInt(a.cents), 0n), 0n);
+  const paid = s.payments.filter(p => p.bill_id === bill.id).reduce((n, p) => n + BigInt(p.cents) - s.paymentReversals.filter(r => r.payment_id === p.id).reduce((v, r) => v + BigInt(r.cents), 0n), processorPaid);
   const balance = earned - paid;
   insist([earned, paid, balance].every(value => value <= BigInt(Number.MAX_SAFE_INTEGER) && value >= BigInt(Number.MIN_SAFE_INTEGER)), 'Bill balance exceeds exact USD cents');
   if (balance !== 0n) add('bill-balance', bill.id, `${JSON.parse(bill.snapshot).title}: ${balance > 0n ? 'unpaid' : 'credit owed'}`, { earnedCents: Number(earned), paidCents: Number(paid), balanceCents: Number(balance), billIds: branch.map(b => b.id) });
  }
+ for (const p of s.stripeCheckouts.filter(p => stripePendingStatuses.some(status => status === p.status))) add('processor-checkout', p.id, `Pending ${p.purpose} processor collection`, p);
  for (const ledger of s.ledgers) {
   const cents = s.trustEntries.filter(e => e.ledger_id === ledger.id).reduce((n, e) => n + BigInt(e.cents), 0n);
   insist(cents <= BigInt(Number.MAX_SAFE_INTEGER) && cents >= BigInt(Number.MIN_SAFE_INTEGER), 'Trust balance exceeds exact USD cents');

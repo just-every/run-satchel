@@ -1,10 +1,12 @@
+import {stripeEdge} from './stripe-fixture.mjs';
+import {stripeBrowser} from './stripe-browser.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {chromium} from '@playwright/test';
 import {harness} from './harness.mjs';
 import {capturePanel} from './browser-shots.mjs';
 for(const [width,height] of [[1440,1000],[390,844]])test(`OSS-001 provider charges: disclosure, terms review and no payment prompt at ${width}px`,async()=>{
- const h=await harness(),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});
+ const edge=stripeEdge(),h=await harness(edge),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});
  try{
   const page=await(await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true})).newPage(),errors=[];page.setDefaultTimeout(15000);page.on('pageerror',e=>errors.push(String(e)));
   await page.goto(h.origin+'/signin');await page.getByLabel('Email').fill('owner@example.test');await page.getByRole('button',{name:'Email a sign-in link'}).click();await page.getByText('a sign-in link is on its way').waitFor();
@@ -26,6 +28,7 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`OSS-001 provider charg
   if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,panel,process.env.SATCHEL_SCREENSHOTS,'providers-'+width);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);
   assert.deepEqual(errors,[]);
+  await stripeBrowser({page,browser,h,edge,width});
  }finally{await browser.close();await h.close();}
 });
 

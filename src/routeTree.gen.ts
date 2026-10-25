@@ -14,6 +14,7 @@ import { Route as BookOfferIdRouteImport } from './routes/book.$offerId'
 import { Route as ConsultationTokenRouteImport } from './routes/consultation.$token'
 import { Route as IntakeFormIdRouteImport } from './routes/intake.$formId'
 import { Route as FollowupIdSignatureRouteImport } from './routes/followup.$id.$signature'
+import { Route as AppInvoicesIdPayRouteImport } from './routes/app_.invoices.$id.pay'
 
 const AppRoute = AppRouteImport.update({
   id: '/app',
@@ -40,6 +41,11 @@ const FollowupIdSignatureRoute = FollowupIdSignatureRouteImport.update({
   path: '/followup/$id/$signature',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppInvoicesIdPayRoute = AppInvoicesIdPayRouteImport.update({
+  id: '/app_/invoices/$id/pay',
+  path: '/app/invoices/$id/pay',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/app': typeof AppRoute
@@ -47,6 +53,7 @@ export interface FileRoutesByFullPath {
   '/consultation/$token': typeof ConsultationTokenRoute
   '/intake/$formId': typeof IntakeFormIdRoute
   '/followup/$id/$signature': typeof FollowupIdSignatureRoute
+  '/app/invoices/$id/pay': typeof AppInvoicesIdPayRoute
 }
 export interface FileRoutesByTo {
   '/app': typeof AppRoute
@@ -54,6 +61,7 @@ export interface FileRoutesByTo {
   '/consultation/$token': typeof ConsultationTokenRoute
   '/intake/$formId': typeof IntakeFormIdRoute
   '/followup/$id/$signature': typeof FollowupIdSignatureRoute
+  '/app/invoices/$id/pay': typeof AppInvoicesIdPayRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,6 +70,7 @@ export interface FileRoutesById {
   '/consultation/$token': typeof ConsultationTokenRoute
   '/intake/$formId': typeof IntakeFormIdRoute
   '/followup/$id/$signature': typeof FollowupIdSignatureRoute
+  '/app_/invoices/$id/pay': typeof AppInvoicesIdPayRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -71,6 +80,7 @@ export interface FileRouteTypes {
     | '/consultation/$token'
     | '/intake/$formId'
     | '/followup/$id/$signature'
+    | '/app/invoices/$id/pay'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/app'
@@ -78,6 +88,7 @@ export interface FileRouteTypes {
     | '/consultation/$token'
     | '/intake/$formId'
     | '/followup/$id/$signature'
+    | '/app/invoices/$id/pay'
   id:
     | '__root__'
     | '/app'
@@ -85,6 +96,7 @@ export interface FileRouteTypes {
     | '/consultation/$token'
     | '/intake/$formId'
     | '/followup/$id/$signature'
+    | '/app_/invoices/$id/pay'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -93,6 +105,7 @@ export interface RootRouteChildren {
   ConsultationTokenRoute: typeof ConsultationTokenRoute
   IntakeFormIdRoute: typeof IntakeFormIdRoute
   FollowupIdSignatureRoute: typeof FollowupIdSignatureRoute
+  AppInvoicesIdPayRoute: typeof AppInvoicesIdPayRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -132,6 +145,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FollowupIdSignatureRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app_/invoices/$id/pay': {
+      id: '/app_/invoices/$id/pay'
+      path: '/app/invoices/$id/pay'
+      fullPath: '/app/invoices/$id/pay'
+      preLoaderRoute: typeof AppInvoicesIdPayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -141,6 +161,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConsultationTokenRoute: ConsultationTokenRoute,
   IntakeFormIdRoute: IntakeFormIdRoute,
   FollowupIdSignatureRoute: FollowupIdSignatureRoute,
+  AppInvoicesIdPayRoute: AppInvoicesIdPayRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

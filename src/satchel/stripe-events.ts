@@ -1,0 +1,48 @@
+import {audit,id,insist,now,rows,stmt,text,type Data} from './model';
+import {guard} from './trust-guards';
+import {stripeApi,type StripeEnv} from './stripe-api';
+// Incoming bodies carry only an event identity. Money facts come from authenticated
+// Stripe readback, so forged bodies, browser redirects and stale event order confer no authority.
+export async function stripeEvent(env:StripeEnv,request:Request){
+ const raw=await request.text();insist(raw.length<=100000,'Provider event too large',413);
+ const input=JSON.parse(raw),eventId=text(input.id,'Stripe event ID',100);
+ const event=await stripeApi(env,'/events/'+encodeURIComponent(eventId));insist(event.id===eventId&&event.livemode===false,'Only verified Stripe sandbox events are accepted',400);
+ const object=event.data?.object;insist(object,'Invalid provider event',400);
+ let attempt:Data|null=null;
+ if(object.object==='checkout.session')attempt=await stmt(env.DB,'SELECT * FROM s_stripe_checkouts WHERE session_id=?',object.id).first<Data>();
+ else{
+  const intent=object.object==='payment_intent'?object.id:object.payment_intent;
+  if(intent)attempt=await stmt(env.DB,'SELECT * FROM s_stripe_checkouts WHERE payment_intent_id=?',typeof intent==='string'?intent:intent.id).first<Data>();
+  if(!attempt&&object.metadata?.satchel_checkout)attempt=await stmt(env.DB,'SELECT * FROM s_stripe_checkouts WHERE id=?',object.metadata.satchel_checkout).first<Data>();
+ }
+ if(!attempt)return {received:true};
+ if(await stmt(env.DB,'SELECT 1 FROM s_stripe_events WHERE id=?',eventId).first())return {received:true};
+ return reconcileStripe(env,attempt,eventId,event.type);
+}
+export async function reconcileStripe(env:StripeEnv,attempt:Data,eventId:string,eventType:string){
+ insist(attempt.session_id,'Reconcile the uncertain provider acknowledgment first',409);
+ const session=await stripeApi(env,'/checkout/sessions/'+encodeURIComponent(attempt.session_id)+'?expand[]=payment_intent.latest_charge');
+ const config=await stmt(env.DB,'SELECT * FROM s_stripe_config WHERE id=?',attempt.config_id).first<Data>();
+ const account=await stripeApi(env,'/account');
+ insist(config&&account.id===config.account_id&&session.livemode===false&&session.id===attempt.session_id&&session.client_reference_id===attempt.id&&session.metadata?.satchel_checkout===attempt.id&&session.amount_total===attempt.cents&&session.currency===attempt.currency,'Stripe reconciliation does not match the approved account and exact invoice allocation',409);
+ const pi=session.payment_intent&&typeof session.payment_intent==='object'?session.payment_intent:null,charge=pi?.latest_charge&&typeof pi.latest_charge==='object'?pi.latest_charge:null;
+ if(pi)insist(pi.metadata?.satchel_checkout===attempt.id&&pi.amount===attempt.cents&&pi.currency===attempt.currency&&pi.livemode===false,'Stripe intent allocation mismatch',409);
+ let status=session.status==='expired'?'expired':pi?.status==='processing'?'pending':session.payment_status==='paid'&&pi?.status==='succeeded'?'paid':pi?.last_payment_error&&session.status==='complete'?'failed':session.status==='complete'?'pending':'open';
+ const adjustments=await rows(env.DB,'SELECT * FROM s_stripe_adjustments WHERE checkout_id=?',attempt.id),priorReturned=adjustments.reduce((n,r)=>n+r.cents,0);
+ const returned=charge?.disputed||(charge?.status==='failed'&&['paid','returned'].includes(attempt.status))?attempt.cents:Math.min(attempt.cents,Number(charge?.amount_refunded??0));
+ const delta=Math.max(0,returned-priorReturned),wasPaid=attempt.status==='paid'||attempt.status==='returned';
+ if(returned>0||priorReturned>0)status=returned>=attempt.cents||priorReturned>=attempt.cents?'returned':'paid';
+ // A delayed processing event can never resurrect paid or returned principal.
+ if(wasPaid&&['open','pending','failed','expired'].includes(status))status=attempt.status;
+ const at=now(),writes:D1PreparedStatement[]=[guard(env.DB,'NOT EXISTS(SELECT 1 FROM s_stripe_events WHERE id=?)',eventId),guard(env.DB,'EXISTS(SELECT 1 FROM s_stripe_checkouts WHERE id=? AND status=? AND updated_at=?)',attempt.id,attempt.status,attempt.updated_at)];
+ if(status==='paid'&&!wasPaid)writes.push(guard(env.DB,"EXISTS(SELECT 1 FROM s_bills WHERE id=? AND status<>'void')",attempt.bill_id));
+ if(delta>0)writes.push(stmt(env.DB,'INSERT INTO s_stripe_adjustments VALUES(?,?,?,?,?,?)',id(),attempt.id,String(charge.id)+':'+returned,delta,charge.disputed?'dispute':charge.status==='failed'?'return':'refund',at));
+ if(attempt.purpose==='trust'&&status==='paid'&&!wasPaid){
+  const day=at.slice(0,10);writes.push(guard(env.DB,'EXISTS(SELECT 1 FROM s_trust_ledgers WHERE id=? AND account_id=?)',attempt.ledger_id,config.bank_account_id),stmt(env.DB,"INSERT INTO s_trust_entries VALUES(?,?,?,'ach',?,?,?,?,?,?)",id(),config.bank_account_id,attempt.ledger_id,attempt.cents,day,day,'stripe:'+attempt.id,attempt.created_by,at));
+ }
+ // Protected trust returns require an officer's append-only reviewed bank correction;
+ // no provider event can silently debit protected client principal.
+ writes.push(stmt(env.DB,'UPDATE s_stripe_checkouts SET status=?,payment_intent_id=COALESCE(?,payment_intent_id),updated_at=? WHERE id=?',status,pi?.id??null,at,attempt.id),stmt(env.DB,'INSERT INTO s_stripe_events VALUES(?,?,?,?,?,?)',eventId,attempt.id,eventType,status,attempt.cents,at),audit(env.DB,{id:'stripe',email:'processor@stripe.invalid',role:'provider',channel:'provider'},'stripe.reconciled',attempt.id,JSON.stringify({eventId,type:eventType,status,billId:attempt.bill_id,cents:attempt.cents,returnedCents:Math.max(returned,priorReturned),purpose:attempt.purpose}),{matterId:(await stmt(env.DB,'SELECT matter_id FROM s_bills WHERE id=?',attempt.bill_id).first<Data>())?.matter_id}));
+ try{await env.DB.batch(writes);}catch(error){if(await stmt(env.DB,'SELECT 1 FROM s_stripe_events WHERE id=?',eventId).first())return {received:true};throw error;}
+ return {received:true};
+}

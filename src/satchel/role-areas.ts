@@ -8,6 +8,12 @@ const seg='[^/]+',any='.*';
 const rule=(pattern:string,areas:string[]):[RegExp,string[]]=>[new RegExp('^'+pattern+'$'),areas];
 const open:string[]=[];
 export const areaRules:[RegExp,string[]][]=[
+ rule('/(invoice-templates|invoice-notification-templates)',['billing','rates:all']),
+ rule('/(matters/'+seg+'/invoice-deliveries|bills/'+seg+'/deliveries|invoice-deliveries/'+seg+'/authorize|invoice-notification-attempts/'+seg+'/send)',['billing','rates:all','contacts:read']),
+ rule('/(invoice-deliveries/'+seg+'/pdf|portal/matters/'+seg+'/payer-statements|payer-statements/'+seg+'/pdf)',open),
+ rule('/(matters/'+seg+'/payer-statements|invoices/'+seg+'/replacement)',['billing','rates:all']),
+ rule('/stripe/settings',['settings']),
+ rule('/portal/invoices/'+seg+'/(payment|checkout)',['billing']),
  rule('/(client-reminder-templates|matters/'+seg+'/client-reminders|matters/'+seg+'/client-reminders/schedule)',['contacts','documents','billing']),
  rule('/(matters/'+seg+'/correspondence|mail-attempts/'+seg+'/(send|resend-review|reconcile))',['contacts','documents','billing']),
  rule('/matters/'+seg+'/fields',['documents:read']),

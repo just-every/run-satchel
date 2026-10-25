@@ -35,5 +35,5 @@ export function PortalInvoices({matterId}:{matterId:string}){
  const [list,setList]=useState<Row[]|null>(null),[error,setError]=useState('');
  useEffect(()=>{api('/portal/matters/'+matterId+'/invoices').then(r=>setList(r.invoices)).catch(e=>setError(e.message));},[matterId]);
  const usd=(c:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(c/100);
- return <div aria-label="Invoices"><h3>Invoices</h3>{error&&<p className="error" role="alert">{error}</p>}{!list?<p>Opening invoices…</p>:!list.length?<p>No invoice has been issued on this matter.</p>:<ul>{list.map(i=><li key={i.id} className="record"><strong>{i.number}</strong> · {when(i.issuedAt)} · {usd(i.totalCents)}<p><a href={i.pdfUrl}>Download invoice {i.number}</a></p></li>)}</ul>}</div>;
+ return <div aria-label="Invoices"><h3>Invoices</h3>{error&&<p className="error" role="alert">{error}</p>}{!list?<p>Opening invoices…</p>:!list.length?<p>No invoice has been issued on this matter.</p>:<ul>{list.map(i=><li key={i.id} className="record"><strong>{i.number}</strong> · {when(i.issuedAt)} · {usd(i.totalCents)}<p><a href={'/app/invoices/'+i.id+'/pay'}>View and pay invoice</a> · <a href={i.pdfUrl}>Download invoice {i.number}</a></p></li>)}</ul>}</div>;
 }
