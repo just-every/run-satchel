@@ -429,15 +429,6 @@
         "scripts/edition-authoring/release.mjs": "100644",
         "scripts/edition-authoring/sources.mjs": "100644",
         "scripts/edition-authoring/updates.mjs": "100644"
-      },
-      "adapted": {
-        "scripts/edition-authoring/adopt.mjs": "11f94fec479228d71ba6d7dd6ea7796c0d42c544"
-      },
-      "acknowledged": {
-        "scripts/edition-authoring/adopt.mjs": {
-          "sha256": "5371f1877e82035acdb668e1e50508130a3c224b2dfe88768cf39aeadcf48490",
-          "mode": "100644"
-        }
       }
     },
     {
@@ -504,15 +495,6 @@
       },
       "modes": {
         "src/base/contract-style.ts": "100644"
-      },
-      "adapted": {
-        "src/base/contract-style.ts": "11f94fec479228d71ba6d7dd6ea7796c0d42c544"
-      },
-      "acknowledged": {
-        "src/base/contract-style.ts": {
-          "sha256": "7999c3f928e87765f4716fc4bcdf20f7dc36674c2663c856e6d893961d0db6ac",
-          "mode": "100644"
-        }
       }
     },
     {
@@ -1278,15 +1260,6 @@
         "src/modules/import-kit/src/storage/schema.ts": "100644",
         "src/modules/import-kit/src/storage/sqlite.ts": "100644",
         "src/modules/import-kit/src/types.ts": "100644"
-      },
-      "adapted": {
-        "src/modules/import-kit/README.md": "11f94fec479228d71ba6d7dd6ea7796c0d42c544"
-      },
-      "acknowledged": {
-        "src/modules/import-kit/README.md": {
-          "sha256": "d3d4c882ed3cdd6a0f8b17a1e2a36c67f0a6adf5b758a14e67d3ad3c3dbc45a9",
-          "mode": "100644"
-        }
       }
     },
     {
@@ -1426,37 +1399,6 @@
         "src/modules/mail/src/sendgrid-email/index.d.mts": "100644",
         "src/modules/mail/src/sendgrid-email/index.mjs": "100644",
         "src/modules/mail/src/unsubscribe/index.mjs": "100644"
-      },
-      "adapted": {
-        "src/modules/mail/README.md": "11f94fec479228d71ba6d7dd6ea7796c0d42c544"
-      },
-      "acknowledged": {
-        "src/modules/mail/README.md": {
-          "sha256": "d551371533cff8c966d239d65636e8c7776b202750777b16b56a0086e24dc77e",
-          "mode": "100644"
-        }
-      }
-    },
-    {
-      "path": "src/modules/operator-auth/README.md",
-      "originPath": "modules/operator-auth/README.md",
-      "revision": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",
-      "files": {
-        "src/modules/operator-auth/README.md": "ce65e011c97d7c234c00e1363f1ac43a6137b88c00f8dcfcda6675db55a8310c"
-      },
-      "modes": {
-        "src/modules/operator-auth/README.md": "100644"
-      }
-    },
-    {
-      "path": "src/modules/operator-auth/SCHEDULED-POLICY.md",
-      "originPath": "modules/operator-auth/SCHEDULED-POLICY.md",
-      "revision": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",
-      "files": {
-        "src/modules/operator-auth/SCHEDULED-POLICY.md": "59c8fb08ab84dbcb720086fce458ef07b94933737c5777e07b79909d95b27862"
-      },
-      "modes": {
-        "src/modules/operator-auth/SCHEDULED-POLICY.md": "100644"
       }
     },
     {
@@ -1988,17 +1930,6 @@
       }
     },
     {
-      "path": "src/modules/operator-auth/docs/README.md",
-      "originPath": "modules/operator-auth/docs/README.md",
-      "revision": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",
-      "files": {
-        "src/modules/operator-auth/docs/README.md": "fb67546feb7e63ef53608e88bf8a937abb3db31d497291734c5e7c99ac70e649"
-      },
-      "modes": {
-        "src/modules/operator-auth/docs/README.md": "100644"
-      }
-    },
-    {
       "path": "src/modules/operator-auth/docs/native-accounts.md",
       "originPath": "modules/operator-auth/docs/native-accounts.md",
       "revision": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",
@@ -2007,6 +1938,17 @@
       },
       "modes": {
         "src/modules/operator-auth/docs/native-accounts.md": "100644"
+      }
+    },
+    {
+      "path": "src/modules/operator-auth/docs/README.md",
+      "originPath": "modules/operator-auth/docs/README.md",
+      "revision": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",
+      "files": {
+        "src/modules/operator-auth/docs/README.md": "fb67546feb7e63ef53608e88bf8a937abb3db31d497291734c5e7c99ac70e649"
+      },
+      "modes": {
+        "src/modules/operator-auth/docs/README.md": "100644"
       }
     },
     {
@@ -2164,17 +2106,6 @@
       }
     },
     {
-      "path": "src/modules/operator-auth/identity/oidc/README.md",
-      "originPath": "modules/operator-auth/identity/oidc/README.md",
-      "revision": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",
-      "files": {
-        "src/modules/operator-auth/identity/oidc/README.md": "5e03d2ef26aee1b96ef658c3dda90fe2b4781417ff1c9f32dff0d56105f7472b"
-      },
-      "modes": {
-        "src/modules/operator-auth/identity/oidc/README.md": "100644"
-      }
-    },
-    {
       "path": "src/modules/operator-auth/identity/oidc/aes-gcm.mjs",
       "originPath": "modules/operator-auth/identity/oidc/aes-gcm.mjs",
       "revision": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",
@@ -2282,6 +2213,17 @@
       },
       "modes": {
         "src/modules/operator-auth/identity/oidc/presets.mjs": "100644"
+      }
+    },
+    {
+      "path": "src/modules/operator-auth/identity/oidc/README.md",
+      "originPath": "modules/operator-auth/identity/oidc/README.md",
+      "revision": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",
+      "files": {
+        "src/modules/operator-auth/identity/oidc/README.md": "5e03d2ef26aee1b96ef658c3dda90fe2b4781417ff1c9f32dff0d56105f7472b"
+      },
+      "modes": {
+        "src/modules/operator-auth/identity/oidc/README.md": "100644"
       }
     },
     {
@@ -2417,6 +2359,17 @@
       }
     },
     {
+      "path": "src/modules/operator-auth/README.md",
+      "originPath": "modules/operator-auth/README.md",
+      "revision": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",
+      "files": {
+        "src/modules/operator-auth/README.md": "ce65e011c97d7c234c00e1363f1ac43a6137b88c00f8dcfcda6675db55a8310c"
+      },
+      "modes": {
+        "src/modules/operator-auth/README.md": "100644"
+      }
+    },
+    {
       "path": "src/modules/operator-auth/rejected-response.mjs",
       "originPath": "modules/operator-auth/rejected-response.mjs",
       "revision": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",
@@ -2447,6 +2400,17 @@
       },
       "modes": {
         "src/modules/operator-auth/routes.mjs": "100644"
+      }
+    },
+    {
+      "path": "src/modules/operator-auth/SCHEDULED-POLICY.md",
+      "originPath": "modules/operator-auth/SCHEDULED-POLICY.md",
+      "revision": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",
+      "files": {
+        "src/modules/operator-auth/SCHEDULED-POLICY.md": "59c8fb08ab84dbcb720086fce458ef07b94933737c5777e07b79909d95b27862"
+      },
+      "modes": {
+        "src/modules/operator-auth/SCHEDULED-POLICY.md": "100644"
       }
     },
     {

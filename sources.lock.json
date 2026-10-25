@@ -6,7 +6,7 @@
   "toolchain": {
     "id": "runeditrun/edition-authoring",
     "version": "1.1.0",
-    "sha256": "f06b30de0da6862a130c6453a242e4fb9eda5e6496fc4c331eaeddbeb0b0f66d"
+    "sha256": "3ce2f4bc6357b80a2a744ab7572160ca73eea08c5c627402957bce492f22b6a5"
   },
   "components": [
     {
@@ -152,7 +152,7 @@
       "executable": false
     },
     "base-copies.json": {
-      "sha256": "48e22e3708c74c5a7495cedb15bbfb2cbf1a49a44e4b67255b4890516c24c955",
+      "sha256": "267d5439293c643abcfed93e1ab181444fbc5b6f37c49ab88bc009263a53371f",
       "executable": false
     },
     "CHANGELOG.md": {
@@ -1000,7 +1000,7 @@
       "executable": false
     },
     "scripts/edition-authoring/adopt.mjs": {
-      "sha256": "5371f1877e82035acdb668e1e50508130a3c224b2dfe88768cf39aeadcf48490",
+      "sha256": "c9cf80207b5f14164ce18cce63e08e0fcbb254d93b66263911ba74cdd4079c8f",
       "executable": false
     },
     "scripts/edition-authoring/base-acknowledgements.mjs": {
@@ -1108,7 +1108,7 @@
       "executable": false
     },
     "src/base/contract-style.ts": {
-      "sha256": "7999c3f928e87765f4716fc4bcdf20f7dc36674c2663c856e6d893961d0db6ac",
+      "sha256": "915ec4aeb742e883cb5c041fffb96b156a6a07ce37d19402a47742beb2efeb37",
       "executable": false
     },
     "src/base/deployment-health.ts": {
@@ -1424,7 +1424,7 @@
       "executable": false
     },
     "src/modules/import-kit/README.md": {
-      "sha256": "d3d4c882ed3cdd6a0f8b17a1e2a36c67f0a6adf5b758a14e67d3ad3c3dbc45a9",
+      "sha256": "1f8069d41883f9e9989ee66bcaac0a28a181483a42c3cd3be5263a4714233795",
       "executable": false
     },
     "src/modules/import-kit/schema/importer-verification-receipt.schema.json": {
@@ -2264,7 +2264,7 @@
       "executable": false
     },
     "src/modules/mail/README.md": {
-      "sha256": "d551371533cff8c966d239d65636e8c7776b202750777b16b56a0086e24dc77e",
+      "sha256": "00154803c5caf2fa952b4b1a26f849dc44fd9fbbc23db18a5715eb592f63fef9",
       "executable": false
     },
     "src/modules/mail/src/adapters/cloudflare/headers.mjs": {
