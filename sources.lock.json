@@ -128,7 +128,7 @@
       "executable": false
     },
     ".github/workflows/verify.yml": {
-      "sha256": "b917056c9702990d688ae513a11942cbef1197335170eb6f458d52d662013987",
+      "sha256": "f00a21a9fff0a4b795f7259d0940cf416464b0091c326c9a88deef1fb5a068ae",
       "executable": false
     },
     ".gitignore": {
@@ -3572,7 +3572,7 @@
       "executable": false
     },
     "src/satchel/role-areas.ts": {
-      "sha256": "0c0885233544993a893b24f352d2cb06d629bea8437ff8261ef2cc3402b48ba9",
+      "sha256": "679d8ee7b8bdb3ef74eda16058fad157def4691f038ec59f0dc173c51fd01a7d",
       "executable": false
     },
     "src/satchel/role-doors.ts": {
@@ -4352,7 +4352,7 @@
       "executable": false
     },
     "tests/satchel/custom-roles.test.mjs": {
-      "sha256": "c5126da84f27e69699011de19c2ef2cb4f05fe12aba4f71caff1032eadff8b7f",
+      "sha256": "b9f991c448ba715a7fde7c0145e30da50bc4015024ebe7cded54fc6bdc497358",
       "executable": false
     },
     "tests/satchel/document-packet-fixture.mjs": {

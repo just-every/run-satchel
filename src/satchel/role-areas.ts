@@ -11,6 +11,7 @@ export const areaRules:[RegExp,string[]][]=[
  rule('/(matters/'+seg+'/matter-updates(?:/generate)?|matter-updates/'+seg+'/(edit|approve)|matter-update-promises/'+seg+'/fulfil|matter-update-replies/'+seg+'/complete)',['contacts','documents','billing']),
  rule('/(portal/matters/'+seg+'/updates|portal/matter-updates/'+seg+'/replies)',open),
  rule('/production-shares/'+seg+'/recall',['documents']),
+ rule('/production-shares/'+seg+'(/file)?',open),
  rule('/matters/'+seg+'/revenue(/rules|/allocations)?',['reports','rates:all','bank:full']),
  rule('/time/bulk(/'+seg+'/(rows|post))?',['billing']),
  rule('/(offline-payments|offline-payments/'+seg+'|offline-payments/'+seg+'/actions|invoices/'+seg+'/writeoff)',['billing','bank:full']),

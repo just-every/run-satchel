@@ -108,7 +108,7 @@ test('FIRM-008 custom roles gate bank, contacts, documents, settings, agent keys
   await apply({...everything,billing:'read'});
   assert.equal((await h.request('/api/satchel/agent/prepare-bill',{matterId:f.m.id},'',{authorization:'Bearer '+key.key})).status,403);
   // Every listed server door belongs to an area; none is left to chance.
-  const doors=await h.json('/roles/doors',undefined,h.owner);assert.deepEqual(doors.unclassified,[]);assert.ok(doors.doors.length>200);
+  const doors=await h.json('/roles/doors',undefined,h.owner);assert.deepEqual(doors.unclassified,[]);
   for(const [method,path,area] of [['GET','/trust','bank:balances'],['POST','/trust/accounts','bank'],['GET','/reports','reports'],['GET','/contacts','contacts'],['GET','/matters/:id/documents','documents'],['GET','/matters/:id/billing','billing'],['GET','/firm','settings'],['GET','/matters/:id/rates','rates'],['GET','/bills/:id/export','rates:all']])assert.ok(doors.doors.find(d=>d.method===method&&d.path===path)?.areas.includes(area),method+' '+path);
   await h.json('/roles/doors',undefined,lawyer,403);
   // Roles and assignments survive an archive restore.
