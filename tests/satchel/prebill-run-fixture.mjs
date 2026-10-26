@@ -82,8 +82,45 @@ export async function provePrebillRun(){
   await h.json('/bills/'+approved[0].id+'/review',{revision:approved[0].revision,action:'revise',note:'Cannot edit an issued invoice',lines:[]},cookies.lawyer,409);
   run=await h.json('/prebill-runs/'+run.id,undefined,cookies.billing);assert.equal(run.bills[0].reviews.length,1);assert.equal(run.bills[2].prebill.reviewState,'returned');assert.equal(run.bills[0].issue.template_id,template.id);
   assert.equal((await h.json('/invoice-numbering',undefined,h.owner)).counter.next_number,102);
+  await proveFeePlanPrebillReviews(h,template,cookies.lawyer,cookies.billing);
   await h.restart();restored=await harness();await restored.json('/restore',{archive:await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),confirm:'RESTORE'},restored.owner);
   assert.deepEqual(await restored.json('/prebill-runs/'+run.id,undefined,restored.owner),await h.json('/prebill-runs/'+run.id,undefined,h.owner));
   assert.deepEqual(await restored.json('/invoices/issue',issue,restored.owner),issued);
  }finally{await restored?.close();await h.close();}
+}
+
+async function proveFeePlanPrebillReviews(h,template,counsel,billing){
+ await h.json('/ledes/timekeepers',{email:'owner@example.test',timekeeperId:'FEE-OWNER',name:'Reviewing principal',classification:'PT'},h.owner);
+ for(const kind of ['capped','blended']){
+  const m=await open(h,kind+' prebill adjustment',kind+' prebill client',kind+' opposing party'),base='/matters/'+m.id;
+  for(const email of ['run-counsel@example.test','run-billing@example.test'])await h.json(base+'/access',{email},h.owner);
+  await h.json(base+'/invoice-template',{templateId:template.id,previousId:null,reason:'Exact template for reviewed fee adjustment'},h.owner);
+  const plan=await h.json(base+'/fee-plans',{kind,title:kind+' reviewed agreement',recurrence:'once',startDate:'2026-10-01',endDate:'2026-10-31',earning:'on_approval',trustDraw:'permitted',amountCents:kind==='capped'?45000:20001,includedWork:'Recorded advice under the reviewed agreement',exceptions:'none',reference:'Synthetic signed fee agreement section 4',reviewed:true},h.owner);
+  await h.json(base+'/ledes-guideline',{clientLedesId:kind.toUpperCase(),lawFirmId:'SATCHEL',requireTask:false,requireActivity:false,requireExpense:false,narrativeMin:0,bannedPhrases:[],maxRates:{},incrementMinutes:0,note:'Reviewed fee-plan client guideline'},h.owner);
+  const entries=[];for(const narrative of ['Retained reviewed advice','Excluded reviewed advice'])entries.push(await h.json(base+'/entries',{kind:'time',date:'2026-10-02',description:narrative,minutes:kind==='blended'?17:60,rateCents:kind==='blended'?99000:30000},h.owner));
+  const run=await h.json('/prebill-runs',{title:kind+' counsel review',date:'2026-10-03',items:[{matterId:m.id,payer:m.client,periodStart:'2026-10-01',periodEnd:'2026-10-31',arrangement:kind,feePlanId:plan.id,entryIds:entries.map(e=>e.id)}]},billing),initial=run.bills[0];
+  const oldTax=await exemptTaxReview(h,'/bills/'+initial.id+'/approve'),target=kind==='capped'?25000:5000;
+  await h.json('/bills/'+initial.id+'/review',{revision:initial.revision,action:'revise',note:'An increase cannot replace a reviewed decrease',lines:[{sourceId:entries[0].id,amountCents:initial.snapshot.lines[0].amountCents+1}]},counsel,400);
+  const edit={revision:initial.revision,action:'revise',note:'Counsel excludes one source and reviews the exact courtesy write-down',lines:[{sourceId:entries[0].id,description:'Counsel-approved fee narrative',amountCents:target},{sourceId:entries[1].id,exclude:true}]};
+  const revised=await h.json('/bills/'+initial.id+'/review',edit,counsel);
+  assert.deepEqual(revised.snapshot.feePlan,initial.snapshot.feePlan);assert.equal(revised.snapshot.totalCents,target);assert.equal(revised.snapshot.lines.length,1);
+  assert.equal(revised.snapshot.lines[0].rateCents,initial.snapshot.lines[0].rateCents);assert.equal(revised.snapshot.lines[0].sourceRevision,entries[0].revision);
+  const adjustment=revised.snapshot.lines[0].prebillAdjustments[0];assert.equal(adjustment.priorAmountCents,initial.snapshot.lines[0].amountCents);assert.equal(adjustment.amountCents,target);assert.equal(adjustment.adjustmentCents,target-initial.snapshot.lines[0].amountCents);assert.equal(adjustment.note,edit.note);
+  assert.deepEqual(revised.snapshot.prebill.reviewedAdjustments.map(a=>[a.sourceId,a.action]),[[entries[0].id,'write_down'],[entries[1].id,'exclude']]);
+  const coded=revised.snapshot.ledes.lines[0],before=initial.snapshot.ledes.lines[0];assert.equal(coded.units4,before.units4);assert.equal(coded.unitCostCents,before.unitCostCents);assert.equal(coded.totalCents,target);assert.equal(coded.adjustmentCents-before.adjustmentCents,target-before.totalCents);
+  const state=await h.json(base+'/billing',undefined,h.owner);for(const entry of entries){const source=state.entries.find(e=>e.id===entry.id);assert.equal(source.amountCents,entry.amountCents);assert.equal(source.rateCents,entry.rateCents);assert.equal(source.revision,entry.revision);assert.equal(source.description,entry.description);assert.equal(source.reservedBy,entry.id===entries[0].id?revised.id:null);}
+  const approval={revision:revised.revision,reviewNote:'Counsel approves exact decreased fee and source exclusion',earnedConfirmed:true,earningEvidence:'Recorded work completed and reviewed under original agreement'};
+  await h.json('/bills/'+revised.id+'/approve',{revision:revised.revision,reviewNote:approval.reviewNote,taxReviewId:oldTax},counsel,422);
+  await h.json('/bills/'+revised.id+'/approve',{...approval,taxReviewId:oldTax},counsel,422);
+  const currentTax=await exemptTaxReview(h,'/bills/'+revised.id+'/approve');
+  await h.json('/bills/'+revised.id+'/approve',{...approval,revision:initial.revision,taxReviewId:currentTax},counsel,409);
+  const approved=await h.json('/bills/'+revised.id+'/approve',{...approval,taxReviewId:currentTax},counsel);
+  const approvedState=(await h.json(base+'/billing',undefined,h.owner)).bills.find(b=>b.id===approved.id);assert.equal(approvedState.earningReview.earned_cents,target);assert.equal(approvedState.snapshot.taxReview.billRevision,revised.revision);assert.deepEqual(approvedState.snapshot.feePlan,initial.snapshot.feePlan);
+  const replacement=await h.json(base+'/bills',{title:'Excluded source separately reconsidered',date:'2026-10-03',entryIds:[entries[1].id],feePlanId:plan.id},h.owner);
+  assert.equal(replacement.snapshot.totalCents,kind==='capped'?20000:initial.snapshot.lines[1].amountCents);
+  if(kind==='capped')assert.equal(approved.snapshot.totalCents+replacement.snapshot.totalCents,plan.amountCents);
+  const payload={bills:[{id:approved.id,revision:approved.revision}]},issued=await h.json('/invoices/issue',payload,billing);assert.deepEqual(issued.issues[0].line_snapshot,revised.snapshot.lines);assert.deepEqual(await h.json('/invoices/issue',payload,billing),issued);
+  await h.json('/bills/'+approved.id+'/review',{revision:approved.revision,action:'revise',note:'Issued fee adjustments are immutable',lines:[]},counsel,409);
+  const history=(await h.json('/prebill-runs/'+run.id,undefined,counsel)).bills[0].reviews;assert.equal(history.length,1);assert.deepEqual(JSON.parse(history[0].excluded_sources),[entries[1].id]);assert.equal(history[0].note,edit.note);
+ }
 }

@@ -9,7 +9,7 @@ export async function reviewPrebill(db:D1Database,actor:Actor,billId:string,body
  const bill=await getBill(db,actor,billId);insist(bill.status==='draft'&&bill.snapshot.prebill,'Only a current draft prebill can be returned or revised',409);
  insist(body.revision===bill.revision,'Bill changed; review the exact current revision',409);
  insist(body.action==='return'||body.action==='revise','Choose return or revise');
- const note=text(body.note,'Review note',2000),before=JSON.stringify(bill.snapshot),snapshot:Data=structuredClone(bill.snapshot),excluded:string[]=[],revision=id(),reviewId=id(),at=now();
+ const note=text(body.note,'Review note',2000),before=JSON.stringify(bill.snapshot),snapshot:Data=structuredClone(bill.snapshot),excluded:string[]=[],adjustments:Data[]=[],revision=id(),reviewId=id(),at=now();
  if(body.action==='return')insist(!body.lines||body.lines.length===0,'Return the prebill with a note; revise lines separately');
  else{
   insist(body.lines===undefined||Array.isArray(body.lines),'Give reviewed line changes');
@@ -18,11 +18,18 @@ export async function reviewPrebill(db:D1Database,actor:Actor,billId:string,body
    const line=snapshot.lines.find((l:Data)=>l.sourceId===change.sourceId);insist(line,'Review a current prebill source');
    insist(Object.keys(change).every(k=>['sourceId','description','amountCents','exclude'].includes(k)),'Only narratives, exclusions and write-downs may change');
    if(change.exclude!==undefined)insist(typeof change.exclude==='boolean','Choose whether to exclude this source');
-   if(change.exclude){insist(!snapshot.feePlan,'Fee-plan exclusions require a new preparation under reviewed fee terms',422);excluded.push(line.sourceId);continue;}
+   if(change.exclude){
+    excluded.push(line.sourceId);
+    adjustments.push({reviewId,sourceId:line.sourceId,kind:line.kind,action:'exclude',priorAmountCents:line.amountCents,amountCents:0,adjustmentCents:-line.amountCents,note,reviewedBy:actor.email,reviewedAt:at});
+    continue;
+   }
    if(change.description!==undefined)line.description=text(change.description,'Reviewed narrative',2000);
    if(change.amountCents!==undefined){
     const amount=integer(change.amountCents,'Reviewed amount in USD cents',0,line.amountCents);
-    insist(!snapshot.feePlan||amount===line.amountCents,'Fee-plan write-downs require the reviewed fee correction door',422);
+    if(amount!==line.amountCents){
+     const adjustment={reviewId,sourceId:line.sourceId,kind:line.kind,action:'write_down',priorAmountCents:line.amountCents,amountCents:amount,adjustmentCents:amount-line.amountCents,note,reviewedBy:actor.email,reviewedAt:at};
+     adjustments.push(adjustment);line.prebillAdjustments=[...(line.prebillAdjustments??[]),adjustment];
+    }
     line.amountCents=amount;
    }
   }
@@ -34,7 +41,7 @@ export async function reviewPrebill(db:D1Database,actor:Actor,billId:string,body
    const coded=await Promise.all(snapshot.lines.map(async(l:Data,index:number)=>{
     const old=oldLines.find((c:Data)=>c.sourceId===l.sourceId),e=entries.find(e=>e.id===l.sourceId);
     insist(e&&old,'Source coding must still be available',409);
-    const c=await codeLine(db,guideline,{...e,rate_cents:l.rateCents}, {utbmsTask:old.task,utbmsActivity:old.activity,utbmsExpense:old.expense},index+1,l.amountCents,l.description);
+    const c=await codeLine(db,guideline,{...e,rate_cents:l.rateCents,...(snapshot.feePlan?.kind==='blended'?{billed_minutes:e.minutes}:{})}, {utbmsTask:old.task,utbmsActivity:old.activity,utbmsExpense:old.expense},index+1,l.amountCents,l.description);
     insist(!c.problems.length,'Reviewed narrative or write-down violates client guidelines: '+c.problems.join('; '),422);
     return {...c.line,units4:old.units4,unitCostCents:old.unitCostCents,adjustmentCents:l.amountCents-baseCents(old.units4,old.unitCostCents)};
    }));
@@ -43,7 +50,7 @@ export async function reviewPrebill(db:D1Database,actor:Actor,billId:string,body
    snapshot.ledes.xml=await snapshotXml(db,guideline.xmlProfile,snapshot.client,bill.matterId,snapshot.matterNumber,snapshot.matterTitle,snapshot.ledes.invoiceNumber||'DRAFT',coded);
   }
  }
- snapshot.prebill={...snapshot.prebill,reviewState:body.action==='return'?'returned':'ready',reviewNote:note};
+ snapshot.prebill={...snapshot.prebill,...(adjustments.length?{reviewedAdjustments:[...(snapshot.prebill.reviewedAdjustments??[]),...adjustments]}:{}),reviewState:body.action==='return'?'returned':'ready',reviewNote:note};
  const after=JSON.stringify(snapshot);
  await atomic(db,actor,[accessGuard(db,actor,bill.matterId),guard(db,"EXISTS(SELECT 1 FROM s_bills WHERE id=? AND revision=? AND status='draft' AND artifact IS NULL)",bill.id,bill.revision),guard(db,'NOT EXISTS(SELECT 1 FROM s_invoice_issues WHERE bill_id=?)',bill.id),
   guard(db,`NOT EXISTS(SELECT 1 FROM json_each(?) l WHERE NOT EXISTS(SELECT 1 FROM s_billing_sources s JOIN s_entries e ON e.id=s.entry_id WHERE s.bill_id=? AND s.entry_id=json_extract(l.value,'$.sourceId') AND s.source_revision=json_extract(l.value,'$.sourceRevision') AND e.revision=s.source_revision))`,JSON.stringify(bill.snapshot.lines.filter((l:Data)=>l.kind!=='fee')),bill.id),
