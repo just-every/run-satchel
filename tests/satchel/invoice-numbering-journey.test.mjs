@@ -1,3 +1,4 @@
+import {prebillJourney} from './prebill-journey.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
@@ -114,5 +115,6 @@ for(const width of [1440,390])test(`BILL-015 BILL-016 issue retained invoices, v
    assert.equal(replacement.snapshot.totalCents,amount);assert.deepEqual(replacement.snapshot.feePlan,before.snapshot.feePlan);assert.equal(replacement.trustPayment.earned_cents,amount);assert.notEqual(replacement.issue.number,before.issue.number);assert.equal(source.reservedBy,replacement.id);assert.equal(source.editHistory.length,1);assert.equal(state.bills.filter(b=>b.status!=='void'&&b.snapshot.lines.some(l=>l.sourceId===entry.id)).length,1);
    assert.equal(old.status,'void');assert.deepEqual(old.snapshot,before.snapshot);assert.deepEqual(old.earningReview,before.earningReview);assert.equal(old.trustPayment.earned_cents,0);assert.equal(old.issue.number,before.issue.number);assert.deepEqual(await downloadFee(feeCard),originalPdf);assert.deepEqual(errors,[]);
   }
+  await prebillJourney({page,browser,h,width});
  }finally{await browser.close();await h.close();}
 });
