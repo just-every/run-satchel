@@ -128,7 +128,7 @@
       "executable": false
     },
     ".github/workflows/verify.yml": {
-      "sha256": "b63f9217116faf4f7839c15555e3796398af95cc578939d17e9fab2ee3de22f3",
+      "sha256": "b917056c9702990d688ae513a11942cbef1197335170eb6f458d52d662013987",
       "executable": false
     },
     ".gitignore": {
@@ -140,7 +140,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "06027806680156877cc49cc7507769fcdc23214b0833a83d4a27d0fe12ff597e",
+      "sha256": "ca3ed69d00159fdcfb845d3bdd8abdc97b9873503237c020f10170739d5a1339",
       "executable": false
     },
     "AGENTS.md": {
@@ -164,7 +164,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "c8124b9e2c28170f2066a1c5c9d99e42fa28c2360d38a51512a75b3fd1a4d1ca",
+      "sha256": "f26d277d539db3f1597a60b8b7932c7b5781bb6004fb1bb5be0cc677edca6637",
       "executable": false
     },
     "DEMO.md": {
@@ -3096,7 +3096,7 @@
       "executable": false
     },
     "src/satchel/audit-record.ts": {
-      "sha256": "542a993b3598f12607a5b8d8a59ab6b3b6bf6c88bcb1fbcf98fd868b27654f8f",
+      "sha256": "6abf6dda9efe4e5119c9e5eeb918a1d0f4df9b5ce3a45bceab55dac76de89b37",
       "executable": false
     },
     "src/satchel/audit.ts": {
@@ -4072,7 +4072,7 @@
       "executable": false
     },
     "src/ui/matter-updates.tsx": {
-      "sha256": "cc2dbf260ef91defdfa9ce8db62cef2a0c24276333a4bb5897bff727da022e29",
+      "sha256": "f69d7f78a626815271534bfe50b8eac76a9760b40f129aa805341ec0e063969f",
       "executable": false
     },
     "src/ui/matters.tsx": {
@@ -4503,8 +4503,12 @@
       "sha256": "2d2a63f88301557a62c955de4e7e75b1f12b95b37165e9b63a3f06e2326ffb20",
       "executable": false
     },
+    "tests/satchel/matter-update-authority-flow.mjs": {
+      "sha256": "078a6b2145244c2cc3c12d9411c33c596fec764e873255d8e6a8841bfda7b2b1",
+      "executable": false
+    },
     "tests/satchel/matter-update-browser.mjs": {
-      "sha256": "9aaad23b99e4b809779d3a2e3fe208a247bec8b96e22fec73c2b8f4746fe0cdd",
+      "sha256": "249d6de61919317ed18fd47c01ce79a6b194408bdb57bb3e147eef324ad27686",
       "executable": false
     },
     "tests/satchel/matter-update-fixture.mjs": {
@@ -4512,7 +4516,7 @@
       "executable": false
     },
     "tests/satchel/matter-update-flow.mjs": {
-      "sha256": "1dabc9de91c051105d94f3f8f34846e902ef960bba22a8d3d65a3d59dcb4d0a7",
+      "sha256": "1d4da8561ae771b6c428484e77845d4374930cb5759247217710d032be4a79bc",
       "executable": false
     },
     "tests/satchel/numbering-journey.test.mjs": {
