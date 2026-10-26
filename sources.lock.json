@@ -4404,7 +4404,7 @@
       "executable": false
     },
     "tests/satchel/stripe-sandbox.mjs": {
-      "sha256": "fc07791545dc5ffc461143f3e54e87161f1993273a297ccec75895fa5b9c6a0d",
+      "sha256": "3b0ab2300ffc34386ba8dd42978d1f6ce203ac0a9132bfe6abd224bb30643738",
       "executable": false
     },
     "tests/satchel/tasks-journey.test.mjs": {

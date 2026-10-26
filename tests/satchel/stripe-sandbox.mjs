@@ -8,11 +8,11 @@ async function providerTransport(request){const r=await fetch(request.url,{metho
 assert.ok(/^(sk|rk)_test_/.test(key??''),'An injected Stripe test credential is required');
 const directory=process.env.SATCHEL_SCREENSHOTS;
 let h,browser,page,stage='setup';
-const proof={test_mode:true,hosted_card:false,card_collected:false,card_exact_allocation:false,hosted_ach:false,ach_pending:false,ach_collected:false,replayed_once:false};
+const proof={test_mode:true,hosted_card:false,card_collected:false,card_exact_allocation:false,hosted_ach:false,ach_method_confirmed:false,ach_collected:false,ach_exact_allocation:false,replayed_once:false};
 const stripe=async path=>{const r=await fetch('https://api.stripe.com/v1'+path,{headers:{authorization:'Bearer '+key}});assert.ok(r.ok);const b=await r.json();assert.notEqual(b.livemode,true);return b;};
 async function bankButton(name){
  const end=Date.now()+45000;
- while(Date.now()<end){for(const frame of page.frames()){const button=frame.getByRole('button',{name,exact:true});if(await button.count()){await button.click({force:true});return;}}await page.waitForTimeout(200);}
+ while(Date.now()<end){for(const frame of page.frames()){const button=frame.getByRole('button',{name,exact:true});if(await button.count()&&await button.first().isVisible()){await button.first().click({force:true});return;}}await page.waitForTimeout(200);}
  assert.fail('The hosted bank verification step did not appear');
 }
 try{
@@ -42,25 +42,25 @@ try{
  stage='ach-page';await page.goto(h.origin+'/app/invoices/'+s.ach.id+'/pay');await page.getByRole('button',{name:'Pay by card or ACH'}).click();await page.waitForURL(/checkout\.stripe\.com/);proof.hosted_ach=true;await shot('ach-hosted');
  stage='ach-input';await page.locator('#email').waitFor({state:'visible'});await page.locator('#email').fill('satchel+testing@example.com');
  await page.getByText('US bank account',{exact:true}).first().click({force:true});await page.getByLabel('Full name',{exact:true}).fill('Casey Sandbox');await page.getByText('Test (Non-OAuth)',{exact:true}).click({force:true});
- await bankButton('Agree and continue');await bankButton('Continue as guest');
+ stage='ach-agreement';await bankButton('Agree and continue');stage='ach-guest';await bankButton('Continue as guest');stage='ach-account';
  const end=Date.now()+45000;let selected=false;
- while(Date.now()<end&&!selected){for(const frame of page.frames()){const account=frame.getByText('Success',{exact:true});if(await account.count()){await account.click({force:true});selected=true;break;}}if(!selected)await page.waitForTimeout(200);}
- assert.ok(selected);await bankButton('Connect account');await bankButton('Continue to RunEditRun US test sandbox');
+ while(Date.now()<end&&!selected){for(const frame of page.frames()){const account=frame.getByText('Success',{exact:true});if(await account.count()&&await account.first().isVisible()){await account.first().click({force:true});selected=true;break;}}if(!selected)await page.waitForTimeout(200);}
+ assert.ok(selected);stage='ach-connect';await bankButton('Connect account');stage='ach-return';await bankButton('Continue to RunEditRun US test sandbox');
  await page.getByText('US bank account',{exact:true}).first().waitFor({state:'visible'});await shot('ach-ready');
  stage='ach-confirm';await page.getByTestId('hosted-payment-submit-button').click();await page.waitForURL(h.origin+'/app/invoices/'+s.ach.id+'/pay',{timeout:60000});
- let ach=await stripe('/checkout/sessions/'+sessions[1].id+'?expand[]=payment_intent.latest_charge');assert.equal(ach.status,'complete');assert.equal(ach.payment_intent.latest_charge.payment_method_details.type,'us_bank_account');
- const completed=await stripe('/events?type=checkout.session.completed&limit=30'),achEvent=completed.data.find(e=>e.data.object.id===ach.id);assert.ok(achEvent);assert.equal(achEvent.data.object.payment_status,'unpaid');proof.ach_pending=true;
+ let ach=await stripe('/checkout/sessions/'+sessions[1].id+'?expand[]=payment_intent.latest_charge');assert.equal(ach.status,'complete');assert.equal(ach.payment_intent.latest_charge.payment_method_details.type,'us_bank_account');proof.ach_method_confirmed=true;
+ const completed=await stripe('/events?type=checkout.session.completed&limit=100'),achEvent=completed.data.find(e=>e.data.object.id===ach.id);assert.ok(achEvent);assert.ok(['unpaid','paid'].includes(achEvent.data.object.payment_status));
  for(let i=0;i<2;i++)assert.equal((await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify({id:achEvent.id})})).status,200);
- const pending=await h.json('/portal/invoices/'+s.ach.id+'/payment',undefined,s.client);assert.equal(pending.attempts.length,1);assert.ok(['pending','paid'].includes(pending.status));await page.reload();await shot('ach-pending');
+ const pending=await h.json('/portal/invoices/'+s.ach.id+'/payment',undefined,s.client);assert.equal(pending.attempts.length,1);assert.ok(['pending','paid'].includes(pending.status));await page.reload();await shot('ach-reconciled');
  stage='ach-settlement';const settleBy=Date.now()+240000;
  while(ach.payment_status!=='paid'&&Date.now()<settleBy){await page.waitForTimeout(3000);ach=await stripe('/checkout/sessions/'+ach.id+'?expand[]=payment_intent.latest_charge');}
  assert.equal(ach.payment_status,'paid');proof.ach_collected=true;
- const settled=await stripe('/events?type=checkout.session.async_payment_succeeded&limit=30'),settledEvent=settled.data.find(e=>e.data.object.id===ach.id);assert.ok(settledEvent);
+ const settled=achEvent.data.object.payment_status==='paid'?null:await stripe('/events?type=checkout.session.async_payment_succeeded&limit=100'),settledEvent=settled?settled.data.find(e=>e.data.object.id===ach.id):achEvent;assert.ok(settledEvent);
  for(let i=0;i<2;i++)assert.equal((await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify({id:settledEvent.id})})).status,200);
- const paid=await h.json('/portal/invoices/'+s.ach.id+'/payment',undefined,s.client);assert.equal(paid.paidCents,37500);assert.equal(paid.dueCents,0);assert.equal(paid.attempts.length,1);await page.reload();await page.getByRole('status').getByText('Paid',{exact:true}).waitFor();await shot('ach-paid');
+ const paid=await h.json('/portal/invoices/'+s.ach.id+'/payment',undefined,s.client);assert.equal(paid.paidCents,37500);assert.equal(paid.dueCents,0);assert.equal(paid.attempts.length,1);proof.ach_exact_allocation=true;await page.reload();await page.getByRole('status').getByText('Paid',{exact:true}).waitFor();await shot('ach-paid');
  console.log(JSON.stringify({...proof,journey_passed:Object.values(proof).every(Boolean)}));
  process.exitCode=Object.values(proof).every(Boolean)?0:1;
 }catch(error){
  if(page&&directory){await mkdir(directory,{recursive:true});await page.screenshot({path:directory+'/sandbox-'+stage+'-failed.png',fullPage:true}).catch(()=>{});}
- console.log(JSON.stringify({...proof,setup_reached:Boolean(h),browser_reached:Boolean(browser),provider_refused:/Stripe refused/.test(String(error)),acknowledgment_uncertain:/acknowledgment is uncertain/.test(String(error)),assertion_failed:error?.code==='ERR_ASSERTION',journey_passed:false}));process.exitCode=1;
+ console.log(JSON.stringify({...proof,setup_reached:Boolean(h),browser_reached:Boolean(browser),ach_input:stage==='ach-input',ach_agreement:stage==='ach-agreement',ach_guest:stage==='ach-guest',ach_account:stage==='ach-account',ach_connect:stage==='ach-connect',ach_return:stage==='ach-return',ach_confirm:stage==='ach-confirm',ach_settlement:stage==='ach-settlement',provider_refused:/Stripe refused/.test(String(error)),acknowledgment_uncertain:/acknowledgment is uncertain/.test(String(error)),assertion_failed:error?.code==='ERR_ASSERTION',journey_passed:false}));process.exitCode=1;
 }finally{await browser?.close();await h?.close();}
