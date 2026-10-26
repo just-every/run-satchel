@@ -36,11 +36,11 @@ export async function approveRevenueRule(db:D1Database,actor:Actor,matterId:stri
 }
 function sourceChecks(db:D1Database,s:Data){
  if(s.kind==='offline')return [guard(db,'EXISTS(SELECT 1 FROM s_offline_allocations WHERE id=? AND bill_id=? AND cents=?)',s.id,s.billId,s.cents),guard(db,'(SELECT COUNT(*) FROM s_offline_releases WHERE allocation_id=?)=?',s.id,s.reversals.length)];
- if(s.kind==='operating')return [guard(db,'EXISTS(SELECT 1 FROM s_operating_payments WHERE id=? AND bill_id=? AND cents=?)',s.id,s.billId,s.cents),guard(db,'(SELECT COALESCE(SUM(cents),0) FROM s_operating_payment_reversals WHERE payment_id=?)=?',s.id,s.cents-s.netCents)];
+ if(s.kind==='operating')return [s.components?guard(db,'EXISTS(SELECT 1 FROM s_operating_payments p JOIN s_tax_trust_allocations a ON a.transfer_id=p.transfer_id WHERE p.id=? AND a.earned_cents=? AND a.tax_cents=?)',s.id,s.components.earnedCents,s.components.taxCents):guard(db,'NOT EXISTS(SELECT 1 FROM s_operating_payments p JOIN s_tax_trust_allocations a ON a.transfer_id=p.transfer_id WHERE p.id=?)',s.id),guard(db,'EXISTS(SELECT 1 FROM s_operating_payments WHERE id=? AND bill_id=? AND cents=?)',s.id,s.billId,s.cents),guard(db,'(SELECT COALESCE(SUM(cents),0) FROM s_operating_payment_reversals WHERE payment_id=?)=?',s.id,s.cents-s.netCents)];
  return [guard(db,"EXISTS(SELECT 1 FROM s_stripe_checkouts WHERE id=? AND bill_id=? AND cents=? AND purpose='operating' AND status IN('paid','returned'))",s.id,s.billId,s.cents),guard(db,'(SELECT COALESCE(SUM(cents),0) FROM s_stripe_adjustments WHERE checkout_id=?)=?',s.id,s.cents-s.netCents)];
 }
 async function proposal(db:D1Database,s:Data,rule:Data){
- const basis=await revenueBasis(db,s.billId);insist(s.netCents<=basis.totalCents,'Collection exceeds the current invoice basis; resolve its credit before allocation',409);
+ const basis:Data=await revenueBasis(db,s.billId);if(s.components){insist(s.components.earnedCents+s.components.taxCents===s.cents,'Retained bank component allocation does not match the receipt',409);basis.receiptComponents=s.components;}insist(s.netCents<=basis.totalCents,'Collection exceeds the current invoice basis; resolve its credit before allocation',409);
  const snapshot={sourceKey:s.key,billId:s.billId,cents:s.netCents,sourceCents:s.cents,reversalIds:s.reversals.map((r:Data)=>r.id),basis,ruleId:rule.id,splits:rule.splits};
  return {snapshot,reviewDigest:await digest(JSON.stringify({snapshot,netCents:s.netCents,reversals:s.reversals})),...calculateRevenue(s.netCents,basis,rule.splits),ruleId:rule.id};
 }

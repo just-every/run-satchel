@@ -382,7 +382,7 @@ Each eligible source returns its exact calculation and `reviewDigest`.
 `POST /api/satchel/matters/:id/revenue/allocations` requires `approve: true`,
 `requestKey`, `sourceKey`, `ruleId` and `reviewDigest`. It freezes that source's
 reviewed net receipt, prior reversal identities, invoice components and rule.
-Receipt cents are apportioned across frozen net source lines and tax by largest
+Retained bank earned-work and tax components take precedence; only the earned-work component is apportioned across pre-tax lines. Unsplit receipt cents are apportioned across frozen net source lines and tax by largest
 remainder, with source identity breaking ties. Only collected fee cents are shared;
 expense and tax receipts are separate. Shares use the same cent-conserving method,
 and each commission is its allocated share times the approved commission basis

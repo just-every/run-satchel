@@ -140,7 +140,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "845b62c01bcc4a2a72c66b61d88a632ace63a33e2c35a962f27e758a91d71266",
+      "sha256": "3591a61286fbd0c6592840227d5ff8a3bb5db7bf5062d3cbcdaf8b87f811f6d2",
       "executable": false
     },
     "AGENTS.md": {
@@ -148,7 +148,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "4e0efb5f40564b2d7d6b86877ec9675ea05ee73ed6ef46cec7b6a9dc281481c9",
+      "sha256": "6ea06558353b8dec925b6dee60915e46b3dc99c0a62a8ab332bc0a94429b9705",
       "executable": false
     },
     "base-copies.json": {
@@ -164,7 +164,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "411c38cd0933ffb323fd790ad9069eb36870b186b91c86d452d4878a697bb700",
+      "sha256": "611ff5325be754ad71d4fc2912833f9f4e8990b761df0d32387323056d698a98",
       "executable": false
     },
     "DEMO.md": {
@@ -3500,15 +3500,15 @@
       "executable": false
     },
     "src/satchel/revenue-calculation.ts": {
-      "sha256": "1130f62ca29f83c045edc82c39c1c5e9fe77c6a61fe1f123570a7aa27281447f",
+      "sha256": "7e7e2dc2396ee939ec37faea2cbab67930423afd667f5255e41d322bf01a9dc6",
       "executable": false
     },
     "src/satchel/revenue-sources.ts": {
-      "sha256": "4feb3e0518dee7fbe7423af42a0f24dbf587e996e4ef92e9693021b0fb8d19a1",
+      "sha256": "9888c94ced561c25fb892f73c8871fdf706ee0f9ad676e98bd48e935a7166f4d",
       "executable": false
     },
     "src/satchel/revenue.ts": {
-      "sha256": "aad8d3fc36a2cf33b4ea40692706e22e5763ffe64c3b8ca68aa1d8520a4628c3",
+      "sha256": "f6aba5da19867c27a9727f0b9658910d85c524aa7d397dea9fb304a41dd27e80",
       "executable": false
     },
     "src/satchel/role-areas.ts": {
@@ -4612,7 +4612,7 @@
       "executable": false
     },
     "tests/satchel/trust-transfer.test.mjs": {
-      "sha256": "6113ad8962976df14540a35c4f2a26fde0585e1891f38aadd875958ee59e13dc",
+      "sha256": "5449a650a3c42a0d226a49e737d57a34aee35b8ea9f4d7b2b765c5d460017a0a",
       "executable": false
     },
     "tests/satchel/trust.test.mjs": {

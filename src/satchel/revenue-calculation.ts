@@ -8,7 +8,7 @@ export function apportion(cents:number,weights:number[]):number[]{
  for(const p of [...parts].sort((a,b)=>a.remainder===b.remainder?a.i-b.i:a.remainder>b.remainder?-1:1)){if(left--<=0)break;p.cents++;}
  return parts.map(p=>p.cents);
 }
-export const revenueFormula='Receipt cents apportioned across frozen net invoice lines and tax by largest remainder; ties follow source identity. Only collected fee cents are shared in basis points, with the firm receiving the remainder. Each commission is the allocated share times its approved basis points, rounded half-up to a cent. Reversals subtract the difference between successive cumulative calculations on that same frozen basis.';
+export const revenueFormula='Retained bank earned-work and tax components take precedence. Unsplit receipt cents apportioned across frozen net invoice lines and tax by largest remainder; ties follow source identity. Only collected fee cents are shared in basis points, with the firm receiving the remainder. Each commission is the allocated share times its approved basis points, rounded half-up to a cent. Reversals subtract the difference between successive cumulative calculations on that same frozen basis.';
 
 export async function revenueBasis(db:D1Database,billId:string){
  const bills=await rows(db,`WITH RECURSIVE branch AS (SELECT * FROM s_bills WHERE id=? UNION ALL SELECT b.* FROM s_bills b JOIN branch p ON b.corrects_bill_id=p.id WHERE b.status<>'void') SELECT branch.*,t.snapshot tax_snapshot,e.earned_cents FROM branch LEFT JOIN s_bill_tax_approvals t ON t.bill_id=branch.id LEFT JOIN s_fee_earning_reviews e ON e.bill_id=branch.id WHERE branch.status IN('approved','exported') ORDER BY branch.created_at,branch.id`,billId);
@@ -28,7 +28,9 @@ export async function revenueBasis(db:D1Database,billId:string){
  return {sourceLines,taxCents:tax,totalCents:total,bills:bills.map(b=>({id:b.id,revision:b.revision,snapshot:b.tax_snapshot??b.snapshot,earnedCents:b.earned_cents}))};
 }
 export function calculateRevenue(cents:number,basis:Data,splits:Data[]){
- const amounts=apportion(cents,[...basis.sourceLines.map((l:Data)=>l.amountCents),basis.taxCents]);
+ const weights=basis.sourceLines.map((l:Data)=>l.amountCents),components=basis.receiptComponents;
+ const split=components?apportion(cents,[components.earnedCents,components.taxCents]):null;
+ const amounts=split?[...apportion(split[0],weights),split[1]]:apportion(cents,[...weights,basis.taxCents]);
  const sourceLines=basis.sourceLines.map((l:Data,i:number)=>({...l,collectedCents:amounts[i]}));
  const feeCents=sourceLines.filter((l:Data)=>l.kind==='time'||l.kind==='fee').reduce((n:number,l:Data)=>n+l.collectedCents,0),expenseCents=sourceLines.filter((l:Data)=>l.kind==='disbursement').reduce((n:number,l:Data)=>n+l.collectedCents,0),taxCents=amounts.at(-1)!;
  const shares=apportion(feeCents,[...splits.map(s=>s.shareBps),10000-splits.reduce((n,s)=>n+s.shareBps,0)]);

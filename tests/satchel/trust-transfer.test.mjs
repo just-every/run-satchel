@@ -48,6 +48,7 @@ test('TRUST-004 BILL-016 native payment/void guards / TRUST-005 inherited reconc
   assert.equal(report.entries.filter(e=>e.kind==='earned_fee_reversal').length,1);assert.equal(report.clientStatements.find(l=>l.ledgerId===f.ledger.id).closingBalanceCents,50000);
   await h.json('/trust/periods/'+period.id+'/sign',{reportDigest:report.reportDigest},h.owner);
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),target=await harness();try{await target.json('/restore',{archive,confirm:'RESTORE'},target.owner);assert.deepEqual(await target.json('/trust/transfers',undefined,target.owner),s);}finally{await target.close();}
+  await proveRetainedBankComponents(h,f);
  }finally{await h.close();}
 });
 
@@ -66,6 +67,7 @@ async function proveOfflineBalances(h,m,title,paid,due,stage){
   if(stage==='returned')await page.getByRole('region',{name:'Invoice void notice'}).getByText('Invoice voided',{exact:true}).waitFor();
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);
   if(process.env.SATCHEL_SCREENSHOTS){await mkdir(process.env.SATCHEL_SCREENSHOTS,{recursive:true});await card.scrollIntoViewIfNeeded();await page.screenshot({path:process.env.SATCHEL_SCREENSHOTS+'/'+width+'-offline-'+stage+'.png'});}
+  if(stage==='retained-components'){const revenue=page.getByRole('region',{name:'Collected revenue and commissions',exact:true});await revenue.getByText('Collected $100.00 · allocated fees $100.00 · commissions $12.50',{exact:true}).waitFor();await revenue.getByText('Allocation history and reversals (1)',{exact:true}).click();await revenue.getByText('Collected fees $100.00 · expenses $0.00 · tax $0.00',{exact:true}).waitFor();if(process.env.SATCHEL_SCREENSHOTS)await revenue.screenshot({path:process.env.SATCHEL_SCREENSHOTS+'/'+width+'-retained-bank-components.png'});}
   await context.close();
  }}finally{await browser.close();}
 }
@@ -159,3 +161,21 @@ test('Offline operating receipts allocate once, preserve credit, refuse unauthor
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),target=await harness();try{await target.json('/restore',{archive,confirm:'RESTORE'},target.owner);assert.deepEqual(await target.json('/offline-payments/'+over.id,undefined,target.owner),await h.json('/offline-payments/'+over.id,undefined,h.owner));assert.deepEqual(await target.json(revenuePath,undefined,target.owner),await h.json(revenuePath,undefined,h.owner));await target.json('/team/invite',{email:'custodian@example.test'},target.owner);const custody=await target.login('custodian@example.test');await target.json(revenuePath,undefined,custody,403);assert.equal((await target.json('/audit?action=revenue.collection_allocated',undefined,custody)).records.length,0);await target.json('/matters/'+f.m.id+'/wall',{custodianEmail:'custodian@example.test',members:[],reason:'Screen the principal from this matter',revision:(await target.json('/ethical-walls',undefined,custody)).walls.find(w=>w.matter_id===f.m.id).revision},custody);await target.json(revenuePath,undefined,target.owner,404);await target.json(allocationPath,allocationRequest,target.owner,404);}finally{await target.close();}
  }finally{await h.close();}
 });
+
+
+async function proveRetainedBankComponents(h,f){
+ const base='/matters/'+f.other.id,day='2026-10-19';
+ const opening=await h.json('/trust/openings',{accountId:f.account.id,ledgerId:f.otherLedger.id,cents:10000,statementDate:day,documentId:f.otherSource.id,note:'Reviewed opening statement for component-specific application'},h.owner);await h.json('/trust/openings/'+opening.id+'/approve',{revision:opening.revision,reviewNote:'Checked retained statement and exact available funds'},h.owner);
+ const tax=await h.json(base+'/tax-rules',{state:'NY',jurisdiction:'Reviewed component-specific service tax',rounding:'half_up',reference:'Principal reviewed component treatment',reviewed:true,service:{eligibility:'taxable',ratePpm:200000,reference:'Reviewed service tax'},expense:{eligibility:'exempt',ratePpm:0,reference:'Reviewed expense exemption'},trust:{eligibility:'permitted',reference:'Exact earned-base and tax split required'}},h.owner);
+ const entry=await h.json(base+'/entries',{kind:'time',date:day,description:'Earned advice with separately reviewed tax',minutes:60,rateCents:10000},h.owner);let bill=await h.json(base+'/bills',{title:'Earned advice and distinct tax',date:day,entryIds:[entry.id]},h.owner);
+ const taxReview=await h.json('/bills/'+bill.id+'/tax-reviews',{revision:bill.revision,ruleId:tax.id},h.owner);bill=await h.json('/bills/'+bill.id+'/approve',{revision:bill.revision,taxReviewId:taxReview.id,reviewNote:'Reviewed exact earned work and separate tax component'},h.owner);assert.equal(bill.snapshot.totalCents,12000);
+ const transfer=await h.json('/trust/transfers',{billId:bill.id,ledgerId:f.otherLedger.id,operatingAccountId:f.operating.id,requestKey:'synthetic-satchel-component-bank',allocation:{earnedCents:10000,taxCents:0,reference:'Officer explicitly allocated this receipt entirely to earned work; tax remains due'}},h.owner);
+ await h.json('/trust/transfers/'+transfer.id+'/decide',{revision:transfer.revision,decision:'approved',reviewNote:'Checked exact earned-base-only component allocation'},h.owner);
+ const bank={revision:transfer.revision,bankDate:'2026-10-20',bankReference:'synthetic-satchel-component-clearance',documentId:f.otherSource.id,evidence:'Bank confirmed exact operating receipt for the reviewed component split'};
+ await h.json('/trust/transfers/'+transfer.id+'/bank-result',{...bank,outcome:'submitted'},h.owner);await h.json('/trust/transfers/'+transfer.id+'/bank-result',{...bank,outcome:'cleared'},h.owner);
+ const rule=await h.json(base+'/revenue/rules',{requestKey:'synthetic-satchel-component-rule',previousId:null,sourceDocumentId:f.otherSource.id,sourceVersion:f.otherSource.currentVersion,sourceDigest:f.otherSource.versions[0].sha256,basis:'proportional_fee_receipts',reference:'Firm approved compensation on actual earned-work collections',splits:[{kind:'origination',email:'owner@example.test',shareBps:2500,commissionBps:1000},{kind:'responsible',email:'owner@example.test',shareBps:5000,commissionBps:2000}],approve:true},h.owner);
+ let revenue=await h.json(base+'/revenue',undefined,h.owner);assert.equal(revenue.sources.length,1);const source=revenue.sources[0];assert.deepEqual([source.preview.feeCents,source.preview.taxCents],[10000,0],'A retained bank component split takes precedence over the proportions of an unsplit invoice receipt');
+ await h.json(base+'/revenue/allocations',{requestKey:'synthetic-satchel-component-allocation',sourceKey:source.key,ruleId:rule.id,reviewDigest:source.preview.reviewDigest,approve:true},h.owner);revenue=await h.json(base+'/revenue',undefined,h.owner);assert.equal(revenue.allocations[0].current.feeCents,10000);assert.equal(revenue.allocations[0].current.taxCents,0);
+ await proveOfflineBalances(h,f.other,'Earned advice and distinct tax',10000,2000,'retained-components');
+ const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),target=await harness();try{await target.json('/restore',{archive,confirm:'RESTORE'},target.owner);assert.deepEqual(await target.json(base+'/revenue',undefined,target.owner),revenue);}finally{await target.close();}
+}
