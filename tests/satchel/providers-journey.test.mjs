@@ -92,3 +92,6 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`Scheduled client remin
   assert.deepEqual(errors,[]);
  }finally{await browser.close();await h.close();}
 });
+
+import {matterUpdateBrowser} from './matter-update-browser.mjs';
+test('Reviewed matter updates connect counsel approval, distinct delivery states and client follow-up at both viewport widths',matterUpdateBrowser);

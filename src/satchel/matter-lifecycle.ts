@@ -5,6 +5,7 @@ import { visibility } from './deadlines';
 import { documentAccess } from './documents';
 import { reopenRunWrites } from './workflow-runs';
 import { outcomeLabels } from './matter-outcomes';
+import { closeUpdateJobWrites, reopenUpdateJobWrites, restrictedUpdateSources, retainedUpdateJobs } from './matter-update-closure';
 
 async function counsel(db: D1Database, actor: Actor, matterId: string) {
  human(actor); need(actor, 'owner', 'lawyer');
@@ -27,11 +28,13 @@ function restrictedCheck(check: Data, access: ResponseAccess, source: Record<str
  return (check.kind === 'deadline' && !access.deadlines.has(check.sourceId)) || (check.kind === 'task' && hiddenTask(check.sourceId)) ||
   (check.kind === 'handoff' && (check.state.items ?? []).some((i: Data) => i.kind === 'deadline' ? !access.deadlines.has(i.item_id) : hiddenTask(i.item_id))) ||
   (check.state.source_document_id && !access.documents.has(check.state.source_document_id)) ||
+  (check.state.source_document_ids ?? []).some((id: string) => !access.documents.has(id)) ||
+  (check.state.source_deadline_ids ?? []).some((id: string) => !access.deadlines.has(id)) ||
   (check.state.source?.id && !access.documents.has(check.state.source.id));
 }
 function publicChecks(checks: Data[], access: ResponseAccess, source: Record<string, Data[]>) {
  const visible=checks.filter(c=>!restrictedCheck(c,access,source));
- return visible.length===checks.length?visible:[...visible,{key:'restricted:review',kind:'restricted',sourceId:null,title:'Restricted item: ask authorized counsel',state:{},restricted:true}];
+ return visible.length===checks.length&&!restrictedUpdateSources(source,access)?visible:[...visible,{key:'restricted:review',kind:'restricted',sourceId:null,title:'Restricted item: ask authorized counsel',state:{},restricted:true}];
 }
 function publicDeclarations(declarations: Data, access: ResponseAccess) {
  const visible = (item: Data) => !item?.source?.id || access.documents.has(item.source.id);
@@ -49,10 +52,11 @@ function publicEvent(e: Data, access: ResponseAccess, outcome?: Data) {
  const checks = publicChecks(event.snapshot.checks ?? [], access, source);
  const hidden = new Set((event.snapshot.checks??[]).filter((c:Data)=>restrictedCheck(c,access,source)).map((c:Data)=>c.key));
  const declarations=event.snapshot.declarations?publicDeclarations(event.snapshot.declarations,access):null;
- const hiddenEvidence=Boolean(declarations?.originalReturn?.restricted)||Boolean(declarations?.clientPromises.some((p:Data)=>p.restricted));
+ const hiddenEvidence=Boolean(declarations?.originalReturn?.restricted)||Boolean(declarations?.clientPromises.some((p:Data)=>p.restricted))||restrictedUpdateSources(source,access);
  return { ...event, ...(event.kind === 'closed' ? { outcome: outcome ? { ...outcomeJson(outcome), ...(hidden.size||hiddenEvidence ? { note: null, restrictedNote: true } : {}) } : null } : {}), reason: hidden.size||hiddenEvidence ? 'Restricted lifecycle decision details' : event.reason,
   snapshot: { ...(event.snapshot.preview ? { preview: { ...event.snapshot.preview, checks, declarations: publicDeclarations(event.snapshot.declarations, access) } } : {}), checks,
    ...(event.snapshot.declarations ? { declarations: publicDeclarations(event.snapshot.declarations, access) } : {}) },
+  restoration: { ...event.restoration, ...(event.restoration.workflows ? { workflows: event.restoration.workflows.filter((key:string)=>!key.startsWith('client-update-job:')||retainedUpdateJobs(source,access).some(job=>job.id===key)) } : {}) },
   exceptions: [...event.exceptions.filter((item:Data)=>!hidden.has(item.key)),...(hidden.size?[{key:'restricted:review',reason:'Restricted item: ask authorized counsel',restricted:true}]:[])] };
 }
 function revisionGuard(db: D1Database, matterId: string, revision: string, status: string) {
@@ -63,7 +67,8 @@ function retainedWorkflows(source: Record<string, Data[]>, access: ResponseAcces
   ...source.deadlines.filter(d => ['proposed','confirmed'].includes(d.status) && access.deadlines.has(d.id)).map(d => ({ id: `deadline:${d.id}`, title: d.title })),
   ...source.appointments.filter(a => !source.appointmentChanges.some(c => c.appointment_id === a.id && c.occurrence === 0 && c.kind === 'cancelled')).map(a => ({ id: `appointment:${a.id}`, title: a.title })),
   ...source.workflowRuns.filter(r => ['proposed','active'].includes(r.status)).map(r => ({ id: `workflow-run:${r.id}`, title: `Workflow run ${r.status}` })),
-  ...source.reminderRules.filter(r => r.status === 'active' && access.deadlines.has(r.deadline_id)).map(r => ({ id: `reminder:${r.id}`, title: `Reminder: ${source.deadlines.find(d => d.id === r.deadline_id)?.title ?? r.deadline_id}` }))];
+  ...source.reminderRules.filter(r => r.status === 'active' && access.deadlines.has(r.deadline_id)).map(r => ({ id: `reminder:${r.id}`, title: `Reminder: ${source.deadlines.find(d => d.id === r.deadline_id)?.title ?? r.deadline_id}` })),
+  ...retainedUpdateJobs(source, access)];
 }
 export async function matterLifecycle(db: D1Database, actor: Actor, matterId: string) {
  const m = await counsel(db, actor, matterId);
@@ -123,6 +128,7 @@ export async function closeMatter(db: D1Database, actor: Actor, matterId: string
   stmt(db, 'INSERT INTO s_matter_lifecycle_events(id,matter_id,kind,previous_revision,revision,reason,actor,actor_id,at,preview_id,snapshot,exceptions,restoration) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)', eventId, matterId, 'closed', p.revision, revision, reason, actor.email, actor.id, at, p.id, JSON.stringify(snapshot), JSON.stringify(exceptions), '{}'),
   stmt(db, 'INSERT INTO s_matter_outcomes(id,matter_id,event_id,outcome,note,recorded_by,at) VALUES(?,?,?,?,?,?,?)', id(), matterId, eventId, outcome, outcomeNote, actor.email, at),
   stmt(db, "UPDATE s_matters SET lifecycle_status='closed',lifecycle_revision=? WHERE id=? AND lifecycle_revision=?", revision, matterId, p.revision),
+  ...closeUpdateJobWrites(db, actor, matterId, source),
   audit(db, actor, 'matter.closed', eventId, JSON.stringify({ matterId, reason, revision, previewId: p.id, digest: p.digest, exceptions, outcome, outcomeNote }), { snapshot, exceptions }),
  ]);
  return matterLifecycle(db, actor, matterId);
@@ -137,11 +143,13 @@ export async function reopenMatter(db: D1Database, actor: Actor, matterId: strin
  const allowed = new Set(retainedWorkflows(source, await responseAccess(db, actor, matterId)).map(w => w.id));
  insist(workflows.every(w => allowed.has(w)), 'Approve only existing retained workflows; reopening starts no jobs', 409);
  insist(access.every(email => source.access.some(a => a.email === email)), 'Approve only existing matter access; grant changes separately', 409);
+ const updateJobWrites = await reopenUpdateJobWrites(db, actor, matterId, source, workflows);
  const eventId = id(), revision = id(), at = now(), restoration = { workflows, access };
  await atomic(db, actor, [accessGuard(db, actor, matterId), revisionGuard(db, matterId, m.lifecycle_revision, 'closed'), ...closureSourceGuards(db, matterId, source),
   stmt(db, 'INSERT INTO s_matter_lifecycle_events(id,matter_id,kind,previous_revision,revision,reason,actor,actor_id,at,preview_id,snapshot,exceptions,restoration) VALUES(?,?,?,?,?,?,?,?,?,NULL,?,?,?)', eventId, matterId, 'reopened', m.lifecycle_revision, revision, reason, actor.email, actor.id, at, JSON.stringify({ source }), '[]', JSON.stringify(restoration)),
   stmt(db, "UPDATE s_matters SET lifecycle_status='open',lifecycle_revision=? WHERE id=? AND lifecycle_revision=?", revision, matterId, m.lifecycle_revision),
   ...reopenRunWrites(db, actor, matterId, source.workflowRuns, workflows, at),
+  ...updateJobWrites,
   audit(db, actor, 'matter.reopened', eventId, JSON.stringify({ matterId, reason, revision, restoration }), { source, restoration }),
  ]);
  return matterLifecycle(db, actor, matterId);

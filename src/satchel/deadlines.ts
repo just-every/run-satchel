@@ -1,3 +1,4 @@
+import {confirmedMatterUpdateWrites} from './matter-updates';
 import {matterScope} from './matter-scope';
 /* Adapted from just-every/run-locket obligations.ts,
  * commit 82478229f356d017bda62b4944b584138ef9671c.
@@ -87,6 +88,7 @@ async function transition(db: D1Database, actor: Actor, deadlineId: string, body
  writes.push(stmt(db, 'INSERT INTO s_guard(id,ok) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM s_deadlines WHERE id=? AND revision=? AND status=?) THEN 1 ELSE 0 END', guardId, deadline.id, deadline.revision, expected));
  if (action === 'confirm') writes.push(stmt(db, "UPDATE s_deadlines SET status='confirmed',revision=?,confirmed_by=?,confirmed_at=? WHERE id=?", revision, actor.email, at, deadline.id));
  else writes.push(stmt(db, "UPDATE s_deadlines SET status='done',revision=?,completed_by=?,completed_at=?,completion_evidence=? WHERE id=?", revision, actor.email, at, evidence, deadline.id));
+ if(action==='confirm')writes.push(...await confirmedMatterUpdateWrites(db,actor,{...deadline,revision,status,confirmed_by:actor.email,confirmed_at:at}));
  writes.push(...event(db, actor, deadline, action, at, { evidence, previousStatus: expected, status }), stmt(db, 'DELETE FROM s_guard WHERE id=?', guardId));
  await atomic(db, actor, writes);
  return deadlineJson(await visibleDeadline(db, actor, deadline.id), await rows(db, 'SELECT * FROM s_deadline_events WHERE deadline_id=? ORDER BY at,id', deadline.id));

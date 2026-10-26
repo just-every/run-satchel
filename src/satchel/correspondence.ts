@@ -1,3 +1,4 @@
+import {matterUpdateSendGuards} from './matter-update-delivery';
 import {reminderSendGuards} from './client-reminders';
 import type {Bindings} from '../auth.server';
 import {operatorMail} from '../mail.server.mjs';
@@ -49,8 +50,8 @@ export async function sendCorrespondence(env:Bindings,actor:Actor,attemptId:stri
  if(a.status!=='ready')return correspondenceState(db,actor,a.matter_id);
  const revision=await eligible(db,actor,a);insist(revision===a.contact_revision,'Contact authority changed; make a fresh review decision',409);
  const mail=operatorMail(env);insist(mail&&env.MAIL_FROM,'Configure the firm mail provider and sender; nothing was sent',409);
- const at=new Date(atMs).toISOString(),reminderGuards=await reminderSendGuards(db,actor,a,atMs);
- await atomic(db,actor,[...fences(db,actor,a,revision),...reminderGuards,guard(db,"EXISTS(SELECT 1 FROM s_correspondence_attempts WHERE id=? AND status='ready')",a.id),stmt(db,"UPDATE s_correspondence_attempts SET status='sending',provider=?,attempted_at=? WHERE id=?",env.MAIL_PROVIDER??'unconfigured',at,a.id),audit(db,actor,'correspondence.send_started',a.id,JSON.stringify({decision:'One durable attempt claimed before contacting the provider',templateVersion:a.template_version??null}),{matterId:a.matter_id})]);
+ const at=new Date(atMs).toISOString(),reminderGuards=await reminderSendGuards(db,actor,a,atMs),updateGuards=await matterUpdateSendGuards(db,actor,a,atMs);
+ await atomic(db,actor,[...fences(db,actor,a,revision),...reminderGuards,...updateGuards,guard(db,"EXISTS(SELECT 1 FROM s_correspondence_attempts WHERE id=? AND status='ready')",a.id),stmt(db,"UPDATE s_correspondence_attempts SET status='sending',provider=?,attempted_at=? WHERE id=?",env.MAIL_PROVIDER??'unconfigured',at,a.id),audit(db,actor,'correspondence.send_started',a.id,JSON.stringify({decision:'One durable attempt claimed before contacting the provider',templateVersion:a.template_version??null}),{matterId:a.matter_id})]);
  let status='uncertain',provider=env.MAIL_PROVIDER??'unconfigured',providerId:string|null=null,detail='Provider acknowledgment was lost. No automatic resend.';
  try{const r=await mail.send({deliveryId:a.id,from:env.MAIL_FROM,to:[a.recipient],subject:a.subject,text:a.body+(a.bill_id||a.template_version?' '+env.AUTH_ORIGIN+'/app':''),html:'',headers:{}});provider=r.provider;providerId=r.providerMessageId??null;status=r.status==='accepted'?'accepted':r.status==='development'?'development':r.status==='uncertain'?'uncertain':'failed';detail=status==='accepted'?'Provider accepted; mailbox delivery is unconfirmed.':status==='uncertain'?'Provider acknowledgment is uncertain. No automatic resend.':status==='development'?'Development output only; no provider delivery.':'Provider refused this attempt. Review before any new decision.';}catch{}
  await db.batch([stmt(db,"UPDATE s_correspondence_attempts SET status=?,provider=?,provider_id=?,detail=? WHERE id=? AND status='sending'",status,provider,providerId,detail,a.id),audit(db,actor,'correspondence.send_result',a.id,JSON.stringify({status,provider,providerId,templateVersion:(await stmt(db,'SELECT template_id FROM s_client_reminder_jobs WHERE correspondence_id=?',a.correspondence_id).first<Data>())?.template_id??null}),{matterId:a.matter_id})]);
@@ -58,8 +59,9 @@ export async function sendCorrespondence(env:Bindings,actor:Actor,attemptId:stri
 }
 export async function resendCorrespondence(db:D1Database,actor:Actor,attemptId:string,b:Data){
  const a=await load(db,actor,attemptId);insist(a.status!=='ready','Use the existing reviewed attempt',409);
+ const updateGuards=await matterUpdateSendGuards(db,actor,a,Date.now());
  const revision=await eligible(db,actor,a),note=text(b.reason,'New decision after checking the provider',2000),attempt=id();
- await atomic(db,actor,[...fences(db,actor,a,revision),guard(db,"NOT EXISTS(SELECT 1 FROM s_correspondence_attempts WHERE correspondence_id=? AND status='ready')",a.correspondence_id),stmt(db,'INSERT INTO s_correspondence_attempts(id,correspondence_id,decision_by,decision_at,decision_note,contact_revision) VALUES(?,?,?,?,?,?)',attempt,a.correspondence_id,actor.email,now(),note,revision),audit(db,actor,'correspondence.resend_reviewed',attempt,JSON.stringify({priorAttempt:a.id,reason:note}),{matterId:a.matter_id})]);
+ await atomic(db,actor,[...fences(db,actor,a,revision),...updateGuards,guard(db,"NOT EXISTS(SELECT 1 FROM s_correspondence_attempts WHERE correspondence_id=? AND status='ready')",a.correspondence_id),stmt(db,'INSERT INTO s_correspondence_attempts(id,correspondence_id,decision_by,decision_at,decision_note,contact_revision) VALUES(?,?,?,?,?,?)',attempt,a.correspondence_id,actor.email,now(),note,revision),audit(db,actor,'correspondence.resend_reviewed',attempt,JSON.stringify({priorAttempt:a.id,reason:note}),{matterId:a.matter_id})]);
  return {id:a.correspondence_id,attemptId:attempt};
 }
 export async function reconcileCorrespondence(env:Bindings,actor:Actor,attemptId:string){

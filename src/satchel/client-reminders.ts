@@ -1,3 +1,4 @@
+import {updateContactCapGuard} from './matter-update-delivery';
 import type {Bindings} from '../auth.server';
 import {atomic,audit,human,id,insist,integer,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
 import {accessGuard,guard} from './trust-guards';
@@ -60,7 +61,7 @@ export async function reminderSendGuards(db:D1Database,actor:Actor,attempt:Data,
  if(!job)return [];
  await responsibleCounsel(db,actor,job.matter_id);gateGrants(actor,'POST','/api/satchel/matters/'+job.matter_id+'/client-reminders');
  insist(job.counsel_id===actor.id&&await source(db,job)===job.source_revision,'Scheduled source or counsel changed; make a fresh reminder decision',409);
- return [...(job.appointment_id?[guard(db,'(SELECT COUNT(*) FROM s_appointment_changes WHERE appointment_id=?)=?',job.appointment_id,JSON.parse(job.source_revision).changes.length)]:[]),responsible(db,actor,job.matter_id),guard(db,'EXISTS(SELECT 1 FROM s_client_reminder_authorizations WHERE id=? AND enabled=1 AND sequence=(SELECT MAX(sequence) FROM s_client_reminder_authorizations WHERE matter_id=?))',job.authorization_id,job.matter_id),guard(db,`(SELECT COUNT(*) FROM s_correspondence_attempts a JOIN s_correspondence m ON m.id=a.correspondence_id JOIN s_client_reminder_jobs j ON j.correspondence_id=m.id WHERE m.recipient=? AND a.attempted_at IS NOT NULL AND a.attempted_at>?)<?`,job.recipient,new Date(atMs-7*86400000).toISOString(),job.max_contacts)];
+ return [...(job.appointment_id?[guard(db,'(SELECT COUNT(*) FROM s_appointment_changes WHERE appointment_id=?)=?',job.appointment_id,JSON.parse(job.source_revision).changes.length)]:[]),responsible(db,actor,job.matter_id),guard(db,'EXISTS(SELECT 1 FROM s_client_reminder_authorizations WHERE id=? AND enabled=1 AND sequence=(SELECT MAX(sequence) FROM s_client_reminder_authorizations WHERE matter_id=?))',job.authorization_id,job.matter_id),updateContactCapGuard(db,job.recipient,job.max_contacts,atMs)];
 }
 export async function runClientReminders(env:Bindings,atMs:number){
  const db=env.DB,due=await rows(db,"SELECT * FROM s_client_reminder_jobs WHERE status IN ('queued','prepared') AND due_at<=? ORDER BY due_at,id LIMIT 100",new Date(atMs).toISOString());

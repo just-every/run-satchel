@@ -1,3 +1,5 @@
+import {matterUpdateState,generateMatterUpdate,editMatterUpdate,approveMatterUpdate,fulfilMatterUpdatePromise,completeMatterUpdateReply} from './matter-updates';
+import {listPortalMatterUpdates,replyToMatterUpdate} from './matter-update-portal';
 import {listProductionShares,releaseProduction,recallProductionShare,inviteProductionRecipient,recipientProductionState,recipientProductionFile} from './production-shares';
 import {revenueState,approveRevenueRule,approveRevenueAllocation} from './revenue';
 import {listBulkWork,prepareBulkWork,repairBulkRow,postBulkWork} from './bulk-work';
@@ -364,6 +366,14 @@ api.post('/api/satchel/ledes/codes',as(async(a,c)=>saveCode(db(c),a,await body(c
 api.post('/api/satchel/ledes/timekeepers',as(async(a,c)=>saveTimekeeper(db(c),a,await body(c))));
 api.get('/api/satchel/matters/:id/ledes',as((a,c)=>matterLedes(db(c),a,param(c))));
 api.post('/api/satchel/matters/:id/ledes-guideline',as(async(a,c)=>saveGuideline(db(c),a,param(c),await body(c))));
+api.get('/api/satchel/matters/:id/matter-updates',as((a,c)=>matterUpdateState(db(c),a,param(c))));
+api.post('/api/satchel/matters/:id/matter-updates/generate',as(async(a,c)=>generateMatterUpdate(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/matter-updates/:id/edit',as(async(a,c)=>editMatterUpdate(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/matter-updates/:id/approve',as(async(a,c)=>approveMatterUpdate(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/matter-update-promises/:id/fulfil',as(async(a,c)=>fulfilMatterUpdatePromise(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/matter-update-replies/:id/complete',as(async(a,c)=>completeMatterUpdateReply(db(c),a,param(c),await body(c))));
+api.get('/api/satchel/portal/matters/:id/updates',as((a,c)=>listPortalMatterUpdates(db(c),a,param(c))));
+api.post('/api/satchel/portal/matter-updates/:id/replies',as(async(a,c)=>replyToMatterUpdate(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/matters/:id/chronologies',as((a,c)=>chronologyState(db(c),a,param(c))));
 api.post('/api/satchel/matters/:id/chronologies/setup',as(async(a,c)=>configureHealth(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/matters/:id/chronologies',as(async(a,c)=>importChronology(db(c),a,param(c),await body(c))));

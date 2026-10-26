@@ -2,6 +2,7 @@ import { date, insist, stmt, text, type Actor, type Data } from './model';
 import { guard } from './trust-guards';
 import { sourceDocument } from './trust';
 import { stripePendingStatuses } from './processor-balances';
+import { updateClosureQueries, updatePromiseChecks } from './matter-update-closure';
 
 // These queries are also used inside the close transaction. Matching every column
 // and the collection size catches edits, inserts and removals after a preview.
@@ -14,6 +15,7 @@ export function closureSources(matterId: string) {
  const journal = `SELECT id FROM s_trust_journal_reversals WHERE original_entry_id IN (${entries})`;
  const stripeCheckouts = 'SELECT sc.id FROM s_stripe_checkouts sc LEFT JOIN s_bills b ON b.id=sc.bill_id LEFT JOIN s_trust_ledgers l ON l.id=sc.ledger_id WHERE ? IN(b.matter_id,l.matter_id)';
  const queries: Record<string, string> = {
+  ...updateClosureQueries(),
   offlineAllocations: `SELECT a.* FROM s_offline_allocations a WHERE a.bill_id IN (${bills})`,
   offlineReleases: `SELECT r.* FROM s_offline_releases r WHERE r.allocation_id IN (SELECT a.id FROM s_offline_allocations a WHERE a.bill_id IN (${bills}))`,
   writeoffs: `SELECT * FROM s_invoice_writeoffs WHERE bill_id IN (${bills})`,
@@ -73,8 +75,8 @@ export function closureSourceGuards(db: D1Database, matterId: string, source: Re
  });
 }
 
-// CLIENT-008 and AGENT-007 must inherit this reviewed promise inventory before
-// shipping. Until then counsel records actual promises explicitly, with evidence.
+// Manual promises remain available beside CLIENT-008's live reviewed inventory.
+// AGENT-007 must inherit the same inventory before shipping.
 export async function closureDeclarations(db: D1Database, actor: Actor, matterId: string, body: Data) {
  const promises = body.clientPromises ?? [];
  insist(Array.isArray(promises) && promises.length <= 100, 'Record up to 100 client promises');
@@ -134,6 +136,7 @@ export function closureChecks(s: Record<string, Data[]>, declarations: Data) {
  for (const o of s.openings.filter(o => !s.trustEntries.some(e => e.source_id === o.id))) add('trust-opening', o.id, 'Unapproved trust opening balance', o);
  if (!declarations.clientPromisesReviewed) add('client-promises', null, 'Review all outstanding client promises', {});
  for (const p of declarations.clientPromises) if (p.status === 'open') add('client-promise', p.id, p.title, p);
+ checks.push(...updatePromiseChecks(s));
  if (!declarations.originalReturn || declarations.originalReturn.status === 'outstanding') add('originals', 'return', 'Confirm original-file return', declarations.originalReturn ?? {});
  return checks;
 }
