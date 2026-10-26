@@ -21,7 +21,7 @@ async function shot(page,panel,name,width){
 }
 export async function matterUpdateBrowser(){
  for(const [width,height] of [[1440,1000],[390,844]]){
-  const h=await harness({mailReadback:()=>Response.json({id:'synthetic-satchel-9',to:['client@example.test'],last_event:'delivered'})}),browser=await chromium.launch({headless:true,args:['--no-sandbox','--use-mock-keychain','--password-store=basic']});
+  const h=await harness({mailReadback:request=>Response.json({id:new URL(request.url).pathname.split('/').at(-1),to:['client@example.test'],last_event:'delivered'})}),browser=await chromium.launch({headless:true,args:['--no-sandbox','--use-mock-keychain','--password-store=basic']});
   try{
    const f=await updateFixture(h);await f.consent('allowed');const proof=await f.upload('Checklist-delivery.txt','Client acknowledged receipt of the revised hearing preparation checklist.',{visibility:'private'});const errors=[];
    const context=await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true}),page=await context.newPage();page.setDefaultTimeout(15000);page.on('pageerror',e=>errors.push(String(e)));
