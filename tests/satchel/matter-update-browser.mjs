@@ -27,7 +27,7 @@ export async function matterUpdateBrowser(){
    const context=await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true}),page=await context.newPage();page.setDefaultTimeout(15000);page.on('pageerror',e=>errors.push(String(e)));
    await signIn(page,h,'owner@example.test');let panel=await staffPanel(page);
    let draft=panel.getByRole('article',{name:'Draft update A confirmed date has changed',exact:true}).filter({hasText:'Previously confirmed: 2027-01-10'});await draft.getByText(/^Prepare draft:/).click();
-   await draft.getByLabel('Update title',{exact:true}).fill('Reviewed trial update');await draft.getByLabel('Client update wording',{exact:true}).fill(updateWording);
+   await draft.getByLabel('Update title',{exact:true}).fill('Reviewed trial update');await draft.getByLabel('Client update wording').fill(updateWording);
    await draft.getByRole('group',{name:'Update recipients',exact:true}).getByRole('checkbox',{name:'Casey Client · client@example.test',exact:true}).check();
    await draft.getByLabel('Scheduled delivery time').fill('2026-10-01T12:00');await draft.getByLabel('Maximum email contacts in seven days').fill('7');
    await draft.getByRole('button',{name:'Add promise',exact:true}).click();await draft.getByLabel('Promise 1, including its due time',{exact:true}).fill('Deliver the revised hearing preparation checklist by Friday');
