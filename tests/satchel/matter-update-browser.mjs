@@ -16,7 +16,7 @@ async function staffPanel(page){
 }
 async function shot(page,panel,name,width){
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0,'No horizontal overflow');
- assert.deepEqual(await panel.locator('button,a[href],[role=button]').evaluateAll(es=>es.filter(e=>!e.textContent.trim()).map(e=>e.outerHTML)),[],'Every control has a visible text label');
+ assert.deepEqual(await page.locator('button,a[href],[role=button]').evaluateAll(es=>es.filter(e=>!e.textContent.trim()).map(e=>e.outerHTML)),[],'Every control has a visible text label');
  if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,panel,process.env.SATCHEL_SCREENSHOTS,'matter-update-'+name+'-'+width);
 }
 export async function matterUpdateBrowser(){
