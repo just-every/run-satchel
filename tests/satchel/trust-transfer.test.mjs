@@ -77,6 +77,12 @@ test('Offline operating receipts allocate once, preserve credit, refuse unauthor
   await h.json('/offline-payments',{...payment,purpose:'trust'},billing,400);
   await h.json('/offline-payments',{...payment,operatingAccountId:f.account.id},billing,409);
   const [r,replayed]=await Promise.all([h.json('/offline-payments',payment,billing),h.json('/offline-payments',payment,billing)]);assert.equal(r.id,replayed.id);assert.equal(r.allocations.length,3);assert.equal(r.creditCents,0);
+  const ceiling=await h.json('/roles',{name:'Receipt balance ceiling',permissions:{rates:'all',bank:'balances',reports:'firm',contacts:'write',documents:'write',billing:'write',settings:'write'},reason:'Bank transaction details withheld'},h.owner);
+  await h.json('/team',{email:'billing@example.test',name:'Billing',role:'billing',customRoleId:ceiling.id},h.owner);
+  await h.json('/offline-payments/'+r.id,undefined,billing,403);await h.json('/offline-payments',{...payment,requestKey:'synthetic-satchel-ceiling'},billing,403);
+  await h.json('/offline-payments/'+r.id+'/actions',{requestKey:'synthetic-satchel-ceiling-action',kind:'bounce',reason:'No bank transaction authority'},billing,403);
+  await h.json('/team',{email:'billing@example.test',name:'Billing',role:'billing',customRoleId:null},h.owner);
+
   await h.json('/offline-payments',{...payment,cents:44000},billing,409);
   const funds=async id=>(await h.json('/matters/'+f.m.id+'/billing',undefined,h.owner)).bills.find(b=>b.id===id).trustPayment;
   assert.deepEqual(await Promise.all([bill1,bill2,bill3].map(async b=>{const f=await funds(b.id);return [f.paid_cents,f.due_cents];})),[[10000,0],[20000,0],[15000,15000]]);

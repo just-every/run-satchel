@@ -296,7 +296,7 @@ authority, automatic translation or a new recipient.
 
 These native commands record received funds; they move no money and initiate no
 provider call. Active human principals and billing staff need current billing
-write permission, bank balance permission and access to every included matter.
+write permission, full bank transaction permission and access to every included matter.
 Payer identity is the exact native client name. A hidden allocation suppresses
 the entire receipt, its history and residual credit. Agents cannot post receipts.
 

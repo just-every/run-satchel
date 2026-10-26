@@ -3,7 +3,7 @@ import {accessGuard,guard} from './trust-guards';
 import {requireArea} from './role-areas';
 import {invoiceFunds,invoiceAvailableGuard} from './trust-transfers';
 
-function staff(actor:Actor){human(actor);need(actor,'owner','billing');requireArea(actor,'billing','write');requireArea(actor,'bank','balances');}
+function staff(actor:Actor){human(actor);need(actor,'owner','billing');requireArea(actor,'billing','write');requireArea(actor,'bank','full');}
 async function billAccess(db:D1Database,actor:Actor,billId:string){
  const b=await stmt(db,'SELECT b.*,m.client FROM s_bills b JOIN s_matters m ON m.id=b.matter_id WHERE b.id=?',billId).first<Data>();
  insist(b,'Invoice not found',404);await matter(db,actor,b.matter_id);return b;

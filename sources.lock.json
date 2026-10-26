@@ -140,7 +140,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "e2e629b84a34bd2abf780a6967db12c78e5759257de8525fba5dac9821374256",
+      "sha256": "1ac0892b1b402557d6c1b2e66e566c00a1272fd95bb2cd97c31d59e34e3047e6",
       "executable": false
     },
     "AGENTS.md": {
@@ -148,7 +148,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "e929ff18f64d577edaeec7f0b5a30c184faaf35600b60d472160f6c2102e91e9",
+      "sha256": "2801af3d341cabf1397c72bcba93b16b53de020c4b25f3148313727f54323b25",
       "executable": false
     },
     "base-copies.json": {
@@ -164,7 +164,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "ad54939f498e06d5896d20195736e6d54cc3d1923052fd495720a4db85ca9933",
+      "sha256": "64ead05da2a15134f44e9b6e244ae462de56be8ec22f21cb88e9edb8f4505439",
       "executable": false
     },
     "DEMO.md": {
@@ -3392,7 +3392,7 @@
       "executable": false
     },
     "src/satchel/offline-payments.ts": {
-      "sha256": "125983d43f39ea6cd41bb03838b732e414071a80fc3dbe4f1956d25b25b07469",
+      "sha256": "eb47c10c9551ea821144693e05adb140639ec16d0d5e734e62c55651796f3aeb",
       "executable": false
     },
     "src/satchel/payer-statements.ts": {
@@ -3488,7 +3488,7 @@
       "executable": false
     },
     "src/satchel/role-areas.ts": {
-      "sha256": "0f373409d285fb1eba1d0f68663d9a31cda4ed4053ed08f22d1b2b7054f56a25",
+      "sha256": "076a51a2048e0d85b74a559203ac379e4385609438130698ffe46eb34fec8888",
       "executable": false
     },
     "src/satchel/role-doors.ts": {
@@ -4576,7 +4576,7 @@
       "executable": false
     },
     "tests/satchel/trust-transfer.test.mjs": {
-      "sha256": "940814aabc5aa8db266949fc4096671ac838a702d132b2c0fe3cd9d3df81f915",
+      "sha256": "14fad85f1173b6a491d915a91f6b7c7216c04a85f41fcc902c88f6bc79b08529",
       "executable": false
     },
     "tests/satchel/trust.test.mjs": {
