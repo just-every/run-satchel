@@ -250,3 +250,33 @@ rules. An assignment to a retired revision requires an explicit active replaceme
 retirement never silently falls back to another template. All template, default,
 assignment and retirement decisions are audited. Notification wording approval
 remains counsel-only and these changes authorize no outbound send.
+
+### Consolidated payer statements and current economics
+
+`POST /api/satchel/matters/:id/payer-statements` accepts an optional `matterIds`
+array containing the route matter and up to 49 other accessible matters of the
+same recorded client. Omission retains the single-matter behavior. Every selected
+matter must already have a current issued invoice delivered to the exact
+`recipient` and a current invoice portal grant for that payer. No automatic email
+is sent. The frozen statement retains invoice allocations and source fee terms;
+its list and PDF routes refuse disclosure unless the reader still has access to
+every included matter. Losing one grant suppresses the whole statement.
+
+The principal may use `POST /api/satchel/reports/staff-costs` with `email`,
+`effectiveFrom`, `hourlyCents`, `reason` and `confirmed: true` to record an immutable
+staff cost approval. One approval per staff member and effective date is allowed;
+a later effective date changes costing prospectively by work date. These costs
+never change billing rates. This principal-only policy awaits ct approval.
+
+`GET /api/satchel/reports/economics` returns current permitted matter economics,
+formulas, a UTC read timestamp and the source entries, live issued lines, invoice
+balances and cost approvals used. The existing practice, owner, opening-date and
+case-status filters select matters; they are not transaction-period filters.
+`GET /api/satchel/reports/economics/export` downloads that same formula basis as
+JSON and records an export audit event. Both doors are principal-only. An `asOf`
+input is refused: the read timestamp describes current state and does not claim
+historical accounting. Missing staff cost makes profitability unknown. Pending
+applications and trust cash stay separate from cleared operating receipts.
+
+The economics workspace screen, populated aging and processor-pending assertions,
+and additive correction reconciliation remain REPORT-002 gaps.

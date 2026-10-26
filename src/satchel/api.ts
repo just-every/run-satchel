@@ -1,3 +1,4 @@
+import {approveStaffCost,economics,exportEconomics} from './economics';
 import {prebillRuns,prebillRun,preparePrebillRun} from './prebill-runs';
 import {reviewPrebill} from './prebill-reviews';
 import {matterInvoiceTemplate,invoiceTemplateDefaults} from './matter-invoice-templates';
@@ -342,6 +343,9 @@ api.get('/api/satchel/bills/:id/export',as((a,c)=>exportBill(db(c),a,param(c))))
 api.get('/api/satchel/bills/:id/ledes-xml',as((a,c)=>exportLedes(db(c),a,param(c),true)));
 api.get('/api/satchel/bills/:id/ledes',as((a,c)=>exportLedes(db(c),a,param(c))));
 api.post('/api/satchel/bills/:id/ledes-outcomes',as(async(a,c)=>importOutcomes(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/reports/staff-costs',as(async(a,c)=>approveStaffCost(db(c),a,await body(c))));
+api.get('/api/satchel/reports/economics',as((a,c)=>economics(db(c),a,c.req.query())));
+api.get('/api/satchel/reports/economics/export',as((a,c)=>exportEconomics(db(c),a,c.req.query())));
 api.get('/api/satchel/reports',as((a,c)=>reportState(db(c),a,c.req.query())));
 api.get('/api/satchel/reports/export',as((a,c)=>exportReport(db(c),a,c.req.query())));
 api.get('/api/satchel/ledes',as(async(a,c)=>{insist(['owner','lawyer'].includes(a.role),'Your role cannot perform this action',403);return ledesSettings(db(c));}));

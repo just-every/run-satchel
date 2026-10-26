@@ -1,3 +1,4 @@
+import {consolidatedFixture} from './consolidated-statement-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {harness,open} from './harness.mjs';
@@ -279,6 +280,23 @@ test('Reviewed invoice delivery retains branded payer artifacts, verifies provid
   assert.deepEqual(Buffer.from(await(await h.request('/api/satchel/bills/'+bill.id+'/invoice.pdf',undefined,h.owner)).arrayBuffer()),original);
   const statement=await h.json(base+'/payer-statements',{recipient:'insurer@example.test'},billing),statements=await h.json('/portal/matters/'+m.id+'/payer-statements',undefined,insurer);assert.equal(statements.statements.length,1);assert.equal(statements.statements[0].snapshot.invoices.length,1);assert.equal(statements.statements[0].snapshot.totalDueCents,bill.snapshot.totalCents);assert.equal((await h.request('/api/satchel/payer-statements/'+statement.id+'/pdf',undefined,client)).status,404);
   const statementPdf=await h.request('/api/satchel/payer-statements/'+statement.id+'/pdf',undefined,insurer);assert.equal(statementPdf.status,200);assert.match(await pdfText(Buffer.from(await statementPdf.arrayBuffer())),/Payer statement/);
+  const consolidation=await consolidatedFixture(h,m,template);
+  const consolidated=await h.json(base+'/payer-statements',{recipient:'client@example.test',matterIds:[m.id,consolidation.other.id]},h.owner);
+  const consolidatedState=(await h.json('/portal/matters/'+m.id+'/payer-statements',undefined,client)).statements.find(s=>s.id===consolidated.id);
+  assert.deepEqual(new Set(consolidatedState.snapshot.invoices.map(i=>i.matterId)),new Set([m.id,consolidation.other.id]));
+  assert.equal(consolidatedState.snapshot.totalDueCents,bill.snapshot.totalCents+consolidation.first.snapshot.totalCents);
+  assert.ok(!JSON.stringify(consolidatedState).includes(consolidation.excluded.id));
+  const allocation=consolidatedState.snapshot.invoices.find(i=>i.matterId===consolidation.other.id);assert.equal(allocation.responsibleAttorney,'owner@example.test');assert.match(allocation.lines[0].feeAgreement,/^[a-f0-9-]{36}$/);assert.equal(allocation.lines[0].recipient,'client@example.test');
+  const consolidatedBytes=Buffer.from(await(await h.request(consolidated.pdfUrl,undefined,client)).arrayBuffer()),consolidatedText=await pdfText(consolidatedBytes);
+  assert.ok(consolidatedText.includes(consolidation.other.title));assert.ok(!consolidatedText.includes(consolidation.excluded.title));assert.match(consolidatedText,/Responsible attorney: owner@example.test/);assert.match(consolidatedText,/Fee agreement/);
+  assert.equal((await h.request(consolidated.pdfUrl,undefined,insurer)).status,404);
+  const view=(await h.json('/audit?action=invoice.payer_statement_downloaded',undefined,h.owner)).records.find(r=>r.objectId===consolidated.id);assert.ok(JSON.stringify(view).includes('client@example.test'));
+  const selectedGrant=(await h.json('/matters/'+consolidation.other.id+'/portal',undefined,h.owner)).grants.find(g=>!g.revokedAt);
+  await h.json('/portal-grants/'+selectedGrant.id+'/revoke',{reason:'Withdraw one selected matter'},h.owner);
+  assert.equal((await h.request(consolidated.pdfUrl,undefined,client)).status,404);assert.ok(!(await h.json('/portal/matters/'+m.id+'/payer-statements',undefined,client)).statements.some(s=>s.id===consolidated.id));
+  assert.deepEqual(Buffer.from(await(await h.request(consolidated.pdfUrl,undefined,h.owner)).arrayBuffer()),consolidatedBytes);
+  await h.json(base+'/payer-statements',{recipient:'client@example.test',matterIds:[m.id,consolidation.other.id]},h.owner,409);
+  const excludedGrant=(await h.json('/matters/'+consolidation.excluded.id+'/portal',undefined,h.owner)).grants.find(g=>!g.revokedAt);await h.json('/portal-grants/'+excludedGrant.id+'/revoke',{reason:'Finish synthetic consolidation proof'},h.owner);
   const limitedRole=await h.json('/roles',{name:'Invoice operator without banking',permissions:{rates:'all',bank:'none',reports:'own',contacts:'read',documents:'read',billing:'write',settings:'none'},reason:'Separate invoice operations from trust information'},h.owner);
   await h.json('/team',{email:'limited@example.test',name:'Synthetic Satchel Limited Counsel',role:'lawyer',customRoleId:limitedRole.id},h.owner);await h.json('/team/invite',{email:'limited@example.test'},h.owner);const limited=await h.login('limited@example.test');await h.json(base+'/access',{email:'limited@example.test'},h.owner);
   assert.equal((await h.request('/api/satchel/invoice-deliveries/'+clientDelivery.id+'/pdf',undefined,limited)).status,403);assert.equal((await h.request('/api/satchel/payer-statements/'+statement.id+'/pdf',undefined,limited)).status,403);await h.json('/bills/'+bill.id+'/deliveries',{recipient:'client@example.test',payerName:'Synthetic Satchel Client',templateId:template.id},limited,403);

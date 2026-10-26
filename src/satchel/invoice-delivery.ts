@@ -3,6 +3,7 @@ import {accessGuard,guard} from './trust-guards';
 import {invoicePdf} from './invoice-pdf';
 import {buildInvoiceBranding,priorInvoiceBalance} from './invoice-templates';
 import {auditDeliveryRead,deliveryAccess,deliveryFences,invoiceRecipient,invoiceStaff,invoiceReaders} from './invoice-delivery-access';
+import {matterScope} from './matter-scope';
 import {portalAccess} from './portal';
 
 export const encodePdf=(bytes:Uint8Array)=>{let binary='';for(const b of bytes)binary+=String.fromCharCode(b);return btoa(binary);};
@@ -31,7 +32,7 @@ async function deliveryJson(db:D1Database,d:Data){
 export async function invoiceDeliveryState(db:D1Database,actor:Actor,matterId:string){
  invoiceStaff(actor);await matter(db,actor,matterId);
  const list=await rows(db,'SELECT d.*,i.number,b.status bill_status FROM s_invoice_deliveries d JOIN s_bills b ON b.id=d.bill_id JOIN s_invoice_issues i ON i.bill_id=d.bill_id WHERE b.matter_id=? ORDER BY d.created_at,d.id',matterId);
- return {deliveries:await Promise.all(list.map(d=>deliveryJson(db,d))),statements:await rows(db,'SELECT id,recipient,pdf_digest,created_at FROM s_payer_statements WHERE matter_id=? ORDER BY created_at,id',matterId),replacements:await rows(db,'SELECT r.*,i.number replacement_number FROM s_invoice_replacements r JOIN s_bills b ON b.id=r.bill_id JOIN s_invoice_issues i ON i.bill_id=r.replacement_bill_id WHERE b.matter_id=?',matterId)};
+ return {deliveries:await Promise.all(list.map(d=>deliveryJson(db,d))),statements:await rows(db,`SELECT s.id,s.recipient,s.pdf_digest,s.created_at FROM s_payer_statements s WHERE s.matter_id=? AND NOT EXISTS(SELECT 1 FROM json_each(COALESCE(json_extract(s.snapshot,'$.matterIds'),json_array(s.matter_id))) selected WHERE NOT ${matterScope('selected.value')}) ORDER BY s.created_at,s.id`,matterId,actor.role,actor.email),statementMatters:await rows(db,`SELECT m.id,m.matter_number,m.title FROM s_matters m WHERE ${matterScope('m.id')} AND m.client=(SELECT client FROM s_matters WHERE id=?) AND EXISTS(SELECT 1 FROM s_invoice_deliveries d JOIN s_bills delivered ON delivered.id=d.bill_id WHERE delivered.matter_id=m.id) ORDER BY m.matter_number`,actor.role,actor.email,matterId),replacements:await rows(db,'SELECT r.*,i.number replacement_number FROM s_invoice_replacements r JOIN s_bills b ON b.id=r.bill_id JOIN s_invoice_issues i ON i.bill_id=r.replacement_bill_id WHERE b.matter_id=?',matterId)};
 }
 export async function deliveredInvoice(db:D1Database,billId:string,actor:Actor){
  human(actor);const bill=await stmt(db,'SELECT matter_id FROM s_bills WHERE id=?',billId).first<Data>();insist(bill,'Invoice not found',404);

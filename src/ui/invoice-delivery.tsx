@@ -42,8 +42,8 @@ export function InvoiceTemplateSettings({actor,run,tick}:{actor:Row;run:Run;tick
 }
 
 export function InvoiceDelivery({bill,matterId,actor,run,tick}:{bill:Row;matterId:string;actor:Row;run:Run;tick:number}){
- const [state,setState]=useState<Row>(),[templates,setTemplates]=useState<Row>();
- useEffect(()=>{let live=true;if(permitted(actor)&&bill.issue)void Promise.all([api('/matters/'+matterId+'/invoice-deliveries'),api('/invoice-templates')]).then(([s,t])=>{if(live){setState(s);setTemplates(t);}}).catch(e=>run(async()=>{throw e;}));return()=>{live=false;};},[bill.id,bill.issue?.bill_id,matterId,actor.role,tick]);
+ const [state,setState]=useState<Row>(),[templates,setTemplates]=useState<Row>(),[statementIds,setStatementIds]=useState<string[]>([matterId]);
+ useEffect(()=>{let live=true;if(permitted(actor)&&bill.issue)void Promise.all([api('/matters/'+matterId+'/invoice-deliveries'),api('/invoice-templates'),api('/portal/matters/'+matterId+'/payer-statements')]).then(([s,t,p])=>{if(live){setState({...s,...p});setTemplates(t);}}).catch(e=>run(async()=>{throw e;}));return()=>{live=false;};},[bill.id,bill.issue?.bill_id,matterId,actor.role,tick]);
  if(!permitted(actor)||!bill.issue||!state||!templates)return null;
  const deliveries=state.deliveries.filter((d:Row)=>d.bill_id===bill.id),active=bill.status!=='void';
  return <details><summary>Invoice delivery</summary>
@@ -60,7 +60,7 @@ export function InvoiceDelivery({bill,matterId,actor,run,tick}:{bill:Row;matterI
     <Field label="Sending authority and provider check" name="reason"/><label><input name="confirmed" type="checkbox" required/>I checked the prior outcome and authorize exactly one notification</label>
    </Form></details>}
   </section>;})}
-  {active&&deliveries.length>0&&<Form label="Deliver payer statement" submit={d=>run(()=>api('/matters/'+matterId+'/payer-statements',d),'Payer statement delivered to the portal')}><Field label="Statement payer" name="recipient"><select aria-label="Statement payer" name="recipient">{[...new Set<string>(deliveries.map((d:Row)=>d.recipient))].map(email=><option key={email}>{email}</option>)}</select></Field></Form>}
+  {active&&deliveries.length>0&&<Form label="Deliver payer statement" submit={d=>run(()=>api('/matters/'+matterId+'/payer-statements',{...d,matterIds:statementIds}),'Payer statement delivered to the portal')}><Field label="Statement payer" name="recipient"><select aria-label="Statement payer" name="recipient">{[...new Set<string>(deliveries.map((d:Row)=>d.recipient))].map(email=><option key={email}>{email}</option>)}</select></Field><fieldset><legend>Statement matters</legend>{state.statementMatters.map((m:Row)=><label key={m.id}><input type="checkbox" checked={statementIds.includes(m.id)} disabled={m.id===matterId} onChange={e=>setStatementIds(ids=>e.target.checked?[...ids,m.id]:ids.filter(id=>id!==m.id))}/>{m.matter_number} · {m.title}</label>)}</fieldset><p>Only invoices already delivered to this exact payer are included. Current access is required on every selected matter.</p></Form>}
   {state.statements.map((s:Row)=><p key={s.id}><a href={'/api/satchel/payer-statements/'+s.id+'/pdf'}>Payer statement · {s.recipient} · {s.created_at}</a></p>)}
   {!active&&!state.replacements.some((r:Row)=>r.bill_id===bill.id)&&['owner','lawyer'].includes(actor.role)&&<Form label="Name replacement invoice" submit={d=>run(()=>api('/invoices/'+bill.id+'/replacement',d),'Replacement invoice recorded')}><Field label="Issued replacement invoice ID" name="replacementBillId"/><Field label="Replacement reason" name="reason"/></Form>}
  </details>;
