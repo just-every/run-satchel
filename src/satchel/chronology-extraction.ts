@@ -13,7 +13,7 @@ function normalizedDate(value:string):string{
  else if(/^\d+[/.]/.test(value))[month,day,year]=value.split(/[/.]/).map(Number);
  else{const parsed=new Date(value.replace(/(\d)(st|nd|rd|th)/i,'$1'));year=parsed.getUTCFullYear();month=parsed.getUTCMonth()+1;day=parsed.getUTCDate();}
  const result=String(year).padStart(4,'0')+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0');
- insist(Number.isFinite(year)&&year>=1900&&year<=2200&&new Date(result+'T00:00:00Z').toISOString().slice(0,10)===result,'A source service date is invalid or ambiguous. Review the original before importing.',422);return result;
+ insist(Number.isFinite(year)&&year>=1900&&year<=2200&&Number.isFinite(Date.parse(result+'T00:00:00Z'))&&new Date(result+'T00:00:00Z').toISOString().slice(0,10)===result,'A source service date is invalid or ambiguous. Review the original before importing.',422);return result;
 }
 function providerIn(line:string):string|undefined{
  const labelled=line.match(/(?:^|\b)(?:treating\s+provider|rendering\s+provider|provider|facility|physician|clinic)\s*:\s*(.+?)(?=\s+(?:Date|Patient|DOB|Service|Treatment|Charge)\s*:|$)/i);

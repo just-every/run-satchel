@@ -17,6 +17,7 @@ export async function nativePdfText(bytes:Uint8Array):Promise<PdfTextPage[]>{
  const streams=new Map<number,{items:PdfTextItem[];resolve:(items:PdfTextItem[])=>void;reject:(error:Error)=>void}>();
  let readyResolve!:(data:Data)=>void,readyReject!:(error:Error)=>void;
  const ready=new Promise<Data>((resolve,reject)=>{readyResolve=resolve;readyReject=reject;});
+ const timed=async<T>(operation:Promise<T>)=>{let timer:ReturnType<typeof setTimeout>|undefined;try{return await Promise.race([operation,new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(new Error('Native PDF extraction timed out; no chronology was saved')),30000);})]);}finally{clearTimeout(timer);}};
  const failure=(value:Data)=>new Error(value?.message??'Native PDF extraction failed');
  const send=(message:Data)=>{for(const listener of listeners)listener({data:{sourceName:docId,targetName:workerName,...message}});};
  const port={
@@ -40,17 +41,17 @@ export async function nativePdfText(bytes:Uint8Array):Promise<PdfTextPage[]>{
  try{
   workerName=WorkerMessageHandler.createDocumentHandler({docId,apiVersion:metadata.version,data:bytes,disableAutoFetch:true,enableXfa:false,evaluatorOptions:{ignoreErrors:false,isEvalSupported:false,disableFontFace:true,useSystemFonts:true,useWorkerFetch:false,useWasm:false,isOffscreenCanvasSupported:false,isImageDecoderSupported:false}},port);
   send({action:'Ready',data:null});
-  const info=await ready;insist(info.numPages>0&&info.numPages<=200,'Native chronology extraction supports 1 to 200 pages per original',422);
+  const info=await timed(ready);insist(info.numPages>0&&info.numPages<=200,'Native chronology extraction supports 1 to 200 pages per original',422);
   const pages:PdfTextPage[]=[];
   for(let pageIndex=0;pageIndex<info.numPages;pageIndex++){
-   await call('GetPage',{pageIndex});
-   const items=await new Promise<PdfTextItem[]>((resolve,reject)=>{const streamId=++sequence;streams.set(streamId,{items:[],resolve,reject});send({action:'GetTextContent',streamId,desiredSize:Infinity,data:{pageId:pageIndex,pageIndex,includeMarkedContent:false,disableNormalization:false}});});
+   await timed(call('GetPage',{pageIndex}));
+   const items=await timed(new Promise<PdfTextItem[]>((resolve,reject)=>{const streamId=++sequence;streams.set(streamId,{items:[],resolve,reject});send({action:'GetTextContent',streamId,desiredSize:Infinity,data:{pageId:pageIndex,pageIndex,includeMarkedContent:false,disableNormalization:false}});}));
    const lines=pageLines(items);
    insist(lines.join(' ').replace(/\s/g,'').length>=16,'Page '+(pageIndex+1)+' has insufficient readable embedded text. Scanned or unreadable pages require a readable original; no chronology was saved.',422);
    pages.push({page:pageIndex+1,lines});
   }
   return pages;
- }finally{if(workerName)await call('Terminate');listeners.clear();}
+ }finally{if(workerName)await timed(call('Terminate'));listeners.clear();}
 }
 
 function pageLines(items:PdfTextItem[]):string[]{
