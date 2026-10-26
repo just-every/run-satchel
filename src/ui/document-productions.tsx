@@ -6,7 +6,8 @@ import {renderProductionPages} from './production-rendering';
 // Reuse the existing document panels and labeled controls.
 export function DocumentProductions({matterId,actor,documents,run,tick}:{matterId:string;actor:Row;documents:Row[];run:Run;tick:number}){
  const [packets,setPackets]=useState<Row[]>([]),allowed=['owner','lawyer'].includes(actor.role);
- useEffect(()=>{setPackets([]);if(!allowed)return;let active=true;api('/matters/'+matterId+'/productions').then(result=>{if(active)setPackets(result);}).catch(error=>{if(active)void run(async()=>{throw error;});});return()=>{active=false;};},[matterId,tick,allowed]);
+ useEffect(()=>{setPackets([]);},[matterId,allowed]);
+ useEffect(()=>{if(!allowed)return;let active=true;api('/matters/'+matterId+'/productions').then(result=>{if(active)setPackets(result);}).catch(error=>{if(active)void run(async()=>{throw error;});});return()=>{active=false;};},[matterId,tick,allowed]);
  if(!allowed)return null;
  const available=documents.filter(d=>!d.erasedAt);
  return <section className="panel" aria-label="Evidence productions"><h2>Evidence productions</h2>
