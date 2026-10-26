@@ -4308,7 +4308,7 @@
       "executable": false
     },
     "tests/satchel/invoice-template-journey.mjs": {
-      "sha256": "5b4e52028beff2cff001fefcc093ac1e3797a27757985dad1ea080f0e032974f",
+      "sha256": "d235064f879e81379caab316179c02eddb06b1cbd595fb50e50697c9ed8b8f21",
       "executable": false
     },
     "tests/satchel/journey.test.mjs": {
