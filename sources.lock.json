@@ -4612,7 +4612,7 @@
       "executable": false
     },
     "tests/satchel/trust-transfer.test.mjs": {
-      "sha256": "5449a650a3c42a0d226a49e737d57a34aee35b8ea9f4d7b2b765c5d460017a0a",
+      "sha256": "c89dd02db84c8c3357e541ceeb7438200720e49e8bdd0cba513b55c5a09aea2f",
       "executable": false
     },
     "tests/satchel/trust.test.mjs": {

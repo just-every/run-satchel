@@ -67,7 +67,7 @@ async function proveOfflineBalances(h,m,title,paid,due,stage){
   if(stage==='returned')await page.getByRole('region',{name:'Invoice void notice'}).getByText('Invoice voided',{exact:true}).waitFor();
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);
   if(process.env.SATCHEL_SCREENSHOTS){await mkdir(process.env.SATCHEL_SCREENSHOTS,{recursive:true});await card.scrollIntoViewIfNeeded();await page.screenshot({path:process.env.SATCHEL_SCREENSHOTS+'/'+width+'-offline-'+stage+'.png'});}
-  if(stage==='retained-components'){const revenue=page.getByRole('region',{name:'Collected revenue and commissions',exact:true});await revenue.getByText('Collected $100.00 · allocated fees $100.00 · commissions $12.50',{exact:true}).waitFor();await revenue.getByText('Allocation history and reversals (1)',{exact:true}).click();await revenue.getByText('Collected fees $100.00 · expenses $0.00 · tax $0.00',{exact:true}).waitFor();if(process.env.SATCHEL_SCREENSHOTS)await revenue.screenshot({path:process.env.SATCHEL_SCREENSHOTS+'/'+width+'-retained-bank-components.png'});}
+  if(stage==='retained-components'){const revenue=page.getByRole('region',{name:'Collected revenue and commissions',exact:true});await revenue.getByText('Collected $100.00 · allocated fees $100.00 · commissions $12.50',{exact:true}).waitFor();await revenue.getByText('Allocation history and reversals (1)',{exact:true}).click();await revenue.getByText('Collected fees $100.00 · expenses $0.00 · tax $0.00',{exact:true}).first().waitFor();if(process.env.SATCHEL_SCREENSHOTS)await revenue.screenshot({path:process.env.SATCHEL_SCREENSHOTS+'/'+width+'-retained-bank-components.png'});}
   await context.close();
  }}finally{await browser.close();}
 }
