@@ -140,7 +140,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "467372eb31ede07eb4c277d63d8d880fecabafca6a14111ee7a4c757d028e49b",
+      "sha256": "afce50a850cf3a227d650c7edf0ddbe73a4da9e0a7c3f4f34036c64914453e7c",
       "executable": false
     },
     "AGENTS.md": {
@@ -164,7 +164,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "154c0601f941753c5b81ff9de2aefd19b6bad0afa0df08868601221f6d9d206f",
+      "sha256": "c75d663987d7ea28fdf0463c5372abbff7365db79656476f5d14fc54cc7ed448",
       "executable": false
     },
     "DEMO.md": {
@@ -4376,7 +4376,7 @@
       "executable": false
     },
     "tests/satchel/prebill-journey.mjs": {
-      "sha256": "638dd58e494ca3b5fdcfd6a150bb7cac64c6146a7351099ec3f898a39a6997b7",
+      "sha256": "714338c3e6d725c2ec483b7ec421f74bee4d349c71c7f9824d9ba83c8594a536",
       "executable": false
     },
     "tests/satchel/prebill-run-fixture.mjs": {
@@ -4460,7 +4460,7 @@
       "executable": false
     },
     "tests/satchel/stripe-sandbox.mjs": {
-      "sha256": "3b0ab2300ffc34386ba8dd42978d1f6ce203ac0a9132bfe6abd224bb30643738",
+      "sha256": "c9bcfed86f367056fbafac4fedcd1d6c3c2c4ce40c8411acb13697d58c940a72",
       "executable": false
     },
     "tests/satchel/tasks-journey.test.mjs": {

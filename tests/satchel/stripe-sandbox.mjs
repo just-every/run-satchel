@@ -11,8 +11,8 @@ let h,browser,page,stage='setup';
 const proof={test_mode:true,hosted_card:false,card_collected:false,card_exact_allocation:false,hosted_ach:false,ach_method_confirmed:false,ach_collected:false,ach_exact_allocation:false,replayed_once:false};
 const stripe=async path=>{const r=await fetch('https://api.stripe.com/v1'+path,{headers:{authorization:'Bearer '+key}});assert.ok(r.ok);const b=await r.json();assert.notEqual(b.livemode,true);return b;};
 async function bankButton(name){
- const end=Date.now()+45000;
- while(Date.now()<end){for(const frame of page.frames()){const button=frame.getByRole('button',{name,exact:true});if(await button.count()&&await button.first().isVisible()){await button.first().click({force:true});return;}}await page.waitForTimeout(200);}
+ const names=Array.isArray(name)?name:[name],end=Date.now()+45000;
+ while(Date.now()<end){for(const frame of page.frames())for(const label of names){const button=frame.getByRole('button',{name:label,exact:true});if(await button.count()&&await button.first().isVisible()){await button.first().click({force:true});return label;}}await page.waitForTimeout(200);}
  assert.fail('The hosted bank verification step did not appear');
 }
 try{
@@ -42,7 +42,7 @@ try{
  stage='ach-page';await page.goto(h.origin+'/app/invoices/'+s.ach.id+'/pay');await page.getByRole('button',{name:'Pay by card or ACH'}).click();await page.waitForURL(/checkout\.stripe\.com/);proof.hosted_ach=true;await shot('ach-hosted');
  stage='ach-input';await page.locator('#email').waitFor({state:'visible'});await page.locator('#email').fill('satchel+testing@example.com');
  await page.getByText('US bank account',{exact:true}).first().click({force:true});await page.getByLabel('Full name',{exact:true}).fill('Casey Sandbox');await page.getByText('Test (Non-OAuth)',{exact:true}).click({force:true});
- stage='ach-agreement';await bankButton('Agree and continue');stage='ach-guest';await bankButton('Continue as guest');stage='ach-account';
+ stage='ach-agreement';const entry=await bankButton(['Agree and continue','Continue as guest']);stage='ach-guest';if(entry==='Agree and continue')await bankButton('Continue as guest');stage='ach-account';
  const end=Date.now()+45000;let selected=false;
  while(Date.now()<end&&!selected){for(const frame of page.frames()){const account=frame.getByText('Success',{exact:true});if(await account.count()&&await account.first().isVisible()){await account.first().click({force:true});selected=true;break;}}if(!selected)await page.waitForTimeout(200);}
  assert.ok(selected);stage='ach-connect';await bankButton('Connect account');stage='ach-return';await bankButton('Continue to RunEditRun US test sandbox');
