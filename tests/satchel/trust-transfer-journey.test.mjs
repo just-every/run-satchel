@@ -5,8 +5,9 @@ import {chromium} from '@playwright/test';
 import {harness} from './harness.mjs';
 import {foundation,earnedBill} from './trust-fixture.mjs';
 const form=(p,n,root=p)=>p.locator('form',{has:root.getByRole('button',{name:n,exact:true})});
-for(const [width,height] of [[1440,1000],[390,844]])test(`TRUST-004 native slice: approve, record uncertain bank execution, reconcile partial invoice applications at ${width}px`,async()=>{
- const h=await harness(),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});try{
+test(`TRUST-004 native slice: approve, record uncertain bank execution, reconcile partial invoice applications at 1440px and 390px`,async()=>{
+ for(const [width,height] of [[1440,1000],[390,844]]){
+ const h=await harness(),browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,args:['--no-sandbox','--use-mock-keychain','--password-store=basic']});try{
   const f=await foundation(h),o=await h.json('/trust/openings',{accountId:f.account.id,ledgerId:f.ledger.id,cents:150000,statementDate:'2026-10-01',documentId:f.source.id,note:'October statement client opening funds'},h.owner);await h.json('/trust/openings/'+o.id+'/approve',{revision:o.revision,reviewNote:'Exact source reviewed'},h.owner);const first=await earnedBill(h,f.m,100000,'Earned October advice'),second=await earnedBill(h,f.m,90000,'Earned supplemental advice');
   const context=await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true}),page=await context.newPage();page.setDefaultTimeout(15000);const tab=async n=>{await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:n,exact:true}).click();await page.getByRole('heading',{level:1,name:n,exact:true}).waitFor();};const notice=async s=>page.getByRole('status').getByText(s).waitFor();
   async function shot(name,heading){assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);if(process.env.SATCHEL_SCREENSHOTS){await mkdir(process.env.SATCHEL_SCREENSHOTS,{recursive:true});await page.locator('section',{has:page.getByRole('heading',{name:heading,exact:true})}).screenshot({path:`${process.env.SATCHEL_SCREENSHOTS}/${width}-${name}.png`});}}
@@ -26,4 +27,5 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`TRUST-004 native slice
   await shot('transfer-reversed','Transfer review & bank outcomes');await tab('Time & bills');await page.getByText(/remaining due \$900.00/).waitFor();await shot('transfer-reopened-bills','Reviewed bill packages');assert.equal((await h.json('/trust',undefined,h.owner)).ledgers.find(l=>l.id===f.ledger.id).balance_cents,50000);
 
  }finally{await browser.close();await h.close();}
+ }
 });

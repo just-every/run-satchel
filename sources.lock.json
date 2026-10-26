@@ -140,7 +140,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "f3008f9c38df302e1656c86a4c11a3cb3efa9f42b281583ad4224fb42d1535d3",
+      "sha256": "e2e629b84a34bd2abf780a6967db12c78e5759257de8525fba5dac9821374256",
       "executable": false
     },
     "AGENTS.md": {
@@ -164,7 +164,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "c55cfd3e54ee7bfc13b2ef93a1b50092e0057fbcc4f7200aa916c2527eb6cf4d",
+      "sha256": "ad54939f498e06d5896d20195736e6d54cc3d1923052fd495720a4db85ca9933",
       "executable": false
     },
     "DEMO.md": {
@@ -4320,7 +4320,7 @@
       "executable": false
     },
     "tests/satchel/invoice-numbering-journey.test.mjs": {
-      "sha256": "6ab008bf3581683dd578ee43527fc236803a38d54c08dc76e11171896362ee6f",
+      "sha256": "23be6e25520e70c935e6d1a517099c2fc6bee5417ee278f2a5e32ed43b23df16",
       "executable": false
     },
     "tests/satchel/invoice-numbering.test.mjs": {
@@ -4572,7 +4572,7 @@
       "executable": false
     },
     "tests/satchel/trust-transfer-journey.test.mjs": {
-      "sha256": "eee719861d7ba230c6f2c3287871c62ffdaca3a8e87aceafc786dfc887e12084",
+      "sha256": "62284a6e384ba5238aeeee3551653ca21b549c1203aea415c7f98e582e6cb64f",
       "executable": false
     },
     "tests/satchel/trust-transfer.test.mjs": {

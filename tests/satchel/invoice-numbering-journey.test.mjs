@@ -8,8 +8,9 @@ import {readXml} from './ledes-xml-reader.mjs';
 import {harness,open} from './harness.mjs';
 import {draft,reviewed,insurer} from './invoice-numbering-fixture.mjs';
 import {capturePanel} from './browser-shots.mjs';
-for(const width of [1440,390])test(`Prebill review, exact numbered issue and rebilling preserve retained invoices at ${width}px`,async()=>{
- const h=await harness(),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});
+test(`Prebill review, exact numbered issue and rebilling preserve retained invoices at 1440px and 390px`,async()=>{
+ for(const width of [1440,390]){
+ const h=await harness(),browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,args:['--no-sandbox','--use-mock-keychain','--password-store=basic']});
  try{
   const m=await open(h),target=await open(h,'Barton replacement lease advice'),context=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true,acceptDownloads:true}),page=await context.newPage(),errors=[];page.setDefaultTimeout(20000);page.on('pageerror',e=>errors.push(String(e)));
   const shot=async name=>{assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);if(process.env.SATCHEL_SCREENSHOTS){await mkdir(process.env.SATCHEL_SCREENSHOTS,{recursive:true});await page.screenshot({path:`${process.env.SATCHEL_SCREENSHOTS}/${width}-${name}.png`,fullPage:true});}};
@@ -117,4 +118,5 @@ for(const width of [1440,390])test(`Prebill review, exact numbered issue and reb
   }
   await prebillJourney({page,browser,h,width});
  }finally{await browser.close();await h.close();}
+ }
 });
