@@ -140,11 +140,11 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "7b90f8d5d21558aff3d6f8b713e2f1e9c78e91aefa8cd60287b9efc5ec98cd53",
+      "sha256": "484b45c588321172803a66b6fae32c8eb69dc567480d5fd9abbaf01c5921b7b6",
       "executable": false
     },
     "AGENTS.md": {
-      "sha256": "92389042de2f15962521e7e0d62570830ca4b69d46fce41fc7421d92eddb0819",
+      "sha256": "cf85aa39bf6db7902aaec4e48cb65af2842245f464ca351a32f7c8c9ecb2efb7",
       "executable": false
     },
     "API.md": {
@@ -164,7 +164,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "7082add182595f768a45125337e3063280ec896718a3c876df7861b7f928e6cd",
+      "sha256": "d6a059d93866d718818741abd7568c7c51f51e9a39a567f40a2d12d795bbb9a5",
       "executable": false
     },
     "DEMO.md": {
@@ -192,11 +192,11 @@
       "executable": false
     },
     "docs/client-portal.md": {
-      "sha256": "92d80ddb40e5c368daf9c7daee6e8c46901d944a47700d483b3a9c03ac7b8265",
+      "sha256": "c7dc196ee6148198a7f218dbd214da4182eef8c7bbd4d51020d3c897a48abccb",
       "executable": false
     },
     "docs/documents-and-deadlines.md": {
-      "sha256": "17cff5a0dc747de5a95708af901bf74de7afec5fb36706b34c70357a270e8da3",
+      "sha256": "80e63e3ae90875902e02b63f47c47cd8d5bee1ccb68c792393a27f1c57a31b78",
       "executable": false
     },
     "docs/free-and-providers.md": {

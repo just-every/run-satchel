@@ -33,7 +33,9 @@ Run `rer dev --stop` before builds or verification. `rer reset --yes` is destruc
 
 Keep product scope in ACCEPTANCE.md. Private handlers must check the native
 session, firm role and matter access themselves. Agents prepare only; people
-approve. USD cents are integers. Trust accounting and fund movement stay external.
+approve. USD cents are integers. Trust accounting is built in (client ledgers,
+bank registers and three-way reconciliation; see CONTRACT.md); banks and
+contracted processors hold and move actual money.
 Preserve immutable original files, reviewed bill artifacts, revision guards,
 import provenance and erasure fences. New schema changes use new migrations.
 

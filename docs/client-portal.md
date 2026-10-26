@@ -16,6 +16,16 @@ Threads are assigned only to active staff who can currently see the matter. If t
 
 Email notifications contain no message content and are sent only to current readers, after the principal records the mail provider review in **Provider charges**.
 
+## Reviewed matter updates
+
+When counsel confirms a date that cites an uploaded order, Satchel drafts a client update under **Matters → Client updates**. The draft names the cited order and its exact version (**Open cited original version** downloads that version), shows the previously confirmed and new dates, and lists the client's outstanding shared tasks. **Prepare an update from a confirmed order** drafts one from any other confirmed date with a cited order. Nothing reaches a client until the matter's responsible counsel approves it.
+
+Under **Prepare draft**, responsible counsel removes any privileged strategy from the wording, chooses the client recipients, the responsible counsel, the **Scheduled delivery time** and the **Maximum email contacts in seven days**, adds any promises with the person responsible for each, and chooses **Save update draft**. **Review exact delivery packet** shows exactly what will be delivered: confirm each check, add a **Counsel approval note** and choose **Approve scheduled update**. A changed draft needs a fresh approval.
+
+At the approved time (the scheduled worker checks every 15 minutes) Satchel publishes the update in each recipient's authenticated portal and sends a plain-text email without attachments. Before each contact it rechecks email consent on every merged identity, portal access, the responsible counsel's membership, permissions and matter access, the cited order's current version and the contact limit shared with client reminders; if any changed, the delivery stops with its reason and needs a new decision. **Approved packet and delivery** shows the portal and email results separately. An uncertain email result is never resent automatically: check the provider, then use **Authorize one email resend**.
+
+Clients read delivered updates under **Matter updates** in the portal and can reply. Each reply opens follow-up work for the responsible person in the **Responsible counsel follow-up queue** until counsel records **Reply completion evidence**; a later reply opens new work. Approved promises join the matter's closure checks until counsel records fulfillment against a retained original version with **Record promise fulfillment**, or carries each one individually at closure. Closing the matter pauses updates that have not started; reopening resumes only the schedules counsel selects, stops the rest and changes no one's access. Restoring an archive never resumes a pending update: responsible counsel approves a fresh one.
+
 ## Scheduled summaries
 
 **Reports → Scheduled summaries** lets the principal schedule a weekly workload or deadlines summary to named recipients, by email or inside Satchel. Each summary carries counts only and is built with the recipient's own report permission when it is sent. A failed delivery opens an exception for the principal.
