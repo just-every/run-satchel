@@ -61,7 +61,8 @@ test('Correspondence requires current affirmative consent on every merged identi
  await proveConsentWithdrawal();
 });
 
-test('Correspondence rechecks portal authority, counsel permission and matter access at send',async()=>{
+test('Correspondence rechecks provider review, portal authority, counsel permission and matter access at send',async()=>{
+ await proveProviderReview();
  const h=await harness();try{
   const {base,lawyer,assistant,contact,consent}=await mailSetup(h);
   await h.json('/providers/mail/review',{termsUrl:'https://resend.com/legal/terms-of-service',confirmed:true},h.owner);await consent(contact.id,'allowed');
@@ -385,3 +386,21 @@ test('Invoice defaults resolve firm then client then matter, retirement affects 
 
 import {proveMatterUpdates} from './matter-update-flow.mjs';
 test('Reviewed matter updates preserve exact approval, scheduled delivery, responsible replies and live promises',proveMatterUpdates);
+
+async function proveProviderReview(){
+ const h=await harness();
+ try{
+  await h.json('/team',{email:'assistant@example.test',name:'Assistant',role:'assistant'},h.owner);await h.json('/team/invite',{email:'assistant@example.test'},h.owner);const assistant=await h.login('assistant@example.test');
+  await h.json('/providers',undefined,assistant,403);await h.json('/providers/mail/review',{termsUrl:'https://resend.com/legal/terms-of-service',confirmed:true},assistant,403);
+  const terms='https://resend.com/legal/terms-of-service';
+  await h.json('/providers/mail/review',{termsUrl:terms},h.owner,400);
+  await h.json('/providers/mail/review',{termsUrl:'http://resend.com/legal',confirmed:true},h.owner,400);
+  await h.json('/providers/mail/review',{termsUrl:'https://user:pass@resend.com/legal',confirmed:true},h.owner,400);
+  await h.json('/providers/unknown/review',{termsUrl:terms,confirmed:true},h.owner,404);
+  await h.json('/providers/mail/review',{termsUrl:terms,confirmed:true},h.owner);
+  const after=await h.json('/providers',undefined,h.owner),review=after.providers.find(p=>p.id==='mail').review;
+  assert.equal(review.termsUrl,terms);assert.equal(review.reviewedBy,'owner@example.test');assert.equal(after.providers.find(p=>p.id==='xero').review,null);
+  const trail=await h.json('/audit?action=provider.reviewed',undefined,h.owner);assert.equal(trail.records.length,1);assert.equal(trail.records[0].actor.email,'owner@example.test');
+  const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(archive.includes(terms));
+ }finally{await h.close();}
+}
