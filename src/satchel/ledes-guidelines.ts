@@ -59,8 +59,8 @@ export async function codeLine(db:D1Database,g:Guideline,e:Data,override:Data|un
  for(const phrase of g.bannedPhrases)if(description.toLowerCase().includes(phrase))problems.push(`narrative uses "${phrase}", which the guideline does not accept`);
  let line:Data={lineNumber,sourceId:e.id,type:fee?'F':'E',date:e.date,description,task:coding.task,activity:coding.activity,expense:coding.expense,timekeeperId:null,timekeeperName:null,classification:null,units4:10000,unitCostCents:amountCents,adjustmentCents:0,totalCents:amountCents};
  if(fee){
-  const tk=await stmt(db,'SELECT * FROM s_ledes_timekeepers WHERE email=?',e.created_by).first<Data>();
-  if(!tk)problems.push(`timekeeper ${e.created_by} has no LEDES timekeeper ID`);
+  const tk=await stmt(db,'SELECT * FROM s_ledes_timekeepers WHERE email=?',e.timekeeper_email??e.created_by).first<Data>();
+  if(!tk)problems.push(`timekeeper ${e.timekeeper_email??e.created_by} has no LEDES timekeeper ID`);
   const billed=e.billed_minutes??e.minutes,max=tk?g.maxRates[tk.classification]:undefined;
   if(e.kind!=='fee'&&max!==undefined&&e.rate_cents>max)problems.push(`rate ${dollars(e.rate_cents)}/h exceeds the guideline's ${dollars(max)}/h for ${tk!.classification}`);
   if(e.kind!=='fee'&&g.incrementMinutes>0&&billed%g.incrementMinutes!==0)problems.push(`${billed} billed minutes is not a multiple of the guideline's ${g.incrementMinutes}-minute increment`);

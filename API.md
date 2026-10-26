@@ -333,3 +333,61 @@ refuse invoice void; an explicit credit release permits the existing counsel voi
 
 BILL-009 collection, complete BILL-010 historical statements, BOOKS-001 provider
 synchronization and payment-management screens remain separate unproved work.
+
+### Reviewed bulk work and collected revenue
+
+`GET /api/satchel/time/bulk` lists the current person's visible import batches.
+`POST /api/satchel/time/bulk` accepts a stable `requestId`, a `sourceSystem` and
+between one and 100 `rows`. A row names `matterId`, `kind` (`time` or
+`disbursement`), `sourceId`, `date`, `description`, `billable`, and optionally
+`timekeeperEmail`. Time supplies `minutes` and an optional explicit `rateCents`;
+otherwise the work-date agreement applies. Expenses supply `amountCents` and the
+native `expense` provenance object, including an optional exact receipt version.
+Task, activity and expense codes use the existing UTBMS fields and checks.
+The principal can import another eligible staff member's work; everyone else
+imports their own. The submitter remains the creator, separately from the
+original timekeeper. Retaining attribution grants no authority to act as that person.
+
+Validation retains each original row and its specific errors without recording
+work. `POST /api/satchel/time/bulk/:id/rows` accepts the current batch `revision`,
+a `rowId` and its complete repaired `row`. Repair refreshes every row's pricing,
+codes, expense provenance and approved cost basis. Posting at
+`POST /api/satchel/time/bulk/:id/post` requires that exact `revision`,
+`reviewDigest` and stable posting `requestId`. It rechecks current native
+eligibility, both people's matter access, ethical walls and all reviewed financial
+inputs, then records the whole batch atomically. Invalid or stale review posts no
+work. An unchanged replay returns the original result; changed request terms
+refuse. Posted rows, originals and source identities remain retained through
+restart and archive recovery. Staff cost figures remain principal-only.
+
+`GET /api/satchel/matters/:id/revenue` is a principal-only review of actual applied
+operating collections, approved allocation rules and calculation history. It
+separates invoice value, uncollected balances, write-offs, pending payments,
+trust custody and unapplied receipt credit from collected money. Credit counts
+only when applied to an invoice. Sources include offline invoice allocations,
+verified paid operating processor collections and bank-cleared operating
+applications; their releases, refunds and reversals retain their source identities.
+
+`POST /api/satchel/matters/:id/revenue/rules` requires `approve: true`, a stable
+`requestKey`, `previousId` (null for the first version), `reference`, and the
+reviewed supporting `sourceDocumentId`, `sourceVersion` and `sourceDigest`.
+The sole supported basis is `proportional_fee_receipts`. Two `splits` name
+`origination` and `responsible`, each with an active attorney `email`, `shareBps`
+and `commissionBps`. Combined shares cannot exceed 10,000 basis points; the firm
+retains the remainder. Native principal approval is explicit, never inferred from
+a job title, rate, imported row, custom role, agent or integration credential.
+Rules are append-only versions with retained approver, approval time and source.
+
+Each eligible source returns its exact calculation and `reviewDigest`.
+`POST /api/satchel/matters/:id/revenue/allocations` requires `approve: true`,
+`requestKey`, `sourceKey`, `ruleId` and `reviewDigest`. It freezes that source's
+reviewed net receipt, prior reversal identities, invoice components and rule.
+Receipt cents are apportioned across frozen net source lines and tax by largest
+remainder, with source identity breaking ties. Only collected fee cents are shared;
+expense and tax receipts are separate. Shares use the same cent-conserving method,
+and each commission is its allocated share times the approved commission basis
+points, rounded half-up to whole cents. Later source reversals subtract successive
+calculations on that retained basis exactly once, including any rounding remainder;
+pre-approval returns are already excluded from the approved original. Rule changes
+never rewrite earlier allocations, work records or bill artifacts. These records
+calculate compensation; they authorize no payout or other money movement.

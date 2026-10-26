@@ -6,6 +6,7 @@ import {foundation,earnedBill} from './trust-fixture.mjs';
 test('TRUST-004 BILL-016 native payment/void guards / TRUST-005 inherited reconciliation: exact partial earned-fee reservations, distinct dual officers, interrupted bank reconciliation paired invoice payments and exact reviewed reversal post once',async()=>{
  const h=await harness();try{
   const f=await foundation(h),o=await h.json('/trust/openings',{accountId:f.account.id,ledgerId:f.ledger.id,cents:150000,statementDate:'2026-10-01',documentId:f.source.id,note:'Opening client funds'},h.owner);await h.json('/trust/openings/'+o.id+'/approve',{revision:o.revision,reviewNote:'Reviewed exact statement'},h.owner);
+  assert.equal((await h.json('/matters/'+f.m.id+'/revenue',undefined,h.owner)).totals.collectedCents,0,'Trust custody is not collected operating revenue');
   const first=await earnedBill(h,f.m,100000,'Earned October advice'),second=await earnedBill(h,f.m,90000,'Earned supplemental advice');let policy=await h.json('/trust/transfer-policy',undefined,h.owner);await h.json('/trust/transfer-policy',{revision:policy.revision,dualAuthorization:true},h.owner);
   const request=async b=>h.json('/trust/transfers',await withTaxAllocation(h,{billId:b.id,ledgerId:f.ledger.id,operatingAccountId:f.operating.id,requestKey:b.id}),h.owner);
   const a=await request(first),b=await request(second);assert.deepEqual([a.cents,b.cents,a.required_approvals,b.required_approvals],[100000,50000,2,2]);assert.equal((await request(first)).id,a.id);assert.equal((await h.json('/trust',undefined,h.owner)).ledgers.find(l=>l.id===f.ledger.id).available_cents,0);
@@ -22,14 +23,17 @@ test('TRUST-004 BILL-016 native payment/void guards / TRUST-005 inherited reconc
   }
   await h.json('/invoices/'+second.id+'/void',{revision:second.revision,reason:'Cannot void unresolved trust application'},h.owner,409);
   let s=await h.json('/trust/transfers',undefined,h.owner);assert.ok(s.every(t=>t.status==='awaiting_bank_reconciliation'&&t.invoice.paid_cents===0));assert.equal((await h.json('/trust',undefined,h.owner)).entries.length,1);
+  assert.equal((await h.json('/matters/'+f.m.id+'/revenue',undefined,h.owner)).totals.collectedCents,0,'Pending bank applications are not collections');
   await h.restart();await h.json('/trust/transfers/'+a.id+'/bank-result',bank(a,'cleared','WRONG-REFERENCE'),h.owner,409);
   for(const [t,reference] of [[a,'BANK-XFER-1000'],[b,'BANK-XFER-500']]){const result=await h.json('/trust/transfers/'+t.id+'/bank-result',bank(t,'cleared',reference),h.owner);assert.equal((await h.json('/trust/transfers/'+t.id+'/bank-result',bank(t,'cleared',reference),h.owner)).id,result.id);}
   s=await h.json('/trust/transfers',undefined,h.owner);assert.deepEqual(s.map(t=>[t.cents,t.invoice.paid_cents,t.invoice.due_cents]).sort((x,y)=>y[0]-x[0]),[[100000,100000,0],[50000,50000,40000]]);const state=await h.json('/trust',undefined,h.owner);assert.equal(state.accounts.find(v=>v.id===f.account.id).balance_cents,0);assert.equal(state.accounts.find(v=>v.id===f.operating.id).balance_cents,150000);assert.equal(state.entries.length,5);
+  assert.equal((await h.json('/matters/'+f.m.id+'/revenue',undefined,h.owner)).totals.collectedCents,150000);
   const reversal=await h.json('/trust/transfers/'+b.id+'/reversal',{reason:'Mistaken application; return exact second payment to client trust'},h.owner);assert.equal(reversal.required_approvals,2);
   const review={revision:reversal.revision,kind:'approved',note:'Original application and exact full return reviewed'};const approved=await h.json('/trust/transfers/'+b.id+'/reversal/action',review,h.owner);assert.equal((await h.json('/trust/transfers/'+b.id+'/reversal/action',review,h.owner)).id,approved.id);
   const result=kind=>({revision:reversal.revision,kind,note:'Actual bank reversal confirmation, exact $500 return reconciled',bankReference:'BANK-REVERSAL-500',bankDate:'2026-10-04',documentId:f.source.id});
   await h.json('/trust/transfers/'+b.id+'/reversal/action',result('submitted'),h.owner,409);await h.json('/trust/transfers/'+b.id+'/reversal/action',review,officer);await h.json('/trust/transfers/'+b.id+'/reversal/action',result('submitted'),h.owner);await h.restart();const reversed=await h.json('/trust/transfers/'+b.id+'/reversal/action',result('cleared'),h.owner);assert.equal((await h.json('/trust/transfers/'+b.id+'/reversal/action',result('cleared'),h.owner)).id,reversed.id);
   s=await h.json('/trust/transfers',undefined,h.owner);assert.equal(s.find(t=>t.id===b.id).invoice.due_cents,90000);assert.equal(s.find(t=>t.id===b.id).invoice.paid_cents,0);assert.equal(s.find(t=>t.id===b.id).reversal.status,'cleared');const restoredFunds=await h.json('/trust',undefined,h.owner);assert.equal(restoredFunds.ledgers.find(l=>l.id===f.ledger.id).balance_cents,50000);assert.equal(restoredFunds.ledgers.find(l=>l.id===f.ledger.id).available_cents,50000);assert.equal(restoredFunds.accounts.find(a=>a.id===f.operating.id).balance_cents,100000);assert.equal(restoredFunds.entries.length,7);
+  const collections=await h.json('/matters/'+f.m.id+'/revenue',undefined,h.owner);assert.equal(collections.totals.collectedCents,100000);assert.equal(collections.sources.find(s=>s.netCents===0).reversals.length,1);
   const uncertain=await h.json('/trust/transfers',await withTaxAllocation(h,{billId:second.id,ledgerId:f.ledger.id,operatingAccountId:f.operating.id,requestKey:'bank-no-execution'}),h.owner);await h.json('/trust/transfers/'+uncertain.id+'/decide',{revision:uncertain.revision,decision:'approved',reviewNote:'Reviewed exact remaining fees and restored funds'},h.owner);await h.json('/trust/transfers/'+uncertain.id+'/bank-result',{...bank(uncertain,'submitted','BANK-NOT-EXECUTED'),bankDate:'2026-10-05'},h.owner);assert.equal((await h.json('/trust',undefined,h.owner)).ledgers.find(l=>l.id===f.ledger.id).available_cents,0);await h.json('/trust/transfers/'+uncertain.id+'/bank-result',{...bank(uncertain,'not_executed','BANK-NOT-EXECUTED'),bankDate:'2026-10-05'},h.owner);assert.equal((await h.json('/trust',undefined,h.owner)).ledgers.find(l=>l.id===f.ledger.id).available_cents,50000);
   s=await h.json('/trust/transfers',undefined,h.owner);assert.equal(s.find(t=>t.id===uncertain.id).status,'not_executed');
   const invoice=async id=>(await h.json('/matters/'+f.m.id+'/billing',undefined,h.owner)).bills.find(b=>b.id===id);
@@ -49,7 +53,7 @@ test('TRUST-004 BILL-016 native payment/void guards / TRUST-005 inherited reconc
 
 async function proveOfflineBalances(h,m,title,paid,due,stage){
  const {chromium}=await import('@playwright/test'),{mkdir}=await import('node:fs/promises');
- const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,args:['--no-sandbox']});
+ const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,args:['--no-sandbox','--use-mock-keychain','--password-store=basic']});
  try{for(const width of [1440,390]){
   const context=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true});
   await context.addCookies(h.owner.split('; ').map(pair=>{const i=pair.indexOf('=');return {name:pair.slice(0,i),value:pair.slice(i+1),url:h.origin,secure:true};}));
@@ -77,6 +81,28 @@ test('Offline operating receipts allocate once, preserve credit, refuse unauthor
   await h.json('/offline-payments',{...payment,purpose:'trust'},billing,400);
   await h.json('/offline-payments',{...payment,operatingAccountId:f.account.id},billing,409);
   const [r,replayed]=await Promise.all([h.json('/offline-payments',payment,billing),h.json('/offline-payments',payment,billing)]);assert.equal(r.id,replayed.id);assert.equal(r.allocations.length,3);assert.equal(r.creditCents,0);
+  // The native TIME-008 rule reviews actual invoice allocations, never receipt face value.
+  const revenuePath='/matters/'+f.m.id+'/revenue',allocationPath=revenuePath+'/allocations';
+  const approvedRule={requestKey:'synthetic-satchel-revenue-rule-1',previousId:null,sourceDocumentId:f.source.id,sourceVersion:f.source.currentVersion,sourceDigest:f.source.versions.find(v=>v.version===f.source.currentVersion).sha256,basis:'proportional_fee_receipts',reference:'Signed firm agreement, origination and responsible-attorney compensation schedule',splits:[{kind:'origination',email:'owner@example.test',shareBps:2500,commissionBps:1000},{kind:'responsible',email:'owner@example.test',shareBps:5000,commissionBps:2000}],approve:true};
+  await h.json(revenuePath+'/rules',approvedRule,assistant,403);await h.json(revenuePath+'/rules',approvedRule,billing,403);
+  await h.json(revenuePath+'/rules',{...approvedRule,approve:false},h.owner,403);
+  await h.json(revenuePath+'/rules',{...approvedRule,sourceVersion:99},h.owner,409);
+  const rule=await h.json(revenuePath+'/rules',approvedRule,h.owner);assert.equal((await h.json(revenuePath+'/rules',approvedRule,h.owner)).id,rule.id);
+  await h.json(revenuePath+'/rules',{...approvedRule,reference:'Changed approval'},h.owner,409);
+  let revenue=await h.json(revenuePath,undefined,h.owner);assert.equal(revenue.totals.collectedCents,45000);assert.equal(revenue.totals.commissionCents,0);
+  const partial=revenue.sources.find(v=>v.billId===bill3.id);assert.equal(partial.cents,15000);assert.equal(partial.preview.feeCents,15000);
+  assert.deepEqual(partial.preview.allocations.map(a=>[a.kind,a.cents,a.commissionCents]),[['origination',3750,375],['responsible',7500,1500]]);
+  const allocationRequest={requestKey:'synthetic-satchel-revenue-allocation-1',sourceKey:partial.key,ruleId:rule.id,reviewDigest:partial.preview.reviewDigest,approve:true};
+  await h.json(allocationPath,{...allocationRequest,reviewDigest:'stale'},h.owner,409);await h.json(allocationPath,allocationRequest,billing,403);
+  const approvedAllocation=await h.json(allocationPath,allocationRequest,h.owner);assert.equal((await h.json(allocationPath,allocationRequest,h.owner)).id,approvedAllocation.id);
+  await h.json(allocationPath,{...allocationRequest,requestKey:'synthetic-satchel-revenue-duplicate'},h.owner,409);
+  await h.json(allocationPath,{...allocationRequest,ruleId:'changed'},h.owner,409);
+  revenue=await h.json(revenuePath,undefined,h.owner);const originalAllocation=revenue.allocations[0].original;
+  assert.equal(originalAllocation.firmCents,3750);assert.equal(revenue.totals.commissionCents,1875);
+  assert.equal(originalAllocation.sourceLines[0].timekeeper,'owner@example.test');
+  const replacementRule=await h.json(revenuePath+'/rules',{...approvedRule,requestKey:'synthetic-satchel-revenue-rule-2',previousId:rule.id,reference:'Prospective replacement, original approved calculations retained',splits:approvedRule.splits.map(a=>({...a,shareBps:3333,commissionBps:3333}))},h.owner);
+  assert.equal(replacementRule.version,2);await h.json(revenuePath+'/rules',{...approvedRule,requestKey:'synthetic-satchel-revenue-stale'},h.owner,409);
+  assert.deepEqual((await h.json(revenuePath,undefined,h.owner)).allocations[0].original,originalAllocation);
   const ceiling=await h.json('/roles',{name:'Receipt balance ceiling',permissions:{rates:'all',bank:'balances',reports:'firm',contacts:'write',documents:'write',billing:'write',settings:'write'},reason:'Bank transaction details withheld'},h.owner);
   await h.json('/team',{email:'billing@example.test',name:'Billing',role:'billing',customRoleId:ceiling.id},h.owner);
   await h.json('/offline-payments/'+r.id,undefined,billing,403);await h.json('/offline-payments',{...payment,requestKey:'synthetic-satchel-ceiling'},billing,403);
@@ -92,16 +118,22 @@ test('Offline operating receipts allocate once, preserve credit, refuse unauthor
   await h.json('/invoices/'+bill3.id+'/writeoff',{...writeoff,approve:false},h.owner,403);
   const wo=await h.json('/invoices/'+bill3.id+'/writeoff',writeoff,h.owner);assert.equal((await h.json('/invoices/'+bill3.id+'/writeoff',writeoff,h.owner)).id,wo.id);
   assert.deepEqual([(await funds(bill3.id)).paid_cents,(await funds(bill3.id)).written_off_cents,(await funds(bill3.id)).due_cents],[15000,15000,0]);
+  assert.deepEqual((await h.json(revenuePath,undefined,h.owner)).allocations[0].current,originalAllocation);
   const fourth=await earnedBill(h,f.m,10000,'Fourth advice'),second={...payment,requestKey:'synthetic-satchel-check-2',oldestFirst:false,cents:25000,allocations:[{billId:fourth.id,cents:10000}]};
   const over=await h.json('/offline-payments',second,billing);assert.equal(over.creditCents,15000);
+  revenue=await h.json(revenuePath,undefined,h.owner);assert.equal(revenue.sources.filter(v=>v.receiptId===over.id).reduce((n,v)=>n+v.netCents,0),10000);assert.equal(revenue.totals.collectedCents,55000);
   const fifth=await earnedBill(h,f.m,20000,'Fifth advice'),apply={requestKey:'synthetic-satchel-apply-1',kind:'allocate',reason:'Apply retained overpayment',allocations:[{billId:fifth.id,cents:15000}]};
   await h.json('/offline-payments/'+over.id+'/actions',{...apply,allocations:[{billId:fifth.id,cents:15001}]},billing,409);
   const [applied,appliedReplay]=await Promise.all([h.json('/offline-payments/'+over.id+'/actions',apply,billing),h.json('/offline-payments/'+over.id+'/actions',apply,billing)]);assert.equal(applied.id,appliedReplay.id);assert.equal(applied.creditCents,0);assert.equal((await h.json('/offline-payments/'+over.id+'/actions',apply,billing)).allocations.length,2);
+  revenue=await h.json(revenuePath,undefined,h.owner);assert.equal(revenue.totals.collectedCents,70000);
+  for(const source of revenue.sources.filter(v=>v.receiptId===over.id)){const a={requestKey:'synthetic-satchel-revenue-'+source.id,sourceKey:source.key,ruleId:replacementRule.id,reviewDigest:source.preview.reviewDigest,approve:true};await h.json(allocationPath,a,h.owner);await h.json(allocationPath,a,h.owner);}
+  const retainedRevenue=await h.json(revenuePath,undefined,h.owner);assert.equal(retainedRevenue.allocations.length,3);
   const foreign=await earnedBill(h,f.other,10000,'Different payer');await h.json('/offline-payments',{...second,requestKey:'synthetic-satchel-other',allocations:[{billId:foreign.id,cents:10000}]},h.owner,409);
   const voidBody={revision:fourth.revision,reason:'Rebill after moving the receipt to credit'};await h.json('/invoices/'+fourth.id+'/void',voidBody,h.owner,409);
   const move={requestKey:'synthetic-satchel-credit-1',kind:'credit',billId:fourth.id,reason:'Retain receipt as unapplied client credit for replacement invoice'};
   assert.equal((await h.json('/offline-payments/'+over.id+'/actions',move,billing)).creditCents,10000);
   assert.equal((await h.json('/offline-payments/'+over.id+'/actions',move,billing)).creditCents,10000);
+  revenue=await h.json(revenuePath,undefined,h.owner);const credited=revenue.allocations.find(a=>a.billId===fourth.id);assert.equal(credited.current.feeCents,0);assert.equal(credited.reversals.length,1);assert.equal(credited.reversals[0].calculation.feeCents,-10000);assert.equal(revenue.totals.collectedCents,60000);
   const original=await(await h.request('/api/satchel/bills/'+fourth.id+'/export',undefined,h.owner)).text();
   const refreshed=(await h.json('/matters/'+f.m.id+'/billing',undefined,h.owner)).bills.find(b=>b.id===fourth.id);
   const v={...voidBody,revision:refreshed.revision};await h.json('/invoices/'+fourth.id+'/void',v,h.owner);await h.json('/invoices/'+fourth.id+'/void',v,h.owner);
@@ -109,6 +141,7 @@ test('Offline operating receipts allocate once, preserve credit, refuse unauthor
   const bounce={requestKey:'synthetic-satchel-bounce-1',kind:'bounce',reason:'Bank returned the original check unpaid'};
   await h.json('/offline-payments/'+r.id+'/actions',bounce,billing);await h.json('/offline-payments/'+r.id+'/actions',bounce,billing);
   assert.deepEqual(await Promise.all([bill1,bill2,bill3].map(async b=>{const f=await funds(b.id);return [f.paid_cents,f.due_cents];})),[[0,10000],[0,20000],[0,15000]]);
+  revenue=await h.json(revenuePath,undefined,h.owner);const returned=revenue.allocations.find(a=>a.id===approvedAllocation.id);assert.deepEqual(returned.original,originalAllocation);assert.equal(returned.current.feeCents,0);assert.equal(returned.reversals.length,1);assert.deepEqual(returned.reversals[0].calculation.allocations.map(a=>a.commissionCents),[-375,-1500]);
   await h.json('/offline-payments/'+r.id+'/actions',apply,billing,409);
   // A return follows the original receipt even after its credit was reused.
   await h.json('/offline-payments/'+over.id+'/actions',{...bounce,requestKey:'synthetic-satchel-bounce-2'},billing);
@@ -123,6 +156,6 @@ test('Offline operating receipts allocate once, preserve credit, refuse unauthor
   await h.json('/offline-payments/'+over.id,undefined,billing,404);await h.json('/offline-payments/'+over.id+'/actions',{...apply,requestKey:'synthetic-satchel-excluded'},billing,404);
   await h.json('/offline-payments',{...payment,requestKey:'synthetic-satchel-wall'},billing,404);
   await h.json('/team',{email:'billing@example.test',name:'Former billing',role:'assistant'},h.owner);await h.json('/offline-payments/'+over.id,undefined,billing,403);
-  const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),target=await harness();try{await target.json('/restore',{archive,confirm:'RESTORE'},target.owner);assert.deepEqual(await target.json('/offline-payments/'+over.id,undefined,target.owner),await h.json('/offline-payments/'+over.id,undefined,h.owner));}finally{await target.close();}
+  const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),target=await harness();try{await target.json('/restore',{archive,confirm:'RESTORE'},target.owner);assert.deepEqual(await target.json('/offline-payments/'+over.id,undefined,target.owner),await h.json('/offline-payments/'+over.id,undefined,h.owner));assert.deepEqual(await target.json(revenuePath,undefined,target.owner),await h.json(revenuePath,undefined,h.owner));await target.json('/team/invite',{email:'custodian@example.test'},target.owner);const custody=await target.login('custodian@example.test');await target.json(revenuePath,undefined,custody,403);assert.equal((await target.json('/audit?action=revenue.collection_allocated',undefined,custody)).records.length,0);await target.json('/matters/'+f.m.id+'/wall',{custodianEmail:'custodian@example.test',members:[],reason:'Screen the principal from this matter',revision:(await target.json('/ethical-walls',undefined,custody)).walls.find(w=>w.matter_id===f.m.id).revision},custody);await target.json(revenuePath,undefined,target.owner,404);await target.json(allocationPath,allocationRequest,target.owner,404);}finally{await target.close();}
  }finally{await h.close();}
 });

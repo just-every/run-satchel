@@ -16,7 +16,7 @@ function collect(value:unknown,ids:Set<string>){
 // Who recorded the time behind an entry, draft or bill line: the only attribution rate visibility needs.
 async function owners(db:D1Database,ids:Set<string>){
  if(!ids.size)return new Map<string,{owner:string;kind:string}>();
- const found=await rows(db,"SELECT id,created_by owner,kind FROM s_entries WHERE id IN (SELECT value FROM json_each(?)) UNION ALL SELECT id,owner_email owner,'time' kind FROM s_time_drafts WHERE id IN (SELECT value FROM json_each(?))",JSON.stringify([...ids]),JSON.stringify([...ids]));
+ const found=await rows(db,"SELECT id,COALESCE(timekeeper_email,created_by) owner,kind FROM s_entries WHERE id IN (SELECT value FROM json_each(?)) UNION ALL SELECT id,owner_email owner,'time' kind FROM s_time_drafts WHERE id IN (SELECT value FROM json_each(?))",JSON.stringify([...ids]),JSON.stringify([...ids]));
  return new Map(found.map(r=>[r.id as string,{owner:r.owner as string,kind:r.kind as string}]));
 }
 function ownedBy(o:Data,email:string,map:Map<string,{owner:string;kind:string}>){

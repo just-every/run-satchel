@@ -1,3 +1,5 @@
+import {revenueState,approveRevenueRule,approveRevenueAllocation} from './revenue';
+import {listBulkWork,prepareBulkWork,repairBulkRow,postBulkWork} from './bulk-work';
 import {recordOffline,offlineReceipt,offlineAction,writeOffInvoice} from './offline-payments';
 import {approveStaffCost,economics,exportEconomics} from './economics';
 import {prebillRuns,prebillRun,preparePrebillRun} from './prebill-runs';
@@ -269,6 +271,13 @@ api.post('/api/satchel/matters/:id/close',as(async(a,c)=>closeMatter(db(c),a,par
 api.post('/api/satchel/matters/:id/reopen',as(async(a,c)=>reopenMatter(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/search',as(async(a,c)=>c.json(await searchFirm(db(c),a,c.req.query('q')??''),200,{'Cache-Control':'private, no-store'})));
 api.get('/api/satchel/state',as((a,c)=>workspace(db(c),a)));
+api.get('/api/satchel/time/bulk',as((a,c)=>listBulkWork(db(c),a)));
+api.post('/api/satchel/time/bulk',as(async(a,c)=>prepareBulkWork(db(c),a,await body(c))));
+api.post('/api/satchel/time/bulk/:id/rows',as(async(a,c)=>repairBulkRow(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/time/bulk/:id/post',as(async(a,c)=>postBulkWork(db(c),a,param(c),await body(c))));
+api.get('/api/satchel/matters/:id/revenue',as((a,c)=>revenueState(db(c),a,param(c))));
+api.post('/api/satchel/matters/:id/revenue/rules',as(async(a,c)=>approveRevenueRule(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/matters/:id/revenue/allocations',as(async(a,c)=>approveRevenueAllocation(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/time',as((a,c)=>timesheet(db(c),a,c.req.query('week')||undefined)));
 api.post('/api/satchel/timers',as(async(a,c)=>startTimer(db(c),a,await body(c))));
 api.post('/api/satchel/timers/:id/:op',as(async(a,c)=>timerAction(db(c),a,param(c),param(c,'op'),await body(c))));

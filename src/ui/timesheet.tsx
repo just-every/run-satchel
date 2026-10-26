@@ -1,3 +1,4 @@
+import {BulkWork} from './bulk-work';
 import {useEffect,useState} from 'react';
 import {api,dollars,Empty,Field,Form,today,type Row,type Run} from './common';
 const hours=(m:number)=>`${Math.floor(m/60)} h ${m%60} min`;
@@ -7,7 +8,7 @@ export function Timesheet({matterId,actor,run,tick}:{matterId:string;actor:Row;r
  useEffect(()=>{let active=true;api('/time'+(week?'?week='+week:'')).then(s=>{if(active){setSheet(s);setLoaded(week+':'+tick);}}).catch(e=>{if(active)void run(async()=>{throw e;});});return()=>{active=false;};},[week,tick]);
  const timerRun=(path:string,body:Row,message:string)=>run(async()=>{const r=await api(path,body);setSwitched(r.paused);},message);
  const ready=loaded===week+':'+tick;
- return <div className="grid"><section className="panel"><h2>Timers</h2><fieldset className="content" disabled={!ready} aria-busy={!ready}>
+ return <><BulkWork matterId={matterId} actor={actor} run={run} tick={tick}/><div className="grid"><section className="panel"><h2>Timers</h2><fieldset className="content" disabled={!ready} aria-busy={!ready}>
   {switched&&<p className="notice">Paused {switched.matterNumber} · {switched.description} so timers never overlap.</p>}
   {!sheet?.timers.length?<p>No timers running or paused.</p>:sheet.timers.map((t:Row)=><article className="record" key={t.id} aria-label={'Timer '+t.matterNumber}><strong>{t.matterNumber} · {t.description}</strong><p>{t.status==='running'?`Running since ${time(t.runningSince,sheet.timezone)}`:'Paused'} · {t.billable?'billable':'nonbillable'}</p>
    <div className="inline">{t.status==='running'?<button type="button" onClick={()=>timerRun('/timers/'+t.id+'/pause',{revision:t.revision},'Timer paused; interval drafted')}>Pause</button>:<button type="button" onClick={()=>timerRun('/timers/'+t.id+'/resume',{revision:t.revision},'Timer resumed')}>Resume</button>}<button type="button" className="quiet" onClick={()=>timerRun('/timers/'+t.id+'/stop',{revision:t.revision},'Timer stopped')}>Stop</button></div></article>)}
@@ -23,5 +24,5 @@ export function Timesheet({matterId,actor,run,tick}:{matterId:string;actor:Row;r
    {day.drafts.some((d:Row)=>d.status==='draft')&&<button type="button" onClick={()=>run(async()=>setSheet(await api('/time/post',{from:day.date,to:day.date})),'Day posted')}>Post day {day.date}</button>}</div>)}
   <button type="button" onClick={()=>run(async()=>setSheet(await api('/time/post',{from:sheet.week.start,to:sheet.week.end})),'Week submitted')}>Submit week</button>
   {matterId&&<details><summary>Add time to the timesheet</summary><Form label="Add to timesheet" submit={d=>run(async()=>setSheet(await api('/time/drafts',{matterId,date:d.date,minutes:Number(d.minutes),description:d.description,billable:d.billable==='on',utbmsTask:d.utbmsTask,utbmsActivity:d.utbmsActivity})),'Time added to the timesheet')}><Field label="Day worked" name="date" type="date" value={today()}/><Field label="Time spent (min)" name="minutes" type="number"/><Field label="Work performed" name="description"/><Field label="UTBMS task code" name="utbmsTask" required={false}/><Field label="UTBMS activity code" name="utbmsActivity" required={false}/><label className="check"><input type="checkbox" name="billable" defaultChecked/>Billable entry</label></Form></details>}
- </>}</fieldset></section></div>;
+ </>}</fieldset></section></div></>;
 }

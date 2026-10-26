@@ -6,7 +6,7 @@ async function query(db:D1Database,actor:Actor,f:Filters){
  if(actor.role!=='owner'){clauses.push('EXISTS(SELECT 1 FROM s_ethical_walls custody WHERE custody.matter_id=s_audit.matter_id AND custody.custodian_email=? AND custody.dissolved_at IS NULL)');values.push(actor.email);}
  clauses.push(`NOT EXISTS(SELECT 1 FROM s_ethical_walls excluded_wall WHERE NOT ${wallAllows('excluded_wall.matter_id','?')} AND (instr(COALESCE(s_audit.evidence,''),excluded_wall.matter_id)>0 OR instr(s_audit.detail,excluded_wall.matter_id)>0 OR EXISTS(SELECT 1 FROM s_documents excluded_source WHERE excluded_source.matter_id=excluded_wall.matter_id AND (instr(COALESCE(s_audit.evidence,''),excluded_source.id)>0 OR instr(s_audit.detail,excluded_source.id)>0))))`);values.push(actor.email,actor.email);
  // New confidential document workflows keep their decision notes principal-only.
- if(actor.role!=='owner')clauses.push("action NOT LIKE 'chronology.%' AND action NOT LIKE 'production.%'");
+ if(actor.role!=='owner')clauses.push("action NOT LIKE 'chronology.%' AND action NOT LIKE 'production.%' AND action NOT LIKE 'revenue.%'");
  if(f.matterId){await matter(db,actor,f.matterId);clauses.push('matter_id=?');values.push(f.matterId);}
  if(f.from){clauses.push('at>=?');values.push(date(f.from)+'T00:00:00.000Z');}if(f.to){clauses.push('at<=?');values.push(date(f.to)+'T23:59:59.999Z');}
  if(f.from&&f.to)insist(f.from<=f.to,'From date cannot follow to date');

@@ -1,3 +1,4 @@
+import {bulkRevenueJourney} from './bulk-revenue-journey.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
@@ -48,6 +49,7 @@ test('TIME-001 timer started on a 390px phone, resumed and switched at 1440px, d
   await unbilled.getByRole('cell',{name:'$240.00'}).waitFor();assert.equal(await unbilled.getByRole('row').count(),2);await shot('1440-posted');
   await page.getByLabel('Current matter').selectOption(b.id);await unbilled.getByText('Nonbillable time recorded, never billed: 1 entry',{exact:true}).waitFor();
   const entries=(await h.json('/matters/'+a.id+'/billing',undefined,h.owner)).entries;assert.deepEqual(entries.map(e=>[e.minutes,e.amountCents,e.utbmsTask,e.utbmsActivity,e.createdBy]),[[45,24000,'L110','A101','owner@example.test']]);
+  await bulkRevenueJourney(h,page);
   assert.deepEqual(errors,[]);
  }finally{await browser.close();await h.close();}
 });
