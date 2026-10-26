@@ -19,7 +19,7 @@ export function DocumentChronologies({matterId,actor,run,tick}:{matterId:string;
     await api('/matters/'+matterId+'/chronologies',{sources,reportedTotalCents:Number(data.reportedTotalCents),gapDays:Number(data.gapDays)});setSelected([]);
    },'Chronology extracted for counsel review')}>
     <fieldset><legend>Private treatment and bill originals</legend>
-     {(state.sources??[]).map((source:Row)=>{const key=source.documentId+':'+source.version;return <label key={key}><input type="checkbox" aria-label={'Extract '+source.name} checked={selected.includes(key)} onChange={event=>setSelected(current=>event.target.checked?[...current,key]:current.filter(item=>item!==key))}/>{source.name} · Version {source.version}</label>;})}
+     {(state.sources??[]).map((source:Row)=>{const key=source.documentId+':'+source.version;return <label key={key}><input type="checkbox" aria-label={'Extract '+source.name+', version '+source.version} checked={selected.includes(key)} onChange={event=>setSelected(current=>event.target.checked?[...current,key]:current.filter(item=>item!==key))}/>{source.name} · Version {source.version}</label>;})}
      {!state.sources?.length&&<p>Upload a private PDF original in this matter to begin.</p>}
     </fieldset>
     <Field label="Packet reported bill total (USD cents)" name="reportedTotalCents" type="number"/>
