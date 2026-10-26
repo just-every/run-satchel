@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {harness} from './harness.mjs';
+import {proveUpdateAuthorityChanges} from './matter-update-authority-flow.mjs';
 import {updateFixture,updateEdit,updateTick,updateWording} from './matter-update-fixture.mjs';
 
 const declarations={clientPromisesReviewed:true,clientPromises:[],originalReturn:{status:'not_held',note:'Only native copies are held'}};
@@ -45,6 +46,7 @@ export async function proveMatterUpdates(){
   const restricted=await h.json(f.base+'/closure-preview',declarations,f.lawyer);assert.equal(restricted.checks.filter(c=>c.restricted).length,1);assert.ok(!JSON.stringify(restricted).includes(evidence.id));assert.ok(!JSON.stringify(restricted).includes(evidence.title));await h.json(f.base+'/close',closeBody(restricted),f.lawyer,403);
   assert.ok(!JSON.stringify(await h.json(f.base+'/matter-updates',undefined,f.lawyer)).includes(evidence.id));
   const audit=(await h.json('/audit?matterId='+f.m.id+'&action=matter_update.approved',undefined,h.owner)).records[0];assert.equal(audit.detail.body,updateWording);assert.deepEqual(audit.detail.recipients,['client@example.test']);
+  await proveUpdateAuthorityChanges(h,f);
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();restored=await harness();await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);assert.equal((await restored.json(f.base+'/matter-updates',undefined,restored.owner)).updates.find(x=>x.id===f.draft.id).promises[0].status,'fulfilled');const mails=restored.mails.length;await restored.scheduled(updateTick);assert.equal(restored.mails.length,mails);
  }finally{await restored?.close();await h.close();}
 }
