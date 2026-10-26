@@ -140,7 +140,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "a62ff2ecc5a5d93667ec12f458803b016efe09313e5c2ef040c2cc0bf7764740",
+      "sha256": "7e1a48cb90e06613658d6a2bd1d17ee01508b557ef7036b3491c537e806727bb",
       "executable": false
     },
     "AGENTS.md": {
@@ -148,7 +148,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "c2d8f3f1f535d502ae74f675c44b75bda4ab2558fab2c8c05c960ee89f1078fb",
+      "sha256": "b8483ac987eeaf9631c0318bbf352d101b82a75ffa0224d4c17eab310c6f3cb8",
       "executable": false
     },
     "base-copies.json": {
@@ -164,7 +164,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "fd440fd102c91a21ade059be9a5d445329b4adca326f309279c9318338c9ab1e",
+      "sha256": "27de4c32f1049aea45e61eb8cd6040c09246d8aadd2096b9a8f1564a6259ebe0",
       "executable": false
     },
     "DEMO.md": {
@@ -641,6 +641,10 @@
     },
     "migrations/core/0101_economics_cost_rates.sql": {
       "sha256": "b432a0f43989b25bc78eabda68b3284d0829157d3b048f5e7b158f1efff4d9fc",
+      "executable": false
+    },
+    "migrations/core/0102_contact_preferences.sql": {
+      "sha256": "7882d93df063788690e86aa2038ff031f4304dc3105acc54be26491a50aa1ede",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -3068,7 +3072,7 @@
       "executable": false
     },
     "src/satchel/audit-record.ts": {
-      "sha256": "73a1be439a95377a15a2e89b33531148e2a69c7649f6772b623481ef53b90e67",
+      "sha256": "be296658df2564e83f018c6dbe8bc1bb2fb29e9e0c06695507d61c6d1d3b9374",
       "executable": false
     },
     "src/satchel/audit.ts": {
@@ -3124,11 +3128,11 @@
       "executable": false
     },
     "src/satchel/contact-data.ts": {
-      "sha256": "1c7c424ef34124d37a517d177abf554eb8249c850012f1e913c55aa3d8082c77",
+      "sha256": "e80d009581829b1705a8d865824c87138e54a8c26fe952b8587af3383074afa0",
       "executable": false
     },
     "src/satchel/contact-graph.ts": {
-      "sha256": "e1ef4e51a6408c92cf49379a751f97c088d5c834a11dafc373be1dda0618ac12",
+      "sha256": "7d1649068677fa3d7d4217d5fcc40c40f03579b6bca8b4cb1f4fbba9ea5c839c",
       "executable": false
     },
     "src/satchel/contact-merge.ts": {
@@ -3144,7 +3148,7 @@
       "executable": false
     },
     "src/satchel/contacts.ts": {
-      "sha256": "d229d2f5dd72ef2a0ba0df41ae12b2d85e87d898601aeb02e7d90f7705b53419",
+      "sha256": "2accadac7cf093cb0ff32ab3fc6804ba9b8b290131848ed2fc592852027f31a5",
       "executable": false
     },
     "src/satchel/correspondence.ts": {
@@ -3832,7 +3836,7 @@
       "executable": false
     },
     "src/ui/contacts.tsx": {
-      "sha256": "9f6cc1e1a4b83239c133bd3c90c72f8ff95d08c53432d8f665032392853a09d0",
+      "sha256": "1f470ca5c58381a0904b221926853b3d278026fa9fec1fd9085283f6d99bffb4",
       "executable": false
     },
     "src/ui/correspondence.tsx": {
@@ -4212,11 +4216,11 @@
       "executable": false
     },
     "tests/satchel/contacts-journey.test.mjs": {
-      "sha256": "4ad82107f71752291c816a1dcd3b569754f1a5b7017228e4bcaf80b75d64aafd",
+      "sha256": "760f03ca24e4f9f542f8fb3cc59c412db08e61563bd15231161225cd21c75907",
       "executable": false
     },
     "tests/satchel/contacts.test.mjs": {
-      "sha256": "c5e214fbfcecaaf6ab335dba4f97df33290b318ddc901236f21757b860b7710d",
+      "sha256": "8277a6f105299c501c75007a107a3cd958c01301d44a82af1085f1815e08ebe5",
       "executable": false
     },
     "tests/satchel/custom-roles.test.mjs": {
@@ -4408,7 +4412,7 @@
       "executable": false
     },
     "tests/satchel/providers.test.mjs": {
-      "sha256": "9c1c3c8414cea7e6aa4d9ef189a78585d1deafdf67ce59ce7b1775d990fd3039",
+      "sha256": "2b33541f3856cec4c9c11681f9e0a1769a7b4ca47c8e3c3b82001fa1743343b2",
       "executable": false
     },
     "tests/satchel/rates-journey.test.mjs": {
@@ -4444,7 +4448,7 @@
       "executable": false
     },
     "tests/satchel/reports.test.mjs": {
-      "sha256": "361c22f00c3bf2f12ec56fb0d2c718eccaa4a428a5762c42ddbdbfae0d4bb95f",
+      "sha256": "dea4c2b74e116a98312860a6e18bbd272be4e7fc2ca08fd97b45739c25449923",
       "executable": false
     },
     "tests/satchel/roles-journey.test.mjs": {

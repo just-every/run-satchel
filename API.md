@@ -266,7 +266,7 @@ The principal may use `POST /api/satchel/reports/staff-costs` with `email`,
 `effectiveFrom`, `hourlyCents`, `reason` and `confirmed: true` to record an immutable
 staff cost approval. One approval per staff member and effective date is allowed;
 a later effective date changes costing prospectively by work date. These costs
-never change billing rates. This principal-only policy awaits ct approval.
+never change billing rates. CT approved the principal-only policy with riders on 26 October 2026; complete implementation proof remains partial.
 
 `GET /api/satchel/reports/economics` returns current permitted matter economics,
 formulas, a UTC read timestamp and the source entries, live issued lines, invoice
@@ -278,5 +278,16 @@ input is refused: the read timestamp describes current state and does not claim
 historical accounting. Missing staff cost makes profitability unknown. Pending
 applications and trust cash stay separate from cleared operating receipts.
 
-The economics workspace screen, populated aging and processor-pending assertions,
-and additive correction reconciliation remain REPORT-002 gaps.
+The economics workspace screen, populated aging and the remaining CT policy riders
+remain REPORT-002 gaps. Current processor-pending values and additive correction
+reconciliation are asserted through the public report doors.
+
+### Recorded contact preferences
+
+`POST /api/satchel/contacts/:id/preferences` records `language`, `accessibility`
+and a `source` reference against one source identity, with the current contact
+graph `revision`. Current counsel contact authority and visibility are required.
+Stale writes refuse. The contact read returns append-only `preferences` history
+with actor and time; merged identities keep their separate instructions. This
+records communication instructions without granting consent, representative
+authority, automatic translation or a new recipient.

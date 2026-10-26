@@ -221,6 +221,9 @@ test('Hosted invoice collection allocates exact card and ACH funds once, preserv
   await h.json(base(s.ach.id)+'/checkout',{requestKey:'synthetic-satchel-ach-decision'},s.client);const ach=[...edge.sessions.values()][1],pending=edge.event(ach,'checkout.session.completed','pending');
   assert.equal((await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(pending)})).status,200);
   invoice=await h.json(base(s.ach.id)+'/payment',undefined,s.client);assert.equal(invoice.status,'pending');assert.equal(invoice.paidCents,0);assert.equal(invoice.reservedCents,37500);
+  const economics=(await h.json('/reports/economics',undefined,h.owner)).matters.find(m=>m.matterId===s.m.id);
+  assert.equal(economics.pendingCents,37500);assert.equal(economics.paidCents,37500);assert.equal(economics.trustCashCents,0);assert.equal(economics.earnedCents,75000);assert.equal(economics.collectionRate,0.5);
+  const pendingInvoice=economics.source.invoices.find(i=>i.billId===s.ach.id);assert.equal(pendingInvoice.pendingCents,37500);assert.equal(pendingInvoice.paidCents,0);assert.equal(pendingInvoice.dueCents,37500);
   const paid=edge.event(ach,'checkout.session.async_payment_succeeded','paid');await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(paid)});
   const returned=edge.event(ach,'charge.failed','returned',{status:'failed',amount_refunded:0});await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(returned)});await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(returned)});
   invoice=await h.json(base(s.ach.id)+'/payment',undefined,s.client);assert.equal(invoice.status,'returned');assert.equal(invoice.paidCents,0);assert.equal(invoice.dueCents,37500);

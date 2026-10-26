@@ -49,6 +49,7 @@ const contexts=[
  record('s_contact_profiles',['party_id','kind','display_name','aliases','former_names','emails','phones','addresses','updated_by','updated_at'],'NULL','x.revision',"x.party_id=i.object_id AND i.action IN ('contact.created','contact.profile_updated')"),
  record('s_contact_relationships',['id','from_id','to_id','relationship','created_by','created_at']),
  record('s_contact_matter_roles',['id','party_id','matter_id','role','created_by','created_at'],'x.matter_id'),
+ record('s_contact_preferences',['id','sequence','party_id','language','accessibility','source','recorded_by','recorded_at'],'NULL','CAST(x.sequence AS TEXT)'),
  record('s_contact_consents',['id','sequence','party_id','channel','decision','effective_date','source','recorded_by','recorded_at']),
  record('s_contact_merges',['losing_id','survivor_id','reason','reviewed_revision','snapshot','merged_by','merged_at'],'NULL','CAST(x.reviewed_revision AS TEXT)',"i.action='contact.merged' AND x.losing_id=i.object_id"),
  record('s_contact_merge_previews',['id','for_email','role','graph_revision','snapshot','created_at','applied_at'],'NULL','CAST(x.graph_revision AS TEXT)'),

@@ -19,6 +19,13 @@ test('INTAKE-004 INTAKE-005 imported insurer aliases retain every source, relati
   await save(a,{formerNames:['Summit Assurance Company']});await save(b,{aliases:[...b.aliases,'Summit Risk Group']});
   const broker=await save(null);
   const act=async(id,op,body)=>{const s=await h.json('/contacts',undefined,h.owner);return h.json('/contacts/'+id+'/'+op,{...body,revision:s.revision},h.owner);};
+  const preference={language:'Spanish',accessibility:'Large print and phone interpretation',source:'Synthetic client instructions'};
+  await act(a.id,'preferences',preference);
+  await act(a.id,'preferences',{...preference,accessibility:'Large print; contact counsel for an interpreter'});
+  await act(b.id,'preferences',{language:'English',accessibility:'No accommodation requested',source:'Separate identity instructions'});
+  const preferenceRevision=(await h.json('/contacts',undefined,h.owner)).revision;
+  await act(a.id,'preferences',{...preference,language:'French'});
+  await h.json('/contacts/'+a.id+'/preferences',{...preference,revision:preferenceRevision},h.owner,409);
   await act(a.id,'matter-role',{matterId:m1.id,role:'insurer'});await act(b.id,'matter-role',{matterId:m2.id,role:'insurer'});
   await act(b.id,'relationship',{otherId:broker.id,relationship:'represented by'});
   await act(broker.id,'matter-role',{matterId:m1.id,role:'counsel'});
@@ -31,6 +38,7 @@ test('INTAKE-004 INTAKE-005 imported insurer aliases retain every source, relati
   const historic=await h.json('/matters',{title:'Insurer historical review',conflictId:search.id,confirmed:true,reviewNote:'Counsel reviewed the recorded insurer aliases and source identities.'},h.owner);
   const historicMatches=(await h.json('/matters/'+historic.id,undefined,h.owner)).conflict.matches;
   await h.json('/team',{email:'reader@example.test',name:'Case assistant',role:'assistant'},h.owner);await h.json('/team/invite',{email:'reader@example.test'},h.owner);const reader=await h.login('reader@example.test');
+  await h.json('/contacts/'+a.id+'/preferences',{language:'English',accessibility:'Denied edit',source:'Synthetic instructions',revision:(await h.json('/contacts',undefined,h.owner)).revision},reader,403);
   await h.json('/contacts',{name:'Denied'},reader,403);await h.json('/contacts/merge-preview',{survivorId:a.id,duplicateId:b.id,reason:'Denied'},reader,403);
   await h.json('/team',{email:'lawyer@example.test',name:'Associate',role:'lawyer'},h.owner);await h.json('/team/invite',{email:'lawyer@example.test'},h.owner);const lawyer=await h.login('lawyer@example.test'),mails=h.mails.length;
   const lawyerPreview=await h.json('/contacts/merge-preview',{survivorId:a.id,duplicateId:b.id,reason:'Review contact identities without unrelated matter detail'},lawyer);assert.ok(!JSON.stringify(lawyerPreview).includes(m2.title));
@@ -50,6 +58,7 @@ test('INTAKE-004 INTAKE-005 imported insurer aliases retain every source, relati
   for(const old of identities)assert.deepEqual(merged.identities.find(i=>i.id===old.id).sources,old.sources);
   for(const alias of ['SMI','Summit Insurance','Summit Risk Group'])assert.ok(merged.aliases.includes(alias));assert.ok(merged.formerNames.includes('Summit Assurance Company'));
   assert.ok(merged.addresses.includes('10 Park Avenue, New York NY 10001'));assert.ok(merged.phones.includes('+1 212 555 0112'));
+  assert.equal(merged.preferences.length,4);assert.equal(merged.preferences.filter(p=>p.party_id===a.id).at(-1).language,'French');assert.equal(merged.preferences.find(p=>p.party_id===b.id).language,'English');
   assert.equal(merged.effectiveConsent.email,'denied');assert.equal(merged.effectiveConsent.sms,'unknown');assert.equal(h.mails.length,mails,'Contact edits, previews and merges send no messages');
   assert.deepEqual(new Set(merged.matterRoles.filter(r=>r.role==='insurer').map(r=>r.matter_id)),new Set([m1.id,m2.id]));assert.ok(merged.relationships.some(r=>r.toId===broker.id&&r.fromId===a.id));
   assert.equal((await h.json('/matters/'+historic.id,undefined,h.owner)).conflict.matches,historicMatches);
@@ -97,6 +106,7 @@ test('INTAKE-004 INTAKE-005 imported insurer aliases retain every source, relati
   const reopenedSearch=await h.json('/conflicts',{client:'Summit Assurance',adverse:'No matching adverse name'},h.owner);
   const current=reopenedSearch.matches.find(c=>c.id===a.id).matterContext.find(c=>c.matterId===m1.id&&c.role==='client');assert.equal(current.classification,'current_client');assert.equal(current.closedAt,null);assert.equal(current.closedYear,null);
   assert.deepEqual((await h.json('/matters/'+cleared.id,undefined,h.owner)).conflict,recorded,'Reopening never rewrites the reviewed search or its clearance evidence');
+  const preferenceAudit=await h.json('/audit?action=contact.preferences_recorded',undefined,h.owner);assert.equal(preferenceAudit.records.length,4);assert.ok(preferenceAudit.records.every(r=>r.evidence.record.recordType==='s_contact_preferences'&&r.evidence.record.source));
   const audit=await h.json('/audit?action=contact.merged',undefined,h.owner);assert.equal(audit.records[0].evidence.record.recordType,'s_contact_merges');assert.equal(audit.records[0].evidence.record.survivor_id,a.id);
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();target=await harness();assert.equal((await target.json('/restore',{archive,confirm:'RESTORE'},target.owner)).phase,'complete');
   assert.deepEqual(await target.json('/contacts',undefined,target.owner),await h.json('/contacts',undefined,h.owner));assert.equal((await target.json('/matters/'+historic.id,undefined,target.owner)).conflict.matches,historicMatches);assert.deepEqual((await target.json('/matters/'+cleared.id,undefined,target.owner)).conflict,recorded);await target.restart();assert.deepEqual((await target.json('/matters/'+cleared.id,undefined,target.owner)).conflict,recorded);

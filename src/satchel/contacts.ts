@@ -39,6 +39,9 @@ export async function contactAction(db:D1Database,actor:Actor,partyId:string,op:
   insist(await stmt(db,"SELECT 1 FROM s_members WHERE email=? UNION SELECT 1 FROM oa_operators WHERE email=? AND role='owner'",staffEmail,staffEmail).first(),'Choose a recorded staff member');
   writes.push(stmt(db,'INSERT INTO s_staff_relationships VALUES(?,?,?,?,?,?,?,?,?)',objectId,contact.id,staffEmail,kind,startDate,endDate,note,actor.email,at));
   writes.push(stmt(db,'UPDATE s_parties SET revision=? WHERE id=?',id(),contact.id),audit(db,actor,'contact.conflict_classified',objectId,JSON.stringify({partyId:contact.id,classification:body.classification,note})));
+ }else if(op==='preferences'){
+  const language=text(body.language,'Preferred language',120),accessibility=text(body.accessibility,'Accessibility instructions',2000),source=text(body.source,'Preference source',2000);
+  writes.push(stmt(db,'INSERT INTO s_contact_preferences VALUES(?,?,?,?,?,?,?,?)',objectId,data.revision,partyId,language,accessibility,source,actor.email,at),stmt(db,'UPDATE s_parties SET revision=? WHERE id=?',id(),partyId),audit(db,actor,'contact.preferences_recorded',objectId,JSON.stringify({partyId,language,accessibility,source})));
  }else if(op==='consent'){
   insist(contactChannels.includes(body.channel),'Choose a communication channel');insist(['allowed','denied','unknown'].includes(body.decision),'Choose the recorded consent decision');
   const evidenceDate=date(body.evidenceDate),source=text(body.source,'Consent source/reference',2000);
