@@ -8,7 +8,7 @@ import {readXml} from './ledes-xml-reader.mjs';
 import {harness,open} from './harness.mjs';
 import {draft,reviewed,insurer} from './invoice-numbering-fixture.mjs';
 import {capturePanel} from './browser-shots.mjs';
-for(const width of [1440,390])test(`BILL-015 BILL-016 issue retained invoices, void and rebill released work with new numbering at ${width}px`,async()=>{
+for(const width of [1440,390])test(`Prebill review, exact numbered issue and rebilling preserve retained invoices at ${width}px`,async()=>{
  const h=await harness(),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});
  try{
   const m=await open(h),target=await open(h,'Barton replacement lease advice'),context=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true,acceptDownloads:true}),page=await context.newPage(),errors=[];page.setDefaultTimeout(20000);page.on('pageerror',e=>errors.push(String(e)));
