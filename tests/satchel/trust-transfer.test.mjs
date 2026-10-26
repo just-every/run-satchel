@@ -46,3 +46,77 @@ test('TRUST-004 BILL-016 native payment/void guards / TRUST-005 inherited reconc
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),target=await harness();try{await target.json('/restore',{archive,confirm:'RESTORE'},target.owner);assert.deepEqual(await target.json('/trust/transfers',undefined,target.owner),s);}finally{await target.close();}
  }finally{await h.close();}
 });
+
+async function proveOfflineBalances(h,m,title,paid,due,stage){
+ const {chromium}=await import('@playwright/test'),{mkdir}=await import('node:fs/promises');
+ const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,args:['--no-sandbox']});
+ try{for(const width of [1440,390]){
+  const context=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true});
+  await context.addCookies(h.owner.split('; ').map(pair=>{const i=pair.indexOf('=');return {name:pair.slice(0,i),value:pair.slice(i+1),url:h.origin,secure:true};}));
+  const page=await context.newPage();page.setDefaultTimeout(20000);await page.goto(h.origin+'/app');
+  if(page.url().includes('/setup')){await page.getByLabel('Your name').fill('Avery Barton');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup'}).click();await page.waitForURL(/\/app/);}
+  await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Time & bills',exact:true}).click();await page.getByLabel('Current matter').selectOption(m.id);
+  const card=page.locator('.bill-packages > article.record').filter({has:page.locator('strong').filter({hasText:new RegExp('^'+title+' ·')})});
+  const dollars=n=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n/100);
+  await card.getByText('Payments: '+dollars(paid),{exact:false}).waitFor();await card.getByText('remaining due '+dollars(due),{exact:false}).waitFor();
+  if(stage==='returned')await page.getByRole('region',{name:'Invoice void notice'}).getByText('Invoice voided',{exact:true}).waitFor();
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);
+  if(process.env.SATCHEL_SCREENSHOTS){await mkdir(process.env.SATCHEL_SCREENSHOTS,{recursive:true});await card.scrollIntoViewIfNeeded();await page.screenshot({path:process.env.SATCHEL_SCREENSHOTS+'/'+width+'-offline-'+stage+'.png'});}
+  await context.close();
+ }}finally{await browser.close();}
+}
+
+test('Offline operating receipts allocate once, preserve credit, refuse unauthorized write-offs and release payments before an immutable void',async()=>{
+ const h=await harness();try{
+  const f=await foundation(h),bill1=await earnedBill(h,f.m,10000,'First advice'),bill2=await earnedBill(h,f.m,20000,'Second advice'),bill3=await earnedBill(h,f.m,30000,'Third advice');
+  for(const [email,role] of [['billing@example.test','billing'],['assistant@example.test','assistant']]){await h.json('/team',{email,name:role,role},h.owner);await h.json('/team/invite',{email},h.owner);await h.json('/matters/'+f.m.id+'/access',{email},h.owner);}
+  const billing=await h.login('billing@example.test'),assistant=await h.login('assistant@example.test');
+  const payment={requestKey:'synthetic-satchel-check-1',payer:f.m.client,method:'check',reference:'synthetic-satchel-1',receivedDate:'2026-10-01',depositDate:'2026-10-02',operatingAccountId:f.operating.id,cents:45000,purpose:'operating',oldestFirst:true};
+  await h.json('/offline-payments',payment,assistant,403);
+  const agent=await h.json('/keys',{label:'Offline proposal only'},h.owner);await h.json('/offline-payments',payment,'',401,{authorization:'Bearer '+agent.key});
+  await h.json('/offline-payments',{...payment,purpose:'trust'},billing,400);
+  await h.json('/offline-payments',{...payment,operatingAccountId:f.account.id},billing,409);
+  const [r,replayed]=await Promise.all([h.json('/offline-payments',payment,billing),h.json('/offline-payments',payment,billing)]);assert.equal(r.id,replayed.id);assert.equal(r.allocations.length,3);assert.equal(r.creditCents,0);
+  await h.json('/offline-payments',{...payment,cents:44000},billing,409);
+  const funds=async id=>(await h.json('/matters/'+f.m.id+'/billing',undefined,h.owner)).bills.find(b=>b.id===id).trustPayment;
+  assert.deepEqual(await Promise.all([bill1,bill2,bill3].map(async b=>{const f=await funds(b.id);return [f.paid_cents,f.due_cents];})),[[10000,0],[20000,0],[15000,15000]]);
+  await proveOfflineBalances(h,f.m,'Third advice',15000,15000,'allocated');
+  const writeoff={requestKey:'synthetic-satchel-writeoff-1',revision:bill3.revision,cents:15000,reason:'Principal reviewed short-payment concession',approve:true};
+  await h.json('/invoices/'+bill3.id+'/writeoff',writeoff,assistant,403);await h.json('/invoices/'+bill3.id+'/writeoff',writeoff,billing,403);
+  await h.json('/invoices/'+bill3.id+'/writeoff',{...writeoff,approve:false},h.owner,403);
+  const wo=await h.json('/invoices/'+bill3.id+'/writeoff',writeoff,h.owner);assert.equal((await h.json('/invoices/'+bill3.id+'/writeoff',writeoff,h.owner)).id,wo.id);
+  assert.deepEqual([(await funds(bill3.id)).paid_cents,(await funds(bill3.id)).written_off_cents,(await funds(bill3.id)).due_cents],[15000,15000,0]);
+  const fourth=await earnedBill(h,f.m,10000,'Fourth advice'),second={...payment,requestKey:'synthetic-satchel-check-2',oldestFirst:false,cents:25000,allocations:[{billId:fourth.id,cents:10000}]};
+  const over=await h.json('/offline-payments',second,billing);assert.equal(over.creditCents,15000);
+  const fifth=await earnedBill(h,f.m,20000,'Fifth advice'),apply={requestKey:'synthetic-satchel-apply-1',kind:'allocate',reason:'Apply retained overpayment',allocations:[{billId:fifth.id,cents:15000}]};
+  await h.json('/offline-payments/'+over.id+'/actions',{...apply,allocations:[{billId:fifth.id,cents:15001}]},billing,409);
+  const [applied,appliedReplay]=await Promise.all([h.json('/offline-payments/'+over.id+'/actions',apply,billing),h.json('/offline-payments/'+over.id+'/actions',apply,billing)]);assert.equal(applied.id,appliedReplay.id);assert.equal(applied.creditCents,0);assert.equal((await h.json('/offline-payments/'+over.id+'/actions',apply,billing)).allocations.length,2);
+  const foreign=await earnedBill(h,f.other,10000,'Different payer');await h.json('/offline-payments',{...second,requestKey:'synthetic-satchel-other',allocations:[{billId:foreign.id,cents:10000}]},h.owner,409);
+  const voidBody={revision:fourth.revision,reason:'Rebill after moving the receipt to credit'};await h.json('/invoices/'+fourth.id+'/void',voidBody,h.owner,409);
+  const move={requestKey:'synthetic-satchel-credit-1',kind:'credit',billId:fourth.id,reason:'Retain receipt as unapplied client credit for replacement invoice'};
+  assert.equal((await h.json('/offline-payments/'+over.id+'/actions',move,billing)).creditCents,10000);
+  assert.equal((await h.json('/offline-payments/'+over.id+'/actions',move,billing)).creditCents,10000);
+  const original=await(await h.request('/api/satchel/bills/'+fourth.id+'/export',undefined,h.owner)).text();
+  const refreshed=(await h.json('/matters/'+f.m.id+'/billing',undefined,h.owner)).bills.find(b=>b.id===fourth.id);
+  const v={...voidBody,revision:refreshed.revision};await h.json('/invoices/'+fourth.id+'/void',v,h.owner);await h.json('/invoices/'+fourth.id+'/void',v,h.owner);
+  assert.equal(await(await h.request('/api/satchel/bills/'+fourth.id+'/export',undefined,h.owner)).text(),original);
+  const bounce={requestKey:'synthetic-satchel-bounce-1',kind:'bounce',reason:'Bank returned the original check unpaid'};
+  await h.json('/offline-payments/'+r.id+'/actions',bounce,billing);await h.json('/offline-payments/'+r.id+'/actions',bounce,billing);
+  assert.deepEqual(await Promise.all([bill1,bill2,bill3].map(async b=>{const f=await funds(b.id);return [f.paid_cents,f.due_cents];})),[[0,10000],[0,20000],[0,15000]]);
+  await h.json('/offline-payments/'+r.id+'/actions',apply,billing,409);
+  // A return follows the original receipt even after its credit was reused.
+  await h.json('/offline-payments/'+over.id+'/actions',{...bounce,requestKey:'synthetic-satchel-bounce-2'},billing);
+  assert.equal((await funds(fifth.id)).due_cents,20000);
+  assert.equal((await h.json('/offline-payments/'+over.id,undefined,billing)).creditCents,0);
+  for(const method of ['cash','wire','ach']){const bill=await earnedBill(h,f.m,1,'Receipt '+method),receipt=await h.json('/offline-payments',{...second,method,cents:1,requestKey:'synthetic-satchel-'+method,allocations:[{billId:bill.id,cents:1}]},billing);assert.equal((await funds(bill.id)).due_cents,0);assert.equal(receipt.method,method);}
+
+  await proveOfflineBalances(h,f.m,'Third advice',0,15000,'returned');
+  await h.restart();assert.equal((await h.json('/offline-payments/'+over.id,undefined,billing)).actions.length,4);
+  await h.json('/team',{email:'custodian@example.test',name:'Custodian',role:'lawyer'},h.owner);await h.json('/team/invite',{email:'custodian@example.test'},h.owner);await h.json('/matters/'+f.m.id+'/access',{email:'custodian@example.test'},h.owner);
+  await h.json('/matters/'+f.m.id+'/wall',{custodianEmail:'custodian@example.test',members:['owner@example.test'],reason:'Exclude billing from confidential payer work',revision:null},h.owner);
+  await h.json('/offline-payments/'+over.id,undefined,billing,404);await h.json('/offline-payments/'+over.id+'/actions',{...apply,requestKey:'synthetic-satchel-excluded'},billing,404);
+  await h.json('/offline-payments',{...payment,requestKey:'synthetic-satchel-wall'},billing,404);
+  await h.json('/team',{email:'billing@example.test',name:'Former billing',role:'assistant'},h.owner);await h.json('/offline-payments/'+over.id,undefined,billing,403);
+  const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),target=await harness();try{await target.json('/restore',{archive,confirm:'RESTORE'},target.owner);assert.deepEqual(await target.json('/offline-payments/'+over.id,undefined,target.owner),await h.json('/offline-payments/'+over.id,undefined,h.owner));}finally{await target.close();}
+ }finally{await h.close();}
+});

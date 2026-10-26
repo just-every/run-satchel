@@ -291,3 +291,45 @@ Stale writes refuse. The contact read returns append-only `preferences` history
 with actor and time; merged identities keep their separate instructions. This
 records communication instructions without granting consent, representative
 authority, automatic translation or a new recipient.
+
+### Offline operating receipts
+
+These native commands record received funds; they move no money and initiate no
+provider call. Active human principals and billing staff need current billing
+write permission, bank balance permission and access to every included matter.
+Payer identity is the exact native client name. A hidden allocation suppresses
+the entire receipt, its history and residual credit. Agents cannot post receipts.
+
+`POST /api/satchel/offline-payments` accepts `requestKey`, `payer`, `method`
+(`cash`, `check`, `wire` or `ach`), `reference`, `receivedDate`, `depositDate`,
+`operatingAccountId`, integer `cents` and `purpose: "operating"`. The deposit date
+cannot precede receipt. Select `oldestFirst: true` or explicit `allocations`
+containing `billId` and integer `cents`. Oldest first uses invoice work date,
+creation time and ID. Only live approved original invoices qualify. Allocations
+cannot exceed the unreserved invoice balance; excess receipt becomes unapplied
+credit. Trust account selection and trust purpose are refused: use TRUST-002.
+No bank statement clearance or trust tax split is inferred from this record.
+
+`GET /api/satchel/offline-payments/:id` returns receipt, retained actions,
+allocations, released allocation links, status and `creditCents`.
+`POST /api/satchel/offline-payments/:id/actions` requires a fresh `requestKey`,
+`reason` and `kind`. With `allocate`, provide invoice `allocations` from remaining
+credit. With `credit`, provide `billId` to release that invoice's live allocations
+to credit without returning the receipt. With `bounce`, return an unpaid check or
+ACH receipt, releasing all its live allocations, including reused credit, and
+extinguishing its remaining credit. Cash and wire returns and refunds are refused.
+Every release names its original allocation. Replays retain the original result;
+a changed decision under an existing reference is refused. Competing allocation
+transactions cannot spend the same invoice balance or receipt credit twice.
+
+`POST /api/satchel/invoices/:id/writeoff` requires principal authority,
+`approve: true`, `requestKey`, the current invoice `revision`, integer `cents`
+and a `reason`. Default ADOPTED pending ct approval: the principal alone supplies
+finance approval. A write-off reduces due, remains separate from actual paid
+amount, and is not undone by a later payment return. No automatic refund or
+write-off reversal exists. Invoices with a retained write-off cannot be voided.
+Billing staff and assistants cannot approve write-offs. Live offline allocations
+refuse invoice void; an explicit credit release permits the existing counsel void.
+
+BILL-009 collection, complete BILL-010 historical statements, BOOKS-001 provider
+synchronization and payment-management screens remain separate unproved work.

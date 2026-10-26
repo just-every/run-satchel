@@ -7,7 +7,7 @@ import {getInvoiceVoid} from './invoice-void';
 import {approvalTax,taxCalculations} from './tax-reviews';
 import {feeAdjustedLines,feeCorrectionGuards,earningReview,loadFeePlan,periods} from './fee-plans';
 import {invoiceFunds} from './trust-transfers';
-import {noStripeInvoiceFundsSql} from './processor-balances';
+import {noUnsplitInvoiceFundsSql} from './processor-balances';
 // Adapted from just-every/run-gauge src/gauge/{billing,time,model}.ts (MIT):
 // source reservations, exact rounded minor units, reviewed CSV, additive corrections.
 // Copyright (c) 2026 Run Edit Run. See the repository LICENSE for the MIT terms.
@@ -204,7 +204,7 @@ export async function voidBill(db: D1Database, actor: Actor, billId: string, bod
  const reason = text(body.reason,'Void reason',2000);
  await atomic(db,actor,[accessGuard(db,actor,bill.matterId),revisionGuard(db,bill),
   guard(db,'NOT EXISTS(SELECT 1 FROM s_invoice_issues WHERE bill_id=?)',bill.id),
-  guard(db,noStripeInvoiceFundsSql(),bill.id),
+  guard(db,noUnsplitInvoiceFundsSql(),bill.id),
   guard(db,"NOT EXISTS(SELECT 1 FROM s_operating_payments p WHERE p.bill_id=? AND p.cents>COALESCE((SELECT SUM(r.cents) FROM s_operating_payment_reversals r WHERE r.payment_id=p.id),0)) AND NOT EXISTS(SELECT 1 FROM s_trust_transfers t WHERE t.bill_id=? AND NOT EXISTS(SELECT 1 FROM s_trust_transfer_actions a WHERE a.transfer_id=t.id AND a.kind IN('declined','not_executed','cleared')))",bill.id,bill.id),
   stmt(db,"UPDATE s_bills SET status='void',revision=?,void_reason=?,voided_by=?,voided_at=? WHERE id=? AND revision=? AND status IN ('draft','approved')",id(),reason,actor.email,now(),bill.id,bill.revision),
   stmt(db,'DELETE FROM s_billing_sources WHERE bill_id=?',bill.id),audit(db,actor,'bill.voided',bill.id,reason),

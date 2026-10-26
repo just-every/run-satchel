@@ -140,7 +140,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "7e1a48cb90e06613658d6a2bd1d17ee01508b557ef7036b3491c537e806727bb",
+      "sha256": "f3008f9c38df302e1656c86a4c11a3cb3efa9f42b281583ad4224fb42d1535d3",
       "executable": false
     },
     "AGENTS.md": {
@@ -148,7 +148,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "b8483ac987eeaf9631c0318bbf352d101b82a75ffa0224d4c17eab310c6f3cb8",
+      "sha256": "e929ff18f64d577edaeec7f0b5a30c184faaf35600b60d472160f6c2102e91e9",
       "executable": false
     },
     "base-copies.json": {
@@ -164,7 +164,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "27de4c32f1049aea45e61eb8cd6040c09246d8aadd2096b9a8f1564a6259ebe0",
+      "sha256": "c55cfd3e54ee7bfc13b2ef93a1b50092e0057fbcc4f7200aa916c2527eb6cf4d",
       "executable": false
     },
     "DEMO.md": {
@@ -645,6 +645,10 @@
     },
     "migrations/core/0102_contact_preferences.sql": {
       "sha256": "7882d93df063788690e86aa2038ff031f4304dc3105acc54be26491a50aa1ede",
+      "executable": false
+    },
+    "migrations/core/0103_offline_payments.sql": {
+      "sha256": "c03750f9768f160afba2fd95915253ec07492593b964a09bc2685dd7a3c4fc92",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -3028,7 +3032,7 @@
       "executable": false
     },
     "src/satchel/api.ts": {
-      "sha256": "7d6fe5132d79f48de050b406813ad04126a886309564b0741585e4c085f2b450",
+      "sha256": "6ef64cf70d58ba87a27319cfd229971ef7c2eb5b67e67baaf19eca9fba82f451",
       "executable": false
     },
     "src/satchel/appointments.ts": {
@@ -3072,7 +3076,7 @@
       "executable": false
     },
     "src/satchel/audit-record.ts": {
-      "sha256": "be296658df2564e83f018c6dbe8bc1bb2fb29e9e0c06695507d61c6d1d3b9374",
+      "sha256": "a13d434e6d0dd1c14c69fac889e39a34a83888efb8449ce9078d4ae69e2d2f1f",
       "executable": false
     },
     "src/satchel/audit.ts": {
@@ -3084,7 +3088,7 @@
       "executable": false
     },
     "src/satchel/billing.ts": {
-      "sha256": "ff42750913fbd9d872bffd45895b6cf89844bbfd97dfc6557e9a0aa4b07b4c5a",
+      "sha256": "5500ada416b2155c4d54e5a3f0105d7c6627e38827b33ecef0a160f93ae53f39",
       "executable": false
     },
     "src/satchel/client-reminders.ts": {
@@ -3280,7 +3284,7 @@
       "executable": false
     },
     "src/satchel/invoice-payment.ts": {
-      "sha256": "0aa688dd538919f591a3cba4a390577f4575d3ad015231cf395ce0510a06890e",
+      "sha256": "d033cd886f3a7f0510758fb8844ff2eabd9e936d325fa73cdd63e8430baea6ca",
       "executable": false
     },
     "src/satchel/invoice-pdf.ts": {
@@ -3300,11 +3304,11 @@
       "executable": false
     },
     "src/satchel/invoice-templates.ts": {
-      "sha256": "d7df8c06fb606abe5e8243676b1cd2ebaa1a9ca5436f611f9e9c8b8ae63c4915",
+      "sha256": "5ee151d1409ad11129ead40682cb1c1d1917a0fe6dde5096a7c0feb2e2358867",
       "executable": false
     },
     "src/satchel/invoice-void.ts": {
-      "sha256": "705a1584e3d313e7dd3dba15d392a0c1547fbef32fd674718368fd82e5f89caa",
+      "sha256": "f0e5e3a1a75e8abaaaecd4548955fe711ae8cde9f83095844ab9feb6a39d6522",
       "executable": false
     },
     "src/satchel/lead-report.ts": {
@@ -3332,7 +3336,7 @@
       "executable": false
     },
     "src/satchel/matter-closure-checks.ts": {
-      "sha256": "28a02a2292dcd62a94551e4d766a210b8f3622f13ab95fe52928f952d389b82a",
+      "sha256": "350862be68d677069fc32df7079edb7169275b7ee85d36ab1802aaa73534c4b4",
       "executable": false
     },
     "src/satchel/matter-fields.ts": {
@@ -3383,6 +3387,14 @@
       "sha256": "5d8e9c339df7ddc29f89dcf9cfd3f07c0b250de31056e0f0199e038325cbf175",
       "executable": false
     },
+    "src/satchel/offline-balances.ts": {
+      "sha256": "0eb803013606feee2e86158807a56eab885e3ecbb4f84558cc63498fa3801b89",
+      "executable": false
+    },
+    "src/satchel/offline-payments.ts": {
+      "sha256": "125983d43f39ea6cd41bb03838b732e414071a80fc3dbe4f1956d25b25b07469",
+      "executable": false
+    },
     "src/satchel/payer-statements.ts": {
       "sha256": "438ed2c2b6ac15b4760641887349ce7f848da18965fc24bced9ca6b9aa7cbb5c",
       "executable": false
@@ -3412,7 +3424,7 @@
       "executable": false
     },
     "src/satchel/processor-balances.ts": {
-      "sha256": "9089c484ab10886b1ddf7d68e6a896d70a2e05d89e4533c8cfda5921ecc7dc35",
+      "sha256": "533ee342fe6c19c780e84645e9c94070eca036419cab7798ec012f8bd4d5de55",
       "executable": false
     },
     "src/satchel/proposals.ts": {
@@ -3476,11 +3488,11 @@
       "executable": false
     },
     "src/satchel/role-areas.ts": {
-      "sha256": "0ce810ed56e60bbc715bfaa194688eedd9108bdd521ba7c2f445977c3801eaf7",
+      "sha256": "0f373409d285fb1eba1d0f68663d9a31cda4ed4053ed08f22d1b2b7054f56a25",
       "executable": false
     },
     "src/satchel/role-doors.ts": {
-      "sha256": "fa999ae2888003fa7b924963b77538385ce634120a5db52e2138d7232df99e4d",
+      "sha256": "5986350bb162f5fc24bf79b5cb0acc04f52e8c089294c314b56838109945fde3",
       "executable": false
     },
     "src/satchel/role-redaction.ts": {
@@ -3588,7 +3600,7 @@
       "executable": false
     },
     "src/satchel/trust-transfers.ts": {
-      "sha256": "358db2515b518c49fa5f507f2824aba62cd84f9e17365d3f051bb3f8b515fcf8",
+      "sha256": "2132f143d46cb6e0e052d04e53bcfec9b4bae6c4b624bfb69a3b228ee152e781",
       "executable": false
     },
     "src/satchel/trust-wall-scope.ts": {
@@ -4564,7 +4576,7 @@
       "executable": false
     },
     "tests/satchel/trust-transfer.test.mjs": {
-      "sha256": "6300997a32ccbea82c76a2d69fb560fa0438543835f69b38c577299b3ec8c241",
+      "sha256": "940814aabc5aa8db266949fc4096671ac838a702d132b2c0fe3cd9d3df81f915",
       "executable": false
     },
     "tests/satchel/trust.test.mjs": {

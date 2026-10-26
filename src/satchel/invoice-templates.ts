@@ -61,7 +61,7 @@ export async function priorInvoiceBalance(db:D1Database,bill:Data,templateId?:st
  if(!template||!JSON.parse(template.config).includePriorBalance)return {cents:null,guards:[] as D1PreparedStatement[]};
  const sql="FROM s_bills b JOIN s_invoice_issues i ON i.bill_id=b.id LEFT JOIN s_bill_tax_approvals t ON t.bill_id=b.id WHERE b.matter_id=? AND b.id<>? AND b.status<>'void' AND i.issued_at<?",args=[bill.matter_id,bill.id,bill.issued_at??now()];
  const prior=await rows(db,'SELECT b.id,b.revision,COALESCE(t.snapshot,b.snapshot) snapshot '+sql,...args),guards:D1PreparedStatement[]=[guard(db,'(SELECT COUNT(*) '+sql+')=?',...args,prior.length)];let cents=0;
- for(const invoice of prior){const funds=await invoiceFunds(db,invoice.id);cents+=JSON.parse(invoice.snapshot).totalCents-funds.paid_cents;guards.push(invoicePaidGuard(db,invoice.id,funds.paid_cents),guard(db,"EXISTS(SELECT 1 FROM s_bills WHERE id=? AND revision=? AND status<>'void')",invoice.id,invoice.revision));}
+ for(const invoice of prior){const funds=await invoiceFunds(db,invoice.id);cents+=JSON.parse(invoice.snapshot).totalCents-funds.paid_cents-funds.written_off_cents;guards.push(invoicePaidGuard(db,invoice.id,funds.paid_cents,funds.written_off_cents),guard(db,"EXISTS(SELECT 1 FROM s_bills WHERE id=? AND revision=? AND status<>'void')",invoice.id,invoice.revision));}
  insist(Number.isSafeInteger(cents),'Prior balance exceeds exact integer range');
  return {cents,guards};
 }

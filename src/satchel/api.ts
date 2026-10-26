@@ -1,3 +1,4 @@
+import {recordOffline,offlineReceipt,offlineAction,writeOffInvoice} from './offline-payments';
 import {approveStaffCost,economics,exportEconomics} from './economics';
 import {prebillRuns,prebillRun,preparePrebillRun} from './prebill-runs';
 import {reviewPrebill} from './prebill-reviews';
@@ -485,3 +486,8 @@ api.post('/api/satchel/matters/:id/fee-plans/run',as(async(a,c)=>runDueFees(db(c
 api.get('/api/satchel/invoice-template-defaults',as((a,c)=>invoiceTemplateDefaults(db(c),a)));
 api.post('/api/satchel/invoice-template-defaults',as(async(a,c)=>invoiceTemplateDefaults(db(c),a,await body(c))));
 api.post('/api/satchel/invoice-templates/:id/retire',as(async(a,c)=>retireInvoiceTemplate(db(c),a,param(c),await body(c))));
+
+api.post('/api/satchel/offline-payments',as(async(a,c)=>recordOffline(db(c),a,await body(c))));
+api.get('/api/satchel/offline-payments/:id',as((a,c)=>offlineReceipt(db(c),a,param(c))));
+api.post('/api/satchel/offline-payments/:id/actions',as(async(a,c)=>offlineAction(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/invoices/:id/writeoff',as(async(a,c)=>writeOffInvoice(db(c),a,param(c),await body(c))));

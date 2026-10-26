@@ -14,6 +14,9 @@ export function closureSources(matterId: string) {
  const journal = `SELECT id FROM s_trust_journal_reversals WHERE original_entry_id IN (${entries})`;
  const stripeCheckouts = 'SELECT sc.id FROM s_stripe_checkouts sc LEFT JOIN s_bills b ON b.id=sc.bill_id LEFT JOIN s_trust_ledgers l ON l.id=sc.ledger_id WHERE ? IN(b.matter_id,l.matter_id)';
  const queries: Record<string, string> = {
+  offlineAllocations: `SELECT a.* FROM s_offline_allocations a WHERE a.bill_id IN (${bills})`,
+  offlineReleases: `SELECT r.* FROM s_offline_releases r WHERE r.allocation_id IN (SELECT a.id FROM s_offline_allocations a WHERE a.bill_id IN (${bills}))`,
+  writeoffs: `SELECT * FROM s_invoice_writeoffs WHERE bill_id IN (${bills})`,
   matter: 'SELECT * FROM s_matters WHERE id=?', access: 'SELECT * FROM s_matter_access WHERE matter_id=?',
   tasks: 'SELECT * FROM s_tasks WHERE matter_id=?', taskEvents: `SELECT * FROM s_task_events WHERE task_id IN (${tasks})`,
   dependencies: `SELECT * FROM s_task_dependencies WHERE task_id IN (${tasks})`,

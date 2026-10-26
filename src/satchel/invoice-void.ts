@@ -1,13 +1,13 @@
 import {atomic,audit,authority,Fault,human,id,insist,matter,need,now,stmt,text,type Actor,type Data} from './model';
 import {accessGuard,guard} from './trust-guards';
-import {noStripeInvoiceFundsSql} from './processor-balances';
+import {noUnsplitInvoiceFundsSql} from './processor-balances';
 
 export async function getInvoiceVoid(db:D1Database,billId:string){
  return stmt(db,'SELECT bill_id,reviewed_revision,reason,actor,at FROM s_invoice_voids WHERE bill_id=?',billId).first<Data>();
 }
 
 const noFunds=`NOT EXISTS(SELECT 1 FROM s_operating_payments p WHERE p.bill_id=? AND p.cents>COALESCE((SELECT SUM(r.cents) FROM s_operating_payment_reversals r WHERE r.payment_id=p.id),0))
- AND NOT EXISTS(SELECT 1 FROM s_trust_transfers t WHERE t.bill_id=? AND NOT EXISTS(SELECT 1 FROM s_trust_transfer_actions a WHERE a.transfer_id=t.id AND a.kind IN('declined','not_executed','cleared'))) AND ${noStripeInvoiceFundsSql()}`;
+ AND NOT EXISTS(SELECT 1 FROM s_trust_transfers t WHERE t.bill_id=? AND NOT EXISTS(SELECT 1 FROM s_trust_transfer_actions a WHERE a.transfer_id=t.id AND a.kind IN('declined','not_executed','cleared'))) AND ${noUnsplitInvoiceFundsSql()}`;
 const originalSources=`EXISTS(SELECT 1 FROM s_bills b WHERE b.id=? AND b.corrects_bill_id IS NULL
  AND (json_extract(b.snapshot,'$.feePlan') IS NULL OR json_extract(b.snapshot,'$.feePlan.kind') IN('capped','blended'))
  AND json_array_length(b.snapshot,'$.lines')>0

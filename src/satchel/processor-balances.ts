@@ -1,3 +1,4 @@
+import {offlinePaidSql,writeoffSql} from './offline-balances';
 // Hosted operating collections pay invoices. Trust collections are deposits into
 // their own subsidiary ledger and never discharge an invoice here.
 export const stripePendingStatuses=['creating','open','pending','uncertain'] as const;
@@ -10,3 +11,6 @@ export const stripeApplicationCountSql=(billSql='?')=>`(SELECT COUNT(*) FROM s_s
 // trust application must wait until it is fully returned or its pending attempt
 // is resolved, rather than infer which component the processor collected.
 export const noStripeInvoiceFundsSql=(billSql='?')=>`NOT EXISTS(SELECT 1 FROM s_stripe_checkouts sc WHERE sc.bill_id=${billSql} AND sc.purpose='operating' AND (sc.status IN(${pendingSql}) OR (sc.status IN('paid','returned') AND (${stripePrincipalSql()})>0)))`;
+
+// Unsplit operating collections cannot supply a reviewed trust tax allocation.
+export const noUnsplitInvoiceFundsSql=(billSql='?')=>`(SELECT ${noStripeInvoiceFundsSql('invoice.id')} AND ${offlinePaidSql('invoice.id')}=0 AND ${writeoffSql('invoice.id')}=0 FROM (SELECT ${billSql} id) invoice)`;
