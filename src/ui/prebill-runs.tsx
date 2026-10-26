@@ -9,7 +9,7 @@ import {MatterInvoiceTemplate} from './matter-invoice-template';
 function PrebillItem({bill,actor,run,tick,choose}:{bill:Row;actor:Row;run:Run;tick:number;choose:(id:string)=>void}){
  const [rules,setRules]=useState<Row[]>([]);
  useEffect(()=>{let active=true;if(bill.status==='draft')void api('/matters/'+bill.matterId+'/tax-rules').then(s=>{if(active)setRules(s.rules);}).catch(e=>{if(active)void run(async()=>{throw e;});});return()=>{active=false;};},[bill.matterId,bill.status,tick]);
- return <article className="record" aria-label={'Prebill '+bill.snapshot.title}><h3>{bill.snapshot.title}</h3><p>{bill.snapshot.matterNumber} · {bill.prebill.payer}<br/>{bill.prebill.periodStart} to {bill.prebill.periodEnd} · {bill.prebill.arrangement}<br/>{bill.status} · {bill.prebill.reviewState} · {dollars(bill.snapshot.totalCents)}</p>
+ return <article className="record" aria-label={'Prebill '+bill.snapshot.title}><h3>{bill.snapshot.title}</h3><p>{bill.snapshot.matterNumber} · {bill.prebill.payer}<br/>{bill.prebill.periodStart} to {bill.prebill.periodEnd} · {bill.prebill.arrangement}<br/>{bill.issue?'Issued':bill.prebill.reviewState==='returned'?'Returned for revision':bill.status==='approved'?'Approved for issue':'Awaiting counsel review'} · {dollars(bill.snapshot.totalCents)}</p>
   {bill.reviews.map((r:Row)=><p key={r.id}>{r.action} · {r.actor}<br/>{r.note}</p>)}
   {bill.issue&&<p>Invoice <strong>{bill.issue.number}</strong> · template version {bill.issue.template_version}<br/><a href={'/api/satchel/bills/'+bill.id+'/invoice.pdf'}>Download exact issued PDF</a></p>}
   {bill.issue?.payment_snapshot&&<p>At issue · paid from trust {dollars(bill.issue.payment_snapshot.trust_paid_cents)} · balance due {dollars(bill.issue.payment_snapshot.due_cents)}</p>}
