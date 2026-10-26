@@ -53,7 +53,7 @@ function DeliveryState({job,run,refresh,counsel}:{job:Row;run:Run;refresh:()=>Pr
  const send=(task:()=>Promise<any>,message:string)=>run(async()=>{await task();await refresh();},message);
  const uncertain=['uncertain','unknown'].includes(job.mail_status)||['uncertain','unknown'].includes(job.mail_outcome);
  return <div className="record" aria-label={'Update delivery to '+job.recipient}><strong>{job.recipient}</strong>
-  <p>Portal: {job.portal_published_at?'Published '+when(job.portal_published_at):readable(job.status)}<br/>Email: {job.mail_outcome?readable(job.mail_outcome):job.mail_status?readable(job.mail_status):'Not sent'}</p>{job.detail&&<p>{job.detail}</p>}{job.mail_detail&&<p>{job.mail_detail}</p>}
+  <p>Portal: {job.portal_published_at?'Published '+when(job.portal_published_at):readable(job.status)}<br/>Email: {job.mail_outcome?readable(job.mail_outcome):job.mail_status?readable(job.mail_status):'Not sent'}</p>{job.detail&&<p>{job.detail}</p>}{job.mail_detail&&job.mail_outcome===job.mail_status&&<p>{job.mail_detail}</p>}
   {job.attempt_id&&counsel&&<details><summary>Review email delivery for {job.recipient}</summary>
    {uncertain&&<p role="status">Email outcome is uncertain. Check the provider result before authorizing another contact.</p>}
    {job.mail_status!=='ready'&&!newAttempt&&<><button type="button" className="quiet" onClick={()=>send(()=>api('/mail-attempts/'+job.attempt_id+'/reconcile',{}),'Email delivery reconciled')}>Reconcile email outcome</button>
