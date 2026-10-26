@@ -1,3 +1,4 @@
+import {provePrebillRun} from './prebill-run-fixture.mjs';
 import {exemptTaxReview} from './tax-fixture.mjs';
 import test from 'node:test';
 import {getDocument} from 'pdfjs-dist/legacy/build/pdf.mjs';
@@ -7,6 +8,7 @@ import {createHash} from 'node:crypto';
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 import {scheme,draft,reviewed,insurer} from './invoice-numbering-fixture.mjs';
 test('BILL-015 BILL-016 prospective numbering and append-only native void/rebill: exact approved issue, tax gate, batch rollback, collision refusal, import floor, replay, retained void number and full archive continuation',async()=>{
+ await provePrebillRun();
  const h=await harness();let target;try{
   const m=await open(h),base='/matters/'+m.id;
   const legacyMatter=await open(h,'Legacy insurer review','Harbor Insurance','Legacy opponent');

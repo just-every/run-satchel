@@ -29,6 +29,11 @@ export async function invoicePdf(bill:Data,number:string,issuedAt:string,brandin
  for(const l of s.lines)write(l.date+' | '+l.description+' | USD '+(l.amountCents/100).toFixed(2));
  if(s.taxReview){write('Subtotal USD '+(s.subtotalCents/100).toFixed(2));write('Tax USD '+(s.taxCents/100).toFixed(2));write('Tax review: '+s.taxReview.id+' | '+s.taxReview.snapshot.rule.jurisdiction+' | '+s.taxReview.snapshot.rule.reference);}
  write('Total USD '+(s.totalCents/100).toFixed(2));
+ if(s.paymentSnapshot){
+  write('Paid from trust USD '+(s.paymentSnapshot.trust_paid_cents/100).toFixed(2));
+  write('Total paid USD '+(s.paymentSnapshot.paid_cents/100).toFixed(2));
+  write('Balance due USD '+(s.paymentSnapshot.due_cents/100).toFixed(2));
+ }
  if(branding){
   write('Payer: '+branding.payerName);write('Due: '+branding.dueDate);write('Payment terms: '+branding.terms);write('Remittance: '+branding.remittance);
   if(branding.trustBalanceCents!==null)write('Matter trust balance USD '+(branding.trustBalanceCents/100).toFixed(2)+' as of '+branding.trustAsOf+' (not a payment or deduction)');

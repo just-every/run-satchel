@@ -1,3 +1,7 @@
+import {prebillRuns,prebillRun,preparePrebillRun} from './prebill-runs';
+import {reviewPrebill} from './prebill-reviews';
+import {matterInvoiceTemplate} from './matter-invoice-templates';
+import {invoiceTrustOptions} from './trust-transfers';
 import {invoiceTemplates,saveInvoiceTemplate,approveInvoiceNotification} from './invoice-templates';
 import {prepareInvoiceDelivery,invoiceDeliveryState,deliveredInvoiceFile,replaceInvoiceLink} from './invoice-delivery';
 import {authorizeInvoiceNotification,sendInvoiceNotification} from './invoice-notifications';
@@ -120,6 +124,13 @@ api.post('/api/satchel/matters/:id/wall',as(async(a,c)=>saveWall(db(c),a,param(c
 api.post('/api/satchel/ethical-walls/:id/requests',as(async(a,c)=>requestWallAccess(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/wall-requests/:id/decide',as(async(a,c)=>decideWallAccess(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/wall-emergencies/:id/revoke',as(async(a,c)=>revokeWallAccess(db(c),a,param(c),await body(c))));
+api.get('/api/satchel/prebill-runs',as((a,c)=>prebillRuns(db(c),a)));
+api.post('/api/satchel/prebill-runs',as(async(a,c)=>preparePrebillRun(db(c),a,await body(c))));
+api.get('/api/satchel/prebill-runs/:id',as((a,c)=>prebillRun(db(c),a,param(c))));
+api.post('/api/satchel/bills/:id/review',as(async(a,c)=>reviewPrebill(db(c),a,param(c),await body(c))));
+api.get('/api/satchel/bills/:id/trust-options',as((a,c)=>invoiceTrustOptions(db(c),a,param(c))));
+api.get('/api/satchel/matters/:id/invoice-template',as((a,c)=>matterInvoiceTemplate(db(c),a,param(c))));
+api.post('/api/satchel/matters/:id/invoice-template',as(async(a,c)=>matterInvoiceTemplate(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/invoice-templates',as((a,c)=>invoiceTemplates(db(c),a)));
 api.post('/api/satchel/invoice-templates',as(async(a,c)=>saveInvoiceTemplate(db(c),a,await body(c))));
 api.post('/api/satchel/invoice-notification-templates',as(async(a,c)=>approveInvoiceNotification(db(c),a,await body(c))));

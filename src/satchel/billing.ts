@@ -33,7 +33,7 @@ function revisionGuard(db: D1Database, bill: Data) {
 }
 const entryRow = (r: Data) => ({id:r.id,matterId:r.matter_id,revision:r.revision,kind:r.kind,date:r.date,description:r.description,minutes:r.minutes,rateCents:r.rate_cents,amountCents:r.amount_cents,currency:r.currency,createdBy:r.created_by,createdAt:r.created_at,reservedBy:r.bill_id ?? null,billable:r.billable!==0,utbmsTask:r.utbms_task??null,utbmsActivity:r.utbms_activity??null,utbmsExpense:r.utbms_expense??null,billedMinutes:r.billed_minutes??null,discountBps:r.discount_bps??null,rateSource:r.rate_source??null,rateRuleId:r.rate_rule_id??null});
 const billRow = (r: Data) => ({id:r.id,matterId:r.matter_id,revision:r.revision,status:r.status,snapshot:JSON.parse(r.tax_snapshot??r.snapshot),correctsBillId:r.corrects_bill_id,artifact:r.artifact,artifactDigest:r.artifact_digest,approvedBy:r.approved_by,approvedAt:r.approved_at,reviewNote:r.review_note,exportedAt:r.exported_at,voidReason:r.void_reason,voidedBy:r.voided_by,voidedAt:r.voided_at,createdBy:r.created_by,createdAt:r.created_at});
-async function getBill(db: D1Database, actor: Actor, billId: string) {
+export async function getBill(db: D1Database, actor: Actor, billId: string) {
  const bill = await stmt(db, 'SELECT b.*,t.snapshot tax_snapshot FROM s_bills b LEFT JOIN s_bill_tax_approvals t ON t.bill_id=b.id WHERE b.id=?', billId).first<Data>();
  insist(bill, 'Bill not found', 404); await matter(db,actor,bill.matter_id); return billRow(bill);
 }
@@ -76,13 +76,15 @@ function artifact(bill: Data) {
   ['TOTAL','','','','','','',s.totalCents],['Approved by',bill.approvedBy,bill.approvedAt,bill.reviewNote],
  ]);
 }
-async function createBill(db: D1Database, actor: Actor, matterId: string, snapshot: Data, sources: Data[], extra: D1PreparedStatement[] = [], fixedId?:string,after:D1PreparedStatement[] = []) {
+export type BillStage={writes:D1PreparedStatement[];snapshot:Data;billId:string};
+async function createBill(db: D1Database, actor: Actor, matterId: string, snapshot: Data, sources: Data[], extra: D1PreparedStatement[] = [], fixedId?:string,after:D1PreparedStatement[] = [],stage?:BillStage) {
+ if(stage)snapshot={...snapshot,...stage.snapshot};
  if(snapshot.ledes?.xml)xmlText(snapshot.title,'XML bill title',2048);
  // A LEDES bill reserves its unique invoice number in the same step as the bill.
- const billId = fixedId ?? actor.approval?.resultId ?? id(), revision = id(), at = now();
+ const billId = stage?.billId ?? fixedId ?? actor.approval?.resultId ?? id(), revision = id(), at = now();
  const numbering=await invoiceCounter(db);
  if(numbering){snapshot={...snapshot,numberingCutover:true,...(snapshot.ledes?{ledes:{...snapshot.ledes,invoiceNumber:null}}:{})};}
- await atomic(db,actor,[accessGuard(db,actor,matterId),guard(db,numbering?'EXISTS(SELECT 1 FROM s_invoice_counter WHERE revision=?)':'NOT EXISTS(SELECT 1 FROM s_invoice_counter)',...(numbering?[numbering.revision]:[])),...extra,
+ const writes=[accessGuard(db,actor,matterId),guard(db,numbering?'EXISTS(SELECT 1 FROM s_invoice_counter WHERE revision=?)':'NOT EXISTS(SELECT 1 FROM s_invoice_counter)',...(numbering?[numbering.revision]:[])),...extra,
   stmt(db,`INSERT INTO s_bills(id,matter_id,revision,status,snapshot,corrects_bill_id,created_by,created_at) VALUES(?,?,?,'draft',?,?,?,?)`,billId,matterId,revision,JSON.stringify(snapshot),snapshot.correctsBillId ?? null,actor.email,at),...after,
   ...(sources.length ? [
    stmt(db,`INSERT INTO s_billing_sources(entry_id,bill_id,source_revision) SELECT e.id,?,e.revision FROM s_entries e JOIN json_each(?) l ON e.id=json_extract(l.value,'$.sourceId') AND e.revision=json_extract(l.value,'$.sourceRevision') WHERE e.matter_id=?`,billId,JSON.stringify(sources),matterId),
@@ -90,7 +92,9 @@ async function createBill(db: D1Database, actor: Actor, matterId: string, snapsh
   ] : []),
   ...(snapshot.ledes && !numbering ? [reserveInvoice(db,billId,snapshot.ledes.invoiceNumber)] : []),
   audit(db,actor,snapshot.correctsBillId ? 'bill.correction.prepared' : 'bill.prepared',billId,snapshot.reason ?? snapshot.title),
- ]);
+ ];
+ if(stage){stage.writes.push(...writes);return {id:billId,revision,snapshot,status:'draft',matterId};}
+ await atomic(db,actor,writes);
  return getBill(db,actor,billId);
 }
 
@@ -127,7 +131,7 @@ export async function listBilling(db: D1Database, actor: Actor, matterId: string
  return {entries:entries.map(e=>({...entryRow(e),expense:expenses.get(e.id)??null,...(e.released?{released:true,editHistory:edits.get(e.id)??[]}:{} )})),bills:await Promise.all(bills.map(async b=>({...b,taxReviews:b.status==='draft'?(await taxCalculations(db,actor,b.id)).calculations:[],issue:await invoiceIssue(db,b.id),invoiceVoid:await getInvoiceVoid(db,b.id),trustPayment:await invoiceFunds(db,b.id),ledes:await billLedes(db,b.id),earningReview:await stmt(db,'SELECT * FROM s_fee_earning_reviews WHERE bill_id=?',b.id).first<Data>()}))),correctionReviews:correctionReviews(bills)};
 }
 
-export async function prepareBill(db: D1Database, actor: Actor, matterId: string, body: Data) {
+export async function prepareBill(db: D1Database, actor: Actor, matterId: string, body: Data,stage?:BillStage) {
  need(actor,'owner','lawyer','billing'); const m = await matter(db,actor,matterId);
  insist(Array.isArray(body.entryIds) && body.entryIds.length > 0 && body.entryIds.length <= 100, 'Select between 1 and 100 entries');
  const ids = body.entryIds.map((v: unknown) => text(v,'Entry ID',100));
@@ -153,13 +157,14 @@ export async function prepareBill(db: D1Database, actor: Actor, matterId: string
   if(g.xmlProfile){xmlText(title,'XML bill title',2048);xmlText(g.clientLedesId,'XML client ID',20);xmlText(g.lawFirmId,'XML law firm ID',20);}
   ledes.xml=await snapshotXml(db,g.xmlProfile,m.client,matterId,m.matter_number,m.title,ledes.invoiceNumber||'DRAFT',ledes.lines);
  }
- return createBill(db,actor,matterId,{title,date:billDate,currency:'USD',matterId,matterNumber:m.matter_number,matterTitle:m.title,client:m.client,lines,totalCents:sum(lines),...(fee.feePlan?{feePlan:fee.feePlan,feePeriod:fee.feePeriod,exception:fee.exception}:{}),...(ledes ? {ledes} : {})},lines,fee.guards??[]);
+ return createBill(db,actor,matterId,{title,date:billDate,currency:'USD',matterId,matterNumber:m.matter_number,matterTitle:m.title,client:m.client,lines,totalCents:sum(lines),...(fee.feePlan?{feePlan:fee.feePlan,feePeriod:fee.feePeriod,exception:fee.exception}:{}),...(ledes ? {ledes} : {})},lines,fee.guards??[],undefined,[],stage);
 }
 
 export async function approveBill(db: D1Database, actor: Actor, billId: string, body: Data) {
  need(actor,'owner','lawyer'); human(actor);
  const bill = await getBill(db,actor,billId); reviewedRevision(bill,body);
  insist(bill.status === 'draft', 'Only a draft can be approved',409);
+ insist(bill.snapshot.prebill?.reviewState!=='returned','Revise the returned prebill before approving',409);
  const reviewNote = text(body.reviewNote,'Review note',2000), at = now();
  if(bill.snapshot.numberingCutover)insist(body.taxReviewId,'Unknown tax treatment: review this draft before approving for issue',422);
  // Legacy reserved drafts also enter issue-time rendering when approved after

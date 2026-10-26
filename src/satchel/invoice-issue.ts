@@ -1,3 +1,6 @@
+import {requireArea} from './role-areas';
+import {currentInvoiceTemplate} from './matter-invoice-templates';
+import {invoiceIssuePayment} from './trust-transfers';
 import {buildInvoiceBranding} from './invoice-templates';
 import {atomic,audit,digest,human,id,insist,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
 import {accessGuard,guard} from './trust-guards';
@@ -5,8 +8,9 @@ import {formatInvoice,invoiceCounter} from './invoice-schemes';
 import {invoicePdf} from './invoice-pdf';
 import {freezeLedes,reserveInvoice} from './ledes';
 
-export async function invoiceIssue(db:D1Database,billId:string){
- return stmt(db,'SELECT bill_id,number,approved_revision,approved_digest,snapshot_digest,pdf_digest,issued_by,issued_at,scheme_id FROM s_invoice_issues WHERE bill_id=?',billId).first<Data>();
+export async function invoiceIssue(db:D1Database,billId:string):Promise<Data|null>{
+ const issue=await stmt(db,'SELECT i.bill_id,i.number,i.approved_revision,i.approved_digest,i.snapshot_digest,i.pdf_digest,i.issued_by,i.issued_at,i.scheme_id,d.template_id,d.template_version,d.assignment_id,d.payer,d.payment_snapshot,d.line_snapshot FROM s_invoice_issues i LEFT JOIN s_invoice_issue_details d ON d.bill_id=i.bill_id WHERE i.bill_id=?',billId).first<Data>();
+ return issue?{...issue,payment_snapshot:issue.payment_snapshot?JSON.parse(issue.payment_snapshot):null,line_snapshot:issue.line_snapshot?JSON.parse(issue.line_snapshot):null}:null;
 }
 export async function issueInvoices(db:D1Database,actor:Actor,b:Data,origin?:string){
  human(actor);need(actor,'owner','lawyer','billing');
@@ -36,11 +40,17 @@ export async function issueInvoices(db:D1Database,actor:Actor,b:Data,origin?:str
   }
   if(!number){ordinal=next++;number=formatInvoice(terms,ordinal,year);}
   insist(registered||!await stmt(db,'SELECT 1 FROM s_invoice_numbers WHERE number=?',number).first(),'Invoice number collision; no number was consumed',409);
-  const numbered={...snapshot,invoiceNumber:number,...(snapshot.ledes?{ledes:{...snapshot.ledes,invoiceNumber:number}}:{})};
-  const branding=request.templateId?(insist(origin,'The invoice origin is required'),await buildInvoiceBranding(db,{...bill,snapshot:numbered,issued_at:at},origin,text(request.templateId,'Invoice template revision',100),undefined,actor)):undefined;
+  const payment=await invoiceIssuePayment(db,billId);
+  if(payment.snapshot.trust_paid_cents>0)requireArea(actor,'bank','full');
+  const assignment=await currentInvoiceTemplate(db,bill.matter_id);
+  if(assignment&&request.templateId)insist(request.templateId===assignment.template_id,'Use the matter’s assigned template revision',409);
+  if(snapshot.prebill)insist(assignment,'Assign an approved invoice template to the matter before issuing a prebill',422);
+  const templateId=assignment?.template_id??request.templateId,payer=snapshot.prebill?.payer??snapshot.client;
+  const numbered={...snapshot,paymentSnapshot:payment.snapshot,invoiceNumber:number,...(snapshot.ledes?{ledes:{...snapshot.ledes,invoiceNumber:number}}:{})};
+  const branding=templateId?(insist(origin,'The invoice origin is required'),await buildInvoiceBranding(db,{...bill,snapshot:numbered,issued_at:at},origin,text(templateId,'Invoice template revision',100),payer,actor)):undefined;
   const pdf=await invoicePdf({...bill,snapshot:numbered},number,at,branding),pdfDigest=await digest(pdf),snapshotDigest=await digest(JSON.stringify(snapshot));
   let binary='';for(const byte of pdf)binary+=String.fromCharCode(byte);
-  writes.push(accessGuard(db,actor,bill.matter_id),guard(db,"EXISTS(SELECT 1 FROM s_bills WHERE id=? AND revision=? AND status='approved' AND artifact_digest=?)",billId,bill.revision,bill.artifact_digest));
+  writes.push(...payment.guards,guard(db,"COALESCE((SELECT id FROM s_matter_invoice_templates WHERE matter_id=? ORDER BY sequence DESC LIMIT 1),'')=?",bill.matter_id,assignment?.id??''),accessGuard(db,actor,bill.matter_id),guard(db,"EXISTS(SELECT 1 FROM s_bills WHERE id=? AND revision=? AND status='approved' AND artifact_digest=?)",billId,bill.revision,bill.artifact_digest));
   if(!registered)writes.push(stmt(db,'INSERT INTO s_invoice_numbers VALUES(?,?,?,?,?,?,?)',number,billId,bill.corrects_bill_id?'correction':'issued',ordinal,scheme.id,'Satchel atomic issue',at));
   if(snapshot.ledes){
    const existing=await stmt(db,'SELECT artifact FROM s_bill_ledes WHERE bill_id=?',billId).first<Data>();
@@ -48,7 +58,8 @@ export async function issueInvoices(db:D1Database,actor:Actor,b:Data,origin?:str
    if(!existing?.artifact)writes.push(...await freezeLedes(db,{id:billId,snapshot:numbered}));
   }
   writes.push(stmt(db,'INSERT INTO s_invoice_issues VALUES(?,?,?,?,?,?,?,?,?,?)',billId,number,bill.revision,bill.artifact_digest,snapshotDigest,btoa(binary),pdfDigest,actor.email,at,scheme.id),audit(db,actor,'invoice.issued',billId,JSON.stringify({number,schemeId:scheme.id,approvedDigest:bill.artifact_digest,snapshotDigest,pdfDigest}),{matterId:bill.matter_id}));
-  result.push({bill_id:billId,number,approved_revision:bill.revision,approved_digest:bill.artifact_digest,snapshot_digest:snapshotDigest,pdf_digest:pdfDigest,issued_by:actor.email,issued_at:at,scheme_id:scheme.id});
+  writes.push(stmt(db,'INSERT INTO s_invoice_issue_details VALUES(?,?,?,?,?,?,?)',billId,branding?.templateId??null,branding?.templateVersion??null,assignment?.id??null,payer,JSON.stringify(payment.snapshot),JSON.stringify(snapshot.lines)));
+  result.push({template_id:branding?.templateId??null,template_version:branding?.templateVersion??null,assignment_id:assignment?.id??null,payer,payment_snapshot:payment.snapshot,line_snapshot:snapshot.lines,bill_id:billId,number,approved_revision:bill.revision,approved_digest:bill.artifact_digest,snapshot_digest:snapshotDigest,pdf_digest:pdfDigest,issued_by:actor.email,issued_at:at,scheme_id:scheme.id});
  }
  if(writes.length)await atomic(db,actor,[guard(db,'EXISTS(SELECT 1 FROM s_invoice_counter WHERE revision=? AND next_number=?)',counter.revision,counter.next_number),...writes,stmt(db,'UPDATE s_invoice_counter SET next_number=?,revision=? WHERE id=1',next,id())]);
  return {issues:result};
@@ -57,6 +68,8 @@ export async function issueInvoices(db:D1Database,actor:Actor,b:Data,origin?:str
 export async function invoiceFile(db:D1Database,actor:Actor,billId:string){
  human(actor);need(actor,'owner','lawyer','billing');const bill=await stmt(db,'SELECT matter_id FROM s_bills WHERE id=?',billId).first<Data>();insist(bill,'Bill not found',404);await matter(db,actor,bill.matter_id);
  const issue=await stmt(db,'SELECT * FROM s_invoice_issues WHERE bill_id=?',billId).first<Data>();insist(issue,'This bill has not been issued',404);
+ const disclosure=await stmt(db,"SELECT d.payment_snapshot,t.config FROM s_invoice_issue_details d LEFT JOIN s_invoice_templates t ON t.id=d.template_id WHERE d.bill_id=?",billId).first<Data>();
+ if(disclosure&&(JSON.parse(disclosure.payment_snapshot).trust_paid_cents>0||(disclosure.config&&JSON.parse(disclosure.config).includeTrustBalance)))requireArea(actor,'bank','full');
  const bytes=Uint8Array.from(atob(issue.pdf_base64),c=>c.charCodeAt(0));insist(await digest(bytes)===issue.pdf_digest,'Issued PDF integrity check failed',409);
  await atomic(db,actor,[accessGuard(db,actor,bill.matter_id),audit(db,actor,'invoice.pdf_downloaded',billId,issue.pdf_digest,{matterId:bill.matter_id})]);
  return new Response(bytes,{headers:{'content-type':'application/pdf','content-disposition':`attachment; filename*=UTF-8''${encodeURIComponent(issue.number)}.pdf`,'cache-control':'no-store'}});

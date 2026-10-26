@@ -8,6 +8,8 @@ const seg='[^/]+',any='.*';
 const rule=(pattern:string,areas:string[]):[RegExp,string[]]=>[new RegExp('^'+pattern+'$'),areas];
 const open:string[]=[];
 export const areaRules:[RegExp,string[]][]=[
+ rule('/bills/'+seg+'/trust-options',['billing','bank:balances']),
+ rule('/(prebill-runs|prebill-runs/'+seg+'|bills/'+seg+'/review|matters/'+seg+'/invoice-template)',['billing']),
  rule('/(stripe/events|providers/sendgrid/events)',open),
  rule('/(invoice-templates|invoice-notification-templates)',['billing','rates:all']),
  rule('/(matters/'+seg+'/invoice-deliveries|bills/'+seg+'/deliveries|invoice-deliveries/'+seg+'/authorize|invoice-notification-attempts/'+seg+'/send)',['billing','rates:all','contacts:read']),
@@ -50,7 +52,7 @@ export function allows(actor:Actor,area:Area,needed:string){return !actor.grants
 export function requireArea(actor:Actor,area:Area,needed:string){if(!allows(actor,area,needed))refuse();}
 export function gateGrants(actor:Actor,method:string,path:string){
  if(!actor.grants)return;
- const areas=areasOf(path);
+ const areas=actor.role==='billing'&&method==='POST'&&localPath(path)==='/trust/transfers'?['billing','bank:balances']:areasOf(path);
  if(!areas)refuse();
  const read=method==='GET'||method==='HEAD';
  for(const tag of areas){
