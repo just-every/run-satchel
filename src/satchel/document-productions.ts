@@ -121,6 +121,8 @@ export async function productionAction(db:D1Database,actor:Actor,productionId:st
   writes.push(stmt(db,"UPDATE s_document_productions SET status='approved',approved_by=?,approved_at=?,review_note=?,review_note_sha256=? WHERE id=?",actor.email,at,text(body.reviewNote,'Counsel review note',2000),await digest(text(body.reviewNote,'Counsel review note',2000)),p.id));
  }else if(op==='recall'){
   insist(['draft','approved'].includes(p.status)&&!p.exported_at,'Only a packet that has not been exported can be recalled',409);
+  insist(!await stmt(db,'SELECT 1 FROM s_production_shares WHERE production_id=? AND opened_at IS NOT NULL',p.id).first(),'An opened recipient packet stays disclosed and cannot be recalled',409);
+  const shareFence=id();writes.push(stmt(db,'INSERT INTO s_guard(id,ok) SELECT ?,CASE WHEN NOT EXISTS(SELECT 1 FROM s_production_shares WHERE production_id=? AND opened_at IS NOT NULL) THEN 1 ELSE 0 END',shareFence,p.id),stmt(db,'DELETE FROM s_guard WHERE id=?',shareFence));
   writes.push(stmt(db,"UPDATE s_document_productions SET status='recalled',recalled_by=?,recalled_at=?,recall_reason=?,recall_reason_sha256=? WHERE id=?",actor.email,at,text(body.reason,'Recall reason',1000),await digest(text(body.reason,'Recall reason',1000)),p.id));
  }else insist(false,'Unknown production action',404);
  writes.push(audit(db,actor,'production.'+(op==='approve'?'approved':'recalled'),p.id,JSON.stringify({sha256:p.sha256}),{matterId:p.matter_id}));
