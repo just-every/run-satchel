@@ -71,6 +71,7 @@ export async function provePrebillRun(){
   await h.json('/trust/transfers/'+transfer.id+'/bank-result',{...bank,outcome:'cleared'},cookies.trust_officer);
   await h.json('/invoices/issue',issue,cookies.billing,403);
   ceiling=await h.json('/roles',{id:ceiling.id,revision:ceiling.revision,name:ceiling.name,permissions:{...permissions,bank:'full'},reason:'Explicit authority to issue the PDF disclosing the cleared trust payment'},h.owner);
+  const reservations=await Promise.all(matters.map(async m=>(await h.json('/matters/'+m.id+'/billing',undefined,h.owner)).entries.map(e=>[e.id,e.reservedBy])));
   const issued=await h.json('/invoices/issue',issue,cookies.billing);assert.equal(issued.issues.length,2);assert.equal(new Set(issued.issues.map(i=>i.number)).size,2);
   assert.ok(issued.issues.every(i=>i.template_id===template.id&&i.template_version===template.version));assert.equal(issued.issues[0].payment_snapshot.trust_paid_cents,9500);assert.equal(issued.issues[0].payment_snapshot.status,'paid');assert.equal(issued.issues[0].payment_snapshot.due_cents,0);
   ceiling=await h.json('/roles',{id:ceiling.id,revision:ceiling.revision,name:ceiling.name,permissions:{...permissions,bank:'balances'},reason:'Withhold full trust disclosure after issue'},h.owner);
@@ -81,6 +82,7 @@ export async function provePrebillRun(){
   const nextTemplate=await h.json('/invoice-templates',invoiceTemplate(template.id,{includeTrustBalance:false,terms:'Prospective revised terms only'}),h.owner);
   const assignment=(await h.json('/matters/'+f.m.id+'/invoice-template',undefined,h.owner)).assignment;
   await h.json('/matters/'+f.m.id+'/invoice-template',{templateId:nextTemplate.id,previousId:assignment.id,reason:'Prospective template update'},h.owner);
+  assert.deepEqual(await Promise.all(matters.map(async m=>(await h.json('/matters/'+m.id+'/billing',undefined,h.owner)).entries.map(e=>[e.id,e.reservedBy]))),reservations);
   assert.deepEqual(await h.json('/invoices/issue',issue,cookies.billing),issued);assert.deepEqual(Buffer.from(await(await h.request('/api/satchel/bills/'+approved[0].id+'/invoice.pdf',undefined,cookies.billing)).arrayBuffer()),pdf);
   await h.json('/bills/'+approved[0].id+'/review',{revision:approved[0].revision,action:'revise',note:'Cannot edit an issued invoice',lines:[]},cookies.lawyer,409);
   run=await h.json('/prebill-runs/'+run.id,undefined,cookies.billing);assert.equal(run.bills[0].reviews.length,1);assert.equal(run.bills[2].prebill.reviewState,'returned');assert.equal(run.bills[0].issue.template_id,template.id);
