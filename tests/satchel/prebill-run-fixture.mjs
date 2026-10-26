@@ -27,6 +27,9 @@ export async function provePrebillRun(){
   await h.json('/prebill-runs',{...payload,items:[items[0],{...items[1],periodEnd:'2026-10-01'}]},cookies.billing,422);
   assert.ok((await h.json('/matters/'+f.m.id+'/billing',undefined,h.owner)).entries.every(e=>e.reservedBy===null),'Failed preparation reserves no source');
   let run=await h.json('/prebill-runs',payload,cookies.billing);assert.equal(run.bills.length,3);assert.equal((await h.json('/prebill-runs',undefined,cookies.billing)).runs.length,1);
+  await h.json('/matters/'+third.id+'/access',{email:'run-billing@example.test',remove:true},h.owner);
+  await h.json('/prebill-runs/'+run.id,undefined,cookies.billing,404);assert.equal((await h.json('/prebill-runs',undefined,cookies.billing)).runs.length,0);
+  await h.json('/matters/'+third.id+'/access',{email:'run-billing@example.test'},h.owner);
   await h.json('/prebill-runs',payload,cookies.billing,409);
   const initial=run.bills[0],returned=await h.json('/bills/'+run.bills[2].id+'/review',{revision:run.bills[2].revision,action:'return',note:'Responsible lawyer requests additional narrative detail'},cookies.lawyer);
   await h.json('/bills/'+returned.id+'/approve',{revision:returned.revision,reviewNote:'Cannot approve returned draft'},cookies.lawyer,409);

@@ -7,14 +7,14 @@ import {listBilling,prepareBill} from './billing';
 export async function prebillRun(db:D1Database,actor:Actor,runId:string){
  human(actor);need(actor,'owner','lawyer','billing');
  const run=await stmt(db,'SELECT * FROM s_prebill_runs WHERE id=?',runId).first<Data>();insist(run,'Prebill run not found',404);
- const items=await rows(db,`SELECT i.bill_id FROM s_prebill_run_items i JOIN s_bills b ON b.id=i.bill_id WHERE i.run_id=? AND ${matterScope('b.matter_id',"'person'")} ORDER BY i.position`,runId,actor.role,actor.email);
+ const items=await rows(db,'SELECT bill_id FROM s_prebill_run_items WHERE run_id=? ORDER BY position',runId);
  insist(items.length,'Prebill run not found',404);
  const bills=await Promise.all(items.map(async item=>{const raw=await stmt(db,'SELECT matter_id FROM s_bills WHERE id=?',item.bill_id).first<Data>();const b=(await listBilling(db,actor,raw!.matter_id)).bills.find(b=>b.id===item.bill_id)!;return {...b,prebill:b.snapshot.prebill,reviews:await rows(db,'SELECT id,before_revision,after_revision,action,note,excluded_sources,actor,at FROM s_prebill_reviews WHERE bill_id=? ORDER BY at,id',b.id)};}));
  return {id:run.id,title:run.title,createdBy:run.created_by,createdAt:run.created_at,bills};
 }
 export async function prebillRuns(db:D1Database,actor:Actor){
  human(actor);need(actor,'owner','lawyer','billing');
- const runs=await rows(db,`SELECT DISTINCT r.id,r.created_at FROM s_prebill_runs r JOIN s_prebill_run_items i ON i.run_id=r.id JOIN s_bills b ON b.id=i.bill_id WHERE ${matterScope('b.matter_id',"'person'")} ORDER BY r.created_at DESC,r.id`,actor.role,actor.email);
+ const runs=await rows(db,`SELECT r.id,r.created_at FROM s_prebill_runs r JOIN s_prebill_run_items i ON i.run_id=r.id JOIN s_bills b ON b.id=i.bill_id GROUP BY r.id HAVING MIN(CASE WHEN ${matterScope('b.matter_id',"'person'")} THEN 1 ELSE 0 END)=1 ORDER BY r.created_at DESC,r.id`,actor.role,actor.email);
  return {runs:await Promise.all(runs.map(r=>prebillRun(db,actor,r.id)))};
 }
 export async function preparePrebillRun(db:D1Database,actor:Actor,body:Data){
