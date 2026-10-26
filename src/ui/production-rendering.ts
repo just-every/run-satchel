@@ -13,6 +13,7 @@ export async function renderProductionPages(document:Row,redactedPages:number[])
  const task=library.getDocument({data:bytes,useSystemFonts:true});
  try{
   const pdf=await task.promise;
+  if(pdf.numPages<1||pdf.numPages>500)throw new Error('A source must have between 1 and 500 pages');
   if(redactedPages.some(n=>!Number.isInteger(n)||n<1||n>pdf.numPages))throw new Error('A redacted page is outside the source');
   if(redactedPages.length===pdf.numPages)return undefined;
   const pages=[];let total=0;

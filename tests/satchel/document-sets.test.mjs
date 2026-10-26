@@ -75,6 +75,7 @@ test('controlled production pins originals, removes whole-page content, freezes 
   pdf.setTitle('synthetic-satchel-2 hidden source metadata');await pdf.attach(Buffer.from('synthetic-satchel-3 attachment'),'private.txt');
   const original=Buffer.from(await pdf.save()),upload=(name,bytes,visibility='matter')=>h.json(base+'/documents',{name,mime:'application/pdf',contentBase64:bytes.toString('base64'),visibility},h.owner);
   const source=await upload('Record.pdf',original),withheld=await upload('Counsel-private.pdf',original,'private');
+  const originalHold=await h.json('/holds',{matterId:m.id,documentId:source.id,reason:'Preserve trial evidence'},h.owner);
   const selected=(d,extra={})=>({documentId:d.id,revision:d.revision,version:1,privilege:'None',withheld:false,redactedPages:[],...extra});
   const body={recipientName:'Opposing counsel',recipientEmail:'counsel@example.test',batesPrefix:'SYN-',batesStart:1,items:[selected(source,{redactedPages:[1,2],reason:'Counsel work product',privilege:'Work product'}),selected(withheld,{withheld:true,reason:'Attorney client privilege',privilege:'Attorney client'})]};
   const packet=await h.json(base+'/productions',body,h.owner),door='/productions/'+packet.id;
@@ -84,6 +85,7 @@ test('controlled production pins originals, removes whole-page content, freezes 
   const preview=await h.request('/api/satchel'+door+'/preview',undefined,h.owner),bytes=Buffer.from(await preview.arrayBuffer());
   assert.equal(preview.headers.get('cache-control'),'no-store');assert.equal(createHash('sha256').update(bytes).digest('hex'),packet.sha256);
   const files=unzipSync(bytes),manifest=JSON.parse(strFromU8(files['manifest.json'])),log=JSON.parse(strFromU8(files['privilege-log.json']));
+  assert.deepEqual(manifest.items[0].holds.map(label=>label.id),[originalHold.id]);
   assert.deepEqual(manifest,packet.snapshot);assert.equal(log.length,2);assert.deepEqual(Object.keys(files).sort(),['001.pdf','manifest.json','privilege-log.json']);
   assert.equal(createHash('sha256').update(files['001.pdf']).digest('hex'),manifest.items[0].producedSha256);
   const task=getDocument({data:new Uint8Array(files['001.pdf']),useSystemFonts:true}),rendered=await task.promise;
@@ -136,6 +138,12 @@ test('controlled production pins originals, removes whole-page content, freezes 
   assert.equal(released.status,'opened');assert.equal(released.receipts[0].id,receiptId);assert.equal(released.receipts[0].sha256,packet.sha256);assert.equal(released.receipts[0].size,bytes.length);
   const disclosed=(await h.json('/audit?matterId='+m.id+'&action=production.recipient_downloaded',undefined,h.owner)).records;
   assert.equal(disclosed[0].detail.receiptId,receiptId);assert.equal(disclosed[0].detail.sha256,packet.sha256);
+  const expiry=new Date(Date.now()+5000).toISOString(),expiring=await h.json(door+'/release',{...release,expiresAt:expiry},h.owner);
+  await new Promise(resolve=>setTimeout(resolve,Math.max(0,Date.parse(expiry)-Date.now()+100)));
+  await h.json('/production-shares/'+expiring.id,undefined,recipient,410);await h.json('/production-shares/'+expiring.id+'/file',{},recipient,410);
+  const wall=await h.json(base+'/wall',{custodianEmail:'lawyer@example.test',members:['lawyer@example.test'],reason:'Principal removed from release authority',revision:null},h.owner);
+  await h.json(shareDoor+'/file',{},recipient,410);
+  await h.json('/ethical-walls/'+wall.id+'/dissolve',{reason:'Counsel restores principal access',revision:wall.revision},lawyer);
   const held=await h.json('/holds',{matterId:m.id,documentId:source.id,reason:'New hold must travel in a newly reviewed packet'},h.owner);
   await h.json(door+'/release',release,h.owner,409);await h.json(shareDoor+'/file',{},recipient,410);
   await h.json('/holds/'+held.id+'/release',{reason:'Counsel releases synthetic hold'},h.owner);
@@ -147,6 +155,7 @@ test('controlled production pins originals, removes whole-page content, freezes 
   assert.deepEqual(Buffer.from(await(await restored.request('/api/satchel'+door+'/file',undefined,restored.owner)).arrayBuffer()),bytes);
   assert.deepEqual(await restored.json(door+'/shares',undefined,restored.owner),[]);
   await restored.json(shareDoor,undefined,restored.owner,404);
+  await h.json('/holds/'+originalHold.id+'/release',{reason:'Counsel releases retained evidence'},h.owner);
   await h.json('/retention',{matterId:m.id,documentId:source.id,disposeAfter:'2020-01-01',basis:'Expired synthetic source'},h.owner);
   const disposal=await h.json('/documents/'+source.id+'/dispose',{confirm:source.title,reason:'Counsel authorized disposal'},h.owner);assert.equal(disposal.journal.derivatives.productions,2);
   await h.json(shareDoor+'/file',{},recipient,410);
