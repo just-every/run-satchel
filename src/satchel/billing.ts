@@ -253,14 +253,14 @@ async function ledesReplacement(db: D1Database, bill: Data, source: Data, body: 
 }
 
 // A due occurrence is a separate immutable source, never a fabricated time entry.
-export async function prepareFeeBill(db:D1Database,actor:Actor,matterId:string,planId:string,period:string){
- need(actor,'owner','lawyer');const m=await matter(db,actor,matterId),p=await loadFeePlan(db,actor,matterId,planId);
+export async function prepareFeeBill(db:D1Database,actor:Actor,matterId:string,planId:string,period:string,stage?:BillStage){
+ need(actor,...(stage?['owner','lawyer','billing'] as const:['owner','lawyer'] as const));const m=await matter(db,actor,matterId),p=await loadFeePlan(db,actor,matterId,planId);
  insist(!['capped','blended'].includes(p.kind),'Select recorded work to bill a cap or blended plan');
  insist(periods(p,period).includes(period),'Choose a period due under the reviewed recurrence');
- const prior=await stmt(db,'SELECT bill_id FROM s_fee_occurrences WHERE plan_id=? AND period=?',p.id,period).first<Data>();if(prior)return getBill(db,actor,prior.bill_id);
+ const prior=await stmt(db,'SELECT bill_id FROM s_fee_occurrences WHERE plan_id=? AND period=?',p.id,period).first<Data>();if(prior){insist(!stage,'This fee occurrence already exists; explicitly select its current draft for the run',409);return getBill(db,actor,prior.bill_id);}
  const sourceId=p.id+':'+period,lines=[{kind:'fee',sourceId,sourceRevision:p.id,date:period,description:p.title+' — '+p.includedWork,minutes:null,rateCents:null,amountCents:p.amountCents,rounding:'one nonhourly fee at reviewed USD cents'}];
  const g=await currentGuideline(db,m.client);let ledes:Data|undefined;
  if(g){const c=await codeLine(db,g,{id:sourceId,kind:'fee',date:period,created_by:p.reviewedBy,utbms_task:p.utbmsTask,utbms_activity:p.utbmsActivity},undefined,1,p.amountCents,lines[0].description);insist(!c.problems.length,'Nonhourly fee guideline: '+c.problems.join('; '),422);insist(!/[|]|\[\]/.test(p.title),'Fee title cannot contain | or []');ledes={format:'LEDES 1998B',guidelineId:g.id,guidelineVersion:g.version,clientId:g.clientLedesId,lawFirmId:g.lawFirmId,invoiceNumber:await nextInvoiceNumber(db,matterId,m.matter_number),lines:[c.line]};ledes.xml=await snapshotXml(db,g.xmlProfile,m.client,matterId,m.matter_number,m.title,ledes.invoiceNumber||'DRAFT',ledes.lines);}
- const billId=id();
- return createBill(db,actor,matterId,{title:p.title+' '+period,date:period,currency:'USD',matterId,matterNumber:m.matter_number,matterTitle:m.title,client:m.client,lines,totalCents:p.amountCents,feePlan:p,feePeriod:period,...(ledes?{ledes}:{})},[],[],billId,[stmt(db,'INSERT INTO s_fee_occurrences VALUES(?,?,?)',p.id,period,billId)]);
+ const billId=stage?.billId??id();
+ return createBill(db,actor,matterId,{title:p.title+' '+period,date:period,currency:'USD',matterId,matterNumber:m.matter_number,matterTitle:m.title,client:m.client,lines,totalCents:p.amountCents,feePlan:p,feePeriod:period,...(ledes?{ledes}:{})},[],[],billId,[stmt(db,'INSERT INTO s_fee_occurrences VALUES(?,?,?)',p.id,period,billId)],stage);
 }

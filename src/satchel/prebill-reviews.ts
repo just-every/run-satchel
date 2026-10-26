@@ -39,7 +39,7 @@ export async function reviewPrebill(db:D1Database,actor:Actor,billId:string,body
    const guideline=await currentGuideline(db,snapshot.client);insist(guideline,'Current client billing guideline is required',409);
    const oldLines=snapshot.ledes.lines,entries=await rows(db,'SELECT * FROM s_entries WHERE id IN(SELECT json_extract(value,\'$.sourceId\') FROM json_each(?))',JSON.stringify(snapshot.lines));
    const coded=await Promise.all(snapshot.lines.map(async(l:Data,index:number)=>{
-    const old=oldLines.find((c:Data)=>c.sourceId===l.sourceId),e=entries.find(e=>e.id===l.sourceId);
+    const old=oldLines.find((c:Data)=>c.sourceId===l.sourceId),e=l.kind==='fee'?{id:l.sourceId,kind:'fee',date:l.date,created_by:snapshot.feePlan.reviewedBy,utbms_task:old?.task,utbms_activity:old?.activity}:entries.find(e=>e.id===l.sourceId);
     insist(e&&old,'Source coding must still be available',409);
     const c=await codeLine(db,guideline,{...e,rate_cents:l.rateCents,...(snapshot.feePlan?.kind==='blended'?{billed_minutes:e.minutes}:{})}, {utbmsTask:old.task,utbmsActivity:old.activity,utbmsExpense:old.expense},index+1,l.amountCents,l.description);
     insist(!c.problems.length,'Reviewed narrative or write-down violates client guidelines: '+c.problems.join('; '),422);

@@ -1,3 +1,4 @@
+import {stageFeePrebill,scheduledFeeArrangements} from './prebill-fee-occurrences';
 import {atomic,audit,human,id,insist,date,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
 import {accessGuard} from './trust-guards';
 import {matterScope} from './matter-scope';
@@ -26,12 +27,13 @@ export async function preparePrebillRun(db:D1Database,actor:Actor,body:Data){
   const matterId=text(item.matterId,'Matter',100),m=await matter(db,actor,matterId),periodStart=date(item.periodStart),periodEnd=date(item.periodEnd);
   insist(periodStart<=periodEnd,'Prebill period must end on or after its start');
   const payer=text(item.payer,'Payer',200),arrangement=text(item.arrangement,'Arrangement',100),billId=id();
-  const prebill={runId,payer,periodStart,periodEnd,arrangement,reviewState:'ready'};
-  const prepared=await prepareBill(db,actor,matterId,{...item,title:item.title??title+' — '+m.matter_number,date:billDate},{writes,snapshot:{prebill},billId});
+  const prebill={runId,payer,periodStart,periodEnd,arrangement,reviewState:'ready'},stage={writes,snapshot:{prebill},billId};
+  insist(!item.existingBillId||scheduledFeeArrangements.includes(arrangement),'Only a scheduled fee occurrence can be adopted');
+  const prepared=scheduledFeeArrangements.includes(arrangement)?await stageFeePrebill(db,actor,matterId,item,stage):await prepareBill(db,actor,matterId,{...item,title:item.title??title+' — '+m.matter_number,date:billDate},stage);
   insist(prepared.snapshot.lines.every((l:Data)=>l.date>=periodStart&&l.date<=periodEnd),'Every selected source must fall within this prebill period',422);
   const kind=prepared.snapshot.feePlan?.kind??'hourly';
   insist(arrangement===kind,'Select the matter’s current reviewed arrangement: '+kind,422);
-  writes.push(accessGuard(db,actor,matterId),stmt(db,'INSERT INTO s_prebill_run_items VALUES(?,?,?)',runId,billId,position));
+  writes.push(accessGuard(db,actor,matterId),stmt(db,'INSERT INTO s_prebill_run_items VALUES(?,?,?)',runId,stage.billId,position));
  }
  writes.push(audit(db,actor,'prebill.run_prepared',runId,title));await atomic(db,actor,writes);
  return prebillRun(db,actor,runId);

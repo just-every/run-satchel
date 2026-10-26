@@ -83,6 +83,7 @@ export async function provePrebillRun(){
   run=await h.json('/prebill-runs/'+run.id,undefined,cookies.billing);assert.equal(run.bills[0].reviews.length,1);assert.equal(run.bills[2].prebill.reviewState,'returned');assert.equal(run.bills[0].issue.template_id,template.id);
   assert.equal((await h.json('/invoice-numbering',undefined,h.owner)).counter.next_number,102);
   await proveFeePlanPrebillReviews(h,template,cookies.lawyer,cookies.billing);
+  await proveScheduledFeePrebills(h,template,cookies.lawyer,cookies.billing);
   await h.restart();restored=await harness();await restored.json('/restore',{archive:await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),confirm:'RESTORE'},restored.owner);
   assert.deepEqual(await restored.json('/prebill-runs/'+run.id,undefined,restored.owner),await h.json('/prebill-runs/'+run.id,undefined,h.owner));
   assert.deepEqual(await restored.json('/invoices/issue',issue,restored.owner),issued);
@@ -123,4 +124,40 @@ async function proveFeePlanPrebillReviews(h,template,counsel,billing){
   await h.json('/bills/'+approved.id+'/review',{revision:approved.revision,action:'revise',note:'Issued fee adjustments are immutable',lines:[]},counsel,409);
   const history=(await h.json('/prebill-runs/'+run.id,undefined,counsel)).bills[0].reviews;assert.equal(history.length,1);assert.deepEqual(JSON.parse(history[0].excluded_sources),[entries[1].id]);assert.equal(history[0].note,edit.note);
  }
+}
+
+async function proveScheduledFeePrebills(h,template,counsel,billing){
+ const fixed=await open(h,'Monthly fixed-fee run','Monthly fixed client','Monthly fixed opponent'),hourly=await open(h,'Mixed hourly run','Mixed hourly client','Mixed hourly opponent'),matters=[fixed,hourly];
+ for(const m of matters){for(const email of ['run-counsel@example.test','run-billing@example.test'])await h.json('/matters/'+m.id+'/access',{email},h.owner);await h.json('/matters/'+m.id+'/invoice-template',{templateId:template.id,previousId:null,reason:'Reviewed template for mixed arrangement run'},h.owner);}
+ const base='/matters/'+fixed.id,terms={title:'Monthly agreed advice',kind:'flat',recurrence:'monthly',startDate:'2026-09-01',endDate:'2026-10-31',earning:'period_end',trustDraw:'permitted',amountCents:30000,includedWork:'Monthly advice and conference',exceptions:'none',reference:'Synthetic signed monthly fee agreement',reviewed:true};
+ const plan=await h.json(base+'/fee-plans',terms,h.owner);
+ await h.json(base+'/ledes-guideline',{clientLedesId:'MONTHLY',lawFirmId:'SATCHEL',requireTask:false,requireActivity:false,requireExpense:false,narrativeMin:0,bannedPhrases:[],maxRates:{},incrementMinutes:0,note:'Reviewed monthly fixed-fee guideline'},h.owner);
+ const source=await h.json('/matters/'+hourly.id+'/entries',{kind:'time',date:'2026-09-10',description:'Mixed-run hourly advice',minutes:60,rateCents:15000},h.owner);
+ const fixedItem={matterId:fixed.id,payer:fixed.client,periodStart:'2026-09-01',periodEnd:'2026-09-30',arrangement:'flat',feePlanId:plan.id,feePeriod:'2026-09-01'},hourlyItem={matterId:hourly.id,payer:hourly.client,periodStart:'2026-09-01',periodEnd:'2026-09-30',arrangement:'hourly',entryIds:[source.id]};
+ const payload={title:'September mixed arrangement run',date:'2026-09-30',items:[fixedItem,hourlyItem]};
+ await h.json('/prebill-runs',{...payload,items:[fixedItem,{...hourlyItem,entryIds:['missing-source']}]},billing,409);
+ assert.equal((await h.json(base+'/fee-plans',undefined,h.owner)).occurrences.length,0);assert.equal((await h.json('/matters/'+hourly.id+'/billing',undefined,h.owner)).entries[0].reservedBy,null);
+ const attempts=await Promise.all([h.request('/api/satchel/prebill-runs',payload,billing),h.request('/api/satchel/prebill-runs',payload,billing)]);assert.deepEqual(attempts.map(r=>r.status).sort(),[200,409]);
+ const run=await attempts.find(r=>r.status===200).json();assert.equal(run.bills.length,2);let fixedBill=run.bills[0];assert.deepEqual(fixedBill.snapshot.feePlan,plan);assert.equal(fixedBill.snapshot.feePeriod,'2026-09-01');assert.equal(fixedBill.snapshot.lines[0].kind,'fee');assert.equal(fixedBill.snapshot.lines[0].sourceId,plan.id+':2026-09-01');
+ await h.json('/prebill-runs',payload,billing,409);assert.equal((await h.json(base+'/fee-plans',undefined,h.owner)).occurrences.length,1);
+ const revise={revision:fixedBill.revision,action:'revise',note:'Counsel reviews nonhourly narrative and courtesy reduction',lines:[{sourceId:fixedBill.snapshot.lines[0].sourceId,description:'Reviewed monthly advice fee',amountCents:29000}]};
+ await h.json('/bills/'+fixedBill.id+'/review',revise,billing,403);fixedBill=await h.json('/bills/'+fixedBill.id+'/review',revise,counsel);assert.deepEqual(fixedBill.snapshot.feePlan,plan);assert.equal(fixedBill.snapshot.ledes.lines[0].adjustmentCents,-1000);
+ const approved=[];for(const bill of [fixedBill,run.bills[1]]){
+  const taxReviewId=await exemptTaxReview(h,'/bills/'+bill.id+'/approve'),body={revision:bill.revision,taxReviewId,reviewNote:'Counsel approves exact mixed-arrangement invoice',...(bill.snapshot.feePlan?{earnedConfirmed:true,earningEvidence:'September advice completed and month ended'}:{})};
+  if(bill.snapshot.feePlan){await h.json('/bills/'+bill.id+'/approve',{revision:bill.revision,taxReviewId,reviewNote:body.reviewNote},counsel,422);await h.json('/bills/'+bill.id+'/approve',body,billing,403);}
+  approved.push(await h.json('/bills/'+bill.id+'/approve',body,counsel));
+ }
+ const issue={bills:approved.map(b=>({id:b.id,revision:b.revision}))},issued=await h.json('/invoices/issue',issue,billing);assert.deepEqual(await h.json('/invoices/issue',issue,billing),issued);assert.equal((await h.json(base+'/fee-plans',undefined,h.owner)).occurrences[0].bill_id,fixedBill.id);
+ // Existing scheduled drafts are adopted explicitly and retain their one native occurrence.
+ const scheduled=await h.json(base+'/fee-plans/run',{asOf:'2026-10-01'},h.owner),october=scheduled.bills.find(b=>b.snapshot.feePeriod==='2026-10-01');assert.ok(october);
+ const adopt={matterId:fixed.id,payer:fixed.client,periodStart:'2026-10-01',periodEnd:'2026-10-31',arrangement:'flat',existingBillId:october.id,revision:october.revision};
+ await h.json('/prebill-runs',{title:'Explicit scheduled adoption',date:'2026-10-03',items:[{...adopt,revision:'stale'}]},billing,409);
+ await h.json('/prebill-runs',{title:'No implicit reuse',date:'2026-10-03',items:[{...fixedItem,feePeriod:'2026-10-01',periodStart:'2026-10-01',periodEnd:'2026-10-31'}]},billing,409);
+ await h.json('/prebill-runs',{title:'Adoption must roll back',date:'2026-10-03',items:[adopt,{...hourlyItem,entryIds:['missing-source']}]},billing,409);
+ assert.equal((await h.json(base+'/billing',undefined,h.owner)).bills.find(b=>b.id===october.id).revision,october.revision);
+ const adopted=await h.json('/prebill-runs',{title:'Explicit scheduled adoption',date:'2026-10-03',items:[adopt]},billing),current=adopted.bills[0];assert.equal(current.id,october.id);assert.notEqual(current.revision,october.revision);assert.deepEqual(current.snapshot.lines,october.snapshot.lines);assert.deepEqual(current.snapshot.feePlan,october.snapshot.feePlan);assert.equal(current.snapshot.feePeriod,october.snapshot.feePeriod);
+ await h.json('/prebill-runs',{title:'No second adoption',date:'2026-10-03',items:[{...adopt,revision:current.revision}]},billing,409);
+ await h.json('/prebill-runs',{title:'Cannot adopt issued fee',date:'2026-10-03',items:[{...adopt,existingBillId:approved[0].id,revision:approved[0].revision,periodStart:'2026-09-01',periodEnd:'2026-09-30'}]},billing,409);
+ assert.equal((await h.json(base+'/fee-plans',undefined,h.owner)).occurrences.length,2);
+ const nativeReplay=await h.json(base+'/fee-plans/run',{asOf:'2026-10-01'},h.owner);assert.equal(nativeReplay.bills.find(b=>b.snapshot.feePeriod==='2026-10-01').snapshot.prebill.runId,adopted.id);
 }
