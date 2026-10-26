@@ -13,6 +13,7 @@ import { Route as AppRouteImport } from './routes/app'
 import { Route as BookOfferIdRouteImport } from './routes/book.$offerId'
 import { Route as ConsultationTokenRouteImport } from './routes/consultation.$token'
 import { Route as IntakeFormIdRouteImport } from './routes/intake.$formId'
+import { Route as ProductionIdRouteImport } from './routes/production.$id'
 import { Route as FollowupIdSignatureRouteImport } from './routes/followup.$id.$signature'
 import { Route as AppInvoicesIdPayRouteImport } from './routes/app_.invoices.$id.pay'
 
@@ -36,6 +37,11 @@ const IntakeFormIdRoute = IntakeFormIdRouteImport.update({
   path: '/intake/$formId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProductionIdRoute = ProductionIdRouteImport.update({
+  id: '/production/$id',
+  path: '/production/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FollowupIdSignatureRoute = FollowupIdSignatureRouteImport.update({
   id: '/followup/$id/$signature',
   path: '/followup/$id/$signature',
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/book/$offerId': typeof BookOfferIdRoute
   '/consultation/$token': typeof ConsultationTokenRoute
   '/intake/$formId': typeof IntakeFormIdRoute
+  '/production/$id': typeof ProductionIdRoute
   '/followup/$id/$signature': typeof FollowupIdSignatureRoute
   '/app/invoices/$id/pay': typeof AppInvoicesIdPayRoute
 }
@@ -60,6 +67,7 @@ export interface FileRoutesByTo {
   '/book/$offerId': typeof BookOfferIdRoute
   '/consultation/$token': typeof ConsultationTokenRoute
   '/intake/$formId': typeof IntakeFormIdRoute
+  '/production/$id': typeof ProductionIdRoute
   '/followup/$id/$signature': typeof FollowupIdSignatureRoute
   '/app/invoices/$id/pay': typeof AppInvoicesIdPayRoute
 }
@@ -69,6 +77,7 @@ export interface FileRoutesById {
   '/book/$offerId': typeof BookOfferIdRoute
   '/consultation/$token': typeof ConsultationTokenRoute
   '/intake/$formId': typeof IntakeFormIdRoute
+  '/production/$id': typeof ProductionIdRoute
   '/followup/$id/$signature': typeof FollowupIdSignatureRoute
   '/app_/invoices/$id/pay': typeof AppInvoicesIdPayRoute
 }
@@ -79,6 +88,7 @@ export interface FileRouteTypes {
     | '/book/$offerId'
     | '/consultation/$token'
     | '/intake/$formId'
+    | '/production/$id'
     | '/followup/$id/$signature'
     | '/app/invoices/$id/pay'
   fileRoutesByTo: FileRoutesByTo
@@ -87,6 +97,7 @@ export interface FileRouteTypes {
     | '/book/$offerId'
     | '/consultation/$token'
     | '/intake/$formId'
+    | '/production/$id'
     | '/followup/$id/$signature'
     | '/app/invoices/$id/pay'
   id:
@@ -95,6 +106,7 @@ export interface FileRouteTypes {
     | '/book/$offerId'
     | '/consultation/$token'
     | '/intake/$formId'
+    | '/production/$id'
     | '/followup/$id/$signature'
     | '/app_/invoices/$id/pay'
   fileRoutesById: FileRoutesById
@@ -104,6 +116,7 @@ export interface RootRouteChildren {
   BookOfferIdRoute: typeof BookOfferIdRoute
   ConsultationTokenRoute: typeof ConsultationTokenRoute
   IntakeFormIdRoute: typeof IntakeFormIdRoute
+  ProductionIdRoute: typeof ProductionIdRoute
   FollowupIdSignatureRoute: typeof FollowupIdSignatureRoute
   AppInvoicesIdPayRoute: typeof AppInvoicesIdPayRoute
 }
@@ -138,6 +151,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IntakeFormIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/production/$id': {
+      id: '/production/$id'
+      path: '/production/$id'
+      fullPath: '/production/$id'
+      preLoaderRoute: typeof ProductionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/followup/$id/$signature': {
       id: '/followup/$id/$signature'
       path: '/followup/$id/$signature'
@@ -160,6 +180,7 @@ const rootRouteChildren: RootRouteChildren = {
   BookOfferIdRoute: BookOfferIdRoute,
   ConsultationTokenRoute: ConsultationTokenRoute,
   IntakeFormIdRoute: IntakeFormIdRoute,
+  ProductionIdRoute: ProductionIdRoute,
   FollowupIdSignatureRoute: FollowupIdSignatureRoute,
   AppInvoicesIdPayRoute: AppInvoicesIdPayRoute,
 }

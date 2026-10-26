@@ -189,6 +189,10 @@ test('native medical chronology requires health setup, pins source pages, reconc
   assert.equal((await h.json(door,undefined,h.owner)).chronologies.length,0);
   const draft=await h.json(door,extraction,h.owner);
   assert.equal(draft.status,'draft');assert.equal(draft.snapshot.grossTotalCents,4000);assert.equal(draft.snapshot.unreviewedDifferenceCents,2000);assert.deepEqual(draft.snapshot.duplicates,[{index:3,possibleDuplicateOf:2}]);assert.equal(draft.snapshot.intervals[0].days,59);
+  assert.deepEqual(draft.snapshot.entries.map(record=>[record.provider,record.date,record.chargeCents,record.page]),[['Clinic','2026-01-01',null,1],['Clinic','2026-03-01',null,2],['Clinic','2026-01-01',2000,3],['Clinic','2026-01-01',2000,1]]);
+  assert.match(draft.snapshot.entries[0].treatment,/shoulder mobility/);assert.match(draft.snapshot.entries[1].treatment,/Follow-up therapy/);
+  assert.deepEqual(draft.snapshot.extraction.sources.map(source=>source.reportedTotals.map(total=>total.amountCents)),[[2000],[2000]]);
+  assert.equal(draft.snapshot.setup.authorizationReference,'Received records authorization');assert.equal(draft.snapshot.setup.agreementReference,'Native storage agreement');
   assert.equal(draft.snapshot.entries[0].sourceSha256,source.versions[0].sha256);assert.equal(draft.snapshot.entries[3].sourceName,'Overlapping-bill.pdf');assert.equal(draft.snapshot.entries[3].page,1);
   const publish='/chronologies/'+draft.id+'/publish',review={sha256:draft.sha256,reviewNote:'Counsel checked every source page and duplicate charge',decisions:[{index:3,decision:'exclude',note:'Same bill charge in overlapping packet'}]};
   await h.json(publish,{...review,decisions:[]},h.owner,400);await h.json(publish,{...review,sha256:'wrong'},h.owner,409);
