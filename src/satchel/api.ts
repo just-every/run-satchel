@@ -1,8 +1,8 @@
 import {prebillRuns,prebillRun,preparePrebillRun} from './prebill-runs';
 import {reviewPrebill} from './prebill-reviews';
-import {matterInvoiceTemplate} from './matter-invoice-templates';
+import {matterInvoiceTemplate,invoiceTemplateDefaults} from './matter-invoice-templates';
 import {invoiceTrustOptions} from './trust-transfers';
-import {invoiceTemplates,saveInvoiceTemplate,approveInvoiceNotification} from './invoice-templates';
+import {invoiceTemplates,saveInvoiceTemplate,approveInvoiceNotification,retireInvoiceTemplate} from './invoice-templates';
 import {prepareInvoiceDelivery,invoiceDeliveryState,deliveredInvoiceFile,replaceInvoiceLink} from './invoice-delivery';
 import {authorizeInvoiceNotification,sendInvoiceNotification} from './invoice-notifications';
 import {invoiceSendgridEvents} from './invoice-sendgrid-events';
@@ -477,3 +477,7 @@ api.post('/api/satchel/trust/matter-transfers/:id/reversal',as(async(a,c)=>reque
 api.get('/api/satchel/matters/:id/fee-plans',as((a,c)=>feePlans(db(c),a,param(c))));
 api.post('/api/satchel/matters/:id/fee-plans',as(async(a,c)=>saveFeePlan(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/matters/:id/fee-plans/run',as(async(a,c)=>runDueFees(db(c),a,param(c),(await body(c)).asOf)));
+
+api.get('/api/satchel/invoice-template-defaults',as((a,c)=>invoiceTemplateDefaults(db(c),a)));
+api.post('/api/satchel/invoice-template-defaults',as(async(a,c)=>invoiceTemplateDefaults(db(c),a,await body(c))));
+api.post('/api/satchel/invoice-templates/:id/retire',as(async(a,c)=>retireInvoiceTemplate(db(c),a,param(c),await body(c))));

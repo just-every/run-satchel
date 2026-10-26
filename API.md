@@ -206,3 +206,47 @@ attempt** action requires a new audited human decision and still applies current
 authority and the reminder rate cap. Provider acceptance is not mailbox delivery.
 The dedicated live-mail key is not provisioned; this implementation has native
 handler and provider-edge proof, not live-provider delivery proof.
+
+### Invoice template revisions and defaults
+
+Human principals, lawyers and billing staff can approve `POST /invoice-templates`
+with an exact `previousId`, branding, a name, reason and `confirmed:true`. Each
+approval appends an immutable revision. Optional boolean display fields are
+`showTimeEntryDetail`, `showHours`, `showRates`, `showTimekeepers`, `showUtbms`,
+`showNoChargeLines` and `showDiscounts`; `layout` is `detailed` or `summary`.
+Existing callers retain detailed dates, narratives and no-charge lines while
+other detail fields default to hidden. Summary layout aggregates services and
+expenses and suppresses individual source details. Display choices never reprice
+the reviewed sources or change the invoice total. A displayed hourly quantity is
+the recorded worked duration; the recorded hourly rate is shown independently
+of agreement discounts and reviewed reductions.
+
+`includeTrustBalance` shows the separately dated matter trust balance, never a
+payment or deduction. Optional `includePriorBalance` shows the net balance of
+other nonvoid issued invoices on the same matter issued before this invoice's
+issue timestamp, less their currently cleared payments. This dated presentation
+is separate from the current invoice total. Payment changes and prior-invoice
+changes during rendering cause the atomic write to refuse rather than freeze a
+mixed snapshot. Pending provider funds are not cleared payments. The prior
+balance is native invoice presentation, not the full client ledger in BILL-010.
+
+`POST /invoice-template-defaults` takes `scope` (`firm` or `client`),
+`templateId`, `previousId` and `reason`; client scope also requires an accessible
+`matterId` and uses that matter's current recorded client value, like native fee
+agreements. `GET /invoice-template-defaults` returns the current firm default.
+`GET /matters/:id/invoice-template` returns the effective assignment and the
+current client default only after matter access checks. Resolution is explicit
+matter assignment, then client default, then firm default. Matter assignment
+writes take the prior explicit matter-assignment ID, or null when overriding an
+inherited default. Prebill review names the effective scope and exact revision.
+Defaults and matter assignments pin a revision: editing creates another revision
+that a person selects for future invoices, and never silently changes an existing
+assignment or issue.
+
+`POST /invoice-templates/:id/retire` takes a reason and permanently retires that
+revision for future assignment, issue and delivery rendering. Existing issued
+and delivered bytes remain retained and downloadable under their original access
+rules. An assignment to a retired revision requires an explicit active replacement;
+retirement never silently falls back to another template. All template, default,
+assignment and retirement decisions are audited. Notification wording approval
+remains counsel-only and these changes authorize no outbound send.

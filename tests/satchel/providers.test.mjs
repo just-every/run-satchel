@@ -152,7 +152,7 @@ test('Client reminders require per-matter opt-in from current responsible counse
   await h.json(base+'/stage-profile',{revision:profile.revision,lawyerEmail:'owner@example.test'},h.owner);await h.scheduled(reminderAt);assert.equal(h.mails.length,count,'Reassignment invalidates former counsel authority');
  }finally{await h.close();}
 });
-test('Client reminder templates are approved once as exact immutable versions retained by scheduled jobs',async()=>{
+async function assertReminderTemplateVersions(){
  const h=await harness();try{
   const s=await reminderSetup(h);await h.json('/client-reminder-templates',{kind:'invoice',reason:'Unconfirmed'},s.lawyer,400);await h.json('/client-reminder-templates',{kind:'invoice',confirmed:true,reason:'Not counsel'},s.assistant,403);
   const job=await s.schedule();const newer=await h.json('/client-reminder-templates',{kind:'invoice',confirmed:true,reason:'A later separate approval',body:'Private matter and amount'},s.lawyer);
@@ -160,7 +160,8 @@ test('Client reminder templates are approved once as exact immutable versions re
   assert.equal(before.templates.find(t=>t.id===s.invoice.id).body,s.invoice.body);assert.equal(newer.body,s.invoice.body,'Unapproved supplied content cannot change confidential template bytes');
   await h.scheduled(reminderAt);assert.equal((await s.state()).jobs.find(j=>j.id===job.id).outcome,'accepted');assert.equal(h.mails.at(-1).text,s.invoice.body+' '+h.origin+'/app');
  }finally{await h.close();}
-});
+}
+
 test('Scheduled invoice and appointment reminders survive restart, share a recipient rate cap, and never automatically resend unknown acknowledgments',async()=>{
  let lost=false;
  const h=await harness({mailResponse:message=>lost&&message.subject==='An appointment reminder is available'?new Response('unavailable',{status:503}):Response.json({id:'synthetic-satchel-2'})});try{
@@ -187,6 +188,7 @@ test('Client reminder withdrawal and merged consent, portal revocation, permissi
  }finally{await h.close();}
 });
 test('Every scheduled client reminder send retains its approved template version in durable audit and needs a new decision after uncertainty',async()=>{
+ await assertReminderTemplateVersions();
  let lost=true;
  const h=await harness({mailResponse:message=>lost&&message.subject==='An invoice is available'?new Response('unavailable',{status:503}):Response.json({id:'synthetic-satchel-3'})});try{
   const s=await reminderSetup(h),job=await s.schedule(),count=h.mails.length;await h.scheduled(reminderAt);await h.restart();await h.scheduled(reminderAt);assert.equal(h.mails.length,count+1);
@@ -259,7 +261,7 @@ test('Reviewed invoice delivery retains branded payer artifacts, verifies provid
   await h.json('/invoice-numbering',scheme(),h.owner);const bill=await approvedInvoice(h,m,await draft(h,m,'Confidential privileged services')),issued=(await h.json('/invoices/issue',{bills:[{id:bill.id,revision:bill.revision}]},h.owner)).issues[0];
   const original=Buffer.from(await(await h.request('/api/satchel/bills/'+bill.id+'/invoice.pdf',undefined,h.owner)).arrayBuffer());
   await h.json('/team',{email:'billing@example.test',name:'Synthetic Satchel Billing',role:'billing'},h.owner);await h.json('/team/invite',{email:'billing@example.test'},h.owner);const billing=await h.login('billing@example.test');await h.json(base+'/access',{email:'billing@example.test'},h.owner);
-  await h.json('/invoice-templates',invoiceTemplate(),billing,403);
+  await h.json('/invoice-templates',invoiceTemplate(null,{confirmed:false}),billing,400);
   const template=await h.json('/invoice-templates',invoiceTemplate(),h.owner),notification=await h.json('/invoice-notification-templates',{confirmed:true,reason:'Counsel reviews the plain-text sign-in-only notification'},h.owner);
   const make=async(recipient,payerName,selected=template)=>h.json('/bills/'+bill.id+'/deliveries',{recipient,payerName,templateId:selected.id},billing);
   const clientDelivery=await make('client@example.test','Synthetic Satchel Client'),insurerDelivery=await make('insurer@example.test','Synthetic Satchel Insurer');
@@ -301,5 +303,75 @@ test('Reviewed invoice delivery retains branded payer artifacts, verifies provid
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();restored=await harness();await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);assert.deepEqual(Buffer.from(await(await restored.request('/api/satchel/invoice-deliveries/'+clientDelivery.id+'/pdf',undefined,restored.owner)).arrayBuffer()),delivered);
   const grant=(await h.json(base+'/portal',undefined,h.owner)).grants.find(g=>g.email==='insurer@example.test'&&!g.revokedAt);await h.json('/portal-grants/'+grant.id+'/revoke',{reason:'Payer authority withdrawn'},h.owner);assert.equal((await h.request('/api/satchel/invoice-deliveries/'+insurerDelivery.id+'/pdf',undefined,insurer)).status,404);await h.json('/invoice-deliveries/'+insurerDelivery.id+'/authorize',{notificationTemplateId:notification.id,confirmed:true,priorAttemptId:final.attemptId,reason:'Withdrawn payer cannot receive another notification'},billing,409);
   await h.json(base+'/wall',{reason:'Counsel restricts invoice matter',custodianEmail:'owner@example.test',members:['owner@example.test'],revision:null},h.owner);assert.equal((await h.request('/api/satchel/invoice-deliveries/'+clientDelivery.id+'/pdf',undefined,client)).status,404);assert.equal((await h.json('/portal',undefined,client)).grants.length,0);
+ }finally{await restored?.close();await h.close();}
+});
+
+test('Billing staff approve immutable invoice display revisions and issued PDFs retain selected detail without changing approved amounts',async()=>{
+ const h=await harness();
+ try{
+  await h.json('/team',{email:'billing@example.test',name:'Synthetic Satchel Billing',role:'billing'},h.owner);await h.json('/team/invite',{email:'billing@example.test'},h.owner);const billing=await h.login('billing@example.test');
+  await h.json('/invoice-numbering',scheme(),h.owner);
+  const m=await open(h),base='/matters/'+m.id;
+  const entries=[];
+  for(const [description,rateCents] of [['Synthetic charged work',25000],['Synthetic courtesy work',0]])entries.push(await h.json(base+'/entries',{kind:'time',date:'2026-10-01',description,minutes:60,rateCents,utbmsTask:'L110',utbmsActivity:'A101'},h.owner));
+  await h.json(base+'/rates',{scope:'matter',effectiveFrom:'2026-01-01',rateCents:10000,incrementMinutes:1,discountBps:1000,billable:true,note:'Synthetic reviewed discount'},h.owner);
+  entries.push(await h.json(base+'/entries',{kind:'time',date:'2026-10-01',description:'Synthetic discounted work',minutes:60},h.owner));
+  const bill=await approvedInvoice(h,m,await h.json(base+'/bills',{title:'Synthetic detailed invoice',date:'2026-10-01',entryIds:entries.map(e=>e.id)},h.owner));
+  await h.json('/invoice-templates',invoiceTemplate(null,{layout:'invalid'}),billing,400);
+  await h.json('/invoice-templates',invoiceTemplate(null,{showHours:'yes'}),billing,400);
+  const detailed=await h.json('/invoice-templates',invoiceTemplate(null,{showHours:true,showRates:true,showTimekeepers:true,showUtbms:true,showNoChargeLines:true,showDiscounts:true}),billing);
+  await h.json(base+'/invoice-template',{templateId:detailed.id,reason:'Use the reviewed detailed version'},h.owner);
+  await h.json('/invoices/issue',{bills:[{id:bill.id,revision:bill.revision}]},h.owner);
+  const download=async id=>Buffer.from(await(await h.request('/api/satchel/bills/'+id+'/invoice.pdf',undefined,h.owner)).arrayBuffer());
+  const bytes=await download(bill.id),detail=await pdfText(bytes);
+  for(const value of ['Synthetic charged work','Synthetic courtesy work','Hours 1.00','Hourly rate USD 250.00','Timekeeper owner@example.test','UTBMS L110 A101','USD 0.00','Total USD 340.00','Agreement discount 10%','Invoice template version 1','Remit to Synthetic Satchel Counsel','Matter trust balance USD 0.00'])assert.ok(detail.includes(value),value);
+  const summary=await h.json('/invoice-templates',invoiceTemplate(detailed.id,{layout:'summary',showHours:false,showRates:false,showNoChargeLines:false}),billing);
+  const other=await open(h,'Synthetic summary matter','Synthetic second client','Synthetic second adverse');
+  await h.json('/matters/'+other.id+'/invoice-template',{templateId:summary.id,reason:'Use summary layout'},h.owner);
+  const hidden=await h.json('/matters/'+other.id+'/entries',{kind:'time',date:'2026-10-01',description:'Synthetic hidden narrative',minutes:90,rateCents:25000},h.owner);
+  const next=await approvedInvoice(h,other,await h.json('/matters/'+other.id+'/bills',{title:'Synthetic summary invoice',date:'2026-10-01',entryIds:[hidden.id]},h.owner));
+  await h.json('/invoices/issue',{bills:[{id:next.id,revision:next.revision}]},h.owner);
+  const concise=await pdfText(await download(next.id));assert.match(concise,/Services and expenses USD 375.00/);assert.match(concise,/Invoice template version 2/);
+  for(const hidden of ['Synthetic hidden narrative','Hours ','Hourly rate ','Timekeeper ','UTBMS '])assert.ok(!concise.includes(hidden),hidden);
+  const minimal=await h.json('/invoice-templates',invoiceTemplate(summary.id,{showTimeEntryDetail:false,showNoChargeLines:false,includeTrustBalance:false}),billing);
+  await h.json(base+'/invoice-template',{previousId:(await h.json(base+'/invoice-template',undefined,h.owner)).assignment.id,templateId:minimal.id,reason:'Later invoices omit narratives and courtesy lines'},h.owner);
+  const more=[];for(const [description,rateCents] of [['Synthetic private narrative',10000],['Synthetic hidden courtesy',0]])more.push(await h.json(base+'/entries',{kind:'time',date:'2026-10-02',description,minutes:60,...(rateCents?{}:{rateCents}),utbmsTask:'L110',utbmsActivity:'A101'},h.owner));
+  const later=await approvedInvoice(h,m,await h.json(base+'/bills',{title:'Synthetic later invoice',date:'2026-10-02',entryIds:more.map(e=>e.id)},h.owner));
+  await h.json('/invoices/issue',{bills:[{id:later.id,revision:later.revision}]},h.owner);
+  const reduced=await pdfText(await download(later.id));for(const hidden of ['Synthetic private narrative','Synthetic hidden courtesy','Matter trust balance','Hours ','Hourly rate ','Timekeeper ','UTBMS ','Agreement discount '])assert.ok(!reduced.includes(hidden),hidden);assert.match(reduced,/Total USD 90.00/);
+  const loading=getDocument({data:Uint8Array.from(await download(later.id)),useSystemFonts:true}),parsed=await loading.promise,strings=(await(await parsed.getPage(1)).getTextContent()).items.map(x=>x.str);assert.ok(!strings.includes('USD 0.00'),'No zero-dollar source row is rendered');await loading.destroy();
+  await h.restart();assert.deepEqual(await download(bill.id),bytes);assert.equal((await h.json(base+'/billing',undefined,h.owner)).bills.find(b=>b.id===bill.id).issue.template_id,detailed.id);
+  assert.equal((await h.json('/audit?action=invoice.template_approved',undefined,h.owner)).records.length,3);
+ }finally{await h.close();}
+});
+
+test('Invoice defaults resolve firm then client then matter, retirement affects future issues only, and prior balances stay separate from the invoice total',async()=>{
+ const h=await harness();let restored;
+ try{
+  await h.json('/invoice-numbering',scheme(),h.owner);
+  const a=await open(h,'Synthetic default matter','Synthetic shared client','Synthetic adverse one'),b=await open(h,'Synthetic override matter','Synthetic shared client','Synthetic adverse two'),c=await open(h,'Synthetic firm matter','Synthetic other client','Synthetic adverse three');
+  await h.json('/team',{email:'billing@example.test',name:'Synthetic Satchel Billing',role:'billing'},h.owner);await h.json('/team/invite',{email:'billing@example.test'},h.owner);const billing=await h.login('billing@example.test');for(const m of [a,b,c])await h.json('/matters/'+m.id+'/access',{email:'billing@example.test'},h.owner);
+  const first=await h.json('/invoice-templates',invoiceTemplate(null,{name:'Detailed native template'}),billing),second=await h.json('/invoice-templates',invoiceTemplate(first.id,{name:'Summary native template',layout:'summary',includeTrustBalance:false,includePriorBalance:true}),billing);
+  await h.json('/invoice-template-defaults',{scope:'firm',templateId:first.id,reason:'Reviewed firm default'},billing);
+  assert.equal((await h.json('/matters/'+a.id+'/invoice-template',undefined,billing)).assignment.template_id,first.id);
+  await h.json('/invoice-template-defaults',{scope:'client',matterId:a.id,templateId:second.id,reason:'Reviewed client override'},billing);
+  assert.equal((await h.json('/matters/'+b.id+'/invoice-template',undefined,billing)).assignment.template_id,second.id);assert.equal((await h.json('/matters/'+c.id+'/invoice-template',undefined,billing)).assignment.template_id,first.id);
+  await h.json('/matters/'+b.id+'/invoice-template',{templateId:first.id,reason:'Reviewed matter override'},billing);
+  assert.equal((await h.json('/matters/'+b.id+'/invoice-template',undefined,billing)).assignment.scope,'matter');
+  await h.json('/invoice-template-defaults',{scope:'firm',templateId:second.id,reason:'Stale change'},billing,409);
+  const issued=async(m,title)=>{const draftBill=await draft(h,m,title),approved=await approvedInvoice(h,m,draftBill);await h.json('/invoices/issue',{bills:[{id:approved.id,revision:approved.revision}]},billing);return approved;};
+  await h.json('/invoice-notification-templates',{confirmed:true,reason:'Billing staff cannot approve counsel wording'},billing,403);
+  const original=await issued(b,'Synthetic original branded issue'),download=async id=>Buffer.from(await(await h.request('/api/satchel/bills/'+id+'/invoice.pdf',undefined,h.owner)).arrayBuffer()),bytes=await download(original.id);
+  await h.json('/invoice-templates/'+first.id+'/retire',{reason:'Prospectively replace this revision'},billing);
+  const later=await approvedInvoice(h,b,await draft(h,b,'Synthetic future issue'));
+  await h.json('/invoices/issue',{bills:[{id:later.id,revision:later.revision}]},billing,409);
+  const assignment=(await h.json('/matters/'+b.id+'/invoice-template',undefined,billing)).assignment;
+  await h.json('/matters/'+b.id+'/invoice-template',{previousId:assignment.id,templateId:second.id,reason:'Use the active summary revision'},billing);
+  await h.json('/invoices/issue',{bills:[{id:later.id,revision:later.revision}]},billing);
+  const summary=await pdfText(await download(later.id));assert.match(summary,/Prior issued matter balance USD 375.00/);assert.match(summary,/Total USD 375.00/);assert.match(summary,/separate from this invoice/);assert.ok(!summary.includes('Matter trust balance'));
+  assert.deepEqual(await download(original.id),bytes);
+  const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();restored=await harness();await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);assert.deepEqual(Buffer.from(await(await restored.request('/api/satchel/bills/'+original.id+'/invoice.pdf',undefined,restored.owner)).arrayBuffer()),bytes);
+  assert.ok((await restored.json('/invoice-templates',undefined,restored.owner)).templates.find(t=>t.id===first.id).retired_at);
+  assert.equal((await restored.json('/matters/'+a.id+'/invoice-template',undefined,restored.owner)).assignment.template_id,second.id);
  }finally{await restored?.close();await h.close();}
 });

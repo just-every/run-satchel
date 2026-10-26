@@ -1,3 +1,4 @@
+import {currentInvoiceTemplate} from './matter-invoice-templates';
 import {stageFeePrebill,scheduledFeeArrangements} from './prebill-fee-occurrences';
 import {atomic,audit,human,id,insist,date,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
 import {accessGuard} from './trust-guards';
@@ -9,7 +10,7 @@ export async function prebillRun(db:D1Database,actor:Actor,runId:string){
  const run=await stmt(db,'SELECT * FROM s_prebill_runs WHERE id=?',runId).first<Data>();insist(run,'Prebill run not found',404);
  const items=await rows(db,'SELECT bill_id FROM s_prebill_run_items WHERE run_id=? ORDER BY position',runId);
  insist(items.length,'Prebill run not found',404);
- const bills=await Promise.all(items.map(async item=>{const raw=await stmt(db,'SELECT matter_id FROM s_bills WHERE id=?',item.bill_id).first<Data>();const b=(await listBilling(db,actor,raw!.matter_id)).bills.find(b=>b.id===item.bill_id)!;return {...b,prebill:b.snapshot.prebill,reviews:await rows(db,'SELECT id,before_revision,after_revision,action,note,excluded_sources,actor,at FROM s_prebill_reviews WHERE bill_id=? ORDER BY at,id',b.id)};}));
+ const bills=await Promise.all(items.map(async item=>{const raw=await stmt(db,'SELECT matter_id FROM s_bills WHERE id=?',item.bill_id).first<Data>();const b=(await listBilling(db,actor,raw!.matter_id)).bills.find(b=>b.id===item.bill_id)!;return {...b,templateAssignment:await currentInvoiceTemplate(db,b.matterId),prebill:b.snapshot.prebill,reviews:await rows(db,'SELECT id,before_revision,after_revision,action,note,excluded_sources,actor,at FROM s_prebill_reviews WHERE bill_id=? ORDER BY at,id',b.id)};}));
  return {id:run.id,title:run.title,createdBy:run.created_by,createdAt:run.created_at,bills};
 }
 export async function prebillRuns(db:D1Database,actor:Actor){

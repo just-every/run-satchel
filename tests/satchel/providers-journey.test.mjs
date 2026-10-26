@@ -7,7 +7,7 @@ import {chromium} from '@playwright/test';
 import {harness} from './harness.mjs';
 import {capturePanel} from './browser-shots.mjs';
 for(const [width,height] of [[1440,1000],[390,844]])test(`OSS-001 provider charges: disclosure, terms review and no payment prompt at ${width}px`,async()=>{
- const edge=stripeEdge(),deliveryEdge=invoiceMailEdge(),h=await harness({...edge,...deliveryEdge,bindings:{...edge.bindings,...deliveryEdge.bindings}}),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});
+ const edge=stripeEdge(),deliveryEdge=invoiceMailEdge(),h=await harness({...edge,...deliveryEdge,bindings:{...edge.bindings,...deliveryEdge.bindings}}),browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,args:['--no-sandbox','--use-mock-keychain','--password-store=basic']});
  try{
   const page=await(await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true})).newPage(),errors=[];page.setDefaultTimeout(15000);page.on('pageerror',e=>errors.push(String(e)));
   await page.goto(h.origin+'/signin');await page.getByLabel('Email').fill('owner@example.test');await page.getByRole('button',{name:'Email a sign-in link'}).click();await page.getByText('a sign-in link is on its way').waitFor();
@@ -37,7 +37,7 @@ import {open} from './harness.mjs';
 import {scheme,draft,reviewed} from './invoice-numbering-fixture.mjs';
 for(const [width,height] of [[1440,1000],[390,844]])test(`Reviewed letter and invoice mail expose provider outcomes and a deliberate next human action at ${width}px`,async()=>{
  let lost=false,outcome='bounced',sequence=0;
- const h=await harness({mailResponse:message=>lost&&message.subject==='Lease review letter'?new Response('unavailable',{status:503}):Response.json({id:'synthetic-satchel-'+(++sequence)}),mailReadback:request=>Response.json({id:new URL(request.url).pathname.split('/').at(-1),to:['client@example.test'],last_event:outcome})}),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});
+ const h=await harness({mailResponse:message=>lost&&message.subject==='Lease review letter'?new Response('unavailable',{status:503}):Response.json({id:'synthetic-satchel-'+(++sequence)}),mailReadback:request=>Response.json({id:new URL(request.url).pathname.split('/').at(-1),to:['client@example.test'],last_event:outcome})}),browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,args:['--no-sandbox','--use-mock-keychain','--password-store=basic']});
  try{
   await h.json('/providers/mail/review',{termsUrl:'https://resend.com/legal/terms-of-service',confirmed:true},h.owner);
   const m=await open(h,'Harper lease correspondence','Harper Mail Client','Harper Mail Adverse'),base='/matters/'+m.id;
@@ -66,7 +66,7 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`Reviewed letter and in
 });
 
 for(const [width,height] of [[1440,1000],[390,844]])test(`Scheduled client reminders show approved template versions and durable outcomes at ${width}px`,async()=>{
- const h=await harness(),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});
+ const h=await harness(),browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,args:['--no-sandbox','--use-mock-keychain','--password-store=basic']});
  try{
   await h.json('/providers/mail/review',{termsUrl:'https://resend.com/legal/terms-of-service',confirmed:true},h.owner);
   const m=await open(h,'Client reminder journey','Reminder Client','Reminder Adverse'),base='/matters/'+m.id;

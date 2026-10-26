@@ -85,3 +85,6 @@ export async function invoiceIssuePayment(db:D1Database,billId:string){
   guard(db,`${earnedSql}=? AND ${taxSql}=? AND ${paidSql}=? AND ${reservedSql}=? AND ${trustSql}=?`,billId,funds.earned_cents,billId,funds.tax_cents,billId,funds.paid_cents,billId,'',funds.reserved_cents,billId,trustPaid),
  ]};
 }
+
+// Invoice presentation binds the observed cleared payments without requiring a new trust action.
+export function invoicePaidGuard(db:D1Database,billId:string,paidCents:number){return guard(db,`${paidSql}=?`,billId,paidCents);}

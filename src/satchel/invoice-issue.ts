@@ -1,7 +1,7 @@
 import {requireArea} from './role-areas';
 import {currentInvoiceTemplate} from './matter-invoice-templates';
 import {invoiceIssuePayment} from './trust-transfers';
-import {buildInvoiceBranding} from './invoice-templates';
+import {buildInvoiceBranding,priorInvoiceBalance} from './invoice-templates';
 import {atomic,audit,digest,human,id,insist,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
 import {accessGuard,guard} from './trust-guards';
 import {formatInvoice,invoiceCounter} from './invoice-schemes';
@@ -42,15 +42,16 @@ export async function issueInvoices(db:D1Database,actor:Actor,b:Data,origin?:str
   insist(registered||!await stmt(db,'SELECT 1 FROM s_invoice_numbers WHERE number=?',number).first(),'Invoice number collision; no number was consumed',409);
   const payment=await invoiceIssuePayment(db,billId);
   if(payment.snapshot.trust_paid_cents>0)requireArea(actor,'bank','full');
-  const assignment=await currentInvoiceTemplate(db,bill.matter_id);
+  const defaultCount=(await stmt(db,'SELECT COUNT(*) n FROM s_invoice_template_defaults').first<Data>())!.n,assignment=await currentInvoiceTemplate(db,bill.matter_id);
   if(assignment&&request.templateId)insist(request.templateId===assignment.template_id,'Use the matter’s assigned template revision',409);
   if(snapshot.prebill)insist(assignment,'Assign an approved invoice template to the matter before issuing a prebill',422);
   const templateId=assignment?.template_id??request.templateId,payer=snapshot.prebill?.payer??snapshot.client;
   const numbered={...snapshot,paymentSnapshot:payment.snapshot,invoiceNumber:number,...(snapshot.ledes?{ledes:{...snapshot.ledes,invoiceNumber:number}}:{})};
-  const branding=templateId?(insist(origin,'The invoice origin is required'),await buildInvoiceBranding(db,{...bill,snapshot:numbered,issued_at:at},origin,text(templateId,'Invoice template revision',100),payer,actor)):undefined;
+  const priorBalance=await priorInvoiceBalance(db,{...bill,issued_at:at},templateId);
+  const branding=templateId?(insist(origin,'The invoice origin is required'),await buildInvoiceBranding(db,{...bill,snapshot:numbered,issued_at:at},origin,text(templateId,'Invoice template revision',100),payer,actor,priorBalance.cents)):undefined;
   const pdf=await invoicePdf({...bill,snapshot:numbered},number,at,branding),pdfDigest=await digest(pdf),snapshotDigest=await digest(JSON.stringify(snapshot));
   let binary='';for(const byte of pdf)binary+=String.fromCharCode(byte);
-  writes.push(...payment.guards,guard(db,"COALESCE((SELECT id FROM s_matter_invoice_templates WHERE matter_id=? ORDER BY sequence DESC LIMIT 1),'')=?",bill.matter_id,assignment?.id??''),accessGuard(db,actor,bill.matter_id),guard(db,"EXISTS(SELECT 1 FROM s_bills WHERE id=? AND revision=? AND status='approved' AND artifact_digest=?)",billId,bill.revision,bill.artifact_digest));
+  writes.push(...priorBalance.guards,...payment.guards,guard(db,"COALESCE((SELECT id FROM s_matter_invoice_templates WHERE matter_id=? ORDER BY sequence DESC LIMIT 1),'')=?",bill.matter_id,assignment?.scope==='matter'?assignment.id:''),guard(db,'(SELECT COUNT(*) FROM s_invoice_template_defaults)=?',defaultCount),...(templateId?[guard(db,'NOT EXISTS(SELECT 1 FROM s_invoice_template_retirements WHERE template_id=?)',templateId)]:[]),accessGuard(db,actor,bill.matter_id),guard(db,"EXISTS(SELECT 1 FROM s_bills WHERE id=? AND revision=? AND status='approved' AND artifact_digest=?)",billId,bill.revision,bill.artifact_digest));
   if(!registered)writes.push(stmt(db,'INSERT INTO s_invoice_numbers VALUES(?,?,?,?,?,?,?)',number,billId,bill.corrects_bill_id?'correction':'issued',ordinal,scheme.id,'Satchel atomic issue',at));
   if(snapshot.ledes){
    const existing=await stmt(db,'SELECT artifact FROM s_bill_ledes WHERE bill_id=?',billId).first<Data>();
@@ -58,8 +59,8 @@ export async function issueInvoices(db:D1Database,actor:Actor,b:Data,origin?:str
    if(!existing?.artifact)writes.push(...await freezeLedes(db,{id:billId,snapshot:numbered}));
   }
   writes.push(stmt(db,'INSERT INTO s_invoice_issues VALUES(?,?,?,?,?,?,?,?,?,?)',billId,number,bill.revision,bill.artifact_digest,snapshotDigest,btoa(binary),pdfDigest,actor.email,at,scheme.id),audit(db,actor,'invoice.issued',billId,JSON.stringify({number,schemeId:scheme.id,approvedDigest:bill.artifact_digest,snapshotDigest,pdfDigest}),{matterId:bill.matter_id}));
-  writes.push(stmt(db,'INSERT INTO s_invoice_issue_details VALUES(?,?,?,?,?,?,?)',billId,branding?.templateId??null,branding?.templateVersion??null,assignment?.id??null,payer,JSON.stringify(payment.snapshot),JSON.stringify(snapshot.lines)));
-  result.push({template_id:branding?.templateId??null,template_version:branding?.templateVersion??null,assignment_id:assignment?.id??null,payer,payment_snapshot:payment.snapshot,line_snapshot:snapshot.lines,bill_id:billId,number,approved_revision:bill.revision,approved_digest:bill.artifact_digest,snapshot_digest:snapshotDigest,pdf_digest:pdfDigest,issued_by:actor.email,issued_at:at,scheme_id:scheme.id});
+  writes.push(stmt(db,'INSERT INTO s_invoice_issue_details VALUES(?,?,?,?,?,?,?)',billId,branding?.templateId??null,branding?.templateVersion??null,assignment?.scope==='matter'?assignment.id:null,payer,JSON.stringify(payment.snapshot),JSON.stringify(snapshot.lines)));
+  result.push({template_id:branding?.templateId??null,template_version:branding?.templateVersion??null,assignment_id:assignment?.scope==='matter'?assignment.id:null,payer,payment_snapshot:payment.snapshot,line_snapshot:snapshot.lines,bill_id:billId,number,approved_revision:bill.revision,approved_digest:bill.artifact_digest,snapshot_digest:snapshotDigest,pdf_digest:pdfDigest,issued_by:actor.email,issued_at:at,scheme_id:scheme.id});
  }
  if(writes.length)await atomic(db,actor,[guard(db,'EXISTS(SELECT 1 FROM s_invoice_counter WHERE revision=? AND next_number=?)',counter.revision,counter.next_number),...writes,stmt(db,'UPDATE s_invoice_counter SET next_number=?,revision=? WHERE id=1',next,id())]);
  return {issues:result};

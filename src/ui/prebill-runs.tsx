@@ -10,6 +10,7 @@ function PrebillItem({bill,actor,run,tick,choose}:{bill:Row;actor:Row;run:Run;ti
  const [rules,setRules]=useState<Row[]>([]);
  useEffect(()=>{let active=true;if(bill.status==='draft'&&['owner','lawyer'].includes(actor.role))void api('/matters/'+bill.matterId+'/tax-rules').then(s=>{if(active)setRules(s.rules);}).catch(e=>{if(active)void run(async()=>{throw e;});});return()=>{active=false;};},[bill.matterId,bill.status,tick]);
  return <article className="record" aria-label={'Prebill '+bill.snapshot.title}><h3>{bill.snapshot.title}</h3><p>{bill.snapshot.matterNumber} · {bill.prebill.payer}<br/>{bill.prebill.periodStart} to {bill.prebill.periodEnd} · {bill.prebill.arrangement}<br/>{bill.issue?'Issued':bill.prebill.reviewState==='returned'?'Returned for revision':bill.status==='approved'?'Approved for issue':'Awaiting counsel review'} · {dollars(bill.snapshot.totalCents)}</p>
+  {!bill.issue&&<p>{bill.templateAssignment?'Selected template version '+bill.templateAssignment.template_version+' · '+bill.templateAssignment.scope+' assignment':'No invoice template selected'}</p>}
   {bill.reviews.map((r:Row)=><p key={r.id}>{r.action} · {r.actor}<br/>{r.note}</p>)}
   {bill.issue&&<p>Invoice <strong>{bill.issue.number}</strong> · template version {bill.issue.template_version}<br/><a href={'/api/satchel/bills/'+bill.id+'/invoice.pdf'}>Download exact issued PDF</a></p>}
   {bill.issue?.payment_snapshot&&<p>At issue · paid from trust {dollars(bill.issue.payment_snapshot.trust_paid_cents)} · balance due {dollars(bill.issue.payment_snapshot.due_cents)}</p>}
@@ -24,7 +25,7 @@ export function PrebillRuns({matters,matterId,actor,run,tick,choose}:{matters:Ro
  useEffect(()=>{let active=true;if(permitted)void Promise.all([api('/prebill-runs'),api('/invoice-templates')]).then(([s,t])=>{if(active){setState(s);setTemplates(t.templates);}}).catch(e=>{if(active)void run(async()=>{throw e;});});return()=>{active=false;};},[permitted,tick]);
  if(!permitted||!state)return null;
  return <section className="panel" aria-label="Prebill runs"><h2>Prebill runs</h2><p>Prepare selected matters together, retain each source for counsel review, then issue the exact approved invoices.</p>
-  {matterId&&<MatterInvoiceTemplate key={matterId} matterId={matterId} templates={templates} canAssign={['owner','lawyer'].includes(actor.role)} run={run} tick={tick}/>}
+  {matterId&&<MatterInvoiceTemplate key={matterId} matterId={matterId} templates={templates} canAssign={['owner','lawyer','billing'].includes(actor.role)} run={run} tick={tick}/>}
   <PrebillPreparation matters={matters} run={run} tick={tick}/>
   {state.runs.map((batch:Row)=>{const ready=batch.bills.filter((b:Row)=>b.status==='approved'&&!b.issue);return <details key={batch.id}><summary>{batch.title} · {batch.bills.length} matters</summary>
    {ready.length>0&&<button type="button" onClick={()=>run(()=>api('/invoices/issue',{bills:ready.map((b:Row)=>({id:b.id,revision:b.revision}))}),'Approved invoices issued once with retained templates')}>Issue {ready.length} approved invoices</button>}

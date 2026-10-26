@@ -1,7 +1,7 @@
 import {atomic,audit,digest,human,id,insist,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
 import {accessGuard,guard} from './trust-guards';
 import {invoicePdf} from './invoice-pdf';
-import {buildInvoiceBranding} from './invoice-templates';
+import {buildInvoiceBranding,priorInvoiceBalance} from './invoice-templates';
 import {auditDeliveryRead,deliveryAccess,deliveryFences,invoiceRecipient,invoiceStaff,invoiceReaders} from './invoice-delivery-access';
 import {portalAccess} from './portal';
 
@@ -16,10 +16,11 @@ export async function prepareInvoiceDelivery(db:D1Database,actor:Actor,billId:st
  const recipient=text(b.recipient,'Payer portal email',254).toLowerCase(),payerName=text(b.payerName,'Payer name',300),templateId=text(b.templateId,'Approved invoice template',100);
  const d:Data={id:id(),bill_id:bill.id,matter_id:bill.matter_id,recipient,issue_digest:bill.issue_digest};const revision=await invoiceRecipient(db,actor,d);
  const snapshot=JSON.parse(bill.tax_snapshot??bill.snapshot);insist(await digest(JSON.stringify(snapshot))===bill.issue_snapshot_digest&&await digest(bill.artifact)===bill.issue_approved_digest,'Reviewed invoice no longer matches the immutable issue',409);
- const branding=(await buildInvoiceBranding(db,{...bill,snapshot},origin,templateId,payerName,actor))!;
+ const prior=await priorInvoiceBalance(db,bill,templateId);
+ const branding=(await buildInvoiceBranding(db,{...bill,snapshot},origin,templateId,payerName,actor,prior.cents))!;
  const pdf=await invoicePdf({...bill,snapshot},bill.number,bill.issued_at,branding),hash=await digest(pdf),at=now();
  // Delivery freezes the exact issue's reviewed data under an approved template. The issued original is untouched.
- await atomic(db,actor,[...deliveryFences(db,actor,d,revision),stmt(db,'INSERT INTO s_invoice_deliveries VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',d.id,bill.id,templateId,recipient,payerName,branding.dueDate,JSON.stringify({number:bill.number,invoice:snapshot,branding}),bill.issue_digest,encodePdf(pdf),hash,actor.email,at),audit(db,actor,'invoice.portal_delivered',d.id,JSON.stringify({billId:bill.id,templateId,pdfDigest:hash,recipient,reviewedIssueDigest:bill.issue_digest}),{matterId:bill.matter_id})]);
+ await atomic(db,actor,[...prior.guards,guard(db,'NOT EXISTS(SELECT 1 FROM s_invoice_template_retirements WHERE template_id=?)',templateId),...deliveryFences(db,actor,d,revision),stmt(db,'INSERT INTO s_invoice_deliveries VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',d.id,bill.id,templateId,recipient,payerName,branding.dueDate,JSON.stringify({number:bill.number,invoice:snapshot,branding}),bill.issue_digest,encodePdf(pdf),hash,actor.email,at),audit(db,actor,'invoice.portal_delivered',d.id,JSON.stringify({billId:bill.id,templateId,pdfDigest:hash,recipient,reviewedIssueDigest:bill.issue_digest}),{matterId:bill.matter_id})]);
  return {id:d.id,billId:bill.id,pdfDigest:hash,paymentUrl:branding.paymentUrl,dueDate:branding.dueDate};
 }
 async function deliveryJson(db:D1Database,d:Data){

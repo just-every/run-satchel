@@ -3,28 +3,41 @@ import {api,dollars,Field,Form,type Row,type Run} from './common';
 
 const permitted=(actor:Row)=>actor.channel!=='agent'&&['owner','lawyer','billing'].includes(actor.role);
 export function InvoiceTemplateSettings({actor,run,tick}:{actor:Row;run:Run;tick:number}){
- const [state,setState]=useState<Row>(),[logo,setLogo]=useState<Row>();
+ const [state,setState]=useState<Row>(),[logo,setLogo]=useState<Row>(),[baseId,setBaseId]=useState('');
  useEffect(()=>{let live=true;if(permitted(actor))void api('/invoice-templates').then(s=>{if(live)setState(s);}).catch(e=>run(async()=>{throw e;}));return()=>{live=false;};},[tick,actor.role]);
- if(!state||!['owner','lawyer'].includes(actor.role))return null;
- const latest=state.templates.at(-1),config=latest?.config;
+ if(!state||!permitted(actor))return null;
+ const latest=state.templates.at(-1),selected=state.templates.find((t:Row)=>t.id===baseId)??latest,config=selected?.config,active=state.templates.filter((t:Row)=>!t.retired_at);
  return <section className="panel" aria-label="Invoice templates"><h2>Invoice templates</h2>
   <p>{latest?`Approved version ${latest.version}`:'Approve a firm template before delivering branded invoices.'}</p>
   <details><summary>{latest?'Approve a new template version':'Set up invoice branding'}</summary>
-   <Form key={latest?.id??'first'} label="Approve template version" submit={d=>run(()=>api('/invoice-templates',{previousId:latest?.id??null,firmName:d.firmName,address:d.address,logoBase64:logo?.base64??config?.logoBase64,logoMime:logo?.mime??config?.logoMime,remittance:d.remittance,terms:d.terms,dueDays:Number(d.dueDays),includeTrustBalance:d.includeTrustBalance==='on',reason:d.reason,confirmed:d.confirmed==='on'}),'Invoice template version approved')}>
+   {state.templates.length>0&&<label>Template revision to edit<select aria-label="Template revision to edit" value={selected?.id??''} onChange={e=>{setBaseId(e.target.value);setLogo(undefined);}}>{state.templates.map((t:Row)=><option key={t.id} value={t.id}>{t.config.name??t.config.firmName} · version {t.version}</option>)}</select></label>}
+   <Form key={(selected?.id??'first')+':'+(latest?.id??'first')} label="Approve template version" submit={d=>run(async()=>{const result=await api('/invoice-templates',{previousId:latest?.id??null,name:d.name,firmName:d.firmName,address:d.address,logoBase64:logo?.base64??config?.logoBase64,logoMime:logo?.mime??config?.logoMime,remittance:d.remittance,terms:d.terms,dueDays:Number(d.dueDays),includeTrustBalance:d.includeTrustBalance==='on',includePriorBalance:d.includePriorBalance==='on',layout:d.layout,...Object.fromEntries(['showTimeEntryDetail','showHours','showRates','showTimekeepers','showUtbms','showNoChargeLines','showDiscounts'].map(key=>[key,d[key]==='on'])),reason:d.reason,confirmed:d.confirmed==='on'});setBaseId(result.id);setLogo(undefined);return result;},'Invoice template version approved')}>
+    <Field label="Invoice template name" name="name" value={config?.name??'Firm invoice'}/>
     <Field label="Invoice firm name" name="firmName" value={config?.firmName}/>
-    <Field label="Invoice firm address" name="address"><textarea name="address" required defaultValue={config?.address}/></Field>
+    <Field label="Invoice firm address" name="address"><textarea aria-label="Invoice firm address" name="address" required defaultValue={config?.address}/></Field>
     <label>Firm invoice logo<input type="file" accept="image/png,image/jpeg" onChange={async e=>{const file=e.currentTarget.files?.[0];if(!file)return;await run(async()=>{if(file.size>256000)throw Error('Use a PNG or JPEG of at most 256 kB');const bytes=new Uint8Array(await file.arrayBuffer());let binary='';for(const b of bytes)binary+=String.fromCharCode(b);setLogo({base64:btoa(binary),mime:file.type});});}}/></label>
     {(logo||config)&&<img alt="Invoice firm logo preview" src={'data:'+(logo?.mime??config.logoMime)+';base64,'+(logo?.base64??config.logoBase64)} style={{maxWidth:160,maxHeight:80,objectFit:'contain'}}/>}
-    <Field label="Remittance details" name="remittance"><textarea name="remittance" required defaultValue={config?.remittance}/></Field>
+    <Field label="Remittance details" name="remittance"><textarea aria-label="Remittance details" name="remittance" required defaultValue={config?.remittance}/></Field>
     <Field label="Invoice payment terms" name="terms" value={config?.terms}/><Field label="Days until invoice due" name="dueDays" type="number" value={config?.dueDays??30}/>
     <label><input name="includeTrustBalance" type="checkbox" defaultChecked={config?.includeTrustBalance??true}/>Include the matter trust balance with its recorded date</label>
+    <label><input name="includePriorBalance" type="checkbox" defaultChecked={config?.includePriorBalance??false}/>Show prior issued matter balance separately</label>
+    <Field label="Invoice layout" name="layout"><select aria-label="Invoice layout" name="layout" defaultValue={config?.layout??'detailed'}><option value="detailed">Detailed</option><option value="summary">Summary</option></select></Field>
+    {([['showTimeEntryDetail','Show time-entry dates and descriptions'],['showHours','Show hours'],['showRates','Show hourly rates'],['showTimekeepers','Show timekeepers'],['showUtbms','Show UTBMS codes'],['showNoChargeLines','Show no-charge lines'],['showDiscounts','Show discounts']] as const).map(([name,label])=><label key={name}><input name={name} type="checkbox" defaultChecked={config?.[name]??['showTimeEntryDetail','showNoChargeLines'].includes(name)}/>{label}</label>)}
     <Field label="Template approval reason" name="reason"/>
     <label><input name="confirmed" type="checkbox" required/>I approve this exact template for future invoice artifacts</label>
    </Form>
   </details>
-  <details><summary>Approve sign-in notification</summary><p><strong>{state.notification.subject}</strong></p><p>{state.notification.body}</p><p>The notification adds only the portal sign-in address. Invoice details and attachments stay in the portal.</p>
+  {active.length>0&&<details><summary>Firm default and template retirement</summary>
+   <Form key={state.firmDefault?.id??'default'} label="Set firm invoice template default" submit={d=>run(()=>api('/invoice-template-defaults',{scope:'firm',previousId:state.firmDefault?.id??null,templateId:d.templateId,reason:d.reason}),'Firm invoice template default saved')}>
+    <Field label="Firm default invoice template" name="templateId"><select aria-label="Firm default invoice template" name="templateId" defaultValue={state.firmDefault?.template_id??active.at(-1)?.id}>{active.map((t:Row)=><option key={t.id} value={t.id}>{t.config.firmName} · version {t.version}</option>)}</select></Field><Field label="Firm template default reason" name="reason"/>
+   </Form>
+   <Form label="Retire invoice template revision" submit={d=>run(()=>api('/invoice-templates/'+d.templateId+'/retire',{reason:d.reason}),'Template revision retired; issued PDFs retained')}>
+    <Field label="Template revision to retire" name="templateId"><select aria-label="Template revision to retire" name="templateId">{active.map((t:Row)=><option key={t.id} value={t.id}>{t.config.firmName} · version {t.version}</option>)}</select></Field><Field label="Template retirement reason" name="reason"/>
+   </Form>
+  </details>}
+  {['owner','lawyer'].includes(actor.role)&&<details><summary>Approve sign-in notification</summary><p><strong>{state.notification.subject}</strong></p><p>{state.notification.body}</p><p>The notification adds only the portal sign-in address. Invoice details and attachments stay in the portal.</p>
    <Form label="Approve notification wording" submit={d=>run(()=>api('/invoice-notification-templates',{reason:d.reason,confirmed:d.confirmed==='on'}),'Sign-in notification approved')}><Field label="Notification approval reason" name="reason"/><label><input name="confirmed" type="checkbox" required/>Counsel approves this exact plain-text sign-in notification</label></Form>
-  </details>
+  </details>}
  </section>;
 }
 
@@ -36,7 +49,7 @@ export function InvoiceDelivery({bill,matterId,actor,run,tick}:{bill:Row;matterI
  return <details><summary>Invoice delivery</summary>
   {active&&<Form label="Deliver invoice to portal" submit={d=>run(()=>api('/bills/'+bill.id+'/deliveries',d),'Branded invoice delivered inside the authenticated portal')}>
    <Field label="Payer portal email" name="recipient" type="email"/><Field label="Invoice payer name" name="payerName"/>
-   <Field label="Approved invoice template" name="templateId"><select aria-label="Approved invoice template" name="templateId" required defaultValue={templates.templates.at(-1)?.id??''}><option value="">Choose a template</option>{templates.templates.map((t:Row)=><option key={t.id} value={t.id}>{t.config.firmName} · version {t.version}</option>)}</select></Field>
+   <Field label="Approved invoice template" name="templateId"><select aria-label="Approved invoice template" name="templateId" required defaultValue={templates.templates.at(-1)?.id??''}><option value="">Choose a template</option>{templates.templates.filter((t:Row)=>!t.retired_at).map((t:Row)=><option key={t.id} value={t.id}>{t.config.firmName} · version {t.version}</option>)}</select></Field>
   </Form>}
   {deliveries.map((d:Row)=>{const latest=d.attempts.at(-1);return <section key={d.id} aria-label={'Invoice delivery to '+d.recipient}>
    <p><strong>{d.payer_name}</strong> · {d.recipient}<br/>Due {d.due_date} · template version {d.snapshot.branding.templateVersion}<br/><a href={d.pdfUrl}>Download delivered PDF</a></p>
