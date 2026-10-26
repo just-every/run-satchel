@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {harness} from './harness.mjs';
 import {proveUpdateAuthorityChanges} from './matter-update-authority-flow.mjs';
-import {updateFixture,updateEdit,updateTick,updateWording} from './matter-update-fixture.mjs';
+import {approvedUpdate,updateFixture,updateEdit,updateTick,updateWording} from './matter-update-fixture.mjs';
 
 const declarations={clientPromisesReviewed:true,clientPromises:[],originalReturn:{status:'not_held',note:'Only native copies are held'}};
 const closeBody=(p,exceptions=p.checks.map(c=>({key:c.key,reason:'Counsel individually carries this exact obligation'})))=>({previewId:p.id,digest:p.digest,revision:p.revision,reason:'Counsel reviewed continuing duties',exceptions,outcome:'other',outcomeNote:'Representation paused with reviewed continuing duties'});
@@ -19,13 +19,20 @@ export async function proveMatterUpdates(){
   await f.consent('allowed');await h.json(door+'/approve',{revision:saved.revision,confirmed:true,reviewNote:'Reviewed exact public wording, recipient, promise and delivery time'},h.owner);
   await h.json(door+'/edit',updateEdit({...f.draft,revision:saved.revision}),h.owner,409);
   let u=(await f.state()).updates.find(u=>u.id===f.draft.id);assert.equal(u.jobs.length,1);assert.equal(u.jobs[0].portal_published_at,null);
+  // One millisecond before the approved instant nothing is published or mailed and the job stays queued.
+  await h.scheduled(Date.parse(u.due_at)-1);assert.equal(h.mails.length,before);assert.deepEqual((await h.json(portal,undefined,f.client)).updates,[]);assert.equal((await f.state()).updates.find(x=>x.id===f.draft.id).jobs[0].status,'queued');
+  // A second approved schedule is paused at closure but left unselected on reopening; existing access must not change.
+  const unselected=await approvedUpdate(h,f.base,'Unselected hearing update');
+  const access=async()=>({members:(await h.json(f.base+'/lifecycle',undefined,h.owner)).access,portal:(await h.json(f.base+'/portal',undefined,h.owner)).grants}),accessBefore=await access();
   let p=await h.json(f.base+'/closure-preview',declarations,h.owner),promise=p.checks.find(c=>c.kind==='client-update-promise');assert.equal(promise.title,u.promises[0].text);
   await h.json(f.base+'/close',closeBody(p,p.checks.filter(c=>c.key!==promise.key).map(c=>({key:c.key,reason:'Other exact continuing duty'}))),h.owner,409);
   await h.json(f.base+'/close',closeBody(p),h.owner);await h.scheduled(updateTick);assert.equal(h.mails.length,before);
-  let lifecycle=await h.json(f.base+'/lifecycle',undefined,h.owner),job=lifecycle.workflows.find(w=>w.id.startsWith('client-update-job:'));assert.ok(job);
+  let lifecycle=await h.json(f.base+'/lifecycle',undefined,h.owner),paused=lifecycle.workflows.filter(w=>w.id.startsWith('client-update-job:')),job=paused.find(w=>w.title==='Scheduled client update: Reviewed trial update');assert.equal(paused.length,2);assert.ok(job);
   await h.json(f.base+'/reopen',{revision:lifecycle.revision,reason:'Counsel explicitly retains this approved schedule',workflows:[job.id],access:[]},h.owner);assert.equal(h.mails.length,before);
+  assert.deepEqual(await access(),accessBefore,'Reopening changes no existing matter or portal access');
   await h.scheduled(updateTick);u=(await f.state()).updates.find(u=>u.id===f.draft.id);assert.equal(u.jobs[0].mail_outcome,'uncertain');assert.ok(u.jobs[0].portal_published_at);assert.equal(h.mails.length,before+1);assert.equal(h.mails.at(-1).text,updateWording);assert.ok(!JSON.stringify(h.mails.at(-1)).includes('synthetic-satchel-11'));
-  const visible=(await h.json(portal,undefined,f.client)).updates[0];assert.equal(visible.body,updateWording);assert.equal(visible.previousDate,'2027-01-10');assert.equal(visible.newDate,'2027-02-12');assert.equal(visible.sourceCitation,'Revised order paragraph 7');assert.deepEqual((await h.json(portal,undefined,f.other)).updates,[]);
+  const skipped=(await f.state()).updates.find(x=>x.id===unselected.u.id).jobs[0];assert.equal(skipped.status,'stopped');assert.equal(skipped.portal_published_at,null);assert.equal(skipped.attempt_id,null);
+  const published=(await h.json(portal,undefined,f.client)).updates;assert.deepEqual(published.map(x=>x.id),[f.draft.id]);const visible=published[0];assert.equal(visible.body,updateWording);assert.equal(visible.previousDate,'2027-01-10');assert.equal(visible.newDate,'2027-02-12');assert.equal(visible.sourceCitation,'Revised order paragraph 7');assert.deepEqual((await h.json(portal,undefined,f.other)).updates,[]);
   await h.json('/portal/matter-updates/'+u.id+'/replies',{body:'Another recipient may not reply'},f.other,404);
   await h.restart();await h.scheduled(updateTick);assert.equal(h.mails.length,before+1,'Unknown acknowledgments never retry automatically');
   const retry=await h.json('/mail-attempts/'+u.jobs[0].attempt_id+'/resend-review',{reason:'Provider checked; responsible counsel authorizes one further attempt'},h.owner);lost=false;await h.json('/mail-attempts/'+retry.attemptId+'/send',{},h.owner);assert.equal(h.mails.length,before+2);await h.json('/mail-attempts/'+retry.attemptId+'/send',{},h.owner);assert.equal(h.mails.length,before+2);await h.json('/mail-attempts/'+retry.attemptId+'/reconcile',{},h.owner);
@@ -47,6 +54,15 @@ export async function proveMatterUpdates(){
   assert.ok(!JSON.stringify(await h.json(f.base+'/matter-updates',undefined,f.lawyer)).includes(evidence.id));
   const audit=(await h.json('/audit?matterId='+f.m.id+'&action=matter_update.approved',undefined,h.owner)).records[0];assert.equal(audit.detail.body,updateWording);assert.deepEqual(audit.detail.recipients,['client@example.test']);
   await proveUpdateAuthorityChanges(h,f);
+  // An approved update still queued at export is restored without outbound authority.
+  const queued=await approvedUpdate(h,f.base,'Pending at export',{dueAt:'2026-12-01T12:00:00.000Z'});assert.equal((await f.state()).updates.find(x=>x.id===queued.u.id).jobs[0].status,'queued');
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();restored=await harness();await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);assert.equal((await restored.json(f.base+'/matter-updates',undefined,restored.owner)).updates.find(x=>x.id===f.draft.id).promises[0].status,'fulfilled');const mails=restored.mails.length;await restored.scheduled(updateTick);assert.equal(restored.mails.length,mails);
+  const restoredJob=async()=>(await restored.json(f.base+'/matter-updates',undefined,restored.owner)).updates.find(x=>x.id===queued.u.id).jobs[0];assert.equal((await restoredJob()).status,'queued');
+  for(const at of ['2026-12-01T12:00:00.000Z','2026-12-02T12:00:00.000Z'])await restored.scheduled(at);
+  let carried=await restoredJob();assert.equal(restored.mails.length,mails);assert.equal(carried.status,'stopped');assert.equal(carried.portal_published_at,null);assert.equal(carried.attempt_id,null);assert.ok(carried.detail);
+  // Only a fresh approval by the restored firm's responsible counsel contacts the client again.
+  await approvedUpdate(restored,f.base,'Fresh authorization after restore');await restored.scheduled(updateTick);
+  assert.equal(restored.mails.length,mails+1);assert.deepEqual(restored.mails.at(-1).to,['client@example.test']);assert.equal(restored.mails.at(-1).subject,'Fresh authorization after restore');
+  carried=await restoredJob();assert.equal(carried.status,'stopped');assert.equal(carried.portal_published_at,null);
  }finally{await restored?.close();await h.close();}
 }

@@ -128,11 +128,22 @@ test('controlled production pins originals, removes whole-page content, freezes 
   await h.json(shareDoor,undefined,'',401);await h.json(shareDoor,undefined,stranger,404);
   await h.json(shareDoor+'/file',{},stranger,404);
   await h.json(shareDoor+'/recall',{reason:'Recipient has no onward authority'},recipient,403);
+  // The recipient cannot authorize an onward release or invite anyone, through the packet or the native invitation door.
+  await h.json(door+'/release',{...release,recipientEmail:'stranger@example.test'},recipient,403);await h.json(door+'/release',release,recipient,403);
+  await h.json(door+'/invite-recipient',{},recipient,403);
+  assert.equal((await h.request('/auth/invite',{email:'onward@example.test',displayName:'Onward reader',role:'member',returnTo:'/signin'},recipient)).status,403);
+  assert.ok(!h.mails.some(mail=>mail.to.includes('onward@example.test')));assert.equal((await h.json(door+'/shares',undefined,h.owner)).length,2);
   assert.equal((await h.request('/api/satchel'+shareDoor+'/file',undefined,recipient)).status,404);
   await h.json('/documents/'+source.id+'/file?version=1',undefined,recipient,403);
   const delivered=await h.request('/api/satchel'+shareDoor+'/file',{},recipient),deliveryBytes=Buffer.from(await delivered.arrayBuffer());
   assert.equal(delivered.status,200);assert.deepEqual(deliveryBytes,bytes);assert.equal(delivered.headers.get('x-production-sha256'),packet.sha256);
   const receiptId=delivered.headers.get('x-production-receipt');assert.ok(receiptId);
+  // The delivered privilege log names each source version, its privilege label, withholding decision, reason, redactions and holds.
+  const deliveredLog=JSON.parse(strFromU8(unzipSync(deliveryBytes)['privilege-log.json']));
+  assert.deepEqual(deliveredLog.map(item=>({documentId:item.documentId,version:item.version,sourceSha256:item.sourceSha256,privilege:item.privilege,withheld:item.withheld,reason:item.reason,redactedPages:item.redactedPages,holds:item.holds.map(label=>label.id)})),[
+   {documentId:source.id,version:1,sourceSha256:source.versions[0].sha256,privilege:'Work product',withheld:false,reason:'Counsel work product',redactedPages:[1,2],holds:[originalHold.id]},
+   {documentId:withheld.id,version:1,sourceSha256:withheld.versions[0].sha256,privilege:'Attorney client',withheld:true,reason:'Attorney client privilege',redactedPages:[],holds:[]}]);
+  assert.equal(deliveredLog[1].file,undefined);
   await h.json(shareDoor+'/recall',{reason:'Already opened remains disclosed'},h.owner,409);
   const released=(await h.json(door+'/shares',undefined,h.owner)).find(s=>s.id===sharedPacket.id);
   assert.equal(released.status,'opened');assert.equal(released.receipts[0].id,receiptId);assert.equal(released.receipts[0].sha256,packet.sha256);assert.equal(released.receipts[0].size,bytes.length);
@@ -183,14 +194,20 @@ test('native medical chronology requires health setup, pins source pages, reconc
   const shared=await h.json(base+'/documents',{name:'Shared.pdf',mime:'application/pdf',visibility:'matter',contentBase64:bytes.toString('base64')},h.owner);
   await h.json(door,{...packet,entries:[entry({documentId:shared.id})]},h.owner,409);
   const extraction={reportedTotalCents:2000,gapDays:30,sources:[{documentId:source.id,version:1},{documentId:bill.id,version:1}]};
+  const quiet=h.outbound.length; // No processor or recipient receives a request while records are extracted.
   await h.json(door,{...extraction,sources:[{documentId:shared.id,version:1}]},h.owner,409);
   const blank=await PDFDocument.create();blank.addPage();const unreadable=await upload('Unreadable.pdf',Buffer.from(await blank.save()));
   await h.json(door,{...extraction,sources:[{documentId:source.id,version:1},{documentId:unreadable.id,version:1}]},h.owner,422);
   assert.equal((await h.json(door,undefined,h.owner)).chronologies.length,0);
-  const draft=await h.json(door,extraction,h.owner);
+  const draft=await h.json(door,extraction,h.owner);assert.deepEqual(h.outbound.slice(quiet),[]);
   assert.equal(draft.status,'draft');assert.equal(draft.snapshot.grossTotalCents,4000);assert.equal(draft.snapshot.unreviewedDifferenceCents,2000);assert.deepEqual(draft.snapshot.duplicates,[{index:3,possibleDuplicateOf:2}]);assert.equal(draft.snapshot.intervals[0].days,59);
-  assert.deepEqual(draft.snapshot.entries.map(record=>[record.provider,record.date,record.chargeCents,record.page]),[['Clinic','2026-01-01',null,1],['Clinic','2026-03-01',null,2],['Clinic','2026-01-01',2000,3],['Clinic','2026-01-01',2000,1]]);
-  assert.match(draft.snapshot.entries[0].treatment,/shoulder mobility/);assert.match(draft.snapshot.entries[1].treatment,/Follow-up therapy/);
+  // 03/01/2026 is read month first (March 1, not January 3). Each record keeps its exact source wording and carries no inferred conclusion.
+  const wording={first:'Date of service: January 1, 2026\nReviewed treatment for shoulder mobility.',second:'Date of service: March 1, 2026\nFollow-up therapy and mobility assessment.',statement:'03/01/2026 Follow-up therapy $20.00'};
+  assert.deepEqual(draft.snapshot.entries.map(({index,documentId,version,sourceName,sourceSha256,...record})=>record),[
+   {page:1,kind:'treatment',provider:'Clinic',date:'2026-01-01',treatment:wording.first,chargeCents:null,sourceText:wording.first},
+   {page:2,kind:'treatment',provider:'Clinic',date:'2026-03-01',treatment:wording.second,chargeCents:null,sourceText:wording.second},
+   {page:3,kind:'bill',provider:'Clinic',date:'2026-03-01',treatment:wording.statement,chargeCents:2000,sourceText:wording.statement},
+   {page:1,kind:'bill',provider:'Clinic',date:'2026-03-01',treatment:wording.statement,chargeCents:2000,sourceText:wording.statement}]);
   assert.deepEqual(draft.snapshot.extraction.sources.map(source=>source.reportedTotals.map(total=>total.amountCents)),[[2000],[2000]]);
   assert.equal(draft.snapshot.setup.authorizationReference,'Received records authorization');assert.equal(draft.snapshot.setup.agreementReference,'Native storage agreement');
   assert.equal(draft.snapshot.entries[0].sourceSha256,source.versions[0].sha256);assert.equal(draft.snapshot.entries[3].sourceName,'Overlapping-bill.pdf');assert.equal(draft.snapshot.entries[3].page,1);
@@ -198,7 +215,13 @@ test('native medical chronology requires health setup, pins source pages, reconc
   await h.json(publish,{...review,decisions:[]},h.owner,400);await h.json(publish,{...review,sha256:'wrong'},h.owner,409);
   await h.json('/team',{email:'lawyer@example.test',name:'Counsel',role:'lawyer'},h.owner);await h.json('/team/invite',{email:'lawyer@example.test'},h.owner);const lawyer=await h.login('lawyer@example.test');await h.json(base+'/access',{email:'lawyer@example.test'},h.owner);
   await h.json('/documents/'+source.id+'/file?version=1',undefined,lawyer,404);await h.json(door,undefined,lawyer,403);await h.json(door+'/setup',{authorizationReference:'No',agreementReference:'No',confirmed:true},lawyer,403);await h.json(publish,review,lawyer,403);
-  const published=await h.json(publish,review,h.owner);assert.equal(published.review.reconciledTotalCents,2000);assert.equal(published.review.differenceCents,0);await h.json(publish,review,h.owner,409);
+  // Another person's private original stays out, even with a principal-added version; nobody else can add a version to the principal's original.
+  const pdfUpload=(name,actor,extra={},expected)=>h.json(base+'/documents',{name,mime:'application/pdf',visibility:'private',contentBase64:bytes.toString('base64'),...extra},actor,expected);
+  const lawyerOriginal=await pdfUpload('Counsel-upload.pdf',lawyer);await pdfUpload('Counsel-upload.pdf',h.owner,{documentId:lawyerOriginal.id,revision:lawyerOriginal.revision,contentBase64:fixtures.bill.toString('base64')});
+  for(const version of [1,2])await h.json(door,{...extraction,sources:[{documentId:lawyerOriginal.id,version}]},h.owner,409);
+  await pdfUpload('Treatment.pdf',lawyer,{documentId:source.id,revision:source.revision},404);
+  const offered=await h.json(door,undefined,h.owner);assert.equal(offered.chronologies.length,1);assert.ok(!offered.sources.some(s=>s.documentId===lawyerOriginal.id));assert.deepEqual(offered.sources.filter(s=>s.documentId===source.id).map(s=>s.version),[1]);
+  const publishing=h.outbound.length,published=await h.json(publish,review,h.owner);assert.equal(published.review.reconciledTotalCents,2000);assert.equal(published.review.differenceCents,0);await h.json(publish,review,h.owner,409);assert.deepEqual(h.outbound.slice(publishing),[]);
   assert.deepEqual(Buffer.from(await(await h.request('/api/satchel/documents/'+source.id+'/file?version=1',undefined,h.owner)).arrayBuffer()),bytes);
   await h.json(base+'/wall',{custodianEmail:'lawyer@example.test',members:['owner@example.test'],reason:'Authorized counsel audit boundary',revision:null},h.owner);
   assert.equal((await h.json('/audit?matterId='+m.id+'&action=chronology.published',undefined,lawyer)).total,0);

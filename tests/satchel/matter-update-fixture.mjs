@@ -27,6 +27,14 @@ export async function updateFixture(h){
  return {m,base,order,old,current,draft,client,other,lawyer,assistant,consent,state,upload};
 }
 export function updateEdit(u,extra={}){return {revision:u.revision,title:'Reviewed trial update',body:updateWording,recipients:['client@example.test'],promises:[{text:'Deliver the revised hearing preparation checklist by Friday',responsibleEmail:'owner@example.test'}],responsibleEmail:'owner@example.test',dueAt:'2026-10-01T12:00:00.000Z',maxContacts:7,...extra};}
+// A newly confirmed hearing order yields a draft; counsel approves it as an exact scheduled packet without promises.
+export async function approvedUpdate(h,base,title,{actor=h.owner,...extra}={}){
+ const doc=await h.json(base+'/documents',{name:title+'.txt',mime:'text/plain',visibility:'matter',contentBase64:Buffer.from('Court order paragraph 4: preparation hearing on April 2, 2027.').toString('base64')},h.owner);
+ const d=await h.json(base+'/deadlines',{title,kind:'hearing',date:'2027-04-02',timezone:'America/New_York',source:title+' paragraph 4',documentId:doc.id,version:1},h.owner);
+ await h.json('/deadlines/'+d.id+'/confirm',{revision:d.revision,note:'Counsel checked the original order'},h.owner);
+ const u=(await h.json(base+'/matter-updates',undefined,h.owner)).updates.find(u=>u.deadline_id===d.id),saved=await h.json('/matter-updates/'+u.id+'/edit',updateEdit(u,{title,promises:[],...extra}),actor);
+ await h.json('/matter-updates/'+u.id+'/approve',{revision:saved.revision,confirmed:true,reviewNote:'Counsel approves this exact scheduled update'},actor);return {u,doc};
+}
 export async function reviewedUpdate(h,f,extra={}){
  await f.consent('allowed');const saved=await h.json('/matter-updates/'+f.draft.id+'/edit',updateEdit(f.draft,extra),h.owner);
  await h.json('/matter-updates/'+saved.id+'/approve',{revision:saved.revision,confirmed:true,reviewNote:'Responsible counsel reviewed wording, recipients, promises and the exact schedule'},h.owner);

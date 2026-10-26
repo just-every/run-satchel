@@ -1,16 +1,10 @@
 import assert from 'node:assert/strict';
-import {updateEdit,updateTick} from './matter-update-fixture.mjs';
+import {approvedUpdate,updateTick} from './matter-update-fixture.mjs';
 
 // Each case begins with an approved packet and changes a live sending boundary.
 export async function proveUpdateAuthorityChanges(h,f){
  const profile=async email=>{const state=await h.json(f.base+'/stage',undefined,h.owner);await h.json(f.base+'/stage-profile',{revision:state.profile.revision,lawyerEmail:email},h.owner);};
- const prepare=async(title,actor=h.owner)=>{
-  const doc=await f.upload(title+'.txt','Court order paragraph 4: preparation hearing on April 2, 2027.');
-  const d=await h.json(f.base+'/deadlines',{title,kind:'hearing',date:'2027-04-02',timezone:'America/New_York',source:title+' paragraph 4',documentId:doc.id,version:1},h.owner);
-  await h.json('/deadlines/'+d.id+'/confirm',{revision:d.revision,note:'Counsel checked the original order'},h.owner);
-  const u=(await f.state()).updates.find(u=>u.deadline_id===d.id),saved=await h.json('/matter-updates/'+u.id+'/edit',updateEdit(u,{title,promises:[]}),actor);
-  await h.json('/matter-updates/'+u.id+'/approve',{revision:saved.revision,confirmed:true,reviewNote:'Counsel approves this exact scheduled update'},actor);return {u,doc};
- };
+ const prepare=(title,actor=h.owner)=>approvedUpdate(h,f.base,title,{actor});
  const stopped=async u=>{const before=h.mails.length;await h.scheduled(updateTick);assert.equal(h.mails.length,before,'Changed authority must stop both outbound paths');const job=(await f.state()).updates.find(x=>x.id===u.id).jobs[0];assert.equal(job.status,'stopped');assert.equal(job.portal_published_at,null);assert.ok(job.detail);};
  let packet=await prepare('Reassigned counsel');await profile('lawyer@example.test');await stopped(packet.u);await profile('owner@example.test');
  packet=await prepare('Superseded original');await f.upload('Replacement-order.txt','A replacement original awaiting a separate legal confirmation.',{documentId:packet.doc.id,revision:packet.doc.revision});await stopped(packet.u);
