@@ -1,8 +1,9 @@
 import {useEffect,useState} from 'react';
 import {api,dollars,Field,Form,type Row,type Run} from './common';
 export function DocumentChronologies({matterId,actor,run,tick}:{matterId:string;actor:Row;run:Run;tick:number}){
- const [state,setState]=useState<Row>(),[file,setFile]=useState<File>();
- useEffect(()=>{setState(undefined);setFile(undefined);if(actor.role!=='owner')return;let active=true;api('/matters/'+matterId+'/chronologies').then(result=>{if(active)setState(result);}).catch(error=>{if(active)void run(async()=>{throw error;});});return()=>{active=false;};},[matterId,tick,actor.role]);
+ const [state,setState]=useState<Row>(),[file,setFile]=useState<File>(),[selected,setSelected]=useState<string[]>([]);
+ useEffect(()=>{setState(undefined);setFile(undefined);setSelected([]);},[matterId]);
+ useEffect(()=>{if(actor.role!=='owner')return;let active=true;api('/matters/'+matterId+'/chronologies').then(result=>{if(active)setState(result);}).catch(error=>{if(active)void run(async()=>{throw error;});});return()=>{active=false;};},[matterId,tick,actor.role]);
  if(actor.role!=='owner')return null;
  return <section className="panel" aria-label="Medical and bill chronologies"><h2>Medical and bill chronologies</h2>
   <p>Principal only. Review authority and the native storage and processing agreements before importing health information. No external processor or recipient receives these records.</p>
@@ -12,19 +13,32 @@ export function DocumentChronologies({matterId,actor,run,tick}:{matterId:string;
    <label><input type="checkbox" name="confirmed" required/>I reviewed authority and agreements for native health-data processing</label>
   </Form>
   {state?.setup&&<><p>Native processing reviewed by {state.setup.reviewed_by} at {state.setup.reviewed_at}.</p>
-   <Form label="Import chronology records" submit={data=>run(async()=>{
-    if(!file||file.size>1048576)throw new Error('Choose a chronology record file no larger than 1 MiB');
-    const entries=JSON.parse(await file.text());await api('/matters/'+matterId+'/chronologies',{entries,reportedTotalCents:Number(data.reportedTotalCents),gapDays:Number(data.gapDays)});
-   },'Chronology imported for counsel review')}>
-    <p>Choose a record file in the documented chronology format. Each entry cites a private PDF original uploaded by the principal, its version and source page. Nothing is published automatically.</p>
-    <label>Chronology record file<input type="file" accept=".json" required onChange={event=>setFile(event.target.files?.[0])}/></label>
+   <Form label="Extract treatment packet" submit={data=>run(async()=>{
+    const sources=(state.sources??[]).filter((source:Row)=>selected.includes(source.documentId+':'+source.version)).map((source:Row)=>({documentId:source.documentId,version:source.version}));
+    if(!sources.length)throw new Error('Select a private PDF original to extract');
+    await api('/matters/'+matterId+'/chronologies',{sources,reportedTotalCents:Number(data.reportedTotalCents),gapDays:Number(data.gapDays)});setSelected([]);
+   },'Chronology extracted for counsel review')}>
+    <fieldset><legend>Private treatment and bill originals</legend>
+     {(state.sources??[]).map((source:Row)=>{const key=source.documentId+':'+source.version;return <label key={key}><input type="checkbox" aria-label={'Extract '+source.name} checked={selected.includes(key)} onChange={event=>setSelected(current=>event.target.checked?[...current,key]:current.filter(item=>item!==key))}/>{source.name} · Version {source.version}</label>;})}
+     {!state.sources?.length&&<p>Upload a private PDF original in this matter to begin.</p>}
+    </fieldset>
     <Field label="Packet reported bill total (USD cents)" name="reportedTotalCents" type="number"/>
     <Field label="Flag record intervals longer than (days)" name="gapDays" type="number" value={30}/>
    </Form>
+   <details><summary>Import reviewed record file</summary><Form label="Import chronology records" submit={data=>run(async()=>{
+    if(!file||file.size>1048576)throw new Error('Choose a chronology record file no larger than 1 MiB');
+    const entries=JSON.parse(await file.text());await api('/matters/'+matterId+'/chronologies',{entries,reportedTotalCents:Number(data.reportedTotalCents),gapDays:Number(data.gapDays)});
+   },'Chronology imported for counsel review')}>
+    <p>Each reviewed record must cite a private PDF original, its version and source page.</p>
+    <label>Chronology record file<input type="file" accept=".json" required onChange={event=>setFile(event.target.files?.[0])}/></label>
+    <Field label="Packet reported bill total (USD cents)" name="reportedTotalCents" type="number"/>
+    <Field label="Flag record intervals longer than (days)" name="gapDays" type="number" value={30}/>
+   </Form></details>
   </>}
   {(state?.chronologies??[]).map((c:Row)=><article className="record" key={c.id}><h3>Chronology · {c.status}</h3><p className="document-hash">Source snapshot SHA-256 {c.sha256}</p>
    <p>{c.snapshot.notice}</p><p>Gross bills: {dollars(c.snapshot.grossTotalCents)} · Packet reported total: {dollars(c.snapshot.reportedTotalCents)} · Unreviewed difference: {dollars(c.snapshot.unreviewedDifferenceCents)}</p>
-   {c.snapshot.entries.toSorted((a:Row,b:Row)=>a.date.localeCompare(b.date)||a.provider.localeCompare(b.provider)||a.index-b.index).map((entry:Row)=><div key={entry.index}><strong>Record {entry.index+1}: {entry.provider} · {entry.date}</strong><p>{entry.treatment}{entry.kind==='bill'?' · '+dollars(entry.chargeCents):''}</p><a href={'/api/satchel/documents/'+entry.documentId+'/file?version='+entry.version}>Source {entry.sourceName}, version {entry.version}, page {entry.page}</a></div>)}
+   {c.snapshot.entries.toSorted((a:Row,b:Row)=>a.date.localeCompare(b.date)||a.provider.localeCompare(b.provider)||a.index-b.index).map((entry:Row)=><div key={entry.index}><strong>Record {entry.index+1}: {entry.provider} · {entry.date}</strong><p>{entry.treatment}{entry.kind==='bill'?' · '+dollars(entry.chargeCents):''}</p><a href={'/api/satchel/documents/'+entry.documentId+'/file?version='+entry.version+'#page='+entry.page}>Source {entry.sourceName}, version {entry.version}, page {entry.page}</a></div>)}
+   {c.snapshot.extraction?.sources?.flatMap((source:Row)=>source.reportedTotals.map((total:Row,index:number)=><p key={source.documentId+':'+source.version+':'+index}>Source total: {dollars(total.amountCents)} · {source.sourceName}, page {total.page}</p>))}
    <p>{c.snapshot.duplicates.length} possible duplicate bills; none excluded automatically.</p>
    {c.snapshot.intervals.map((gap:Row,index:number)=><p key={index}>Record interval: {gap.provider}, {gap.days} days between records {gap.fromIndex+1} and {gap.toIndex+1}. This does not establish missing treatment.</p>)}
    {c.status==='draft'&&<Form label="Publish reviewed chronology" submit={data=>run(()=>api('/chronologies/'+c.id+'/publish',{sha256:c.sha256,reviewNote:data.reviewNote,decisions:c.snapshot.duplicates.map((d:Row)=>({index:d.index,decision:data['decision'+d.index],note:data['reason'+d.index]}))}),'Counsel published the reviewed chronology')}>

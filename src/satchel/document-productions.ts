@@ -1,3 +1,4 @@
+import {listProductionShares} from './production-shares';
 import {PDFDocument,StandardFonts,rgb} from 'pdf-lib';
 import {zipSync,strToU8} from 'fflate';
 import {atomic,audit,digest,human,id,insist,integer,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
@@ -25,7 +26,7 @@ export async function listProductions(db:D1Database,actor:Actor,matterId:string)
  const result=[];
  for(const p of await rows(db,'SELECT * FROM s_document_productions WHERE matter_id=? ORDER BY created_at DESC,id',matterId)){
   // An invisible private source hides the entire packet, including counts and recipients.
-  try{await sources(db,actor,p.id);result.push(json(p));}catch(error){if((error as {status?:number}).status!==404)throw error;}
+  try{await sources(db,actor,p.id);result.push({...json(p),shares:await listProductionShares(db,actor,p.id)});}catch(error){if((error as {status?:number}).status!==404)throw error;}
  }
  return result;
 }
@@ -47,19 +48,26 @@ export async function prepareProduction(db:D1Database,actor:Actor,matterId:strin
   const v=await stmt(db,'SELECT * FROM s_document_versions WHERE document_id=? AND version=? AND content_base64 IS NOT NULL',d.id,version).first<Data>();
   insist(v,'Original version not found',404);const bytes=decode(v.content_base64);
   insist(bytes.length===v.size&&await digest(bytes)===v.sha256,'Original failed its integrity check',503);
+  const holds=await rows(db,'SELECT id,reason,placed_at FROM s_holds WHERE matter_id=? AND (document_id IS NULL OR document_id=?) AND released_at IS NULL ORDER BY id',matterId,d.id);
   const privilege=text(selected.privilege,'Privilege label',120),withheld=selected.withheld===true;
   insist(Array.isArray(selected.redactedPages)&&selected.redactedPages.length<=500,'Supply the whole pages to redact');
   const redactedPages=[...new Set<number>(selected.redactedPages.map((n:unknown)=>integer(n,'Redacted page',1,500)))].sort((a,b)=>a-b);
   insist(!withheld||redactedPages.length===0,'Withheld documents do not have produced redacted pages');
   const reason=withheld||redactedPages.length?text(selected.reason,'Withholding or redaction reason',1000):'';
-  const item:Data={documentId:d.id,title:d.title,version,sourceName:v.name,sourceSha256:v.sha256,privilege,withheld,reason,redactedPages};
+  const item:Data={documentId:d.id,title:d.title,version,sourceName:v.name,sourceSha256:v.sha256,privilege,withheld,reason,redactedPages,holds};
   if(!withheld){
    insist(v.mime==='application/pdf','This production door currently accepts PDF originals only');
    let original:PDFDocument;
    try{original=await PDFDocument.load(bytes);}catch{insist(false,'The source must be a readable, unencrypted PDF');}
    const pageCount=original.getPageCount();insist(pageCount>0&&pageCount<=500,'A source must have between 1 and 500 pages');
    insist(redactedPages.every(n=>n<=pageCount),'A redacted page is outside the source');
-   insist(redactedPages.length===0||redactedPages.length===pageCount,'Selective page redaction is unavailable: redact every page in this source or withhold the original');
+   const selective=redactedPages.length>0&&redactedPages.length<pageCount;
+   const render=selected.renderedPages;
+   if(selective){
+    insist(render&&render.sourceSha256===v.sha256&&Array.isArray(render.pages),'Render the selected original to sanitized page images before selective redaction');
+    const kept=Array.from({length:pageCount},(_,i)=>i+1).filter(n=>!redactedPages.includes(n));
+    insist(render.pages.length===kept.length&&render.pages.every((p:Data,i:number)=>p.page===kept[i]),'Supply exactly the unredacted page images in source order');
+   }
    insist(sequence+pageCount-1<=99999999,'Bates numbering exceeds eight digits');
    const output=await PDFDocument.create(),font=await output.embedFont(StandardFonts.Helvetica);
    output.setCreationDate(new Date(at));output.setModificationDate(new Date(at));
@@ -73,6 +81,13 @@ export async function prepareProduction(db:D1Database,actor:Actor,matterId:strin
     if(redactedPages.includes(index+1)){
      // A fresh blank page contains no source content, resources, hidden text or attachments.
      page.drawRectangle({x:0,y:30,width,height,color:rgb(0,0,0)});
+    }else if(selective){
+     const imageBytes=decode(render.pages.find((p:Data)=>p.page===index+1).pngBase64);
+     insist(imageBytes.length>=24&&imageBytes.slice(0,8).join(',')==='137,80,78,71,13,10,26,10','Sanitized pages must be PNG images');
+     const header=new DataView(imageBytes.buffer,imageBytes.byteOffset,imageBytes.byteLength),w=header.getUint32(16),h=header.getUint32(20);
+     insist(w>0&&h>0&&w*h<=16000000,'Sanitized page image dimensions are too large');
+     let image;try{image=await output.embedPng(imageBytes);}catch{insist(false,'The sanitized page image is unreadable');}
+     page.drawImage(image,{x:0,y:30,width,height});
     }else{const embedded=await output.embedPage(sourcePage);page.drawPage(embedded,{x:0,y:30,width,height});}
     const label=bates(sequence++);labels.push(label);page.drawText(label,{x:8,y:10,size:10,font});
    }
@@ -83,7 +98,7 @@ export async function prepareProduction(db:D1Database,actor:Actor,matterId:strin
   documents.push(d);items.push(item);
  }
  insist(items.some(item=>!item.withheld),'Select at least one document to produce');
- const snapshot={id:productionId,matterId,createdAt:at,createdBy:actor.email,recipient,batesPrefix:prefix,items,scope:'Internal counsel export only; no recipient delivery or share is created.'};
+ const snapshot={id:productionId,matterId,createdAt:at,createdBy:actor.email,recipient,batesPrefix:prefix,items,scope:'Exact reviewed packet for one authenticated recipient only. No onward sharing. Hold and privilege labels remain attached.'};
  files['manifest.json']=strToU8(JSON.stringify(snapshot,null,2));
  files['privilege-log.json']=strToU8(JSON.stringify(items.filter(item=>item.withheld||item.redactedPages.length||item.privilege!=='None'),null,2));
  const artifact=zipSync(files,{level:6});

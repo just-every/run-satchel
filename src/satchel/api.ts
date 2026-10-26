@@ -1,3 +1,4 @@
+import {listProductionShares,releaseProduction,recallProductionShare,inviteProductionRecipient,recipientProductionState,recipientProductionFile} from './production-shares';
 import {revenueState,approveRevenueRule,approveRevenueAllocation} from './revenue';
 import {listBulkWork,prepareBulkWork,repairBulkRow,postBulkWork} from './bulk-work';
 import {recordOffline,offlineReceipt,offlineAction,writeOffInvoice} from './offline-payments';
@@ -367,6 +368,12 @@ api.get('/api/satchel/matters/:id/chronologies',as((a,c)=>chronologyState(db(c),
 api.post('/api/satchel/matters/:id/chronologies/setup',as(async(a,c)=>configureHealth(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/matters/:id/chronologies',as(async(a,c)=>importChronology(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/chronologies/:id/publish',as(async(a,c)=>publishChronology(db(c),a,param(c),await body(c))));
+api.get('/api/satchel/production-shares/:id',async c=>c.json(await recipientProductionState(c.req.raw,c.env,param(c))));
+api.post('/api/satchel/production-shares/:id/file',c=>recipientProductionFile(c.req.raw,c.env,param(c)));
+api.get('/api/satchel/productions/:id/shares',as((a,c)=>listProductionShares(db(c),a,param(c))));
+api.post('/api/satchel/productions/:id/release',as(async(a,c)=>releaseProduction(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/productions/:id/invite-recipient',as((a,c)=>inviteProductionRecipient(c.req.raw,c.env,a,param(c))));
+api.post('/api/satchel/production-shares/:id/recall',as(async(a,c)=>recallProductionShare(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/matters/:id/productions',as((a,c)=>listProductions(db(c),a,param(c))));
 api.post('/api/satchel/matters/:id/productions',as(async(a,c)=>prepareProduction(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/productions/:id/:op',as(async(a,c)=>productionAction(db(c),a,param(c),param(c,'op'),await body(c))));

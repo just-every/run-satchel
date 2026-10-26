@@ -1,3 +1,4 @@
+import {medicalPacketPdfs,inviteRecipient} from './document-packet-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {harness,open} from './harness.mjs';
@@ -111,13 +112,44 @@ test('controlled production pins originals, removes whole-page content, freezes 
   await h.json(door+'/recall',{reason:'Already exported cannot be recalled'},h.owner,409);
   await h.json('/productions/'+publicPacket.id+'/recall',{reason:'Withdraw before export'},h.owner);
   assert.equal((await h.request('/api/satchel/productions/'+publicPacket.id+'/preview',undefined,h.owner)).status,410);
+  const recipient=await inviteRecipient(h),stranger=await inviteRecipient(h,'stranger@example.test');
+  const release={sha256:packet.sha256,recipientEmail:body.recipientEmail,expiresAt:new Date(Date.now()+3600000).toISOString(),reason:'Principal authorizes exact reviewed packet to opposing counsel'};
+  await h.json(door+'/release',release,lawyer,403);
+  await h.json(door+'/release',{...release,sha256:'wrong'},h.owner,409);
+  await h.json(door+'/release',{...release,recipientEmail:'stranger@example.test'},h.owner,409);
+  await h.json(door+'/release',{...release,expiresAt:'2000-01-01T00:00:00.000Z'},h.owner,400);
+  const recalled=await h.json(door+'/release',release,h.owner),recalledDoor='/production-shares/'+recalled.id;
+  await h.json(recalledDoor,undefined,recipient); // Viewing metadata leaves a release unopened.
+  await h.json(recalledDoor+'/recall',{reason:'Principal withdraws before opening'},h.owner);
+  await h.json(recalledDoor+'/file',{},recipient,410);
+  const sharedPacket=await h.json(door+'/release',release,h.owner),shareDoor='/production-shares/'+sharedPacket.id;
+  await h.json(shareDoor,undefined,'',401);await h.json(shareDoor,undefined,stranger,404);
+  await h.json(shareDoor+'/file',{},stranger,404);
+  await h.json(shareDoor+'/recall',{reason:'Recipient has no onward authority'},recipient,403);
+  assert.equal((await h.request('/api/satchel'+shareDoor+'/file',undefined,recipient)).status,404);
+  await h.json('/documents/'+source.id+'/file?version=1',undefined,recipient,403);
+  const delivered=await h.request('/api/satchel'+shareDoor+'/file',{},recipient),deliveryBytes=Buffer.from(await delivered.arrayBuffer());
+  assert.equal(delivered.status,200);assert.deepEqual(deliveryBytes,bytes);assert.equal(delivered.headers.get('x-production-sha256'),packet.sha256);
+  const receiptId=delivered.headers.get('x-production-receipt');assert.ok(receiptId);
+  await h.json(shareDoor+'/recall',{reason:'Already opened remains disclosed'},h.owner,409);
+  const released=(await h.json(door+'/shares',undefined,h.owner)).find(s=>s.id===sharedPacket.id);
+  assert.equal(released.status,'opened');assert.equal(released.receipts[0].id,receiptId);assert.equal(released.receipts[0].sha256,packet.sha256);assert.equal(released.receipts[0].size,bytes.length);
+  const disclosed=(await h.json('/audit?matterId='+m.id+'&action=production.recipient_downloaded',undefined,h.owner)).records;
+  assert.equal(disclosed[0].detail.receiptId,receiptId);assert.equal(disclosed[0].detail.sha256,packet.sha256);
+  const held=await h.json('/holds',{matterId:m.id,documentId:source.id,reason:'New hold must travel in a newly reviewed packet'},h.owner);
+  await h.json(door+'/release',release,h.owner,409);await h.json(shareDoor+'/file',{},recipient,410);
+  await h.json('/holds/'+held.id+'/release',{reason:'Counsel releases synthetic hold'},h.owner);
+  assert.equal((await h.request('/api/satchel'+shareDoor+'/file',{},recipient)).status,200);
   const events=(await h.json('/audit?matterId='+m.id+'&action=production.exported',undefined,h.owner)).records;
   assert.equal(events.length,1);assert.equal(events[0].detail.sha256,packet.sha256);assert.equal(events[0].evidence.record.recordType,'s_document_productions');assert.equal(events[0].evidence.record.status,'approved');
   await h.restart();assert.deepEqual(Buffer.from(await(await h.request('/api/satchel'+door+'/file',undefined,h.owner)).arrayBuffer()),bytes);
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();restored=await harness();await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);
   assert.deepEqual(Buffer.from(await(await restored.request('/api/satchel'+door+'/file',undefined,restored.owner)).arrayBuffer()),bytes);
+  assert.deepEqual(await restored.json(door+'/shares',undefined,restored.owner),[]);
+  await restored.json(shareDoor,undefined,restored.owner,404);
   await h.json('/retention',{matterId:m.id,documentId:source.id,disposeAfter:'2020-01-01',basis:'Expired synthetic source'},h.owner);
   const disposal=await h.json('/documents/'+source.id+'/dispose',{confirm:source.title,reason:'Counsel authorized disposal'},h.owner);assert.equal(disposal.journal.derivatives.productions,2);
+  await h.json(shareDoor+'/file',{},recipient,410);
   assert.equal((await h.request('/api/satchel'+door+'/file',undefined,h.owner)).status,404);assert.deepEqual(await h.json(base+'/productions',undefined,h.owner),[]);
   // The later erasure journal also fences an earlier archive that still held a packet.
   const journal=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();
@@ -129,22 +161,26 @@ test('controlled production pins originals, removes whole-page content, freezes 
 });
 
 test('native medical chronology requires health setup, pins source pages, reconciles overlapping bills only on counsel review, and erases its derivatives',async()=>{
- const {PDFDocument,StandardFonts}=await import('pdf-lib');const h=await harness();let restored;
+ const {PDFDocument}=await import('pdf-lib');const h=await harness();let restored;
  try{
-  const m=await open(h,'Medical chronology'),base='/matters/'+m.id,door=base+'/chronologies',pdf=await PDFDocument.create(),font=await pdf.embedFont(StandardFonts.Helvetica);
-  for(const line of ['synthetic-satchel-5 treatment packet','synthetic-satchel-6 overlapping bill']){const p=pdf.addPage([400,500]);p.drawText(line,{x:30,y:400,font,size:12});}
-  const bytes=Buffer.from(await pdf.save()),upload=name=>h.json(base+'/documents',{name,mime:'application/pdf',visibility:'private',contentBase64:bytes.toString('base64')},h.owner),source=await upload('Treatment.pdf'),bill=await upload('Overlapping-bill.pdf');
+  const m=await open(h,'Medical chronology'),base='/matters/'+m.id,door=base+'/chronologies';
+  const fixtures=await medicalPacketPdfs(),bytes=fixtures.treatment,upload=(name,content)=>h.json(base+'/documents',{name,mime:'application/pdf',visibility:'private',contentBase64:content.toString('base64')},h.owner),source=await upload('Treatment.pdf',bytes),bill=await upload('Overlapping-bill.pdf',fixtures.bill);
   const entry=(extra={})=>({documentId:source.id,version:1,page:1,kind:'treatment',provider:'Clinic',date:'2026-01-01',treatment:'synthetic-satchel-7 reviewed visit',...extra});
   const packet={reportedTotalCents:2000,gapDays:30,entries:[entry(),entry({date:'2026-03-01',page:2}),entry({kind:'bill',chargeCents:2000,page:2}),entry({documentId:bill.id,kind:'bill',chargeCents:2000,page:2})]};
   assert.equal((await h.json(door,undefined,h.owner)).setup,null);await h.json(door,packet,h.owner,409);
   await h.json(door+'/setup',{authorizationReference:'Received records authorization',agreementReference:'Native storage agreement',confirmed:false},h.owner,400);
   await h.json(door+'/setup',{authorizationReference:'Received records authorization',agreementReference:'Native storage agreement',confirmed:true},h.owner);
-  await h.json(door,{...packet,entries:[entry({page:3})]},h.owner,400);
+  await h.json(door,{...packet,entries:[entry({page:99})]},h.owner,400);
   const shared=await h.json(base+'/documents',{name:'Shared.pdf',mime:'application/pdf',visibility:'matter',contentBase64:bytes.toString('base64')},h.owner);
   await h.json(door,{...packet,entries:[entry({documentId:shared.id})]},h.owner,409);
-  const draft=await h.json(door,packet,h.owner);
+  const extraction={reportedTotalCents:2000,gapDays:30,sources:[{documentId:source.id,version:1},{documentId:bill.id,version:1}]};
+  await h.json(door,{...extraction,sources:[{documentId:shared.id,version:1}]},h.owner,409);
+  const blank=await PDFDocument.create();blank.addPage();const unreadable=await upload('Unreadable.pdf',Buffer.from(await blank.save()));
+  await h.json(door,{...extraction,sources:[{documentId:source.id,version:1},{documentId:unreadable.id,version:1}]},h.owner,422);
+  assert.equal((await h.json(door,undefined,h.owner)).chronologies.length,0);
+  const draft=await h.json(door,extraction,h.owner);
   assert.equal(draft.status,'draft');assert.equal(draft.snapshot.grossTotalCents,4000);assert.equal(draft.snapshot.unreviewedDifferenceCents,2000);assert.deepEqual(draft.snapshot.duplicates,[{index:3,possibleDuplicateOf:2}]);assert.equal(draft.snapshot.intervals[0].days,59);
-  assert.equal(draft.snapshot.entries[0].sourceSha256,source.versions[0].sha256);assert.equal(draft.snapshot.entries[3].sourceName,'Overlapping-bill.pdf');assert.equal(draft.snapshot.entries[3].page,2);
+  assert.equal(draft.snapshot.entries[0].sourceSha256,source.versions[0].sha256);assert.equal(draft.snapshot.entries[3].sourceName,'Overlapping-bill.pdf');assert.equal(draft.snapshot.entries[3].page,1);
   const publish='/chronologies/'+draft.id+'/publish',review={sha256:draft.sha256,reviewNote:'Counsel checked every source page and duplicate charge',decisions:[{index:3,decision:'exclude',note:'Same bill charge in overlapping packet'}]};
   await h.json(publish,{...review,decisions:[]},h.owner,400);await h.json(publish,{...review,sha256:'wrong'},h.owner,409);
   await h.json('/team',{email:'lawyer@example.test',name:'Counsel',role:'lawyer'},h.owner);await h.json('/team/invite',{email:'lawyer@example.test'},h.owner);const lawyer=await h.login('lawyer@example.test');await h.json(base+'/access',{email:'lawyer@example.test'},h.owner);

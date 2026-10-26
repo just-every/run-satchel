@@ -8,6 +8,7 @@ const seg='[^/]+',any='.*';
 const rule=(pattern:string,areas:string[]):[RegExp,string[]]=>[new RegExp('^'+pattern+'$'),areas];
 const open:string[]=[];
 export const areaRules:[RegExp,string[]][]=[
+ rule('/production-shares/'+seg+'/recall',['documents']),
  rule('/matters/'+seg+'/revenue(/rules|/allocations)?',['reports','rates:all','bank:full']),
  rule('/time/bulk(/'+seg+'/(rows|post))?',['billing']),
  rule('/(offline-payments|offline-payments/'+seg+'|offline-payments/'+seg+'/actions|invoices/'+seg+'/writeoff)',['billing','bank:full']),
