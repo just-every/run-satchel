@@ -140,7 +140,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "ca3ed69d00159fdcfb845d3bdd8abdc97b9873503237c020f10170739d5a1339",
+      "sha256": "f7e2c19fda366922e1391e8c67663fa32dd9cfdb19dadc9da2b54b0eed8b1660",
       "executable": false
     },
     "AGENTS.md": {
@@ -4300,7 +4300,7 @@
       "executable": false
     },
     "tests/satchel/calendar-journey.test.mjs": {
-      "sha256": "e3e1d074403b505e4307667602cc608d653977446adb4d92bfa6c94c4c3fd262",
+      "sha256": "c71e2b16320dfcbbc90aa3ec6c6a88b5430b795d3477022a51dffc557cf3e217",
       "executable": false
     },
     "tests/satchel/calendar.test.mjs": {

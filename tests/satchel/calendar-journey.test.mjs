@@ -4,7 +4,9 @@ import {mkdir} from 'node:fs/promises';
 import {chromium} from '@playwright/test';
 import {harness,open} from './harness.mjs';
 async function notice(page,text){await page.getByRole('status').getByText(text).waitFor();}
-for(const [width,height] of [[1440,1000],[390,844]])test(`CAL-001 book a recurring conference across daylight saving, invite two staff, cancel one occurrence and compare matter and firm views at ${width}px`,async()=>{
+// The seed-wide phone workspace smoke lives in journey.test.mjs.
+const width=1440,height=1000;
+test(`CAL-001 book a recurring conference across daylight saving, invite two staff, cancel one occurrence and compare matter and firm views at ${width}px`,async()=>{
  const h=await harness(),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});
  try{
   const address={line1:'200 Park Avenue',city:'New York',state:'NY',zip:'10166'};
