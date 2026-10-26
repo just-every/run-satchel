@@ -24,7 +24,7 @@ export function PrebillRuns({matters,matterId,actor,run,tick,choose}:{matters:Ro
  useEffect(()=>{let active=true;if(permitted)void Promise.all([api('/prebill-runs'),api('/invoice-templates')]).then(([s,t])=>{if(active){setState(s);setTemplates(t.templates);}}).catch(e=>{if(active)void run(async()=>{throw e;});});return()=>{active=false;};},[permitted,tick]);
  if(!permitted||!state)return null;
  return <section className="panel" aria-label="Prebill runs"><h2>Prebill runs</h2><p>Prepare selected matters together, retain each source for counsel review, then issue the exact approved invoices.</p>
-  {matterId&&<MatterInvoiceTemplate matterId={matterId} templates={templates} run={run} tick={tick}/>}
+  {matterId&&<MatterInvoiceTemplate key={matterId} matterId={matterId} templates={templates} run={run} tick={tick}/>}
   <PrebillPreparation matters={matters} run={run} tick={tick}/>
   {state.runs.map((batch:Row)=>{const ready=batch.bills.filter((b:Row)=>b.status==='approved'&&!b.issue);return <details key={batch.id}><summary>{batch.title} · {batch.bills.length} matters</summary>
    {ready.length>0&&<button type="button" onClick={()=>run(()=>api('/invoices/issue',{bills:ready.map((b:Row)=>({id:b.id,revision:b.revision}))}),'Approved invoices issued once with retained templates')}>Issue {ready.length} approved invoices</button>}
