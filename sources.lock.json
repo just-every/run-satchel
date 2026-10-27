@@ -4248,7 +4248,7 @@
       "executable": false
     },
     "src/ui/settlements.tsx": {
-      "sha256": "4875f524dad299b406832d031f05ce3442d0e5de844dc2f62e2484f433f7f94a",
+      "sha256": "863fc9dd83644deb9f78c6b790c0fb9f32317fca50e587da9d74889e2ad3c64d",
       "executable": false
     },
     "src/ui/stripe-settings.tsx": {
@@ -4712,7 +4712,7 @@
       "executable": false
     },
     "tests/satchel/settlement-browser.mjs": {
-      "sha256": "ea2cdb779f5e3d75efb7c8eab8c93c97372fedabbe0ce24cdb53d61a193c2fba",
+      "sha256": "860ddd0fcc2d8999504b04f31b1482ec9d9dd45fd7f12598e24dd2d41345ddb8",
       "executable": false
     },
     "tests/satchel/settlement-execution-flow.mjs": {

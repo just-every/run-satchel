@@ -5,7 +5,7 @@ export async function settlementScreens(page,target,stem){
  for(const width of [1440,390]){
   await page.setViewportSize({width,height:width===390?844:1000});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);
-  const table=target.locator('.table-scroll').first();
+  const table=target.locator('.table-scroll').filter({has:page.getByRole('table',{name:'Settlement allocations',exact:true})}).first();
   if(width===390&&await table.count())assert.ok(await table.evaluate(element=>element.scrollWidth>element.clientWidth),'Settlement amounts stay readable in the phone scroll area');
   if(process.env.SATCHEL_SCREENSHOTS){
    if(stem.includes('refused'))await capturePanel(page,page.getByRole('alert'),process.env.SATCHEL_SCREENSHOTS,stem+'-notice-'+width);
