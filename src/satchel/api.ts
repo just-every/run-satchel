@@ -1,6 +1,7 @@
 import {paymentPlans,paymentPlan,savePaymentPlan,paymentPlanAction,startPlanMandate,confirmPlanMandate} from './payment-plans';
 import {approveRefund} from './stripe-refunds';
 import {reconciliationState,reconcileCollection,inspectSettlement,matchSettlement} from './stripe-reconciliation';
+import {settlements,saveContingency,prepareSettlement,approveSettlement,checkSettlementFunds} from './settlements';
 import {matterUpdateState,generateMatterUpdate,editMatterUpdate,approveMatterUpdate,fulfilMatterUpdatePromise,completeMatterUpdateReply} from './matter-updates';
 import {listPortalMatterUpdates,replyToMatterUpdate} from './matter-update-portal';
 import {listProductionShares,releaseProduction,recallProductionShare,inviteProductionRecipient,recipientProductionState,recipientProductionFile} from './production-shares';
@@ -533,3 +534,8 @@ api.get('/api/satchel/payment-plans/:id',as((a,c)=>paymentPlan(runtimeBindings(c
 api.post('/api/satchel/payment-plans/:id/actions',as(async(a,c)=>paymentPlanAction(runtimeBindings(c.env),a,param(c),await body(c))));
 api.post('/api/satchel/payment-plans/:id/mandate',as(async(a,c)=>startPlanMandate(runtimeBindings(c.env),a,param(c),await body(c))));
 api.post('/api/satchel/payment-plans/:id/mandate/confirm',as(async(a,c)=>confirmPlanMandate(runtimeBindings(c.env),a,param(c),await body(c))));
+api.get('/api/satchel/matters/:id/settlements',as((a,c)=>settlements(db(c),a,param(c))));
+api.post('/api/satchel/matters/:id/settlements/terms',as(async(a,c)=>saveContingency(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/matters/:id/settlements/statements',as(async(a,c)=>prepareSettlement(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/matters/:id/settlements/approve',as(async(a,c)=>approveSettlement(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/matters/:id/settlements/check-funds',as(async(a,c)=>checkSettlementFunds(db(c),a,param(c),await body(c))));
