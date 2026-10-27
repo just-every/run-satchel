@@ -4660,7 +4660,7 @@
       "executable": false
     },
     "tests/satchel/microsoft-live.mjs": {
-      "sha256": "7acc7f8efc01f71bd612775f8e247b00d181460519a18bcba93a367dbb5d3db7",
+      "sha256": "f891c336e3759596027307efaecd2702a547418bebe04eb5ce0a766904a0ffd6",
       "executable": false
     },
     "tests/satchel/microsoft-security-flow.mjs": {
