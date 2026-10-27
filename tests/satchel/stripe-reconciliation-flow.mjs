@@ -33,5 +33,9 @@ export async function reconciliationFlow(){
   state=await h.json('/bills/'+s.card.id+'/reconciliation',undefined,h.owner);assert.deepEqual(state.attempts[0].adjustments.map(a=>[a.kind,a.cents]),[['refund',5000],['dispute',32500]]);
   await h.restart();assert.equal((await h.json('/bills/'+s.card.id+'/reconciliation',undefined,h.owner)).attempts[0].refunds[0].approved_by,'owner@example.test');
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();restored=await harness(edge);await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);state=await restored.json('/bills/'+s.card.id+'/reconciliation',undefined,restored.owner);assert.equal(state.bankStatus,'matched');assert.equal(state.attempts[0].adjustments.reduce((n,a)=>n+a.cents,0),37500);assert.equal(edge.calls,1);
+  await h.json('/team',{email:'finance-custodian@example.test',name:'Finance wall custodian',role:'lawyer'},h.owner);await h.json('/team/invite',{email:'finance-custodian@example.test'},h.owner);await h.login('finance-custodian@example.test');
+  await h.json('/matters/'+s.m.id+'/wall',{revision:null,custodianEmail:'finance-custodian@example.test',members:['finance-custodian@example.test'],reason:'Finance records restricted to current counsel'},h.owner);
+  await h.json('/bills/'+s.card.id+'/reconciliation',undefined,h.owner,404);await h.json(path+'/refund',{...refund,requestKey:'synthetic-satchel-excluded-refund'},h.owner,404);await h.json(path+'/bank-match',match,h.owner,404);assert.equal(edge.refunds.length,1,'Removed matter authority cannot execute a refund');
+
  }finally{await restored?.close();await h.close();}
 }

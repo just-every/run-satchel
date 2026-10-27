@@ -164,7 +164,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "6ba7cf49afaac92b84c9cda404ebe5c54258a27b6822c9f43f76d6979c3c4d9f",
+      "sha256": "198ed5e9242f1b1964f89e4851ce244a8b3afd335dacfa2c6859969cec3d26a8",
       "executable": false
     },
     "DEMO.md": {
@@ -4684,7 +4684,7 @@
       "executable": false
     },
     "tests/satchel/stripe-reconciliation-flow.mjs": {
-      "sha256": "09877a7b25d616c5b6726bf939553e6c69d57dd2b13c8b76294a5aaadf505d79",
+      "sha256": "635e2c3f75ba3dc64fcfe5573e0a4316f3d12fc3ff7259c94461402fa5c28909",
       "executable": false
     },
     "tests/satchel/stripe-sandbox.mjs": {

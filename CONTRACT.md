@@ -459,8 +459,8 @@ INTAKE-003, REPORT-003, CLIENT-003, CAL-008, TIME-003, FIRM-005, INTAKE-005 and 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 14 | 0 | 0 | 14 |
-| Target and push further | 58 | 21 | 46 | 125 |
-| All | 72 | 21 | 46 | 139 |
+| Target and push further | 58 | 23 | 44 | 125 |
+| All | 72 | 23 | 44 | 139 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
