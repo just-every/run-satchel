@@ -4716,7 +4716,7 @@
       "executable": false
     },
     "tests/satchel/providers-journey.test.mjs": {
-      "sha256": "c3f11e7e76c7c73e31f23b7e0f1113026c24989a4c1f9266bfc5b3402ff3a9c2",
+      "sha256": "ec167c46fa66e066ef4fc3ec7a8ac01296acae6f2df25008b2a9ac8ca3ede1f5",
       "executable": false
     },
     "tests/satchel/providers.test.mjs": {

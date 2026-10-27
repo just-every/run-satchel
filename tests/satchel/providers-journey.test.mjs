@@ -23,10 +23,14 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`OSS-001 provider charg
   const panel=page.locator('section.providers');await panel.getByRole('heading',{name:'Provider charges'}).waitFor();
   await panel.getByText(/free, MIT-licensed software/).waitFor();const shown=await panel.innerText();assert.match(shown,/free, MIT-licensed software/);
   for(const name of ['LawPay','Stripe','DocuSign','Inkwell','QuickBooks Online','Xero','Cloudflare'])assert.match(shown,new RegExp(name));
-  assert.equal((shown.match(/Billed to the firm directly by the provider under its own terms\. Satchel charge: none\./g)??[]).length,10);
+  const providerRows=panel.locator('li');assert.ok(await providerRows.count()>0);for(const row of await providerRows.all())assert.match(await row.innerText(),/Billed to the firm directly by the provider under its own terms\. Satchel charge: none\./);
+  const microsoftTerms='https://www.microsoft.com/licensing/terms/';
+  await panel.locator('select[name=providerId]').selectOption('microsoft');await panel.getByLabel('Provider’s own terms page (https)').fill(microsoftTerms);await panel.getByRole('checkbox').check();await panel.getByRole('button',{name:'Record provider review'}).click();
+  const microsoftRow=panel.locator('li').filter({has:page.getByText('Microsoft Entra',{exact:true})});await microsoftRow.getByRole('link',{name:'its terms'}).waitFor();assert.equal(await microsoftRow.getByRole('link',{name:'its terms'}).getAttribute('href'),microsoftTerms);
+  const reviewedMicrosoft=(await h.json('/providers',undefined,h.owner)).providers.find(p=>p.id==='microsoft');assert.equal(reviewedMicrosoft.review.reviewedBy,'owner@example.test');assert.equal(reviewedMicrosoft.review.termsUrl,microsoftTerms);assert.ok(reviewedMicrosoft.review.reviewedAt);
   await panel.locator('select[name=providerId]').selectOption('stripe');await panel.getByLabel('Provider’s own terms page (https)').fill('https://stripe.com/legal/ssa');
   await panel.getByRole('checkbox').check();await panel.getByRole('button',{name:'Record provider review'}).click();await page.getByRole('status').getByText('Provider review recorded').waitFor();
-  await panel.getByRole('link',{name:'its terms'}).waitFor();assert.match(await panel.innerText(),/Reviewed by owner@example\.test/);
+  await panel.locator('li').filter({has:page.getByText('Stripe',{exact:true})}).getByRole('link',{name:'its terms'}).waitFor();assert.match(await panel.innerText(),/Reviewed by owner@example\.test/);
   if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,panel,process.env.SATCHEL_SCREENSHOTS,'providers-'+width);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);
   assert.deepEqual(errors,[]);
