@@ -46,7 +46,7 @@ export async function reportInputs(db:D1Database,actor:Actor,accountId:string,cu
   stmt(db,`SELECT CASE WHEN (${accessSql}) THEN 1 ELSE 0 END authorized`,...accessValues(actor,accountId)),
   stmt(db,reportStateSql,...reportStateValues(accountId)),
   stmt(db,'SELECT l.*,m.title,m.client,m.matter_number FROM s_trust_ledgers l JOIN s_matters m ON m.id=l.matter_id WHERE l.account_id=? ORDER BY l.created_at,l.id',accountId),
-  stmt(db,'SELECT * FROM s_trust_entries WHERE account_id=? AND effective_date<=? ORDER BY effective_date,at,id',accountId,cutoffDate),
+  stmt(db,`SELECT e.*,(SELECT json_object('id',t.id,'counterparty',t.counterparty,'purpose',t.purpose,'bankReference',t.bank_reference,'receivedDate',t.received_date,'effectiveDate',t.effective_date,'sourceDocumentId',t.source_document_id,'sourceVersion',t.source_version,'sourceDigest',t.source_digest) FROM s_trust_transactions t WHERE t.id=e.source_id) transaction_json FROM s_trust_entries e WHERE e.account_id=? AND e.effective_date<=? ORDER BY e.effective_date,e.at,e.id`,accountId,cutoffDate),
   stmt(db,`SELECT s.*,v.name document_name,d.matter_id,d.erased_at FROM s_trust_entry_sources s JOIN s_trust_entries e ON e.id=s.entry_id JOIN s_documents d ON d.id=s.source_document_id LEFT JOIN s_document_versions v ON v.document_id=s.source_document_id AND v.version=s.source_version WHERE e.account_id=? AND e.effective_date<=? ORDER BY e.effective_date,e.at,e.id,s.source_kind,s.source_record_id`,accountId,cutoffDate),
   stmt(db,'SELECT c.* FROM s_trust_clearings c JOIN s_trust_entries e ON e.id=c.entry_id WHERE e.account_id=? AND e.effective_date<=? ORDER BY c.at,c.id',accountId,cutoffDate),
   stmt(db,'SELECT x.* FROM s_trust_period_events x JOIN s_trust_periods p ON p.id=x.period_id WHERE p.account_id=? ORDER BY x.sequence',accountId),
@@ -63,7 +63,8 @@ export async function reportInputs(db:D1Database,actor:Actor,accountId:string,cu
   const original=originalId?rawMap.get(originalId):null;
   // A journal reversal corrects an allocation; it has no new bank settlement.
   const clearedDate=e.kind==='journal_reversal'&&original?clearanceDate(original):clearanceDate(e);
-  return {...e,clearedDate,sources:evidence,clearance:clearingMap.get(e.id)??null,
+  const {transaction_json,...entry}=e;
+  return {...entry,transaction:transaction_json?JSON.parse(transaction_json):null,clearedDate,sources:evidence,clearance:clearingMap.get(e.id)??null,
    ...(original?{originalEntry:{...original,sources:sourceMap.get(original.id)??[],clearance:clearingMap.get(original.id)??null}}:{})};
  });
  return {stateToken:tokenRows[0].token as string,ledgers,entries,events};
