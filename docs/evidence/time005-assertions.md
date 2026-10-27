@@ -2,7 +2,7 @@
 
 TIME-005 remains PARTIAL. The original settlement acceptance, CT policy text and TRUST-004 execution boundary are preserved. No provider execution or legal compliance is claimed.
 
-The brief reports seven mutations caught and three surviving at main commit `1e92ef14d1beadef364b6f39872540ea2e429cdc`. This round addresses those three survivors. All production source is unchanged from that main commit; no existing assertion is removed or weakened and no test registration is added. The three experiments below use assertion commit `3d1b45debcfbc660c2e2763a29190cf7462577ca`. Later changes in this round only document the results and regenerate the source lock; the relevant production and test bytes are identical.
+The brief reports seven mutations caught and three surviving at main commit `1e92ef14d1beadef364b6f39872540ea2e429cdc`. This round addresses those three survivors. All production source is unchanged from that main commit; no existing assertion is removed or weakened and no test registration is added. The three experiments below are rerun against the final candidate assertion bytes. Its full SHA accompanies the inline ct request. Assistant, billing and accountant identities are also refused at both terms and statement preparation doors.
 
 Each experiment modifies the real settlement source, builds the application, then invokes the public-door test “Settlement statements reconcile recovery and refuse spending without current approvals and cleared funds” in `tests/satchel/fee-plans.test.mjs`. Every build exits zero; each mutated test exits one at the indicated assertion. The unmodified flow passes. Mutations are restored after each experiment.
 

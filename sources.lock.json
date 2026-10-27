@@ -200,7 +200,7 @@
       "executable": false
     },
     "docs/evidence/time005-assertions.md": {
-      "sha256": "180a48ca5c11af6b76f62301686ff09715ba001bb3bf396809c5a02a6540fde4",
+      "sha256": "becfa759e22c60f8ccfb3490594a2fbf339687237c9379257114f1cb62e14885",
       "executable": false
     },
     "docs/free-and-providers.md": {
@@ -4468,7 +4468,7 @@
       "executable": false
     },
     "tests/satchel/fee-plans.test.mjs": {
-      "sha256": "93b3ad732fa6d23946d9042851232ffd204c98ff4ac0e5f24c79a575a55ee13c",
+      "sha256": "2a3cbd589e029542ed3024833df08abdea4165c6c6a58f0b21ba5fef38e668e7",
       "executable": false
     },
     "tests/satchel/flows.test.mjs": {
