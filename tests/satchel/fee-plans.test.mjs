@@ -182,6 +182,11 @@ test('Settlement statements reconcile recovery and refuse spending without curre
   const s=await h.json(p+'/statements',body,counsel);assert.equal(s.snapshot.grossCents,1000000);assert.equal(s.snapshot.feeBaseCents,900000);assert.equal(s.snapshot.feeCents,225000);assert.equal(s.snapshot.expensesCents,100000);
   assert.deepEqual(s.snapshot.allocations.map(r=>[r.kind,r.amountCents]),[['expense',100000],['lien',150000],['medical',40000],['referral',45000],['counsel',180000],['client',485000]]);
   assert.equal(s.snapshot.allocations.reduce((n,r)=>n+r.amountCents,0),1000000);assert.equal(s.snapshot.allocations[1].reductionCents,50000);
+  assert.deepEqual(s.snapshot.allocations.slice(0,3),[
+   {kind:'expense',payee:'Firm advanced filing costs',originalCents:100000,reductionCents:0,amountCents:100000,reference:'Cost receipts 1 through 4'},
+   {kind:'lien',payee:'Health lien holder',originalCents:200000,reductionCents:50000,amountCents:150000,reference:'Signed reduction agreement'},
+   {kind:'medical',payee:'Medical clinic',originalCents:50000,reductionCents:10000,amountCents:40000,reference:'Provider final account'},
+  ],'The restricted statement preserves each original obligation, reduction and source beside the net allocation');
   const check={statementId:s.id,ledgerId:f.ledger.id};await h.json(p+'/check-funds',check,h.owner,409);
   await h.json(p+'/approve',{statementId:s.id,capacity:'finance',note:'Unauthorized counsel cannot approve finance'},counsel,403);
   await h.json(p+'/approve',{statementId:s.id,capacity:'counsel',note:'Exact statement and earning reviewed'},counsel);
@@ -193,13 +198,32 @@ test('Settlement statements reconcile recovery and refuse spending without curre
   await h.json(p+'/check-funds',{...check,ledgerId:f.otherLedger.id},h.owner,409);
   const before=await h.json('/trust',undefined,h.owner),ready=await h.json(p+'/check-funds',check,h.owner);assert.equal(ready.moneyMoved,false);assert.equal(ready.reserved,false);assert.equal(ready.availableCents,1000000);assert.equal((await h.json('/matters/'+f.m.id+'/billing',undefined,h.owner)).bills.length,0);assert.deepEqual(await h.json('/trust',undefined,h.owner),before);
   await h.json('/matters/'+f.m.id+'/access',{email:'counsel@example.test',remove:true},h.owner);await h.json(p+'/check-funds',check,h.owner,404);await h.json('/matters/'+f.m.id+'/access',{email:'counsel@example.test'},h.owner);
+  const pending=await h.json('/trust/transactions',{accountId:f.account.id,ledgerId:f.ledger.id,direction:'disbursement',kind:'wire',cents:150000,counterparty:'Health lien holder',bankReference:'synthetic-satchel-pending',receivedDate:'2026-09-02',depositDate:'2026-09-02',documentId:f.source.id,purpose:'Exact reduced lien allocation awaiting final review',requestKey:'synthetic-satchel-pending',settlement:{statementId:s.id,allocationIndex:1}},h.owner);
+  const pendingState=await h.json(p,undefined,h.owner),pendingTrust=await h.json('/trust',undefined,h.owner);
+  assert.equal(pendingState.transactions.length,1);assert.equal(pendingState.transactions[0].decision,null);
+  assert.equal(pendingState.transactions[0].statement_id,s.id);assert.equal(pendingState.transactions[0].cents,150000);
+  const refusedReplacement=await h.json(p+'/statements',{...body,previousVersion:1},counsel,409);
+  assert.match(refusedReplacement.error,/Decline pending allocations/);
+  await h.json(p+'/terms',{...terms,previousVersion:1,feeBasis:'gross'},counsel,409);
+  assert.deepEqual(await h.json(p,undefined,h.owner),pendingState,'Refused replacement leaves the exact statement, terms, approvals and pending allocation unchanged');
+  assert.deepEqual(await h.json('/trust',undefined,h.owner),pendingTrust,'Refused replacement cannot alter custody or reservations');
+  await h.json('/trust/transactions/'+pending.id+'/decide',{revision:pending.revision,decision:'declined',reviewNote:'Decline the pending allocation before reviewing replacement terms'},h.owner);
   const t2=await h.json(p+'/terms',{...terms,previousVersion:1,feeBasis:'gross'},counsel);await h.json(p+'/statements',{...body,previousVersion:1},counsel,409);
   const s2=await h.json(p+'/statements',{...body,previousVersion:1,termsId:t2.id,outcome:'Trial'},counsel);assert.equal(s2.snapshot.feeCents,400000);assert.equal(s2.snapshot.allocations.at(-1).amountCents,310000);await h.json(p+'/approve',{statementId:s.id,capacity:'counsel',note:'Old statement'},counsel,409);await h.json(p+'/check-funds',{...check,statementId:s2.id},h.owner,409);
   await h.json(p+'/approve',{statementId:s2.id,capacity:'counsel',note:'Principal exact review'},h.owner);await h.json(p+'/approve',{statementId:s2.id,capacity:'finance',note:'Same actor not allowed'},h.owner,403);
   for(const role of ['assistant','billing','accountant']){const email=role+'-settlement@example.test';await h.json('/team',{email,name:role,role},h.owner);await h.json('/team/invite',{email},h.owner);const cookie=await h.login(email);await h.json('/matters/'+f.m.id+'/access',{email},h.owner);await h.json(p,undefined,cookie,403);await h.json(p+'/approve',{statementId:s2.id,capacity:'finance',note:'Denied'},cookie,403);}
-  const state=await h.json(p,undefined,h.owner);assert.equal(state.statements.length,2);assert.deepEqual(state.statements.find(v=>v.id===s.id).snapshot,s.snapshot);assert.equal(state.terms.length,2);
+  const termsAudit=await h.json('/audit?matterId='+f.m.id+'&action=settlement.terms_reviewed',undefined,h.owner);
+  assert.equal(termsAudit.total,2);assert.equal(termsAudit.records.length,2,'Both successful terms reviews have attributable audit records; refusals add none');
+  assert.deepEqual(termsAudit.records.map(r=>[r.objectId,r.revision,r.actor.email,r.actor.role,r.actor.channel,r.evidence.context.version]).sort(),[[t.id,'1','counsel@example.test','lawyer','person',1],[t2.id,'2','counsel@example.test','lawyer','person',2]].sort());
+  for(const r of termsAudit.records){
+   const reviewed=r.objectId===t.id?t:t2;
+   assert.equal(r.matterId,f.m.id);assert.ok(r.actor.id&&r.at);assert.equal(r.legacy,false);assert.equal(r.detail,'');
+   assert.equal(r.evidence.record.recordType,'s_contingency_terms');assert.equal(r.evidence.record.id,reviewed.id);
+   assert.equal(r.evidence.record.version,reviewed.version);assert.equal(r.evidence.record.created_by,'counsel@example.test');assert.equal(r.evidence.record.created_at,reviewed.created_at);
+  }
+  const state=await h.json(p,undefined,h.owner);assert.equal(state.transactions[0].decision,'declined');assert.equal(state.statements.length,2);assert.deepEqual(state.statements.find(v=>v.id===s.id).snapshot,s.snapshot);assert.equal(state.terms.length,2);
   await h.restart();assert.deepEqual(await h.json(p,undefined,h.owner),state);
-  const restored=await harness();try{const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);assert.deepEqual(await restored.json(p,undefined,restored.owner),state);}finally{await restored.close();}
+  const restored=await harness();try{const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);assert.deepEqual(await restored.json(p,undefined,restored.owner),state);assert.deepEqual(await restored.json('/audit?matterId='+f.m.id+'&action=settlement.terms_reviewed',undefined,restored.owner),termsAudit);}finally{await restored.close();}
   const audit=await h.json('/audit?matterId='+f.m.id+'&action=settlement.approved',undefined,h.owner);assert.equal(audit.records.length,3);assert.deepEqual(audit.records.map(r=>r.evidence.record.version).sort(),[1,1,2]);
   await settlementExecutionFlow();await settlementBillingFlow();await settlementRetentionFlow(h);
  }finally{await h.close();}
