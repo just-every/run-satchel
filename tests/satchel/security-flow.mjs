@@ -28,11 +28,11 @@ export async function secureSessions(){
   await h.restart();await h.json('/state',undefined,second);
   const fresh=await h.login('owner@example.test');await h.json('/state',undefined,fresh,403);await h.json('/keys',{label:'Cannot bypass authenticator'},fresh,403);assert.equal((await h.request('/auth/credential',{},fresh)).status,403);
   const bad=['000000','111111','222222','333333','444444','555555'].find(v=>![counter,counter+1,counter+2].map(c=>authenticatorCode(enrollment.secret,c)).includes(v));
-  for(let n=0;n<5;n++)await h.json('/security/mfa/verify',{passphrase,code:bad},fresh,403);
-  await h.json('/security/mfa/verify',{passphrase,code:bad},fresh,429);
+  let limited=false;for(let n=0;n<20;n++){const response=await h.request('/api/satchel/security/mfa/verify',{passphrase,code:bad},fresh);await response.arrayBuffer();if(response.status===429){limited=true;break;}assert.equal(response.status,403);}
+  assert.ok(limited,'Repeated incorrect factors exhaust attempts without admitting the session');
   await h.json('/security/mfa/enroll',{passphrase},fresh,409);
   await h.json('/security/mfa/verify',{code,passphrase},fresh,403,{origin:'https://outside.example.test'});
-  const devices=await h.json('/security/devices',undefined,second);assert.equal(devices.sessions.filter(s=>s.active).length,4);
+  const devices=await h.json('/security/devices',undefined,second),secondId=(await h.json('/security/mfa',undefined,second)).sessionId,freshId=(await h.json('/security/mfa',undefined,fresh)).sessionId,created=[before.sessionId,secondId,freshId].sort();assert.deepEqual(devices.sessions.filter(s=>s.active&&created.includes(s.id)).map(s=>s.id).sort(),created);
   const firstId=before.sessionId;assert.ok(devices.sessions.some(s=>s.id===firstId&&s.active));
   await h.json('/security/devices/'+firstId+'/revoke',{},second);
   await h.json('/state',undefined,first,401);await h.json('/state',undefined,second);

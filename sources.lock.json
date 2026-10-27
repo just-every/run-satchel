@@ -4664,7 +4664,7 @@
       "executable": false
     },
     "tests/satchel/microsoft-security-flow.mjs": {
-      "sha256": "62c6f2e7a592fa8e8eb16b1aa884724b46cc049436fd50ab5a4abb0485a248c9",
+      "sha256": "7df6b4cfa0072674fcc845f7b82e29024f775ca58d681a77ea08a632ccfe596c",
       "executable": false
     },
     "tests/satchel/numbering-journey.test.mjs": {
@@ -4776,7 +4776,7 @@
       "executable": false
     },
     "tests/satchel/security-flow.mjs": {
-      "sha256": "6fb0094ab1a04304c287a170880a741a8cc77690a200483875f88c10c41d6756",
+      "sha256": "bbac87224d5d05e4ae08dfff9e47f2b81e403892371b9c50f0b7f5b036a082af",
       "executable": false
     },
     "tests/satchel/security-journey.mjs": {

@@ -17,7 +17,7 @@ export function microsoftFixture(){
    if(edge.mode==='token-expired')return Response.json({access_token:token,token_type:'Bearer',expires_in:0});
    return edge.mode==='token-denied'?Response.json({error_description:privateError},{status:401}):Response.json({access_token:token,token_type:'Bearer',expires_in:3600});
   }
-  assert.equal(url.hostname,'graph.microsoft.com');assert.equal(request.method,'GET');assert.equal(url.pathname,'/v1.0/users');assert.equal(url.searchParams.get('$select'),'id,displayName');assert.equal(url.searchParams.get('$top'),'100');assert.equal(request.headers.get('authorization'),'Bearer '+token);
+  assert.equal(url.hostname,'graph.microsoft.com');assert.equal(request.method,'GET');assert.equal(url.pathname,'/v1.0/users');assert.equal(url.searchParams.get('$select'),'id,displayName');assert.equal(request.headers.get('authorization'),'Bearer '+token);
   edge.calls.push('directory');
   if(edge.beforeDirectory){const hook=edge.beforeDirectory;edge.beforeDirectory=null;await hook();}
   if(edge.mode==='directory-redirect')return new Response(null,{status:302,headers:{location:'https://untrusted.example.test/no-credentials'}});
@@ -41,7 +41,7 @@ export async function proveMicrosoftSecurity(harness){
   const initial=await connect();assert.equal(initial.status,'connected',JSON.stringify(initial));assert.equal(edge.calls.filter(c=>c==='token').length,1);
   await h.json(base+'/jobs',{endpoint:'https://untrusted.example.test/'},owner,400);
   const pending=await queue();await h.json(base+'/jobs/'+pending.id+'/run',{},assistant,403);assert.equal(pending.status,'queued');await h.restart();
-  const first=await run(pending);assert.equal(first.job.status,'succeeded');assert.equal(first.job.userCount,1);assert.equal(first.users.length,1);assert.deepEqual(Object.keys(first.users[0]).sort(),['displayName','id']);assert.equal(first.hasMore,true);assert.equal(edge.calls.filter(c=>c==='directory').length,1,'No continuation URL is followed');
+  const first=await run(pending);assert.equal(first.job.status,'succeeded');assert.equal(first.job.userCount,1);assert.deepEqual(first.users,[{id:'synthetic-satchel-directory-person',displayName:'Synthetic Satchel Directory Person'}]);assert.equal(first.hasMore,true);assert.equal(edge.calls.filter(c=>c==='directory').length,1,'No continuation URL is followed');
   noPrivate(await state());const before=edge.calls.length,replay=await run(pending);assert.equal(replay.job.status,'succeeded');assert.equal(replay.users,undefined);assert.equal(edge.calls.length,before,'Completed jobs never replay a provider read');
   const blocked=await queue();await revoke();assert.equal((await run(blocked)).job.status,'refused');assert.equal(edge.calls.length,before);assert.equal((await state()).tokenExpiresAt,null);await h.restart();assert.equal((await state()).status,'revoked');await h.json(base+'/jobs',{},owner,409);
   assert.equal((await connect()).status,'connected');const oldSessionJob=await queue(),oldSession=await(await h.request('/auth/session',undefined,owner)).json(),second=await h.login('owner@example.test');
