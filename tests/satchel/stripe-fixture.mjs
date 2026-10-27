@@ -2,16 +2,20 @@ import assert from 'node:assert/strict';
 import {open} from './harness.mjs';
 import {scheme,draft,reviewed} from './invoice-numbering-fixture.mjs';
 export function stripeEdge(){
- const sessions=new Map(),events=new Map();let calls=0;
- return {bindings:{STRIPE_SECRET_KEY:'synthetic-satchel-2'},sessions,events,get calls(){return calls;},stripeResponse:async request=>{
+ const sessions=new Map(),events=new Map(),payouts=new Map(),transactions=new Map(),refunds=[];let calls=0,lost=false;
+ return {payouts,transactions,refunds,loseNextResponse(){lost=true;},bindings:{STRIPE_SECRET_KEY:'synthetic-satchel-2'},sessions,events,get calls(){return calls;},stripeResponse:async request=>{
   const url=new URL(request.url),path=url.pathname;
   if(path==='/v1/account')return Response.json({id:request.headers.get('stripe-account')??'synthetic-satchel-3',country:'US',controller:{fees:{payer:'application'},losses:{payments:'application'}},settings:{payouts:{debit_negative_balances:false}}});
   if(path.includes('/external_accounts/'))return Response.json({id:'synthetic-satchel-trust-bank',object:'bank_account',status:'verified',currency:'usd',default_for_currency:true});
   if(path==='/v1/checkout/sessions'&&request.method==='POST'){
    calls++;const b=new URLSearchParams(await request.text()),n='synthetic-satchel-'+(10+calls),id=b.get('client_reference_id'),amount=Number(b.get('line_items[0][price_data][unit_amount]'));
    const session={processorAccount:request.headers.get('stripe-account'),id:n,object:'checkout.session',livemode:false,status:'open',payment_status:'unpaid',currency:'usd',amount_total:amount,client_reference_id:id,metadata:{satchel_checkout:id},payment_method_types:['card','us_bank_account'],url:'https://checkout.stripe.com/c/pay/'+n,payment_intent:{id:'synthetic-satchel-intent-'+calls,livemode:false,status:'requires_payment_method',amount,currency:'usd',metadata:{satchel_checkout:id},latest_charge:null}};
-   sessions.set(n,session);return Response.json(session);
+   sessions.set(n,session);if(lost){lost=false;return new Response('Uncertain',{status:503});}return Response.json(session);
   }
+  if(path==='/v1/checkout/sessions')return Response.json({data:[...sessions.values()],has_more:false});
+  if(path.startsWith('/v1/payouts/'))return Response.json(payouts.get(decodeURIComponent(path.split('/').at(-1)))??{error:'Unknown payout'});
+  if(path==='/v1/balance_transactions')return Response.json({data:transactions.get(url.searchParams.get('payout'))??[],has_more:false});
+  if(path==='/v1/refunds'&&request.method==='POST'){const b=new URLSearchParams(await request.text()),session=[...sessions.values()].find(s=>s.payment_intent.id===b.get('payment_intent'));assert.ok(session);const cents=Number(b.get('amount')),refund={id:'synthetic-satchel-refund-'+(refunds.length+1),payment_intent:session.payment_intent.id,amount:cents,currency:'usd',livemode:false,status:'succeeded'};refunds.push(refund);session.payment_intent.latest_charge.amount_refunded+=cents;return Response.json(refund);}
   if(path.startsWith('/v1/checkout/sessions/')){const s=sessions.get(decodeURIComponent(path.split('/').at(-1)));assert.ok(s);return Response.json(s);}
   if(path.startsWith('/v1/events/')){const e=events.get(decodeURIComponent(path.split('/').at(-1)));return e?Response.json(e):Response.json({error:'Unknown event'},{status:404});}
   throw new Error('Unexpected Stripe boundary '+request.method+' '+path);

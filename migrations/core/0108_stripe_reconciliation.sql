@@ -1,0 +1,12 @@
+CREATE TABLE s_stripe_settlement_observations(id TEXT PRIMARY KEY,sequence INTEGER NOT NULL UNIQUE,payout_id TEXT NOT NULL,config_id TEXT NOT NULL REFERENCES s_stripe_config(id),snapshot TEXT NOT NULL,at TEXT NOT NULL);
+CREATE TABLE s_stripe_bank_matches(id TEXT PRIMARY KEY,payout_id TEXT NOT NULL UNIQUE,observation_id TEXT NOT NULL REFERENCES s_stripe_settlement_observations(id),bank_reference TEXT NOT NULL UNIQUE,cents INTEGER NOT NULL CHECK(cents>0),reason TEXT NOT NULL,approved_by TEXT NOT NULL,at TEXT NOT NULL);
+CREATE TABLE s_stripe_refund_requests(id TEXT PRIMARY KEY,request_key TEXT NOT NULL UNIQUE,checkout_id TEXT NOT NULL REFERENCES s_stripe_checkouts(id),bill_revision TEXT NOT NULL,cents INTEGER NOT NULL CHECK(cents>0),reason TEXT NOT NULL,approved_by TEXT NOT NULL,at TEXT NOT NULL);
+CREATE TABLE s_stripe_refund_outcomes(request_id TEXT PRIMARY KEY REFERENCES s_stripe_refund_requests(id),provider_id TEXT UNIQUE,status TEXT NOT NULL,at TEXT NOT NULL);
+CREATE TRIGGER s_stripe_settlement_no_update BEFORE UPDATE ON s_stripe_settlement_observations BEGIN SELECT RAISE(ABORT,'settlement observations are append-only'); END;
+CREATE TRIGGER s_stripe_settlement_no_delete BEFORE DELETE ON s_stripe_settlement_observations BEGIN SELECT RAISE(ABORT,'settlement observations are append-only'); END;
+CREATE TRIGGER s_stripe_bank_no_update BEFORE UPDATE ON s_stripe_bank_matches BEGIN SELECT RAISE(ABORT,'bank matches are append-only'); END;
+CREATE TRIGGER s_stripe_bank_no_delete BEFORE DELETE ON s_stripe_bank_matches BEGIN SELECT RAISE(ABORT,'bank matches are append-only'); END;
+CREATE TRIGGER s_stripe_refund_no_update BEFORE UPDATE ON s_stripe_refund_requests BEGIN SELECT RAISE(ABORT,'refund approvals are append-only'); END;
+CREATE TRIGGER s_stripe_refund_no_delete BEFORE DELETE ON s_stripe_refund_requests BEGIN SELECT RAISE(ABORT,'refund approvals are append-only'); END;
+CREATE TRIGGER s_stripe_refund_result_no_update BEFORE UPDATE ON s_stripe_refund_outcomes BEGIN SELECT RAISE(ABORT,'refund outcomes are append-only'); END;
+CREATE TRIGGER s_stripe_refund_result_no_delete BEFORE DELETE ON s_stripe_refund_outcomes BEGIN SELECT RAISE(ABORT,'refund outcomes are append-only'); END;

@@ -1,3 +1,4 @@
+import {syncPaymentPlanAttempt} from './payment-plan-records';
 import {verifyProtectedStripe} from './stripe-config';
 import {audit,id,insist,now,rows,stmt,text,type Data} from './model';
 import {guard} from './trust-guards';
@@ -19,20 +20,24 @@ export async function stripeEvent(env:StripeEnv,request:Request){
   if(!attempt&&object.metadata?.satchel_checkout)attempt=await stmt(env.DB,'SELECT * FROM s_stripe_checkouts WHERE id=?',object.metadata.satchel_checkout).first<Data>();
  }
  if(!attempt)return {received:true};
+ if(!attempt.session_id&&!attempt.payment_intent_id&&object.object==='payment_intent'&&object.metadata?.satchel_checkout===attempt.id)attempt={...attempt,payment_intent_id:object.id};
  if(await stmt(env.DB,'SELECT 1 FROM s_stripe_events WHERE id=?',eventId).first())return {received:true};
  return reconcileStripe(env,attempt,eventId,event.type);
 }
 export async function reconcileStripe(env:StripeEnv,attempt:Data,eventId:string,eventType:string){
- insist(attempt.session_id,'Reconcile the uncertain provider acknowledgment first',409);
+ insist(attempt.session_id||attempt.payment_intent_id,'Reconcile the uncertain provider acknowledgment first',409);
  const config=await stmt(env.DB,'SELECT * FROM s_stripe_config WHERE id=?',attempt.config_id).first<Data>();
  if(config?.kind==='trust')await verifyProtectedStripe(env,config);
  const processorAccount=config?.kind==='trust'?config.account_id:undefined;
- const session=await stripeApi(env,'/checkout/sessions/'+encodeURIComponent(attempt.session_id)+'?expand[]=payment_intent.latest_charge',undefined,undefined,processorAccount);
+ const session=attempt.session_id?await stripeApi(env,'/checkout/sessions/'+encodeURIComponent(attempt.session_id)+'?expand[]=payment_intent.latest_charge',undefined,undefined,processorAccount):null;
+ const pi=session?(session.payment_intent&&typeof session.payment_intent==='object'?session.payment_intent:null):await stripeApi(env,'/payment_intents/'+encodeURIComponent(attempt.payment_intent_id)+'?expand[]=latest_charge',undefined,undefined,processorAccount);
  const account=await stripeApi(env,'/account',undefined,undefined,processorAccount);
- insist(config&&account.id===config.account_id&&session.livemode===(config.mode==='live')&&session.id===attempt.session_id&&session.client_reference_id===attempt.id&&session.metadata?.satchel_checkout===attempt.id&&session.amount_total===attempt.cents&&session.currency===attempt.currency,'Stripe reconciliation does not match the approved account and exact invoice allocation',409);
- const pi=session.payment_intent&&typeof session.payment_intent==='object'?session.payment_intent:null,charge=pi?.latest_charge&&typeof pi.latest_charge==='object'?pi.latest_charge:null;
+ insist(config&&account.id===config.account_id,'Stripe reconciliation does not match the approved account',409);
+ if(session)insist(session.livemode===(config.mode==='live')&&session.id===attempt.session_id&&session.client_reference_id===attempt.id&&session.metadata?.satchel_checkout===attempt.id&&session.amount_total===attempt.cents&&session.currency===attempt.currency,'Stripe reconciliation does not match the exact invoice allocation',409);
+ else insist(pi?.id===attempt.payment_intent_id,'Stripe intent identity mismatch',409);
+ const charge=pi?.latest_charge&&typeof pi.latest_charge==='object'?pi.latest_charge:null;
  if(pi)insist(pi.metadata?.satchel_checkout===attempt.id&&pi.amount===attempt.cents&&pi.currency===attempt.currency&&pi.livemode===(config.mode==='live'),'Stripe intent allocation mismatch',409);
- let status=session.status==='expired'?'expired':pi?.status==='processing'?'pending':session.payment_status==='paid'&&pi?.status==='succeeded'?'paid':pi?.last_payment_error&&session.status==='complete'?'failed':session.status==='complete'?'pending':'open';
+ let status=session?.status==='expired'?'expired':pi?.status==='processing'?'pending':pi?.status==='succeeded'&&(!session||session.payment_status==='paid')?'paid':pi?.last_payment_error&&(!session||session.status==='complete')?'failed':session?.status==='complete'?'pending':'open';
  const adjustments=await rows(env.DB,'SELECT * FROM s_stripe_adjustments WHERE checkout_id=?',attempt.id),priorReturned=adjustments.reduce((n,r)=>n+r.cents,0);
  const returned=charge?.disputed||(charge?.status==='failed'&&['paid','returned'].includes(attempt.status))?attempt.cents:Math.min(attempt.cents,Number(charge?.amount_refunded??0));
  const delta=Math.max(0,returned-priorReturned),wasPaid=attempt.status==='paid'||attempt.status==='returned';
@@ -49,5 +54,6 @@ export async function reconcileStripe(env:StripeEnv,attempt:Data,eventId:string,
  // no provider event can silently debit protected client principal.
  writes.push(stmt(env.DB,'UPDATE s_stripe_checkouts SET status=?,payment_intent_id=COALESCE(?,payment_intent_id),updated_at=? WHERE id=?',status,pi?.id??null,at,attempt.id),stmt(env.DB,'INSERT INTO s_stripe_events VALUES(?,?,?,?,?,?)',eventId,attempt.id,eventType,status,attempt.cents,at),audit(env.DB,{id:'stripe',email:'processor@stripe.invalid',role:'provider',channel:'provider'},'stripe.reconciled',attempt.id,JSON.stringify({eventId,type:eventType,status,billId:attempt.bill_id,cents:attempt.cents,returnedCents:Math.max(returned,priorReturned),purpose:attempt.purpose}),{matterId:(await stmt(env.DB,'SELECT matter_id FROM s_bills WHERE id=?',attempt.bill_id).first<Data>())?.matter_id}));
  try{await env.DB.batch(writes);}catch(error){if(await stmt(env.DB,'SELECT 1 FROM s_stripe_events WHERE id=?',eventId).first())return {received:true};throw error;}
+ await syncPaymentPlanAttempt(env,attempt.id);
  return {received:true};
 }

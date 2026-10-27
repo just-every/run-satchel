@@ -404,3 +404,8 @@ async function proveProviderReview(){
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(archive.includes(terms));
  }finally{await h.close();}
 }
+
+import {reconciliationFlow} from './stripe-reconciliation-flow.mjs';
+test('Finance reconciles lost collection acknowledgments, exact payout fees and bank deposits with approved append-only refunds',reconciliationFlow);
+import {provePaymentPlans} from './payment-plan-flow.mjs';
+test('Exact client mandates dispatch each installment once and stop imported, revoked, failed, disputed and uncertain plans for human review',provePaymentPlans);

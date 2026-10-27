@@ -1,3 +1,4 @@
+import {paymentMoneyBrowser} from './payment-money-browser.mjs';
 import {invoiceDeliveryJourney} from './invoice-delivery-journey.mjs';
 import {mkdtemp,writeFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
@@ -44,5 +45,7 @@ export async function stripeBrowser({page,browser,h,edge,deliveryEdge,width}){
   const delivered=(await h.json('/matters/'+s.m.id+'/invoice-deliveries',undefined,h.owner)).deliveries.find(d=>d.bill_id===s.card.id),bytes=await(await h.request(delivered.pdfUrl,undefined,h.owner)).arrayBuffer(),directory=await mkdtemp(join(tmpdir(),'satchel-qr-'));
   try{const filename=join(directory,'invoice.pdf');await writeFile(filename,Buffer.from(bytes));await promisify(execFile)('swift',['tests/satchel/invoice-qr-scan.swift',filename,h.origin+'/app/invoices/'+s.card.id+'/pay'],{timeout:60000});}finally{await rm(directory,{recursive:true,force:true});}
  }
+
+ await paymentMoneyBrowser({page,browser,h,edge,s,width});
 
 }

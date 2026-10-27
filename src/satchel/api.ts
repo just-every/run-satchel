@@ -1,3 +1,6 @@
+import {paymentPlans,paymentPlan,savePaymentPlan,paymentPlanAction,startPlanMandate,confirmPlanMandate} from './payment-plans';
+import {approveRefund} from './stripe-refunds';
+import {reconciliationState,reconcileCollection,inspectSettlement,matchSettlement} from './stripe-reconciliation';
 import {matterUpdateState,generateMatterUpdate,editMatterUpdate,approveMatterUpdate,fulfilMatterUpdatePromise,completeMatterUpdateReply} from './matter-updates';
 import {listPortalMatterUpdates,replyToMatterUpdate} from './matter-update-portal';
 import {listProductionShares,releaseProduction,recallProductionShare,inviteProductionRecipient,recipientProductionState,recipientProductionFile} from './production-shares';
@@ -517,3 +520,16 @@ api.post('/api/satchel/offline-payments',as(async(a,c)=>recordOffline(db(c),a,aw
 api.get('/api/satchel/offline-payments/:id',as((a,c)=>offlineReceipt(db(c),a,param(c))));
 api.post('/api/satchel/offline-payments/:id/actions',as(async(a,c)=>offlineAction(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/invoices/:id/writeoff',as(async(a,c)=>writeOffInvoice(db(c),a,param(c),await body(c))));
+
+api.get('/api/satchel/bills/:id/reconciliation',as((a,c)=>reconciliationState(runtimeBindings(c.env),a,param(c))));
+api.post('/api/satchel/stripe/collections/:id/reconcile',as((a,c)=>reconcileCollection(runtimeBindings(c.env),a,param(c))));
+api.post('/api/satchel/stripe/collections/:id/refund',as(async(a,c)=>approveRefund(runtimeBindings(c.env),a,param(c),await body(c))));
+api.post('/api/satchel/stripe/collections/:id/settlement',as(async(a,c)=>inspectSettlement(runtimeBindings(c.env),a,param(c),await body(c))));
+api.post('/api/satchel/stripe/collections/:id/bank-match',as(async(a,c)=>matchSettlement(runtimeBindings(c.env),a,param(c),await body(c))));
+
+api.get('/api/satchel/bills/:id/payment-plans',as((a,c)=>paymentPlans(runtimeBindings(c.env),a,param(c))));
+api.post('/api/satchel/bills/:id/payment-plans',as(async(a,c)=>savePaymentPlan(runtimeBindings(c.env),a,param(c),await body(c))));
+api.get('/api/satchel/payment-plans/:id',as((a,c)=>paymentPlan(runtimeBindings(c.env),a,param(c))));
+api.post('/api/satchel/payment-plans/:id/actions',as(async(a,c)=>paymentPlanAction(runtimeBindings(c.env),a,param(c),await body(c))));
+api.post('/api/satchel/payment-plans/:id/mandate',as(async(a,c)=>startPlanMandate(runtimeBindings(c.env),a,param(c),await body(c))));
+api.post('/api/satchel/payment-plans/:id/mandate/confirm',as(async(a,c)=>confirmPlanMandate(runtimeBindings(c.env),a,param(c),await body(c))));

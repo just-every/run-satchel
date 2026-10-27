@@ -1,3 +1,4 @@
+import {paymentPlanEdge} from './payment-plan-edge.mjs';
 import {stripeEdge} from './stripe-fixture.mjs';
 import {stripeBrowser} from './stripe-browser.mjs';
 import {invoiceMailEdge} from './invoice-mail-edge.mjs';
@@ -7,7 +8,7 @@ import {chromium} from '@playwright/test';
 import {harness} from './harness.mjs';
 import {capturePanel} from './browser-shots.mjs';
 for(const [width,height] of [[1440,1000],[390,844]])test(`OSS-001 provider charges: disclosure, terms review and no payment prompt at ${width}px`,async()=>{
- const edge=stripeEdge(),deliveryEdge=invoiceMailEdge(),h=await harness({...edge,...deliveryEdge,bindings:{...edge.bindings,...deliveryEdge.bindings}}),browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,args:['--no-sandbox','--use-mock-keychain','--password-store=basic']});
+ const edge=paymentPlanEdge(),deliveryEdge=invoiceMailEdge(),h=await harness({...edge,...deliveryEdge,bindings:{...edge.bindings,...deliveryEdge.bindings}}),browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,args:['--no-sandbox','--use-mock-keychain','--password-store=basic']});
  try{
   const page=await(await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true})).newPage(),errors=[];page.setDefaultTimeout(15000);page.on('pageerror',e=>errors.push(String(e)));
   await page.goto(h.origin+'/signin');await page.getByLabel('Email').fill('owner@example.test');await page.getByRole('button',{name:'Email a sign-in link'}).click();await page.getByText('a sign-in link is on its way').waitFor();
