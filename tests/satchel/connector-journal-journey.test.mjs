@@ -1,3 +1,4 @@
+import {secureConnectionJourney} from './security-journey.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
@@ -7,6 +8,7 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`CONNECT-003 principal 
  const effects=new Map(),calls=[];
  const h=await harness({webhookResponse:async request=>{const event=await request.json();calls.push(event.id);if(!effects.has(event.id))effects.set(event.id,'RX-'+event.id);throw new Error('Receiver accepted; acknowledgment connection interrupted');}}),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});
  try{
+  await secureConnectionJourney(browser,width,height);
   const a=await open(h,'Barton docket review'),b=await open(h,'Pine coverage advice','Pine LLC','Spruce LLC');
   const i=await h.json('/integrations',{label:'Docket receiver',matterIds:[a.id,b.id],scopes:['matters:read','tasks:read'],endpoint:'https://receiver.example.com/events',eventTypes:['task.changed']},h.owner);
   const first=await h.json('/matters/'+a.id+'/tasks',{title:'Review received docket',priority:'normal'},h.owner);await h.json('/integrations/'+i.id+'/dispatch',{},h.owner);await h.restart();

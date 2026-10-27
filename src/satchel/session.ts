@@ -2,12 +2,14 @@ import { operatorAuth, runtimeBindings, type Bindings } from '../auth.server';
 import { digest, Fault, insist, need, stmt, type Actor } from './model';
 import { agentSponsor } from './role-doors';
 import { parseGrants } from './custom-roles';
+import {mfaRequired} from './session-mfa';
 export async function person(request: Request, original: Bindings): Promise<Actor> {
  const env = runtimeBindings(original), url = new URL(request.url);
  insist(url.origin === env.AUTH_ORIGIN, 'Invalid host', 403);
  if (!['GET','HEAD'].includes(request.method)) insist(request.headers.get('origin') === env.AUTH_ORIGIN && request.headers.get('sec-fetch-site') !== 'cross-site', 'Invalid request origin', 403);
  const session = await operatorAuth(env).getSession(request);
  insist(session, 'Sign in to continue', 401);
+ if(!/^\/api\/satchel\/security\/mfa(?:\/|$)/.test(url.pathname))insist(!await mfaRequired(env,session),'Verify your authenticator to continue',403);
  const o = session.operator;
  const member = await stmt(env.DB, 'SELECT m.role,r.permissions FROM s_members m LEFT JOIN s_custom_roles r ON r.id=m.custom_role_id WHERE m.email=? AND m.active=1', o.email).first<{role: Actor['role'];permissions:string|null}>();
  const role = o.role === 'owner' ? 'owner' : member?.role;

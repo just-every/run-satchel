@@ -5,6 +5,7 @@ import {atomic,audit,human,id,insist,need,now,rows,stmt,text,type Actor,type Dat
 export const disclosureVersion=1;
 export const statement='Satchel is free, MIT-licensed software with no license fee, subscription, paywall, seat charge or matter limit. Providers bill the firm directly under their own terms, and Satchel adds no charge or markup to them.';
 export const providers=[
+ {id:'microsoft',name:'Microsoft Entra',kind:'Directory access'},
  {id:'cloudflare',name:'Cloudflare',kind:'Hosting'},
  {id:'mail',name:'Mail provider (MAIL_PROVIDER)',kind:'Email'},
  {id:'sms',name:'SMS provider',kind:'Text messages'},

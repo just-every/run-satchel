@@ -2,6 +2,12 @@
 // Explicit columns exclude credentials and original file bytes.
 const record=(table:string,columns:string[],matter='NULL',revision='NULL',where='x.id=i.object_id',extra:Record<string,string>={})=>`(SELECT json_object('recordType','${table}','matterId',${matter},'revision',${revision},${[...columns.flatMap(c=>[`'${c}'`,`x.${c}`]),...Object.entries(extra).flatMap(([k,v])=>[`'${k}'`,v])].join(',')}) FROM ${table} x WHERE ${where} LIMIT 1)`;
 const contexts=[
+ record('s_mfa',['operator_id','enabled','created_at'],'NULL','CAST(x.created_at AS TEXT)',"i.action LIKE 'security.mfa_%' AND x.operator_id=i.object_id"),
+ record('oa_sessions',['id','kind','created_at','expires_at','revoked_at'],'NULL','CAST(x.operator_version AS TEXT)',"i.action='security.device_revoked' AND x.id=i.object_id"),
+
+ record('s_microsoft_jobs',['id','capability','status','outcome','created_at','started_at','finished_at','user_count','has_more','provider_status'],'NULL','CAST(x.generation AS TEXT)',"i.action LIKE 'microsoft.%' AND x.id=i.object_id"),
+ record('s_microsoft_connector',['id','status','capability','updated_at','outcome'],'NULL','CAST(x.generation AS TEXT)',"i.action LIKE 'microsoft.%' AND x.id=i.object_id"),
+
  record('s_tax_calculations',['id','bill_id','bill_revision','created_by','created_at'],'x.matter_id','x.bill_revision',"x.id=i.object_id AND EXISTS(SELECT 1 FROM s_bills b WHERE b.id=x.bill_id AND json_extract(b.snapshot,'$.feePlan.kind')='settlement')",{settlementRestricted:'1'}),
  record('s_bills',['id','status'],'x.matter_id','x.revision',"x.id=i.object_id AND json_extract(x.snapshot,'$.feePlan.kind')='settlement'",{settlementRestricted:'1',statementId:"json_extract(x.snapshot,'$.feePlan.settlementStatementId')",statementVersion:"json_extract(x.snapshot,'$.feePlan.settlementVersion')"}),
  record('s_trust_transactions',['id','direction','kind'],'(SELECT matter_id FROM s_trust_ledgers WHERE id=x.ledger_id)','x.revision',"x.id=i.object_id AND EXISTS(SELECT 1 FROM s_settlement_disbursements d WHERE d.transaction_id=x.id)",{settlementRestricted:'1',statementId:'(SELECT statement_id FROM s_settlement_disbursements WHERE transaction_id=x.id)',allocationIndex:'(SELECT allocation_index FROM s_settlement_disbursements WHERE transaction_id=x.id)'}),

@@ -1,3 +1,5 @@
+import {proveMicrosoftSecurity} from './microsoft-security-flow.mjs';
+import {secureSessions} from './security-flow.mjs';
 import {exemptTaxReview} from './tax-fixture.mjs';
 import {test,before,after} from 'node:test';
 import assert from 'node:assert/strict';
@@ -7,7 +9,9 @@ import {harness,open} from './harness.mjs';
 let h,m,assistant,lawyer,privateDoc,sourceDoc,bill,originalCsv,oldArchive,newArchive;
 before(async()=>{h=await harness();m=await open(h);});
 after(async()=>{await h?.close();});
-test('native authentication, role denial, CSRF, matter membership and revocation',async()=>{
+test('native authentication, MFA, device revocation, role denial, CSRF and matter membership',async()=>{
+ await secureSessions();
+ await proveMicrosoftSecurity(harness);
  await h.json('/state',undefined,'',401);await h.json('/matters',{},'',401);
  await h.json('/team',{email:'assistant@example.test',name:'Case assistant',role:'assistant'},h.owner);
  await h.json('/team/invite',{email:'assistant@example.test'},h.owner);
