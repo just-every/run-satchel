@@ -452,7 +452,9 @@ Every capability claim in br’s approved homepage register (17 October 2026, 60
 
 ## Status
 
-TIME-005 implementation and assertions are evaluated from this committed tree (27 October 2026). The exact candidate SHA, mutation results and landing runs are supplied inline in the fresh ct judgment request. No earlier commit is presented as a judgment of this tree. TIME-005 remains PARTIAL pending that judgment, with the original acceptance and recorded policy ruling preserved.
+Judged from the code and tests at commit `7ff9b1c1905611d102131b5ec7681fee2b4cf3cb` (27 October 2026).
+
+That commit is the current tested implementation and assertion baseline, including all three formerly surviving mutations. The candidate changes only documentation and generated lock data from that baseline; no production or test byte differs. Its exact full SHA and landing runs are supplied inline in the fresh ct judgment request. This is implementation provenance, not a fresh ct completion judgment. TIME-005 remains PARTIAL pending that judgment, with the original acceptance and recorded policy ruling preserved.
 
 INTAKE-003, REPORT-003, CLIENT-003, CAL-008, TIME-003, FIRM-005, INTAKE-005 and INTAKE-010, BILL-016, TIME-006, BILL-015, DOC-002, BILL-004, TIME-004, INTAKE-001, DOC-012 and DOC-013, BILL-013, BILL-011 and REPORT-002, BILL-012 and TIME-008, CLIENT-008, BILL-007 and BILL-008 and their inherited obligations retain their recorded statuses. The TIME-005 Evidence cell identifies this fix round’s current public-door assertions; no other clause is reassessed here.
 
