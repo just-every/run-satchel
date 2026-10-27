@@ -4716,7 +4716,7 @@
       "executable": false
     },
     "tests/satchel/settlement-execution-flow.mjs": {
-      "sha256": "9abba5cc1858ccb759a2729b98436d54530974f3f31c283f2052f196a5dfebd6",
+      "sha256": "38229db45f365d033e91ae3e79c8092a19744dd85df43b4ee8d75b05b621b676",
       "executable": false
     },
     "tests/satchel/settlement-retention-flow.mjs": {

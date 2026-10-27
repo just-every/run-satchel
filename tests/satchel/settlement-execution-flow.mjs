@@ -62,7 +62,14 @@ export async function settlementExecutionFlow(){
   const policy=await h.json('/settlement-policy',{previousVersion:0,solePractitionerEnabled:true,reason:'Principal alone holds legal and trust roles',scope:'All firm settlement approvals'},h.owner);
   assert.deepEqual([policy.version,policy.solePractitionerEnabled,policy.actor],[1,true,'owner@example.test']);assert.ok(policy.effectiveAt&&policy.reason&&policy.scope);
   await h.json('/trust/transactions/'+txn.id+'/decide',decide,h.owner,409);
-  for(const capacity of ['counsel','finance'])await h.json(p+'/approve',{statementId:s.id,capacity,note:'Restricted sole practitioner '+capacity+' review'},h.owner);
+  await h.json(p+'/approve',{statementId:s.id,capacity:'counsel',note:'Restricted sole practitioner counsel review'},h.owner);
+  await h.json('/trust/transactions/'+txn.id+'/decide',decide,h.owner,409);
+  await h.json(p+'/approve',{statementId:s.id,capacity:'finance',note:'Restricted sole practitioner finance review'},h.owner);
+  await h.json('/settlement-policy',{previousVersion:1,solePractitionerEnabled:false,reason:'The principal withdraws the separation waiver',scope:'All firm settlement approvals'},h.owner);
+  await h.json('/trust/transactions/'+txn.id+'/decide',decide,h.owner,409);
+  await h.json('/settlement-policy',{previousVersion:2,solePractitionerEnabled:true,reason:'Principal freshly records sole-practitioner authority',scope:'All firm settlement approvals'},h.owner);
+  await h.json('/trust/transactions/'+txn.id+'/decide',decide,h.owner,409);
+  for(const capacity of ['counsel','finance'])await h.json(p+'/approve',{statementId:s.id,capacity,note:'Restricted fresh sole practitioner '+capacity+' review'},h.owner);
   // A second allocation reservation is excluded from informational readiness.
   const client=await h.json('/trust/transactions',{...spend,requestKey:'synthetic-satchel-client',cents:49,counterparty:f.m.client,settlement:{statementId:s.id,allocationIndex:4}},h.owner);
   await h.json(p+'/check-funds',check,h.owner,409);
@@ -85,8 +92,8 @@ export async function settlementExecutionFlow(){
   await h.json('/trust/transactions',{...spend,requestKey:'synthetic-satchel-duplicate'},h.owner,409);
   await h.json(p+'/statements',{...input,previousVersion:1},counsel,409);
   const audit=await h.json('/audit?matterId='+f.m.id+'&action=settlement.approved',undefined,h.owner);
-  assert.equal(audit.records.length,4);
-  assert.deepEqual(audit.records.map(r=>[r.actor.email,r.evidence.context.capacity]).sort(),[['execution-counsel@example.test','counsel'],['execution-officer@example.test','finance'],['owner@example.test','counsel'],['owner@example.test','finance']].sort());
+  assert.equal(audit.records.length,6);
+  assert.deepEqual(audit.records.map(r=>[r.actor.email,r.actor.role,r.evidence.context.capacity,r.evidence.context.policyVersion]).sort(),[['execution-counsel@example.test','lawyer','counsel',0],['execution-officer@example.test','trust_officer','finance',0],['owner@example.test','owner','counsel',1],['owner@example.test','owner','finance',1],['owner@example.test','owner','counsel',3],['owner@example.test','owner','finance',3]].sort());
   for(const r of audit.records){assert.equal(r.matterId,f.m.id);assert.equal(r.revision,'1');assert.equal(r.actor.channel,'person');assert.ok(r.actor.id&&r.at);assert.equal(r.evidence.context.version,1);}
   const transactionAudit=await h.json('/audit?matterId='+f.m.id+'&action=trust.transaction_approved',undefined,h.owner);
   const finalAudit=transactionAudit.records.find(r=>r.objectId===txn.id);assert.ok(finalAudit);assert.equal(finalAudit.detail,'');assert.equal(finalAudit.evidence.record.statementId,s.id);assert.equal(finalAudit.evidence.record.allocationIndex,1);assert.equal(finalAudit.evidence.record.cents,undefined);
