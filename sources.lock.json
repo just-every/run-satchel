@@ -140,7 +140,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "bd7d68b0210945a6aafeae7227360e7d9849ad68b23b2de7c684b584133ec621",
+      "sha256": "ae432b91fd7a5f953930aab890055d4350a1807b1c16669f1f90f675ffa66864",
       "executable": false
     },
     "AGENTS.md": {
@@ -164,7 +164,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "81fa48cdd25ac4cb9e5c4ded05dea2fbd4aa3d35ae3d04e7ff06049203c31232",
+      "sha256": "33415b47d6cf871e7fd5db014726f6fbb25fa91c8381de75f5023983afcdd6e9",
       "executable": false
     },
     "DEMO.md": {
@@ -197,6 +197,10 @@
     },
     "docs/documents-and-deadlines.md": {
       "sha256": "17cff5a0dc747de5a95708af901bf74de7afec5fb36706b34c70357a270e8da3",
+      "executable": false
+    },
+    "docs/evidence/time005-assertions.md": {
+      "sha256": "180a48ca5c11af6b76f62301686ff09715ba001bb3bf396809c5a02a6540fde4",
       "executable": false
     },
     "docs/free-and-providers.md": {
@@ -4464,7 +4468,7 @@
       "executable": false
     },
     "tests/satchel/fee-plans.test.mjs": {
-      "sha256": "444d56644a53a45932fe61d48e99ed06ff7f98051a022ebf3018990657d19d6b",
+      "sha256": "93b3ad732fa6d23946d9042851232ffd204c98ff4ac0e5f24c79a575a55ee13c",
       "executable": false
     },
     "tests/satchel/flows.test.mjs": {
