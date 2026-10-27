@@ -140,7 +140,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "84ccd1371f78063185738b558b8ef6ed2748a71cd3ecc3d475b1d9a5aa408427",
+      "sha256": "d323d4abf67d37e1d0f08491883059e3f78f4f1653521c004ba088ff171d5e29",
       "executable": false
     },
     "AGENTS.md": {
@@ -148,7 +148,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "fc59f4cb71576406d420ce92bf7d323dda6d406897077cf821422ffab234e171",
+      "sha256": "10b092a349ff60049c0bb1d5f81215f2560bff126e45eabae5f0884fb160de2d",
       "executable": false
     },
     "base-copies.json": {
@@ -164,7 +164,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "82d1bf3c04b6e225e5d7021e75e1056764ef687bd266c45200ec491d26c996a9",
+      "sha256": "584b57c432bca4b2d38dc95b8cde5d2f0f8b2fee6ceb7893dbd71f7d4c26ded3",
       "executable": false
     },
     "DEMO.md": {
@@ -673,6 +673,10 @@
     },
     "migrations/core/0108_stripe_reconciliation.sql": {
       "sha256": "f4bff21aba9caabc86ee9fe27da96f033f9b6d774da5f0ce0005a8ce71693d8b",
+      "executable": false
+    },
+    "migrations/core/0108_trust_statement_releases.sql": {
+      "sha256": "40903df3cd14b50066ce1e4ce8b249c2ca6440bb2d391d8337c48276a7cd96e0",
       "executable": false
     },
     "migrations/core/0109_payment_plans.sql": {
@@ -3072,7 +3076,7 @@
       "executable": false
     },
     "src/satchel/api.ts": {
-      "sha256": "4b7ded960a7565817689680589ce3041fe32fcd66597a9316f9b46bbdbc9f6ea",
+      "sha256": "6e8bcb8dff29c635ec3130c883c7140623f6c0cb12bdaba4d38a68488f9911a2",
       "executable": false
     },
     "src/satchel/appointments.ts": {
@@ -3084,7 +3088,7 @@
       "executable": false
     },
     "src/satchel/archive-policy.mjs": {
-      "sha256": "fa09550fbf24e784815741d34a63010dd27314273739b698aab1f30ba4975380",
+      "sha256": "be8593604238eb5f588f1f7a1412e92c5ed9743757a6d167dac5a54c87dbfa2f",
       "executable": false
     },
     "src/satchel/archive-transport.ts": {
@@ -3116,7 +3120,7 @@
       "executable": false
     },
     "src/satchel/audit-record.ts": {
-      "sha256": "d388252f313900af7dbce675fe83d40440835e1dbb32bf526053aef9a76060b9",
+      "sha256": "8fdb078e6a30109987773b37aa9c35118aafab093cdb85f5adc9629b552019aa",
       "executable": false
     },
     "src/satchel/audit.ts": {
@@ -3608,11 +3612,11 @@
       "executable": false
     },
     "src/satchel/role-areas.ts": {
-      "sha256": "df20fc04207adb224a033e4e9f34c9eaa9ed19943144096ab20c003921eef208",
+      "sha256": "9b4d4d56d0aa2cb9631a4e0630a6c087a899fc06da9d678a0b1fcb443b81d59e",
       "executable": false
     },
     "src/satchel/role-doors.ts": {
-      "sha256": "2751b835b2c71f5a746e81943c8dfa2713f463496bdbdb0e9e35ac4b7bfe61bc",
+      "sha256": "2a15840d2852622ff487568c2f89bb8691e330f8029529022b5d64b9ffd6ebee",
       "executable": false
     },
     "src/satchel/role-redaction.ts": {
@@ -3740,11 +3744,23 @@
       "executable": false
     },
     "src/satchel/trust-reports.ts": {
-      "sha256": "d81a83ae7e9d844c513cea4afa2273ccfbf42084fca9972dcea1f03daa80cbeb",
+      "sha256": "4e5038fcacd70ca0240e0e71f79778f433fba6c480f04cb89d1fb1b943df3cd0",
+      "executable": false
+    },
+    "src/satchel/trust-retainers.ts": {
+      "sha256": "895b3902cb23bc0514569c1d0ca85320f67a5fc616391f1e27e4a3cd3ceee6d5",
       "executable": false
     },
     "src/satchel/trust-reversals.ts": {
       "sha256": "1be75ac434069b59d7b1f22182cc167dbbad81cd7cf803f432145085ae707760",
+      "executable": false
+    },
+    "src/satchel/trust-state-records.ts": {
+      "sha256": "77cc16cc7a8d7dae14262812ba7606c8c28a0ed7ec3b1a2e75270ca5e6bb9923",
+      "executable": false
+    },
+    "src/satchel/trust-statement-releases.ts": {
+      "sha256": "145121ab02901337f2d6e9157bd47a5875e99072a89331fcccada0808c6b3357",
       "executable": false
     },
     "src/satchel/trust-transactions.ts": {
@@ -4300,7 +4316,7 @@
       "executable": false
     },
     "src/ui/trust-periods.tsx": {
-      "sha256": "984067006a5c21137136fa7841361569c813bdeddb3c08a6f894ba0030ce1466",
+      "sha256": "353ad62726beac1fd1c0a3818b86d9b0b5a80909497b06cdc9359e956e647ced",
       "executable": false
     },
     "src/ui/trust-reversal.tsx": {
@@ -4800,7 +4816,7 @@
       "executable": false
     },
     "tests/satchel/trust-journey.test.mjs": {
-      "sha256": "c4e50d2a06185f04feaf05e7443131ad5a4a2f29f7ed92d24eebdcc43ff5954c",
+      "sha256": "ef33fffa3818c178b557c1f3fd0f58a37f834247aa44bd0457af25020379f136",
       "executable": false
     },
     "tests/satchel/trust-matter-transfer-journey.test.mjs": {
@@ -4816,11 +4832,11 @@
       "executable": false
     },
     "tests/satchel/trust-period-journey.test.mjs": {
-      "sha256": "d89842e8e99e1a95cafbcafb64b78f5ecbec30ae42787d6950bde5a97a83e5e2",
+      "sha256": "df90f566e5ec57e73e9e87751e7923206089b793c7653459661106929e434109",
       "executable": false
     },
     "tests/satchel/trust-period.test.mjs": {
-      "sha256": "117f46aaeb4a47133e0a58e44a179046d37c66d7eceabca65c6960320c42e783",
+      "sha256": "a69cb8310e204dd10d3d8d657c15607e2eec1c32b3450272714832fc39fde6d8",
       "executable": false
     },
     "tests/satchel/trust-transfer-journey.test.mjs": {

@@ -5,6 +5,9 @@ import {paymentPlans,paymentPlan,savePaymentPlan,paymentPlanAction,startPlanMand
 import {approveRefund} from './stripe-refunds';
 import {reconciliationState,reconcileCollection,inspectSettlement,matchSettlement} from './stripe-reconciliation';
 import {settlements,saveContingency,prepareSettlement,approveSettlement,checkSettlementFunds} from './settlements';
+import {stateTrustRecords} from './trust-state-records';
+import {setRetainerPolicy,retainerAlert,deliverReplenishment,portalReplenishments} from './trust-retainers';
+import {listTrustStatementReleases,releaseTrustStatement,withdrawTrustStatement,portalTrustStatements} from './trust-statement-releases';
 import {matterUpdateState,generateMatterUpdate,editMatterUpdate,approveMatterUpdate,fulfilMatterUpdatePromise,completeMatterUpdateReply} from './matter-updates';
 import {listPortalMatterUpdates,replyToMatterUpdate} from './matter-update-portal';
 import {listProductionShares,releaseProduction,recallProductionShare,inviteProductionRecipient,recipientProductionState,recipientProductionFile} from './production-shares';
@@ -547,3 +550,15 @@ api.get('/api/satchel/settlement-policy',as((a,c)=>settlementPolicy(db(c),a)));
 api.post('/api/satchel/settlement-policy',as(async(a,c)=>saveSettlementPolicy(db(c),a,await body(c))));
 api.post('/api/satchel/matters/:id/settlements/bill',as(async(a,c)=>prepareSettlementBill(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/matters/:id/settlements/dispose',as(async(a,c)=>disposeSettlement(db(c),a,param(c),await body(c),runtimeBindings(c.env).ORIGINALS)));
+api.post('/api/satchel/trust/ledgers/:id/releases',as(async(a,c)=>releaseTrustStatement(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/trust/statement-releases/:id/revoke',as(async(a,c)=>withdrawTrustStatement(db(c),a,param(c),await body(c))));
+api.get('/api/satchel/portal/matters/:id/trust-statements',as((a,c)=>portalTrustStatements(db(c),a,param(c))));
+
+api.post('/api/satchel/trust/ledgers/:id/retainer-policy',as(async(a,c)=>setRetainerPolicy(db(c),a,param(c),await body(c))));
+api.get('/api/satchel/trust/ledgers/:id/balance-alert',as((a,c)=>retainerAlert(db(c),a,param(c))));
+api.post('/api/satchel/trust/ledgers/:id/replenishments',as(async(a,c)=>deliverReplenishment(db(c),a,param(c),await body(c))));
+api.get('/api/satchel/portal/matters/:id/replenishments',as((a,c)=>portalReplenishments(db(c),a,param(c))));
+
+api.get('/api/satchel/trust/packets/:id/records',as(async(a,c)=>{const packet=await getTrustPacket(db(c),a,param(c));return new Response(JSON.stringify({...stateTrustRecords(packet.snapshot,c.req.query('state')??''),packetId:packet.id,packetDigest:packet.digest}),{headers:{'content-type':'application/json','content-disposition':'attachment; filename="satchel-state-trust-records.json"','cache-control':'private, no-store'}});}));
+
+api.get('/api/satchel/trust/ledgers/:id/releases',as((a,c)=>listTrustStatementReleases(db(c),a,param(c))));
