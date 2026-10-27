@@ -6,6 +6,7 @@ import {invoiceIssue} from './invoice-issue';
 import {getInvoiceVoid} from './invoice-void';
 import {approvalTax,taxCalculations} from './tax-reviews';
 import {feeAdjustedLines,feeCorrectionGuards,earningReview,loadFeePlan,periods} from './fee-plans';
+import {settlementFeeGuards} from './settlement-billing';
 import {invoiceFunds} from './trust-transfers';
 import {noUnsplitInvoiceFundsSql} from './processor-balances';
 // Adapted from just-every/run-gauge src/gauge/{billing,time,model}.ts (MIT):
@@ -171,11 +172,12 @@ export async function approveBill(db: D1Database, actor: Actor, billId: string, 
  // the first scheme. Already reviewed/exported artifacts are never rewritten.
  const numbering=await invoiceCounter(db);
  const issueSnapshot=numbering?{...bill.snapshot,numberingCutover:true}:bill.snapshot;
+ const settlementGuards=await settlementFeeGuards(db,actor,bill);
  const feeReview=await earningReview(db,actor,bill,body),tax=await approvalTax(db,actor,{...bill,snapshot:issueSnapshot},body,at);
  const approved = {...bill,snapshot:tax.snapshot,approvedBy:actor.email,approvedAt:at,reviewNote}, exportedArtifact = artifact(approved);
  const checks = bill.correctsBillId ? [guard(db,"EXISTS(SELECT 1 FROM s_bills WHERE id=? AND status='exported')",bill.correctsBillId)]
   : [guard(db,`NOT EXISTS(SELECT 1 FROM json_each(?) l WHERE NOT EXISTS(SELECT 1 FROM s_billing_sources s JOIN s_entries e ON e.id=s.entry_id WHERE s.entry_id=json_extract(l.value,'$.sourceId') AND s.bill_id=? AND s.source_revision=json_extract(l.value,'$.sourceRevision') AND e.revision=s.source_revision))`,JSON.stringify(bill.snapshot.lines.filter((l:Data)=>l.kind!=='fee')),bill.id)];
- await atomic(db,actor,[accessGuard(db,actor,bill.matterId),revisionGuard(db,bill),guard(db,numbering?'EXISTS(SELECT 1 FROM s_invoice_counter WHERE revision=?)':'NOT EXISTS(SELECT 1 FROM s_invoice_counter)',...(numbering?[numbering.revision]:[])),...checks,...feeReview,...tax.guards,
+ await atomic(db,actor,[accessGuard(db,actor,bill.matterId),revisionGuard(db,bill),guard(db,numbering?'EXISTS(SELECT 1 FROM s_invoice_counter WHERE revision=?)':'NOT EXISTS(SELECT 1 FROM s_invoice_counter)',...(numbering?[numbering.revision]:[])),...checks,...settlementGuards,...feeReview,...tax.guards,
   stmt(db,"UPDATE s_bills SET status='approved',revision=?,artifact=?,artifact_digest=?,approved_by=?,approved_at=?,review_note=? WHERE id=? AND revision=? AND status='draft'",id(),exportedArtifact,await digest(exportedArtifact),actor.email,at,reviewNote,bill.id,bill.revision),
   ...(!approved.snapshot.numberingCutover?await freezeLedes(db,approved):[]),
   audit(db,actor,'bill.approved',bill.id,reviewNote),
@@ -254,13 +256,19 @@ async function ledesReplacement(db: D1Database, bill: Data, source: Data, body: 
 
 // A due occurrence is a separate immutable source, never a fabricated time entry.
 export async function prepareFeeBill(db:D1Database,actor:Actor,matterId:string,planId:string,period:string,stage?:BillStage){
- need(actor,...(stage?['owner','lawyer','billing'] as const:['owner','lawyer'] as const));const m=await matter(db,actor,matterId),p=await loadFeePlan(db,actor,matterId,planId);
+ need(actor,...(stage?['owner','lawyer','billing'] as const:['owner','lawyer'] as const));const p=await loadFeePlan(db,actor,matterId,planId);
  insist(!['capped','blended'].includes(p.kind),'Select recorded work to bill a cap or blended plan');
  insist(periods(p,period).includes(period),'Choose a period due under the reviewed recurrence');
  const prior=await stmt(db,'SELECT bill_id FROM s_fee_occurrences WHERE plan_id=? AND period=?',p.id,period).first<Data>();if(prior){insist(!stage,'This fee occurrence already exists; explicitly select its current draft for the run',409);return getBill(db,actor,prior.bill_id);}
+ const billId=stage?.billId??id();
+ return prepareNonhourlyFeeBill(db,actor,matterId,p,period,stage,billId,[stmt(db,'INSERT INTO s_fee_occurrences VALUES(?,?,?)',p.id,period,billId)]);
+}
+
+// All reviewed nonhourly sources share pricing, guideline validation and frozen exports.
+export async function prepareNonhourlyFeeBill(db:D1Database,actor:Actor,matterId:string,p:Data,period:string,stage?:BillStage,billId?:string,after:D1PreparedStatement[]=[]){
+ need(actor,...(stage?['owner','lawyer','billing'] as const:['owner','lawyer'] as const));const m=await matter(db,actor,matterId);
  const sourceId=p.id+':'+period,lines=[{kind:'fee',sourceId,sourceRevision:p.id,date:period,description:p.title+' — '+p.includedWork,minutes:null,rateCents:null,amountCents:p.amountCents,rounding:'one nonhourly fee at reviewed USD cents'}];
  const g=await currentGuideline(db,m.client);let ledes:Data|undefined;
  if(g){const c=await codeLine(db,g,{id:sourceId,kind:'fee',date:period,created_by:p.reviewedBy,utbms_task:p.utbmsTask,utbms_activity:p.utbmsActivity},undefined,1,p.amountCents,lines[0].description);insist(!c.problems.length,'Nonhourly fee guideline: '+c.problems.join('; '),422);insist(!/[|]|\[\]/.test(p.title),'Fee title cannot contain | or []');ledes={format:'LEDES 1998B',guidelineId:g.id,guidelineVersion:g.version,clientId:g.clientLedesId,lawFirmId:g.lawFirmId,invoiceNumber:await nextInvoiceNumber(db,matterId,m.matter_number),lines:[c.line]};ledes.xml=await snapshotXml(db,g.xmlProfile,m.client,matterId,m.matter_number,m.title,ledes.invoiceNumber||'DRAFT',ledes.lines);}
- const billId=stage?.billId??id();
- return createBill(db,actor,matterId,{title:p.title+' '+period,date:period,currency:'USD',matterId,matterNumber:m.matter_number,matterTitle:m.title,client:m.client,lines,totalCents:p.amountCents,feePlan:p,feePeriod:period,...(ledes?{ledes}:{})},[],[],billId,[stmt(db,'INSERT INTO s_fee_occurrences VALUES(?,?,?)',p.id,period,billId)],stage);
+ return createBill(db,actor,matterId,{title:p.title+' '+period,date:period,currency:'USD',matterId,matterNumber:m.matter_number,matterTitle:m.title,client:m.client,lines,totalCents:p.amountCents,feePlan:p,feePeriod:period,...(ledes?{ledes}:{})},[],[],billId,after,stage);
 }

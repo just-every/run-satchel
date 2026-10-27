@@ -140,7 +140,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "b15606dda8389739ec77729753f84a60f31109c2ea7260204a150d3b7d3476b0",
+      "sha256": "6cec935c7a6557ab8c4890875700e2db20a65e01ca92ad3b17a1cea230cf214b",
       "executable": false
     },
     "AGENTS.md": {
@@ -164,7 +164,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "1b360a5280d6d9b3aea002edcfe219e06fc56ba838fabaa28d13dfd2bc5f77a6",
+      "sha256": "666cca0aa48b78caf4b8cf8d72cc5ccc53d5c8dc9f04ab3cae7e453902be8a1c",
       "executable": false
     },
     "DEMO.md": {
@@ -673,6 +673,10 @@
     },
     "migrations/core/0109_payment_plans.sql": {
       "sha256": "6c6b3e03988a30b580e8d1ed8340682b686095a23289ec046a482c5fd81333ac",
+      "executable": false
+    },
+    "migrations/core/0110_settlements.sql": {
+      "sha256": "0f630785f728342aa7384dcf2cfed5963a1d4dbc841cd9ed1b1a194ca67ae2ed",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -3060,7 +3064,7 @@
       "executable": false
     },
     "src/satchel/api.ts": {
-      "sha256": "d436e5e4eb693c2d036f1158253dd14304450cb210de86dfcfa4d2aefcb5bf8a",
+      "sha256": "4b7ded960a7565817689680589ce3041fe32fcd66597a9316f9b46bbdbc9f6ea",
       "executable": false
     },
     "src/satchel/appointments.ts": {
@@ -3072,7 +3076,7 @@
       "executable": false
     },
     "src/satchel/archive-policy.mjs": {
-      "sha256": "621f3f956d2ed7afa16e928f3a19c617a762b007205074668a6a70ab258c9174",
+      "sha256": "fa09550fbf24e784815741d34a63010dd27314273739b698aab1f30ba4975380",
       "executable": false
     },
     "src/satchel/archive-transport.ts": {
@@ -3104,7 +3108,7 @@
       "executable": false
     },
     "src/satchel/audit-record.ts": {
-      "sha256": "6abf6dda9efe4e5119c9e5eeb918a1d0f4df9b5ce3a45bceab55dac76de89b37",
+      "sha256": "96a5c613e2d92e25ee140aca2155ba65addee86c87f74cbe9e177a45e8c08f9f",
       "executable": false
     },
     "src/satchel/audit.ts": {
@@ -3116,7 +3120,7 @@
       "executable": false
     },
     "src/satchel/billing.ts": {
-      "sha256": "0d58ef1945410b3ee6ca6ad751f984833b5d07c54407c3dec37ca9460d38266b",
+      "sha256": "a7683315d311d5d1e40d16a5007ffd8aff314dae157480a4c581ce725afbfd3e",
       "executable": false
     },
     "src/satchel/bulk-work.ts": {
@@ -3376,7 +3380,7 @@
       "executable": false
     },
     "src/satchel/matter-closure-checks.ts": {
-      "sha256": "f99a70e0e2fe5dcccfe937a4d02f7db1270fff2fbd3142dd8369ee219c7c4b17",
+      "sha256": "858811968a99b84b148819ee7506eabc2290dd2b8a864a1040eb4fe5f6542c43",
       "executable": false
     },
     "src/satchel/matter-fields.ts": {
@@ -3596,7 +3600,7 @@
       "executable": false
     },
     "src/satchel/role-areas.ts": {
-      "sha256": "3d519270e027abf8a5abbb9fafe9006c0613e7593a5c88af3ac87a58fa517378",
+      "sha256": "df20fc04207adb224a033e4e9f34c9eaa9ed19943144096ab20c003921eef208",
       "executable": false
     },
     "src/satchel/role-doors.ts": {
@@ -3613,6 +3617,10 @@
     },
     "src/satchel/session.ts": {
       "sha256": "8fa64e32b9d42c851c22cf2736d57a94c6fac61b5f2aa867ad4bd6e803632056",
+      "executable": false
+    },
+    "src/satchel/settlements.ts": {
+      "sha256": "13b54df88e9d805239cdca48df0422a8d076264180ba23081dc3b706dd1e7de6",
       "executable": false
     },
     "src/satchel/stripe-api.ts": {
@@ -3712,11 +3720,11 @@
       "executable": false
     },
     "src/satchel/trust-transactions.ts": {
-      "sha256": "9106ade9ef33f175285fb67de06abc70dfe51c8b8b128d9a70a4bd416883ca3e",
+      "sha256": "654a443f7ab62e6fd5bf7678b2ef9bd8f403a548dc798c098a19155e816a0984",
       "executable": false
     },
     "src/satchel/trust-transfers.ts": {
-      "sha256": "2132f143d46cb6e0e052d04e53bcfec9b4bae6c4b624bfb69a3b228ee152e781",
+      "sha256": "3d59bdb91198b55ff0318ca5ce4ece9329e03317f071d75e2022ccc25466bb93",
       "executable": false
     },
     "src/satchel/trust-wall-scope.ts": {
@@ -3904,7 +3912,7 @@
       "executable": false
     },
     "src/ui/billing.tsx": {
-      "sha256": "7b8593c97a3300e6e8db3c971ac9ffde5bdb1cfbd576d058df7b44092e88f21b",
+      "sha256": "b05a985e17e25df159e90feb0654f7aecafe118522051ceb11b889197472af78",
       "executable": false
     },
     "src/ui/booking-public.tsx": {
@@ -4024,7 +4032,7 @@
       "executable": false
     },
     "src/ui/firm.tsx": {
-      "sha256": "2d21f24082eb87dd43d215492073aa718c0ba08fbe107a2ca4de74f5db320e6d",
+      "sha256": "58ae22d062c75af9605bdeb67a25b972cb5bb8ba5b27ece89f1aac944f65baec",
       "executable": false
     },
     "src/ui/followups.tsx": {
@@ -4209,6 +4217,14 @@
     },
     "src/ui/search.tsx": {
       "sha256": "4e2f0af5eb48f2f064c7d2f925c4db57a00fe16b0c464dd3cccf4dec96b0f80a",
+      "executable": false
+    },
+    "src/ui/settlement-settings.tsx": {
+      "sha256": "2a928759d2d05ae7b8c192eabd88a6690d7d1ab3ee29dc1a4fa692a6982666f9",
+      "executable": false
+    },
+    "src/ui/settlements.tsx": {
+      "sha256": "4875f524dad299b406832d031f05ce3442d0e5de844dc2f62e2484f433f7f94a",
       "executable": false
     },
     "src/ui/stripe-settings.tsx": {
@@ -4420,11 +4436,11 @@
       "executable": false
     },
     "tests/satchel/fee-plans-journey.test.mjs": {
-      "sha256": "1940ee90b11fc37f910f8a522c2ec4aaec3350166785f8a7c15b654185c92616",
+      "sha256": "50c5e14b830da85ca424ce51234ee46de8081bb2fc2825f79fd12c7692866870",
       "executable": false
     },
     "tests/satchel/fee-plans.test.mjs": {
-      "sha256": "21d3e3e94aefb0fa2ad8aaadc53e83de9b10cdbda8f2cac8aa1a4651b28735b3",
+      "sha256": "d28c4b46a256a1d477e243b898dad6a7523bb470216706424d62953e62542b01",
       "executable": false
     },
     "tests/satchel/flows.test.mjs": {

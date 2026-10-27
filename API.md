@@ -429,3 +429,59 @@ All paths below use the existing authenticated API prefix. Processor readback su
 - Source schedules use `sourceSystem` and `sourceReference` only. Source payment credentials are refused. The new plan starts paused with a principal task due before its first installment.
 - `GET /payment-plans/:id` returns current schedule, consent evidence, attempts and retained history to staff. Clients receive only the current schedule, collection states and their own consent; internal approval reasons, provider credentials and event history remain private. Client-session `POST /payment-plans/:id/mandate` requires exact `revision`, `agree: true` and `requestKey`, and opens hosted Stripe setup. On return, `/payment-plans/:id/mandate/confirm` requires `setupId`, current `revision` and fresh `agree: true`; authenticated readback verifies the exact mandate and customer.
 - `POST /payment-plans/:id/actions` takes current `revision`, `kind` and `reason`. The consenting client can `revoke` or `dispute`; the principal can also `pause`. The scheduler rechecks current principal authority, invoice revision, portal authority, provider configuration, payment method, bank mandate and available balance before dispatch. An installment identity is claimed atomically before one provider call. Failed, returned, disputed, revoked and uncertain work stops with a human task. Plans currently accept Stripe test mode only.
+
+## Reviewed contingency settlements
+
+`GET /api/satchel/matters/:id/settlements` returns restricted, versioned terms,
+statements, capacity approval history, same-matter trust ledgers and linked
+transactions. Native counsel or designated finance staff need current matter
+access. Agents cannot prepare, approve or execute these actions.
+
+Counsel saves `/settlements/terms` with `previousVersion`, `reviewed:true`,
+`feeBasis` (`gross` or `after_expenses`), agreement `reference`, earning condition
+`earningEvidence`, and `outcomes:[{name,bps}]`. Counsel prepares
+`/settlements/statements` with the latest `termsId`, `previousVersion`, selected
+`outcome`, `grossCents`, recovery `reference`, `earnedConfirmed:true`, completed
+`earningEvidence`, `allocations:[{kind,payee,originalCents,reductionCents,reference}]`
+and `referrals:[{payee,bps,reference}]`. Obligation kinds are expense, lien and
+medical; referrals divide the counsel fee. Half-up integer-cent arithmetic and
+the counsel residual reconcile all allocations to gross recovery.
+
+`POST /settlements/approve` records `statementId`, `capacity` (counsel or finance)
+and `note`. Different people are required by default. The principal reads or
+records `/api/satchel/settlement-policy` with `previousVersion`,
+`solePractitionerEnabled`, `reason` and `scope`. A recorded sole-practitioner
+setting permits one currently authorized person to approve separately in each
+capacity. This product setting establishes no exception to legal requirements.
+A setting change invalidates earlier approval authority. Restored settings and
+approval history require new local decisions; archives confer no old sessions
+or execution authority.
+
+`POST /settlements/check-funds` takes `statementId` and `ledgerId` and returns
+informational readiness only. It reserves nothing, bills nothing and posts
+nothing. Actual `POST /api/satchel/trust/transactions` disbursement requests
+include the ordinary exact transaction fields and
+`settlement:{statementId,allocationIndex}`. The amount and payee must equal that
+positive allocation. Preparation and `/trust/transactions/:id/decide` approval
+recheck current terms, statement, capacity approvals, roles, officer designation,
+permissions, walls and cleared unreserved same-matter funds. Other reservations
+reduce availability; the statement's own pending and posted allocations count
+toward its funded gross recovery. Pending allocations must be declined before
+replacement; posted disbursements retain their original statement.
+
+Counsel explicitly prepares `/settlements/bill` with `statementId`, `reviewed`,
+`trustDraw` (`permitted` or `prohibited`), `date`, `utbmsTask` and `utbmsActivity`.
+The full counsel fee, including referral shares, becomes one unearned nonhourly
+draft. Existing earning, guideline, tax, invoice and reviewed trust application
+doors still apply. A generic counsel or referral disbursement excludes a fee
+application against the same recovery, and a reserved or paid fee application
+excludes those generic disbursements.
+
+`POST /settlements/dispose` takes the exact matter title as `confirm` and a
+`reason`. Only the principal can approve disposal after the current matter
+retention schedule expires. Active holds and retained settlement fee bills
+refuse disposal. Erasure removes restricted terms, allocations, references and
+approval notes while retaining immutable identities and approval attribution;
+the native erasure journal fences older archives. The general audit retains
+attributed revision metadata, with settlement amounts and source text available
+only through the restricted financial records.

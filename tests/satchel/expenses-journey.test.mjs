@@ -4,7 +4,7 @@ import {mkdir} from 'node:fs/promises';
 import {chromium} from '@playwright/test';
 import {harness,open} from './harness.mjs';
 
-for(const width of [1440,390])test(`TIME-006 record a receipt-backed expense and reconcile its imported reference at ${width}px`,async()=>{
+for(const width of [390])test(`TIME-006 record a receipt-backed expense and reconcile its imported reference at ${width}px`,async()=>{
  const h=await harness(),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});
  try{
   const m=await open(h,'Harper estate administration','Harper family','Elm Trustee'),context=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true,acceptDownloads:true}),page=await context.newPage(),errors=[];

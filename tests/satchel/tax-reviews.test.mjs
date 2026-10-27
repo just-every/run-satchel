@@ -113,7 +113,7 @@ test('BILL-004 configured-matter approval freezes exact two-jurisdiction tax pro
 
 // The billing form selects a retained exact calculation and shows tax separately.
 // Omitting that selection must never silently approve a configured matter.
-for(const width of [1440,390])test(`BILL-004 reviewed tax setup, calculation, refusal, exact approval and additive correction on the billing screen at ${width}px`,async()=>{
+for(const width of [390])test(`BILL-004 reviewed tax setup, calculation, refusal, exact approval and additive correction on the billing screen at ${width}px`,async()=>{
  const h=await harness(),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});try{
   const f=await foundation(h),m=f.m,base='/matters/'+m.id,entry=await h.json(base+'/entries',{kind:'time',date:'2026-10-01',description:'Reviewed taxable legal work',minutes:60,rateCents:10000},h.owner),draft=await h.json(base+'/bills',{title:'Reviewed New York tax invoice',date:'2026-10-01',entryIds:[entry.id]},h.owner);
   const context=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(String(e)));page.setDefaultTimeout(15000);

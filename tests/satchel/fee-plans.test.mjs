@@ -1,3 +1,6 @@
+import {settlementExecutionFlow} from './settlement-execution-flow.mjs';
+import {settlementBillingFlow} from './settlement-billing-flow.mjs';
+import {settlementRetentionFlow} from './settlement-retention-flow.mjs';
 import {withTaxAllocation,exemptTaxReview} from './tax-fixture.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -167,7 +170,7 @@ test('TIME-004 and inherited TIME-007 nonhourly fees need actual fee codes, expo
  }finally{await h.close();}
 });
 
-test('Settlement revisions reconcile reduced liens, expenses, providers and referral fees; dual current approvals and cleared same-matter funds gate readiness without movement',async()=>{
+test('Settlement statements reconcile recovery and refuse spending without current approvals and cleared funds',async()=>{
  const h=await harness();try{
   const f=await foundation(h),p='/matters/'+f.m.id+'/settlements';
   await h.json('/team',{email:'counsel@example.test',name:'Case Counsel',role:'lawyer'},h.owner);await h.json('/team/invite',{email:'counsel@example.test'},h.owner);const counsel=await h.login('counsel@example.test');await h.json('/matters/'+f.m.id+'/access',{email:'counsel@example.test'},h.owner);
@@ -188,7 +191,7 @@ test('Settlement revisions reconcile reduced liens, expenses, providers and refe
   await h.json('/trust/transactions/'+receipt.id+'/decide',{revision:receipt.revision,decision:'approved',reviewNote:'Recorded bank receipt, not yet cleared'},h.owner);await h.json(p+'/check-funds',check,h.owner,409);
   const entry=(await h.json('/trust',undefined,h.owner)).entries.find(e=>e.source_id===receipt.id);await h.json('/trust/entries/'+entry.id+'/clear',{clearedDate:'2026-09-02',bankReference:'Cleared bank receipt 928',documentId:f.source.id},h.owner);
   await h.json(p+'/check-funds',{...check,ledgerId:f.otherLedger.id},h.owner,409);
-  const before=await h.json('/trust',undefined,h.owner),ready=await h.json(p+'/check-funds',check,h.owner);assert.equal(ready.moneyMoved,false);assert.equal(ready.reserved,false);assert.equal(ready.availableCents,1000000);assert.deepEqual(await h.json('/trust',undefined,h.owner),before);
+  const before=await h.json('/trust',undefined,h.owner),ready=await h.json(p+'/check-funds',check,h.owner);assert.equal(ready.moneyMoved,false);assert.equal(ready.reserved,false);assert.equal(ready.availableCents,1000000);assert.equal((await h.json('/matters/'+f.m.id+'/billing',undefined,h.owner)).bills.length,0);assert.deepEqual(await h.json('/trust',undefined,h.owner),before);
   await h.json('/matters/'+f.m.id+'/access',{email:'counsel@example.test',remove:true},h.owner);await h.json(p+'/check-funds',check,h.owner,404);await h.json('/matters/'+f.m.id+'/access',{email:'counsel@example.test'},h.owner);
   const t2=await h.json(p+'/terms',{...terms,previousVersion:1,feeBasis:'gross'},counsel);await h.json(p+'/statements',{...body,previousVersion:1},counsel,409);
   const s2=await h.json(p+'/statements',{...body,previousVersion:1,termsId:t2.id,outcome:'Trial'},counsel);assert.equal(s2.snapshot.feeCents,400000);assert.equal(s2.snapshot.allocations.at(-1).amountCents,310000);await h.json(p+'/approve',{statementId:s.id,capacity:'counsel',note:'Old statement'},counsel,409);await h.json(p+'/check-funds',{...check,statementId:s2.id},h.owner,409);
@@ -198,5 +201,6 @@ test('Settlement revisions reconcile reduced liens, expenses, providers and refe
   await h.restart();assert.deepEqual(await h.json(p,undefined,h.owner),state);
   const restored=await harness();try{const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);assert.deepEqual(await restored.json(p,undefined,restored.owner),state);}finally{await restored.close();}
   const audit=await h.json('/audit?matterId='+f.m.id+'&action=settlement.approved',undefined,h.owner);assert.equal(audit.records.length,3);assert.deepEqual(audit.records.map(r=>r.evidence.record.version).sort(),[1,1,2]);
+  await settlementExecutionFlow();await settlementBillingFlow();await settlementRetentionFlow(h);
  }finally{await h.close();}
 });

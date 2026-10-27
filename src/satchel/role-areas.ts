@@ -8,9 +8,10 @@ const seg='[^/]+',any='.*';
 const rule=(pattern:string,areas:string[]):[RegExp,string[]]=>[new RegExp('^'+pattern+'$'),areas];
 const open:string[]=[];
 export const areaRules:[RegExp,string[]][]=[
+ rule('/settlement-policy',['settings']),
  rule('/(bills/'+seg+'/reconciliation|stripe/collections/'+seg+'/(reconcile|refund|settlement|bank-match))',['billing','bank:full']),
  rule('/(bills/'+seg+'/payment-plans|payment-plans/'+seg+'(?:/actions|/mandate|/mandate/confirm)?)',['billing']),
- rule('/matters/'+seg+'/settlements(/terms|/statements|/approve|/check-funds)?',['billing','bank:full']),
+ rule('/matters/'+seg+'/settlements(/terms|/statements|/approve|/check-funds|/bill|/dispose)?',['billing','bank:full']),
  rule('/(matters/'+seg+'/matter-updates(?:/generate)?|matter-updates/'+seg+'/(edit|approve)|matter-update-promises/'+seg+'/fulfil|matter-update-replies/'+seg+'/complete)',['contacts','documents','billing']),
  rule('/(portal/matters/'+seg+'/updates|portal/matter-updates/'+seg+'/replies)',open),
  rule('/production-shares/'+seg+'/recall',['documents']),

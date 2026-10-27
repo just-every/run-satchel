@@ -1,4 +1,5 @@
 import {foundation} from './trust-fixture.mjs';
+import {settlementExecutionJourney} from './settlement-browser.mjs';
 import {selectExemptTax} from './tax-fixture.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -40,7 +41,7 @@ test('TIME-004 counsel reviews monthly flat and milestone terms, runs a schedule
  }finally{await browser.close();await h.close();}
 });
 
-test('Settlement workspace prepares reconciled recovery, reviews exact approvals and shows blocked funds at 1440 and 390',async()=>{
+test('Settlement workspace prepares recovery, records sole-practitioner settings and binds exact disbursements with approval and funds refusals at 1440 and 390',async()=>{
  const h=await harness(),browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,args:['--no-sandbox','--use-mock-keychain','--password-store=basic']});
  try{
   const f=await foundation(h),m=f.m;
@@ -56,8 +57,7 @@ test('Settlement workspace prepares reconciled recovery, reviews exact approvals
   const record=panel.locator('article.record');
   await record.getByRole('cell',{name:'$5,250.00',exact:true}).waitFor();await record.getByRole('cell',{name:'$1,500.00',exact:true}).waitFor();await record.getByRole('cell',{name:'$450.00',exact:true}).waitFor();
   await record.getByLabel('Settlement approval evidence').fill('Exact allocations and earning event reviewed');await record.getByRole('button',{name:'Approve settlement revision',exact:true}).click();await done('Settlement approval recorded');await record.getByText(/counsel approved by owner@example.test/).waitFor();
-  await record.getByLabel('Settlement trust ledger').selectOption(f.ledger.id);await record.getByRole('button',{name:'Check cleared settlement funds'}).click();await page.getByRole('alert').getByText(/Current counsel and authorized finance approvals/).waitFor();
-  for(const width of [1440,390]){await page.setViewportSize({width,height:width===390?844:1000});await record.getByRole('cell',{name:'$5,250.00',exact:true}).waitFor();assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,panel,process.env.SATCHEL_SCREENSHOTS,'settlement-'+width);if(width===390){const table=record.locator('.table-scroll');assert.ok(await table.evaluate(e=>e.scrollWidth>e.clientWidth),'Settlement amounts stay readable in the phone scroll area');await table.evaluate(e=>{e.scrollLeft=e.scrollWidth;});if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,record,process.env.SATCHEL_SCREENSHOTS,'settlement-390-amounts');}}
+  await settlementExecutionJourney({h,page,f,done});
   assert.deepEqual(errors,[]);await context.close();
  }finally{await browser.close();await h.close();}
 });

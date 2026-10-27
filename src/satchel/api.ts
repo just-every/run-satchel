@@ -1,3 +1,6 @@
+import {settlementPolicy,saveSettlementPolicy} from './settlement-policy';
+import {disposeSettlement} from './settlement-retention';
+import {prepareSettlementBill} from './settlement-billing';
 import {paymentPlans,paymentPlan,savePaymentPlan,paymentPlanAction,startPlanMandate,confirmPlanMandate} from './payment-plans';
 import {approveRefund} from './stripe-refunds';
 import {reconciliationState,reconcileCollection,inspectSettlement,matchSettlement} from './stripe-reconciliation';
@@ -539,3 +542,8 @@ api.post('/api/satchel/matters/:id/settlements/terms',as(async(a,c)=>saveConting
 api.post('/api/satchel/matters/:id/settlements/statements',as(async(a,c)=>prepareSettlement(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/matters/:id/settlements/approve',as(async(a,c)=>approveSettlement(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/matters/:id/settlements/check-funds',as(async(a,c)=>checkSettlementFunds(db(c),a,param(c),await body(c))));
+
+api.get('/api/satchel/settlement-policy',as((a,c)=>settlementPolicy(db(c),a)));
+api.post('/api/satchel/settlement-policy',as(async(a,c)=>saveSettlementPolicy(db(c),a,await body(c))));
+api.post('/api/satchel/matters/:id/settlements/bill',as(async(a,c)=>prepareSettlementBill(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/matters/:id/settlements/dispose',as(async(a,c)=>disposeSettlement(db(c),a,param(c),await body(c),runtimeBindings(c.env).ORIGINALS)));
