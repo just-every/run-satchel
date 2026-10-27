@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {capturePanel} from './browser-shots.mjs';
 
-async function screens(page,target,stem){
+export async function settlementScreens(page,target,stem){
  for(const width of [1440,390]){
   await page.setViewportSize({width,height:width===390?844:1000});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);
@@ -37,7 +37,7 @@ export async function settlementExecutionJourney({h,page,f,done}){
  await spending.getByLabel('Settlement authorized payment purpose').fill('Client authorized exact reduced lien payment under reviewed settlement');
  await submitRefused(spending.getByRole('button',{name:'Prepare settlement disbursement',exact:true}),'/trust/transactions');
  assert.equal((await h.json('/trust/transactions',undefined,h.owner)).filter(value=>value.direction==='disbursement').length,0);
- await screens(page,panel,'settlement-refused-approvals');
+ await settlementScreens(page,panel,'settlement-refused-approvals');
 
  await navigate('Firm');const settings=page.locator('section.settlement-settings');
  await settings.getByRole('button',{name:'Record settlement approval setting'}).waitFor();
@@ -47,14 +47,14 @@ export async function settlementExecutionJourney({h,page,f,done}){
  await settings.getByRole('button',{name:'Record settlement approval setting'}).click();await done('Settlement approval setting recorded');
  let policy=await h.json('/settlement-policy',undefined,h.owner);assert.equal(policy.solePractitionerEnabled,false);assert.ok(policy.reason&&policy.scope&&policy.actor&&policy.effectiveAt);
  await settings.getByText(policy.reason,{exact:true}).waitFor();await settings.getByText(policy.scope,{exact:true}).waitFor();await settings.getByText(policy.actor,{exact:true}).waitFor();await settings.getByText(policy.effectiveAt,{exact:true}).waitFor();
- await screens(page,settings,'settlement-settings-disabled');
+ await settlementScreens(page,settings,'settlement-settings-disabled');
  await settings.getByLabel('Sole-practitioner approval').selectOption('yes');
  await settings.getByLabel('Settlement setting reason').fill('Principal is the sole practitioner and designated trust officer');
  await settings.getByLabel('Settlement setting scope').fill('Firm settlements; separate counsel and finance approvals of each exact revision');
  await settings.getByRole('button',{name:'Record settlement approval setting'}).click();await done('Settlement approval setting recorded');
  const enabled=await h.json('/settlement-policy',undefined,h.owner);assert.equal(enabled.solePractitionerEnabled,true);assert.ok(enabled.version>policy.version);assert.ok(enabled.reason&&enabled.scope&&enabled.actor&&enabled.effectiveAt);
  await settings.getByText(enabled.reason,{exact:true}).waitFor();await settings.getByText(enabled.scope,{exact:true}).waitFor();await settings.getByText(enabled.actor,{exact:true}).waitFor();await settings.getByText(enabled.effectiveAt,{exact:true}).waitFor();
- await screens(page,settings,'settlement-settings-enabled');
+ await settlementScreens(page,settings,'settlement-settings-enabled');
 
  await navigate('Time & bills');await page.getByLabel('Current matter').selectOption(f.m.id);
  await record.getByLabel('Approval capacity').selectOption('counsel');
@@ -70,7 +70,7 @@ export async function settlementExecutionJourney({h,page,f,done}){
  await record.getByText(/finance approved by owner@example.test/).waitFor();
  await record.getByLabel('Settlement trust ledger').selectOption(f.ledger.id);
  await submitRefused(record.getByRole('button',{name:'Check cleared settlement funds'}),'/settlements/check-funds');
- await screens(page,panel,'settlement-refused-funds');
+ await settlementScreens(page,panel,'settlement-refused-funds');
 
  const receipt=await h.json('/trust/transactions',{direction:'receipt',accountId:f.account.id,ledgerId:f.ledger.id,kind:'wire',cents:current.snapshot.grossCents,counterparty:'Recovery payer',bankReference:'RECOVERY-CLEARED-001',receivedDate:'2026-10-27',depositDate:'2026-10-27',clearedDate:'2026-10-27',documentId:f.source.id,purpose:'Cleared settlement recovery supported by the bank original',requestKey:'settlement-browser-recovery'},h.owner);
  await h.json('/trust/transactions/'+receipt.id+'/decide',{revision:receipt.revision,decision:'approved',reviewNote:'Reviewed exact cleared settlement receipt'},h.owner);
@@ -84,12 +84,12 @@ export async function settlementExecutionJourney({h,page,f,done}){
  const linked=spending.locator('article.settlement-transaction');await linked.getByRole('heading',{name:'Health lien holder · $1,500.00',exact:true}).waitFor();
  const prepared=(await h.json('/matters/'+f.m.id+'/settlements',undefined,h.owner)).transactions.find(value=>value.statement_id===current.id);
  assert.ok(prepared);assert.equal(prepared.allocation_index,1);assert.equal(prepared.counterparty,current.snapshot.allocations[prepared.allocation_index].payee);assert.equal(prepared.cents,current.snapshot.allocations[prepared.allocation_index].amountCents);assert.equal(prepared.decision,null);
- await screens(page,panel,'settlement-populated-disbursement');
+ await settlementScreens(page,panel,'settlement-populated-disbursement');
  await linked.getByLabel('Settlement disbursement review evidence').fill('Current exact revision, payee, amount, approvals and cleared funds reviewed');
  await linked.getByRole('button',{name:'Decide settlement disbursement'}).click();await done('Settlement disbursement decision recorded');
  await spending.locator('summary').click();
  const decided=(await h.json('/trust/transactions',undefined,h.owner)).find(value=>value.id===prepared.transaction_id);assert.equal(decided.decision,'approved');assert.equal(decided.cents,prepared.cents);
- await screens(page,panel,'settlement-posted-disbursement');
+ await settlementScreens(page,panel,'settlement-posted-disbursement');
  const billing=panel.locator('details').filter({has:page.locator('summary').getByText('Prepare settlement fee for billing',{exact:true})});
  await billing.locator('summary').click();await billing.getByLabel('Settlement fee billing date').fill('2026-10-27');
  await billing.getByLabel('Reviewed settlement fee eligibility').selectOption('yes');await billing.getByLabel('Reviewed settlement retainer draw-down').selectOption('prohibited');
@@ -97,5 +97,19 @@ export async function settlementExecutionJourney({h,page,f,done}){
  await billing.getByRole('button',{name:'Prepare settlement fee bill'}).click();await done('Settlement fee bill prepared for review');
  const feeBill=(await h.json('/matters/'+f.m.id+'/billing',undefined,h.owner)).bills.find(value=>value.snapshot.feePlan?.settlementStatementId===current.id);
  assert.ok(feeBill);assert.equal(feeBill.snapshot.totalCents,current.snapshot.feeCents);assert.equal(feeBill.status,'draft');
- await page.locator('section.bill-packages article.record').filter({hasText:'Settlement counsel fee'}).waitFor();
+ const feeRecord=page.locator('section.bill-packages article.record').filter({hasText:'Settlement counsel fee'});await feeRecord.waitFor();
+ await settlementScreens(page,feeRecord,'settlement-fee-draft');
+ // The erased state retains attributable identities and offers no approval control.
+ const erasedPath='/matters/'+f.other.id+'/settlements';
+ const erasedTerms=await h.json(erasedPath+'/terms',{previousVersion:0,reviewed:true,feeBasis:'gross',reference:'Expired contingency agreement',earningEvidence:'Completed source earning condition',outcomes:[{name:'Recovery',bps:2500}]},h.owner);
+ const erasedStatement=await h.json(erasedPath+'/statements',{previousVersion:0,termsId:erasedTerms.id,outcome:'Recovery',grossCents:10000,reference:'Expired recovery source',earnedConfirmed:true,earningEvidence:'Source release completed',allocations:[],referrals:[]},h.owner);
+ await h.json('/retention',{matterId:f.other.id,disposeAfter:'2020-01-01',basis:'Counsel records expired settlement retention'},h.owner);
+ await h.json(erasedPath+'/dispose',{confirm:f.other.title,reason:'Principal approves disposal after retention expiry'},h.owner);
+ await page.getByLabel('Current matter').selectOption(f.other.id);
+ await panel.getByRole('heading',{name:'Agreement version 1 · evidence erased',exact:true}).waitFor();
+ await panel.getByRole('heading',{name:'Settlement version 1 · evidence erased',exact:true}).waitFor();
+ assert.equal(await panel.getByRole('button',{name:'Approve settlement revision',exact:true}).count(),0);
+ assert.equal(await panel.getByRole('button',{name:'Prepare settlement disbursement',exact:true}).count(),0);
+ assert.equal((await h.json(erasedPath,undefined,h.owner)).statements.find(s=>s.id===erasedStatement.id).snapshot,null);
+ await settlementScreens(page,panel,'settlement-erased');
 }

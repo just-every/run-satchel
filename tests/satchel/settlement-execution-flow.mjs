@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import {harness} from './harness.mjs';
-import {foundation} from './trust-fixture.mjs';
+import {foundation,earnedBill} from './trust-fixture.mjs';
+import {withTaxAllocation} from './tax-fixture.mjs';
+import {createPeriod,sign} from './trust-period-fixture.mjs';
 
 export async function settlementExecutionFlow(){
  const h=await harness();try{
@@ -33,6 +35,10 @@ export async function settlementExecutionFlow(){
   await h.json('/trust/transactions',{...spend,ledgerId:f.otherLedger.id,documentId:f.otherSource.id},officer,409);
   const txn=await h.json('/trust/transactions',spend,officer);
   const decide={revision:txn.revision,decision:'approved',reviewNote:'Restricted final disbursement evidence'};
+  const unrelatedBill=await earnedBill(h,f.m,1,'Unrelated earned operating fee');
+  const reservation=await h.json('/trust/transfers',await withTaxAllocation(h,{billId:unrelatedBill.id,ledgerId:f.ledger.id,operatingAccountId:f.operating.id,requestKey:'synthetic-satchel-changed-funds'}),h.owner);
+  await h.json('/trust/transactions/'+txn.id+'/decide',decide,h.owner,409);
+  await h.json('/trust/transfers/'+reservation.id+'/decide',{revision:reservation.revision,decision:'declined',reviewNote:'Release the unrelated reservation before settlement posting'},h.owner);
   const check={statementId:s.id,ledgerId:f.ledger.id};
   const expectRefused=async()=>{
    await h.json(p+'/check-funds',check,h.owner,409);
@@ -71,6 +77,9 @@ export async function settlementExecutionFlow(){
    await restored.json('/trust/transactions/'+txn.id+'/decide',decide,reader,409);
    assert.deepEqual(await restored.json('/trust',undefined,reader),stateBefore);
   }finally{await restored.close();}
+  const period=await createPeriod(h,f,'2026-09-01','2026-09-30',105),packet=await sign(h,period);assert.equal(packet.balanced,true);
+  await h.json('/trust/transactions/'+txn.id+'/decide',decide,h.owner,409);
+  await h.json('/trust/periods/'+period.id+'/reopen',{reason:'Principal reopens the signed period for the exact reviewed settlement posting',documentId:f.source.id,packetId:packet.id},h.owner);
   await h.json('/trust/transactions/'+txn.id+'/decide',decide,h.owner);
   assert.equal((await h.json('/trust',undefined,h.owner)).ledgers.find(l=>l.id===f.ledger.id).balance_cents,104);
   await h.json('/trust/transactions',{...spend,requestKey:'synthetic-satchel-duplicate'},h.owner,409);
