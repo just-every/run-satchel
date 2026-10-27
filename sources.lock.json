@@ -4572,7 +4572,7 @@
       "executable": false
     },
     "tests/satchel/payment-money-browser.mjs": {
-      "sha256": "ff3495a27d9f3c747f041affd30c408adcc777decec1ce7806e1ec50bd6f29d3",
+      "sha256": "5e6ad83b69eb6143f056c1c943f2c96200182d2809e87d1d100e402ed738e6e9",
       "executable": false
     },
     "tests/satchel/payment-plan-edge.mjs": {
