@@ -95,6 +95,9 @@ export async function settlementExecutionFlow(){
   assert.equal(audit.records.length,6);
   assert.deepEqual(audit.records.map(r=>[r.actor.email,r.actor.role,r.evidence.context.capacity,r.evidence.context.policyVersion]).sort(),[['execution-counsel@example.test','lawyer','counsel',0],['execution-officer@example.test','trust_officer','finance',0],['owner@example.test','owner','counsel',1],['owner@example.test','owner','finance',1],['owner@example.test','owner','counsel',3],['owner@example.test','owner','finance',3]].sort());
   for(const r of audit.records){assert.equal(r.matterId,f.m.id);assert.equal(r.revision,'1');assert.equal(r.actor.channel,'person');assert.ok(r.actor.id&&r.at);assert.equal(r.evidence.context.version,1);}
+  const policyAudit=await h.json('/audit?action=settlement.policy_recorded',undefined,h.owner);
+  assert.deepEqual(policyAudit.records.map(r=>[r.actor.email,r.actor.role,r.objectId,r.evidence.context.version,r.evidence.context.enabled]).sort(),[['owner@example.test','owner','1',1,true],['owner@example.test','owner','2',2,false],['owner@example.test','owner','3',3,true]].sort());
+  for(const decision of policyAudit.records){assert.ok(decision.actor.id&&decision.at);assert.equal(decision.evidence.context.scope,'All firm settlement approvals');assert.ok(decision.evidence.context.reason);}
   const transactionAudit=await h.json('/audit?matterId='+f.m.id+'&action=trust.transaction_approved',undefined,h.owner);
   const finalAudit=transactionAudit.records.find(r=>r.objectId===txn.id);assert.ok(finalAudit);assert.equal(finalAudit.detail,'');assert.equal(finalAudit.evidence.record.statementId,s.id);assert.equal(finalAudit.evidence.record.allocationIndex,1);assert.equal(finalAudit.evidence.record.cents,undefined);
   const general=await(await h.request('/api/satchel/audit/export?matterId='+f.m.id,undefined,h.owner)).text();

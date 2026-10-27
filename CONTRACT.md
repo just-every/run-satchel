@@ -452,11 +452,11 @@ Every capability claim in br’s approved homepage register (17 October 2026, 60
 
 ## Status
 
-Judged from the code and tests at commit `9f0d121ceda5631c1debabb761fc1bf71e317d70` (27 October 2026).
+Judged from the code and tests at commit `4b452979ae400e4f53ad69347f9f995e4eff81b0` (27 October 2026).
 
-That commit is the historical main baseline, not a fresh TIME-005 judgment. The settlement Evidence cell names current assertions; ct judgment remains pending on this candidate.
+That commit identifies this fix round’s implementation and assertion baseline. The current tree extends its policy-audit assertions and synchronizes provenance; it is not a fresh ct completion judgment. TIME-005 remains PARTIAL pending judgment on the landed candidate, with the original acceptance and exact ruling preserved.
 
-INTAKE-003, REPORT-003, CLIENT-003, CAL-008, TIME-003, FIRM-005, INTAKE-005 and INTAKE-010, BILL-016, TIME-006, BILL-015, DOC-002, BILL-004, TIME-004, INTAKE-001, DOC-012 and DOC-013, BILL-013, BILL-011 and REPORT-002, BILL-012 and TIME-008, CLIENT-008, BILL-007 and BILL-008 and their inherited obligations are updated from the code and named tests in this tree; the commit above is the preceding assessment baseline.
+INTAKE-003, REPORT-003, CLIENT-003, CAL-008, TIME-003, FIRM-005, INTAKE-005 and INTAKE-010, BILL-016, TIME-006, BILL-015, DOC-002, BILL-004, TIME-004, INTAKE-001, DOC-012 and DOC-013, BILL-013, BILL-011 and REPORT-002, BILL-012 and TIME-008, CLIENT-008, BILL-007 and BILL-008 and their inherited obligations retain their recorded statuses. The TIME-005 Evidence cell identifies this fix round’s current public-door assertions; no other clause is reassessed here.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |

@@ -164,7 +164,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "c9e7735e4cac48f8d4faa4a103db307ad17019dfe435853c1ace3c45ff6479f8",
+      "sha256": "81fa48cdd25ac4cb9e5c4ded05dea2fbd4aa3d35ae3d04e7ff06049203c31232",
       "executable": false
     },
     "DEMO.md": {
@@ -4716,7 +4716,7 @@
       "executable": false
     },
     "tests/satchel/settlement-execution-flow.mjs": {
-      "sha256": "38229db45f365d033e91ae3e79c8092a19744dd85df43b4ee8d75b05b621b676",
+      "sha256": "cc3e0041df0da9706dfe8eaffdea212c1ed0227dc5daac80d2f2a57fbfa2381f",
       "executable": false
     },
     "tests/satchel/settlement-retention-flow.mjs": {
