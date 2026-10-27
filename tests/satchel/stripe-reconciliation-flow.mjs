@@ -1,5 +1,6 @@
+import {draft,reviewed} from './invoice-numbering-fixture.mjs';
 import assert from 'node:assert/strict';
-import {harness} from './harness.mjs';
+import {harness,open} from './harness.mjs';
 import {stripeEdge,paymentFixture} from './stripe-fixture.mjs';
 export async function reconciliationFlow(){
  const edge=stripeEdge(),h=await harness(edge);let restored;
@@ -34,6 +35,14 @@ export async function reconciliationFlow(){
   await h.restart();assert.equal((await h.json('/bills/'+s.card.id+'/reconciliation',undefined,h.owner)).attempts[0].refunds[0].approved_by,'owner@example.test');
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();restored=await harness(edge);await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);state=await restored.json('/bills/'+s.card.id+'/reconciliation',undefined,restored.owner);assert.equal(state.bankStatus,'matched');assert.equal(state.attempts[0].adjustments.reduce((n,a)=>n+a.cents,0),37500);assert.equal(edge.calls,1);
   await h.json('/team',{email:'finance-custodian@example.test',name:'Finance wall custodian',role:'lawyer'},h.owner);await h.json('/team/invite',{email:'finance-custodian@example.test'},h.owner);await h.login('finance-custodian@example.test');
+  const hidden=await open(h,'Restricted finance batch','Restricted finance client','Restricted finance adverse'),hiddenBill=await reviewed(h,hidden,await draft(h,hidden,'Restricted processor allocation'));
+  await h.json('/invoices/issue',{bills:[{id:hiddenBill.id,revision:hiddenBill.revision}]},h.owner);await h.json('/portal/invoices/'+hiddenBill.id+'/checkout',{requestKey:'synthetic-satchel-hidden-allocation'},h.owner);
+  const hiddenSession=[...edge.sessions.values()].at(-1);await h.json('/matters/'+hidden.id+'/wall',{revision:null,custodianEmail:'finance-custodian@example.test',members:['finance-custodian@example.test'],reason:'Separate client finance wall'},h.owner);
+  const batch='synthetic-satchel-wall-batch';edge.payouts.set(batch,{...edge.payouts.get(payout),id:batch,amount:68683});edge.transactions.set(batch,[...edge.transactions.get(payout),{id:'synthetic-satchel-hidden-balance',currency:'usd',amount:37500,fee:0,net:37500,type:'charge',status:'available',source:{id:'synthetic-satchel-hidden-charge',payment_intent:hiddenSession.payment_intent.id}}]);
+  // Verified callbacks associate the intent before a restricted aggregate is inspected.
+  await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(edge.event(hiddenSession,'checkout.session.completed','paid'))});
+  const auditPath='/audit?matterId='+s.m.id+'&action=stripe.settlement_observed',beforeAudit=(await h.json(auditPath,undefined,h.owner)).records.length;
+  await h.json(path+'/settlement',{payoutId:batch},h.owner,404);assert.equal((await h.json(auditPath,undefined,h.owner)).records.length,beforeAudit,'A restricted settlement aggregate cannot leak into an accessible invoice audit');
   await h.json('/matters/'+s.m.id+'/wall',{revision:null,custodianEmail:'finance-custodian@example.test',members:['finance-custodian@example.test'],reason:'Finance records restricted to current counsel'},h.owner);
   await h.json('/bills/'+s.card.id+'/reconciliation',undefined,h.owner,404);await h.json(path+'/refund',{...refund,requestKey:'synthetic-satchel-excluded-refund'},h.owner,404);await h.json(path+'/bank-match',match,h.owner,404);assert.equal(edge.refunds.length,1,'Removed matter authority cannot execute a refund');
 

@@ -454,7 +454,7 @@ Every capability claim in br’s approved homepage register (17 October 2026, 60
 
 Judged from the code and tests at commit `20c49b21b9b23874874816007d08a6736900a409` (21 October 2026).
 
-INTAKE-003, REPORT-003, CLIENT-003, CAL-008, TIME-003, FIRM-005, INTAKE-005 and INTAKE-010, BILL-016, TIME-006, BILL-015, DOC-002, BILL-004, TIME-004, INTAKE-001, DOC-012 and DOC-013, BILL-013, BILL-011 and REPORT-002, BILL-012 and TIME-008, CLIENT-008 and their inherited obligations are updated from the code and named tests in this tree; the commit above is the preceding assessment baseline.
+INTAKE-003, REPORT-003, CLIENT-003, CAL-008, TIME-003, FIRM-005, INTAKE-005 and INTAKE-010, BILL-016, TIME-006, BILL-015, DOC-002, BILL-004, TIME-004, INTAKE-001, DOC-012 and DOC-013, BILL-013, BILL-011 and REPORT-002, BILL-012 and TIME-008, CLIENT-008, BILL-007 and BILL-008 and their inherited obligations are updated from the code and named tests in this tree; the commit above is the preceding assessment baseline.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
