@@ -98,8 +98,11 @@ jobs:
             timeout 420 pnpm exec playwright install-deps chromium
             node scripts/ci/chromium-probe.mjs
           }
-      - run: sudo apt-get update -qq && sudo apt-get install -y libxml2-utils
-      - run: pnpm exec rer check --profile first-party
+      # Node's sorted, round-robin file split places xmllint callers in these shards.
+      - if: matrix.shard == 1 || matrix.shard == 2 || matrix.shard == 4 || matrix.shard == 6 || matrix.shard == 7
+        run: sudo apt-get update -qq && sudo apt-get install -y libxml2-utils
+      - if: matrix.shard == 1
+        run: pnpm exec rer check --profile first-party
       - run: pnpm run build
       - if: matrix.shard == 1
         run: pnpm run build:site && pnpm run typecheck && pnpm run test:email-link && pnpm run test:site
