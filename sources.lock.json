@@ -4724,7 +4724,7 @@
       "executable": false
     },
     "tests/satchel/trust-period-journey.test.mjs": {
-      "sha256": "df90f566e5ec57e73e9e87751e7923206089b793c7653459661106929e434109",
+      "sha256": "9fd5cdd35bbd2b22b52bcbfd511dc1ff04fa967e6cd64c318ef52520dc766d62",
       "executable": false
     },
     "tests/satchel/trust-period.test.mjs": {
