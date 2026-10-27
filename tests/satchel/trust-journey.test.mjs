@@ -5,8 +5,9 @@ import {chromium} from '@playwright/test';
 import {harness,open} from './harness.mjs';
 import {statement} from './trust-fixture.mjs';
 const form=(p,n)=>p.locator('form',{has:p.getByRole('button',{name:n,exact:true})});
-for(const [width,height] of [[1440,1000],[390,844]])test(`TRUST-001 TRUST-002 designate officer, review source openings and inspect bank/client registers at ${width}px`,async()=>{
- const h=await harness(),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});try{
+const width=Number(process.env.SATCHEL_BROWSER_WIDTH??1440),height=width===390?844:1000;
+test(`TRUST-001 TRUST-002 designate officer, review source openings and inspect bank/client registers at ${width}px`,async()=>{
+ const h=await harness(),browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{}),args:['--no-sandbox','--use-mock-keychain','--password-store=basic']});try{
   const m=await open(h),other=await open(h,'Pine estate advice','Pine Studio','Cedar Property');const source=await statement(h,m);await statement(h,other,'Pine September statement.txt');
   const context=await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true}),page=await context.newPage();page.setDefaultTimeout(15000);
   const shot=async name=>{assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);if(process.env.SATCHEL_SCREENSHOTS){await mkdir(process.env.SATCHEL_SCREENSHOTS,{recursive:true});await page.screenshot({path:`${process.env.SATCHEL_SCREENSHOTS}/${width}-${name}.png`,fullPage:true});}};
