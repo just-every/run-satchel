@@ -140,7 +140,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "f7e2c19fda366922e1391e8c67663fa32dd9cfdb19dadc9da2b54b0eed8b1660",
+      "sha256": "b15606dda8389739ec77729753f84a60f31109c2ea7260204a150d3b7d3476b0",
       "executable": false
     },
     "AGENTS.md": {
@@ -164,7 +164,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "f26d277d539db3f1597a60b8b7932c7b5781bb6004fb1bb5be0cc677edca6637",
+      "sha256": "6ba7cf49afaac92b84c9cda404ebe5c54258a27b6822c9f43f76d6979c3c4d9f",
       "executable": false
     },
     "DEMO.md": {
@@ -260,7 +260,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "ac773ecbe0cfc3c74ada3473de5f83636d1e3dcd894e0e143c14f8b8a1cad7ee",
+      "sha256": "378a9ad8cc0eaac16797dffe1baee0462ab6a12b3a3efe8fc6f76a988e22ea97",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -665,6 +665,14 @@
     },
     "migrations/core/0107_matter_updates.sql": {
       "sha256": "1c6b6ac7f0b0bde911da65a9fb3890404ab6142bed9dd2864f4a81c173db580f",
+      "executable": false
+    },
+    "migrations/core/0108_stripe_reconciliation.sql": {
+      "sha256": "f4bff21aba9caabc86ee9fe27da96f033f9b6d774da5f0ce0005a8ce71693d8b",
+      "executable": false
+    },
+    "migrations/core/0109_payment_plans.sql": {
+      "sha256": "6c6b3e03988a30b580e8d1ed8340682b686095a23289ec046a482c5fd81333ac",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -3467,6 +3475,22 @@
       "sha256": "438ed2c2b6ac15b4760641887349ce7f848da18965fc24bced9ca6b9aa7cbb5c",
       "executable": false
     },
+    "src/satchel/payment-plan-records.ts": {
+      "sha256": "efc5c575725c2061cb359d8a0e2dccb02a0312a1bec3b5963e702cfb21a14578",
+      "executable": false
+    },
+    "src/satchel/payment-plan-runner.ts": {
+      "sha256": "a72e84b9da71c0a8124888f9ebe47f8e80a373341cea32cd61944cc5119e2d06",
+      "executable": false
+    },
+    "src/satchel/payment-plan-stripe.ts": {
+      "sha256": "60ab1aa17aa180259fb8e9c156cc6e83bdd95255ad3aa9b842ea0e76e61b8127",
+      "executable": false
+    },
+    "src/satchel/payment-plans.ts": {
+      "sha256": "551bb44b5eda1c874bab840db466e5ca5edcb98f0cfe1dca78d8d4f0c13ad668",
+      "executable": false
+    },
     "src/satchel/portal-preview.ts": {
       "sha256": "e35dc5bef975d93b737bb6881c408bbd9ed291188084317c75802833771e877e",
       "executable": false
@@ -3601,6 +3625,14 @@
     },
     "src/satchel/stripe-events.ts": {
       "sha256": "04c2582bfc1ec20d3703763d52aa5953461de452b753652748bf8ed5a74254f1",
+      "executable": false
+    },
+    "src/satchel/stripe-reconciliation.ts": {
+      "sha256": "ba20811bdddbee01e6980945605f55ed344616ee30ae00f81ec9f1de8bb5111d",
+      "executable": false
+    },
+    "src/satchel/stripe-refunds.ts": {
+      "sha256": "69aa0dc6bd502905506a6ede4f21a72e35b3508082c87bf6a77911de042f7f3c",
       "executable": false
     },
     "src/satchel/tasks.ts": {
@@ -4091,6 +4123,14 @@
       "sha256": "8febc114e48cbeb6c18e10b13460c86fcff25e63d281826f43bac0fd478aebd2",
       "executable": false
     },
+    "src/ui/payment-plans.tsx": {
+      "sha256": "e8753c7aa6a48defc166a944c33a14d0cb0d3741e876466e9d1166b1e7b94983",
+      "executable": false
+    },
+    "src/ui/payment-reconciliation.tsx": {
+      "sha256": "f4216533b614ae65b88f4e68bd4903fe6bff4b08b084416e4bf70a10536011b0",
+      "executable": false
+    },
     "src/ui/portal-matter-updates.tsx": {
       "sha256": "eaeb93233d2e5a7b182360d14d5f47ef06177447f99485bebeaf2765b8bf79c3",
       "executable": false
@@ -4531,6 +4571,18 @@
       "sha256": "8d3533590722912f7d288d4a52625651751b719abd9466cf5eb955102513770c",
       "executable": false
     },
+    "tests/satchel/payment-money-browser.mjs": {
+      "sha256": "ff3495a27d9f3c747f041affd30c408adcc777decec1ce7806e1ec50bd6f29d3",
+      "executable": false
+    },
+    "tests/satchel/payment-plan-edge.mjs": {
+      "sha256": "f48a5b7f21765458650e34738a9ab438c52b2381accce0d167777284cd6418ff",
+      "executable": false
+    },
+    "tests/satchel/payment-plan-flow.mjs": {
+      "sha256": "d940ee6329b6cf066ec80ebdfc99e0f273f0c74b789024f28c58b90b9645e806",
+      "executable": false
+    },
     "tests/satchel/portal-identities-journey.test.mjs": {
       "sha256": "ed1f9e186f88aa7a5611468fddc305dff44dcf95f4806d6592994543b9105324",
       "executable": false
@@ -4556,11 +4608,11 @@
       "executable": false
     },
     "tests/satchel/providers-journey.test.mjs": {
-      "sha256": "cdc5fcbc81d60291a66011ee4f078e453c67f7a00dc284bbe3ebcc2986cedcec",
+      "sha256": "c3f11e7e76c7c73e31f23b7e0f1113026c24989a4c1f9266bfc5b3402ff3a9c2",
       "executable": false
     },
     "tests/satchel/providers.test.mjs": {
-      "sha256": "3d76438ef09b86266f0a029ccf811a77b057798810004aeb1d90af6e43dad5da",
+      "sha256": "1a7bb0cd070eb7ecca19ccfd71ed2003819be1025dc9b7162a2ab9375833085e",
       "executable": false
     },
     "tests/satchel/rates-journey.test.mjs": {
@@ -4629,6 +4681,10 @@
     },
     "tests/satchel/stripe-fixture.mjs": {
       "sha256": "11f4732f8e5f17776fde3cc374d2e71fc195d81382a41ccdb9cdd0dd46607044",
+      "executable": false
+    },
+    "tests/satchel/stripe-reconciliation-flow.mjs": {
+      "sha256": "09877a7b25d616c5b6726bf939553e6c69d57dd2b13c8b76294a5aaadf505d79",
       "executable": false
     },
     "tests/satchel/stripe-sandbox.mjs": {

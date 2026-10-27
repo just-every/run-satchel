@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import {capturePanel} from './browser-shots.mjs';
 export async function paymentMoneyBrowser({page,browser,h,edge,s,width}){
  const shot=async(panel,name)=>{await panel.scrollIntoViewIfNeeded();assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);assert.deepEqual(await panel.locator('button,a[href]').evaluateAll(elements=>elements.filter(e=>!e.textContent.trim()).map(e=>e.outerHTML)),[]);if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,panel,process.env.SATCHEL_SCREENSHOTS,name+'-'+width);};
- await page.goto(h.origin+'/app');await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Time & bills',exact:true}).click();await page.getByLabel('Current matter').selectOption(s.m.id);
+ await page.goto(h.origin+'/signin');await page.getByLabel('Email',{exact:true}).fill('owner@example.test');await page.getByRole('button',{name:'Email a sign-in link',exact:true}).click();await page.getByText('a sign-in link is on its way').waitFor();
+ const mail=h.mails.toReversed().find(m=>m.to.includes('owner@example.test')&&/auth\/confirm/.test(m.text??m.html)),link=(mail.text??mail.html).match(/https:\/\/[^\s"<]+\/auth\/confirm\?token=[^\s"&<]+/)[0];await page.goto(link);await page.getByRole('button',{name:'Confirm',exact:true}).click();await page.waitForURL(/\/app/);
+ await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Time & bills',exact:true}).click();await page.getByLabel('Current matter').selectOption(s.m.id);
  const bill=page.locator('.bill-packages > article').filter({has:page.getByText('Card operating services · $375.00',{exact:true})});
  await bill.getByText('Payment reconciliation',{exact:true}).click();const reconciliation=bill.getByRole('region',{name:'Payment reconciliation'});
  await reconciliation.getByText('Bank settlement: Unconfirmed',{exact:true}).waitFor();await shot(reconciliation,'reconciliation-unconfirmed');

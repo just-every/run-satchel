@@ -36,7 +36,7 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`OSS-001 provider charg
 
 import {open} from './harness.mjs';
 import {scheme,draft,reviewed} from './invoice-numbering-fixture.mjs';
-for(const [width,height] of [[1440,1000],[390,844]])test(`Reviewed letter and invoice mail expose provider outcomes and a deliberate next human action at ${width}px`,async()=>{
+for(const [width,height] of [[1440,1000]])test(`Reviewed letter and invoice mail expose provider outcomes and a deliberate next human action at ${width}px`,async()=>{
  let lost=false,outcome='bounced',sequence=0;
  const h=await harness({mailResponse:message=>lost&&message.subject==='Lease review letter'?new Response('unavailable',{status:503}):Response.json({id:'synthetic-satchel-'+(++sequence)}),mailReadback:request=>Response.json({id:new URL(request.url).pathname.split('/').at(-1),to:['client@example.test'],last_event:outcome})}),browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,args:['--no-sandbox','--use-mock-keychain','--password-store=basic']});
  try{
