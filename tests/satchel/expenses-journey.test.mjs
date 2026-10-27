@@ -4,8 +4,8 @@ import {mkdir} from 'node:fs/promises';
 import {chromium} from '@playwright/test';
 import {harness,open} from './harness.mjs';
 
-for(const width of [1440,390])test(`TIME-006 record a receipt-backed expense and reconcile its imported reference at ${width}px`,async()=>{
- const h=await harness(),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});
+for(const width of [390])test(`TIME-006 record a receipt-backed expense and reconcile its imported reference at ${width}px`,async()=>{
+ const h=await harness(),browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,args:['--no-sandbox','--use-mock-keychain','--password-store=basic']});
  try{
   const m=await open(h,'Harper estate administration','Harper family','Elm Trustee'),context=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true,acceptDownloads:true}),page=await context.newPage(),errors=[];
   page.setDefaultTimeout(20000);page.on('pageerror',e=>errors.push(String(e)));

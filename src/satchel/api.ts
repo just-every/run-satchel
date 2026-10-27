@@ -1,3 +1,4 @@
+import {settlements,saveContingency,prepareSettlement,approveSettlement,checkSettlementFunds} from './settlements';
 import {matterUpdateState,generateMatterUpdate,editMatterUpdate,approveMatterUpdate,fulfilMatterUpdatePromise,completeMatterUpdateReply} from './matter-updates';
 import {listPortalMatterUpdates,replyToMatterUpdate} from './matter-update-portal';
 import {listProductionShares,releaseProduction,recallProductionShare,inviteProductionRecipient,recipientProductionState,recipientProductionFile} from './production-shares';
@@ -517,3 +518,9 @@ api.post('/api/satchel/offline-payments',as(async(a,c)=>recordOffline(db(c),a,aw
 api.get('/api/satchel/offline-payments/:id',as((a,c)=>offlineReceipt(db(c),a,param(c))));
 api.post('/api/satchel/offline-payments/:id/actions',as(async(a,c)=>offlineAction(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/invoices/:id/writeoff',as(async(a,c)=>writeOffInvoice(db(c),a,param(c),await body(c))));
+
+api.get('/api/satchel/matters/:id/settlements',as((a,c)=>settlements(db(c),a,param(c))));
+api.post('/api/satchel/matters/:id/settlements/terms',as(async(a,c)=>saveContingency(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/matters/:id/settlements/statements',as(async(a,c)=>prepareSettlement(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/matters/:id/settlements/approve',as(async(a,c)=>approveSettlement(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/matters/:id/settlements/check-funds',as(async(a,c)=>checkSettlementFunds(db(c),a,param(c),await body(c))));

@@ -166,3 +166,37 @@ test('TIME-004 and inherited TIME-007 nonhourly fees need actual fee codes, expo
 
  }finally{await h.close();}
 });
+
+test('Settlement revisions reconcile reduced liens, expenses, providers and referral fees; dual current approvals and cleared same-matter funds gate readiness without movement',async()=>{
+ const h=await harness();try{
+  const f=await foundation(h),p='/matters/'+f.m.id+'/settlements';
+  await h.json('/team',{email:'counsel@example.test',name:'Case Counsel',role:'lawyer'},h.owner);await h.json('/team/invite',{email:'counsel@example.test'},h.owner);const counsel=await h.login('counsel@example.test');await h.json('/matters/'+f.m.id+'/access',{email:'counsel@example.test'},h.owner);
+  const terms={previousVersion:0,reviewed:true,feeBasis:'after_expenses',reference:'Signed contingency agreement section 4',earningEvidence:'Executed settlement release and recovered funds',outcomes:[{name:'Pretrial',bps:2500},{name:'Trial',bps:4000}]};
+  await h.json(p+'/terms',{...terms,reviewed:false},counsel,422);await h.json(p+'/terms',{...terms,feeBasis:'unknown'},counsel,422);
+  const t=await h.json(p+'/terms',terms,counsel);await h.json(p+'/terms',terms,counsel,409);
+  const body={previousVersion:0,termsId:t.id,outcome:'Pretrial',grossCents:1000000,reference:'Recovery agreement exhibit A',earnedConfirmed:true,earningEvidence:'Release executed, source release paragraph 3',allocations:[{kind:'expense',payee:'Firm advanced filing costs',originalCents:100000,reductionCents:0,reference:'Cost receipts 1 through 4'},{kind:'lien',payee:'Health lien holder',originalCents:200000,reductionCents:50000,reference:'Signed reduction agreement'},{kind:'medical',payee:'Medical clinic',originalCents:50000,reductionCents:10000,reference:'Provider final account'}],referrals:[{payee:'Referring counsel',bps:2000,reference:'Counsel reviewed referral agreement'}]};
+  await h.json(p+'/statements',{...body,earnedConfirmed:false},counsel,422);await h.json(p+'/statements',{...body,outcome:'Unknown'},counsel,422);await h.json(p+'/statements',{...body,grossCents:1000},counsel,422);await h.json(p+'/statements',{...body,referrals:[{...body.referrals[0],bps:10001}]},counsel,400);
+  const s=await h.json(p+'/statements',body,counsel);assert.equal(s.snapshot.grossCents,1000000);assert.equal(s.snapshot.feeBaseCents,900000);assert.equal(s.snapshot.feeCents,225000);assert.equal(s.snapshot.expensesCents,100000);
+  assert.deepEqual(s.snapshot.allocations.map(r=>[r.kind,r.amountCents]),[['expense',100000],['lien',150000],['medical',40000],['referral',45000],['counsel',180000],['client',485000]]);
+  assert.equal(s.snapshot.allocations.reduce((n,r)=>n+r.amountCents,0),1000000);assert.equal(s.snapshot.allocations[1].reductionCents,50000);
+  const check={statementId:s.id,ledgerId:f.ledger.id};await h.json(p+'/check-funds',check,h.owner,409);
+  await h.json(p+'/approve',{statementId:s.id,capacity:'finance',note:'Unauthorized counsel cannot approve finance'},counsel,403);
+  await h.json(p+'/approve',{statementId:s.id,capacity:'counsel',note:'Exact statement and earning reviewed'},counsel);
+  await h.json(p+'/approve',{statementId:s.id,capacity:'finance',note:'Exact recovery and allocations reviewed'},h.owner);
+  await h.json(p+'/check-funds',check,h.owner,409);
+  const receipt=await h.json('/trust/transactions',{accountId:f.account.id,ledgerId:f.ledger.id,direction:'receipt',kind:'wire',cents:1000000,counterparty:'Recovery payer',bankReference:'synthetic-satchel-928',receivedDate:'2026-09-01',depositDate:'2026-09-01',documentId:f.source.id,purpose:'Settlement recovery',requestKey:'synthetic-satchel-928'},h.owner);
+  await h.json('/trust/transactions/'+receipt.id+'/decide',{revision:receipt.revision,decision:'approved',reviewNote:'Recorded bank receipt, not yet cleared'},h.owner);await h.json(p+'/check-funds',check,h.owner,409);
+  const entry=(await h.json('/trust',undefined,h.owner)).entries.find(e=>e.source_id===receipt.id);await h.json('/trust/entries/'+entry.id+'/clear',{clearedDate:'2026-09-02',bankReference:'Cleared bank receipt 928',documentId:f.source.id},h.owner);
+  await h.json(p+'/check-funds',{...check,ledgerId:f.otherLedger.id},h.owner,409);
+  const before=await h.json('/trust',undefined,h.owner),ready=await h.json(p+'/check-funds',check,h.owner);assert.equal(ready.moneyMoved,false);assert.equal(ready.reserved,false);assert.equal(ready.availableCents,1000000);assert.deepEqual(await h.json('/trust',undefined,h.owner),before);
+  await h.json('/matters/'+f.m.id+'/access',{email:'counsel@example.test',remove:true},h.owner);await h.json(p+'/check-funds',check,h.owner,404);await h.json('/matters/'+f.m.id+'/access',{email:'counsel@example.test'},h.owner);
+  const t2=await h.json(p+'/terms',{...terms,previousVersion:1,feeBasis:'gross'},counsel);await h.json(p+'/statements',{...body,previousVersion:1},counsel,409);
+  const s2=await h.json(p+'/statements',{...body,previousVersion:1,termsId:t2.id,outcome:'Trial'},counsel);assert.equal(s2.snapshot.feeCents,400000);assert.equal(s2.snapshot.allocations.at(-1).amountCents,310000);await h.json(p+'/approve',{statementId:s.id,capacity:'counsel',note:'Old statement'},counsel,409);await h.json(p+'/check-funds',{...check,statementId:s2.id},h.owner,409);
+  await h.json(p+'/approve',{statementId:s2.id,capacity:'counsel',note:'Principal exact review'},h.owner);await h.json(p+'/approve',{statementId:s2.id,capacity:'finance',note:'Same actor not allowed'},h.owner,403);
+  for(const role of ['assistant','billing','accountant']){const email=role+'-settlement@example.test';await h.json('/team',{email,name:role,role},h.owner);await h.json('/team/invite',{email},h.owner);const cookie=await h.login(email);await h.json('/matters/'+f.m.id+'/access',{email},h.owner);await h.json(p,undefined,cookie,403);await h.json(p+'/approve',{statementId:s2.id,capacity:'finance',note:'Denied'},cookie,403);}
+  const state=await h.json(p,undefined,h.owner);assert.equal(state.statements.length,2);assert.deepEqual(state.statements.find(v=>v.id===s.id).snapshot,s.snapshot);assert.equal(state.terms.length,2);
+  await h.restart();assert.deepEqual(await h.json(p,undefined,h.owner),state);
+  const restored=await harness();try{const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);assert.deepEqual(await restored.json(p,undefined,restored.owner),state);}finally{await restored.close();}
+  const audit=await h.json('/audit?matterId='+f.m.id+'&action=settlement.approved',undefined,h.owner);assert.equal(audit.records.length,3);assert.deepEqual(audit.records.map(r=>r.evidence.record.version).sort(),[1,1,2]);
+ }finally{await h.close();}
+});
