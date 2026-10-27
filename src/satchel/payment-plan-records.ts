@@ -12,10 +12,11 @@ export const planCurrent=(db:D1Database,p:Data)=>guard(db,'EXISTS(SELECT 1 FROM 
 export function planEvent(db:D1Database,p:Data,kind:string,detail:string,actor:string,taskId:string|null=null){
  return stmt(db,'INSERT INTO s_payment_plan_events VALUES(?,?,?,?,?,?,?,?)',id(),p.id,p.revision,kind,detail,actor,now(),taskId);
 }
-export async function planView(env:StripeEnv,p:Data){
+export async function planView(env:StripeEnv,p:Data,actor?:Actor){
  const version=await stmt(env.DB,'SELECT * FROM s_payment_plan_versions WHERE id=?',p.revision).first<Data>();
  const installments=await rows(env.DB,`SELECT i.*,a.checkout_id,c.status,c.payment_intent_id FROM s_payment_plan_installments i LEFT JOIN s_payment_plan_attempts a ON a.installment_id=i.id LEFT JOIN s_stripe_checkouts c ON c.id=a.checkout_id WHERE i.plan_id=? AND i.revision=? ORDER BY i.position`,p.id,p.revision);
  const consent=await stmt(env.DB,'SELECT id,client_email,granted_at,revision FROM s_payment_plan_consents WHERE plan_id=? AND revision=?',p.id,p.revision).first<Data>();
+ if(actor?.role==='client')return {id:p.id,revision:p.revision,status:p.status,source_system:p.source_system,stop_reason:p.stop_reason?'The firm must review this plan before further collection':null,version:{start_date:version!.start_date,balance_cents:version!.balance_cents},installments:installments.map(i=>({id:i.id,due_date:i.due_date,cents:i.cents,status:i.status})),consent:consent?.client_email===actor.email?consent:null};
  return {...p,version,installments,consent,events:await rows(env.DB,'SELECT * FROM s_payment_plan_events WHERE plan_id=? ORDER BY at,id',p.id),history:await rows(env.DB,'SELECT * FROM s_payment_plan_versions WHERE plan_id=? ORDER BY approved_at,id',p.id)};
 }
 export function stopPlanWrites(db:D1Database,p:Data,reason:string,actor:string){

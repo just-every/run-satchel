@@ -22,10 +22,10 @@ export async function provePaymentPlans(){
   await h.scheduled('2026-11-01T12:00:00Z');assert.equal(edge.chargeCalls,0,'Principal approval alone cannot collect');
   await h.json(planPath(p.id)+'/mandate',{revision:p.revision,agree:true,requestKey:'synthetic-satchel-staff-consent'},h.owner,403);
   await h.json(planPath(p.id)+'/mandate',{revision:p.revision,agree:false,requestKey:'synthetic-satchel-denied-consent'},s.client,400);
-  p=await authorize(h,edge,p,s.client,'synthetic-satchel-client-plan');assert.equal(p.status,'active');assert.equal(p.consent.client_email,'client@example.test');
+  p=await authorize(h,edge,p,s.client,'synthetic-satchel-client-plan');assert.equal(p.status,'active');assert.equal(p.consent.client_email,'client@example.test');assert.ok(!JSON.stringify(p).includes(d.reason),'Internal finance approval reasons are withheld from the client');assert.equal((await h.json(planPath(p.id),undefined,h.owner)).version.reason,d.reason);
   await h.scheduled('2026-11-01T12:00:00Z');await h.scheduled('2026-11-01T12:15:00Z');assert.equal(edge.chargeCalls,1);
   let invoice=await h.json('/portal/invoices/'+s.card.id+'/payment',undefined,s.client);assert.equal(invoice.paidCents,12500);assert.equal(invoice.dueCents,25000);
-  p=await h.json(planPath(p.id)+'/actions',{kind:'revoke',revision:p.revision,reason:'Client withdraws future collection authorization'},s.client);assert.equal(p.status,'stopped');
+  p=await h.json(planPath(p.id)+'/actions',{kind:'revoke',revision:p.revision,reason:'Client withdraws future collection authorization'},s.client);assert.equal(p.status,'stopped');p=await h.json(planPath(p.id),undefined,h.owner);
   const stoppedTask=p.events.find(e=>e.kind==='stopped')?.task_id;assert.ok(stoppedTask);const tasks=await h.json('/matters/'+s.m.id+'/tasks',undefined,h.owner);assert.equal(tasks.find(t=>t.id===stoppedTask)?.status,'open');
   await h.restart();await h.scheduled('2027-01-02T12:00:00Z');assert.equal(edge.chargeCalls,1,'Consent revocation survives restart without a second charge');
   await h.json(billPath(s.ach.id),{...definition(s.ach),sourceSystem:'Source practice',sourceReference:'source-plan-1',paymentMethodId:'copied-source-credential'},h.owner,400);

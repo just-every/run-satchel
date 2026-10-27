@@ -54,12 +54,12 @@ export async function confirmPlanMandate(env:StripeEnv,actor:Actor,planId:string
  insist(b.revision===p.revision,'Review and agree to the exact current plan revision',409);
  const setup=await stmt(env.DB,'SELECT * FROM s_payment_plan_setups WHERE id=? AND plan_id=? AND revision=? AND client_email=?',text(b.setupId,'Hosted authorization',100),p.id,p.revision,actor.email).first<Data>();
  insist(setup,'Hosted authorization not found',404);
- if(setup.status==='consumed'){insist(p.status==='active','This consent is no longer active',409);return planView(env,p);}
+ if(setup.status==='consumed'){insist(p.status==='active','This consent is no longer active',409);return planView(env,p,actor);}
  insist(p.status==='paused'&&setup.status==='open'&&setup.session_id,'This plan requires a new principal review and client authorization',409);
  const config=await planStripeConfig(env);insist(config.id===setup.config_id,'The approved processor arrangement changed; authorize a new plan revision',409);
  const method=await verifiedPlanMethod(env,setup,p),at=now(),consentId=id();
  await atomic(env.DB,actor,[paymentAccess(env.DB,actor,p.matter_id),planCurrent(env.DB,p),guard(env.DB,"EXISTS(SELECT 1 FROM s_payment_plan_setups WHERE id=? AND status='open')",setup.id),
  stmt(env.DB,'INSERT INTO s_payment_plan_consents VALUES(?,?,?,?,?,?,?,?,?,?)',consentId,p.id,p.revision,setup.id,actor.email,config.id,method.customerId,method.paymentMethodId,method.mandateId,at),
  stmt(env.DB,"UPDATE s_payment_plan_setups SET status='consumed' WHERE id=?",setup.id),stmt(env.DB,"UPDATE s_payment_plans SET status='active',stop_reason=NULL WHERE id=?",p.id),planEvent(env.DB,p,'consented',JSON.stringify({consentId,setupId:setup.id,client:actor.email}),actor.email),audit(env.DB,actor,'payment_plan.consented',p.id,JSON.stringify({consentId,revision:p.revision}),{matterId:p.matter_id})]);
- return planView(env,{...p,status:'active',stop_reason:null});
+ return planView(env,{...p,status:'active',stop_reason:null},actor);
 }

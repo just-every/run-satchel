@@ -8,11 +8,11 @@ export {startPlanMandate,confirmPlanMandate} from './payment-plan-stripe';
 export {runPaymentPlans} from './payment-plan-runner';
 export {syncPaymentPlanAttempt} from './payment-plan-records';
 
-export async function paymentPlan(env:StripeEnv,actor:Actor,planId:string){return planView(env,await planAccess(env,actor,planId));}
+export async function paymentPlan(env:StripeEnv,actor:Actor,planId:string){return planView(env,await planAccess(env,actor,planId),actor);}
 export async function paymentPlans(env:StripeEnv,actor:Actor,billId:string){
  await paymentInvoice(env.DB,actor,billId);
  const plans=await rows(env.DB,'SELECT * FROM s_payment_plans WHERE bill_id=? ORDER BY created_at,id',billId);
- return {plans:await Promise.all(plans.map(p=>planView(env,p))),canApprove:actor.role==='owner'&&actor.channel==='person'};
+ return {plans:await Promise.all(plans.map(p=>planView(env,p,actor))),canApprove:actor.role==='owner'&&actor.channel==='person'};
 }
 function noImportedCredentials(input:unknown){
  if(!input||typeof input!=='object')return;
@@ -62,7 +62,7 @@ export async function paymentPlanAction(env:StripeEnv,actor:Actor,planId:string,
   insist(!c||c.client_email===actor.email,'Only the consenting payer may revoke this mandate',403);
  }
  insist(b.revision===p.revision,'Review the current plan revision',409);
- if(p.status==='stopped')return planView(env,p);
+ if(p.status==='stopped')return planView(env,p,actor);
  await atomic(env.DB,actor,[paymentAccess(env.DB,actor,p.matter_id),...stopPlanWrites(env.DB,p,kind+': '+reason,actor.email),audit(env.DB,actor,'payment_plan.'+kind,p.id,reason,{matterId:p.matter_id})]);
  return paymentPlan(env,actor,planId);
 }

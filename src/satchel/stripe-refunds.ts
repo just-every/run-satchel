@@ -5,7 +5,7 @@ import {stripeApi,type StripeEnv} from './stripe-api';
 // Approval is persisted before the network call. Lost acknowledgments never cause
 // an automatic retry; authenticated provider events reconcile the original charge.
 export async function approveRefund(env:StripeEnv,actor:Actor,attemptId:string,b:Data){
- human(actor);const {attempt,bill}=await operatingAttempt(env,actor,attemptId);
+ human(actor);insist(env.STRIPE_MODE!=='live','Refund execution currently requires the Stripe test environment',409);const {attempt,bill}=await operatingAttempt(env,actor,attemptId);
  const requestKey=text(b.requestKey,'Refund decision identity',100),reason=text(b.reason,'Finance approval reason',1000),cents=integer(b.cents,'Refund in USD cents',1);
  insist(b.confirmed===true&&b.revision===bill.revision,'Approve the exact current invoice revision and refund',409);
  const prior=await stmt(env.DB,'SELECT * FROM s_stripe_refund_requests WHERE request_key=?',requestKey).first<Data>();
