@@ -3628,7 +3628,7 @@
       "executable": false
     },
     "src/satchel/settlement-billing.ts": {
-      "sha256": "b118ce2cb49dcc44a4475c4f271e0bcf6fd95d0820b4de2675b69ab8e806244f",
+      "sha256": "8dc96e94d9d00bc973db019f7f22fa545c80059d740aea24dcf29e499358d478",
       "executable": false
     },
     "src/satchel/settlement-policy.ts": {
@@ -4708,7 +4708,7 @@
       "executable": false
     },
     "tests/satchel/settlement-billing-flow.mjs": {
-      "sha256": "59edbfab2628caeefc38aad353cc549aca4192158aa9bca113174776f3f1643b",
+      "sha256": "d3bc4d4901fd66661a2427c742faa569aa4e136573cd34f246f4fd4ec6b5736f",
       "executable": false
     },
     "tests/satchel/settlement-browser.mjs": {

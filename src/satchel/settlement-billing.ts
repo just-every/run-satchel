@@ -31,7 +31,7 @@ export async function prepareSettlementBill(db:D1Database,actor:Actor,matterId:s
 }
 
 // Approval, including additive corrections, must still refer to the exact current
-// approved source. Standard fee earning review supplies the earned/trust record.
+// approved source. Standard fee earning review supplies the earned and trust record.
 export async function settlementFeeGuards(db:D1Database,actor:Actor,bill:Data){
  const p=bill.snapshot.feePlan;if(p?.kind!=='settlement')return [];
  const {statement:s,guards}=await approvedSettlement(db,actor,bill.matterId,p.settlementStatementId);

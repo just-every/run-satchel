@@ -2,17 +2,19 @@ import assert from 'node:assert/strict';
 import {harness} from './harness.mjs';
 import {foundation} from './trust-fixture.mjs';
 import {exemptTaxReview,withTaxAllocation} from './tax-fixture.mjs';
+import {readXml,xmlProfile} from './ledes-xml-reader.mjs';
 
 export async function settlementBillingFlow(){
  const h=await harness();try{
+  const address={line1:'200 Park Avenue',city:'New York',state:'NY',zip:'10166'};await h.json('/firm',{settings:{name:'Barton & Lee LLP',email:'office@example.test',phone:'212-555-0100',address,timezone:'America/New_York',billing:{defaultRateCents:30000,incrementMinutes:6,paymentTermsDays:30},fiscal:{yearStartMonth:1,basis:'cash'},offices:[{name:'Main',phone:'212-555-0100',timezone:'America/New_York',address}],practiceAreas:[{code:'LIT',name:'Litigation'}]}},h.owner);
   const f=await foundation(h),path='/matters/'+f.m.id,settlement=path+'/settlements';
   await h.json('/team',{email:'billing-counsel@example.test',name:'Settlement Counsel',role:'lawyer'},h.owner);
   await h.json('/team/invite',{email:'billing-counsel@example.test'},h.owner);
   const counsel=await h.login('billing-counsel@example.test');
   await h.json(path+'/access',{email:'billing-counsel@example.test'},h.owner);
   for(const [kind,code] of [['task','L110'],['activity','A101']])await h.json('/ledes/codes',{kind,code,label:'Reviewed settlement fee code'},h.owner);
-  await h.json('/ledes/timekeepers',{email:'owner@example.test',timekeeperId:'PRINCIPAL',name:'Principal',classification:'PT'},h.owner);
-  const guideline={clientLedesId:'RECOVERY',lawFirmId:'13-1234567',requireTask:true,requireActivity:true,requireExpense:false,narrativeMin:10,bannedPhrases:[],maxRates:{PT:1},incrementMinutes:60,note:'Counsel reviewed settlement fee guideline'};
+  await h.json('/ledes/timekeepers',{email:'owner@example.test',timekeeperId:'BL-001',name:'Principal, Avery',classification:'PT'},h.owner);
+  const guideline={clientLedesId:'RECOVERY',lawFirmId:'13-1234567',requireTask:true,requireActivity:true,requireExpense:false,narrativeMin:10,bannedPhrases:[],maxRates:{PT:1},incrementMinutes:60,note:'Counsel reviewed settlement fee guideline',xmlProfile};
   await h.json(path+'/ledes-guideline',guideline,h.owner);
   const terms=await h.json(settlement+'/terms',{previousVersion:0,reviewed:true,feeBasis:'after_expenses',reference:'Signed contingency agreement section 7',earningEvidence:'Executed release and recovered settlement',outcomes:[{name:'Settlement',bps:2500}]},counsel);
   const input={termsId:terms.id,outcome:'Settlement',grossCents:100003,reference:'Recovery source signed release',earnedConfirmed:true,earningEvidence:'Client and payer executed release; recovery confirmed',allocations:[{kind:'expense',payee:'Firm expense recovery',originalCents:1,reductionCents:0,reference:'Filing cost receipt'}],referrals:[{payee:'Referring counsel',bps:5000,reference:'Reviewed referral agreement inside counsel fee'}]};
@@ -70,12 +72,16 @@ export async function settlementBillingFlow(){
   const exported=await h.request('/api/satchel/bills/'+approved.id+'/ledes',undefined,h.owner);assert.equal(exported.status,200);
   const ledes=await exported.text(),records=ledes.trim().split('\r\n'),keys=records[1].slice(0,-2).split('|'),values=records[2].slice(0,-2).split('|'),line=Object.fromEntries(keys.map((key,i)=>[key,values[i]]));
   assert.equal(line['EXP/FEE/INV_ADJ_TYPE'],'F');assert.equal(Number(line.LINE_ITEM_NUMBER_OF_UNITS),1);assert.equal(line.LINE_ITEM_TOTAL,'250.01');assert.equal(line.LINE_ITEM_TASK_CODE,'L110');assert.equal(line.LINE_ITEM_ACTIVITY_CODE,'A101');
+  const xml=await(await h.request('/api/satchel/bills/'+approved.id+'/ledes-xml',undefined,h.owner)).text(),parsed=await readXml(xml);
+  assert.equal(parsed.invoice.inv_total_net_due,'250.01');assert.equal(parsed.fees.length,1);assert.equal(parsed.expenses.length,0);assert.equal(parsed.fees[0].charge_type,'F');
   const original=(await h.json(path+'/billing',undefined,h.owner)).bills.find(b=>b.id===approved.id);
   const correctionRequest={revision:original.revision,sourceId:original.snapshot.lines[0].sourceId,date:'2026-09-02',reason:'Counsel reviews an exact courtesy reduction'};
   await h.json('/bills/'+original.id+'/correct',{...correctionRequest,correctedAmountCents:25002},h.owner,422);
   const correction=await h.json('/bills/'+original.id+'/correct',{...correctionRequest,correctedAmountCents:20000},h.owner);
   await h.json('/bills/'+correction.id+'/approve',{...review,revision:correction.revision,taxReviewId:await exemptTaxReview(h,'/bills/'+correction.id+'/approve')},h.owner);
   assert.equal((await h.json(path+'/billing',undefined,h.owner)).bills.find(b=>b.id===original.id).trustPayment.earned_cents,20000);
+  const replacementXml=await(await h.request('/api/satchel/bills/'+correction.id+'/ledes-xml',undefined,h.owner)).text();assert.equal((await readXml(replacementXml)).invoice.inv_total_net_due,'200.00');
+  assert.equal(await(await h.request('/api/satchel/bills/'+approved.id+'/ledes-xml',undefined,h.owner)).text(),xml);
   await h.json(path+'/ledes-guideline',{...guideline,clientLedesId:'UPDATED',note:'Later guideline cannot rewrite a frozen export'},h.owner);
   assert.equal(await(await h.request('/api/satchel/bills/'+approved.id+'/ledes',undefined,h.owner)).text(),ledes);
   const third=await h.json(settlement+'/statements',{...input,previousVersion:2,grossCents:200003},counsel);await approvals(third);
@@ -127,7 +133,7 @@ export async function settlementBillingFlow(){
    assert.equal((await restored.request('/api/satchel'+settlement,undefined,h.owner)).status,401,'Archive restores no original native session');
    const owner=await restored.login('owner@example.test');
    assert.deepEqual(await restored.json(path+'/billing',undefined,owner),history);
-   assert.equal(await(await restored.request('/api/satchel/bills/'+approved.id+'/ledes',undefined,owner)).text(),ledes);
+   assert.equal(await(await restored.request('/api/satchel/bills/'+approved.id+'/ledes',undefined,owner)).text(),ledes);assert.equal(await(await restored.request('/api/satchel/bills/'+approved.id+'/ledes-xml',undefined,owner)).text(),xml);
    await restored.json(settlement+'/bill',{...request,statementId:third.id},owner,409);
    const before=await restored.json('/trust',undefined,owner);
    const refusal=await restored.json('/trust/transfers/'+transfer.id+'/bank-result',{...bank,outcome:'cleared'},owner,409);
