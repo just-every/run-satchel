@@ -4,13 +4,17 @@ import {guard} from './trust-guards';
 import {trustReconciler} from './trust';
 
 // Account totals must never reveal a walled subsidiary or its source evidence.
-const sourceIds=`SELECT s.source_document_id FROM s_trust_entry_sources s JOIN s_trust_entries e ON e.id=s.entry_id WHERE e.account_id=?
- UNION SELECT c.source_document_id FROM s_trust_clearings c JOIN s_trust_entries e ON e.id=c.entry_id WHERE e.account_id=?
- UNION SELECT source_document_id FROM s_trust_periods WHERE account_id=?
- UNION SELECT x.source_document_id FROM s_trust_period_events x JOIN s_trust_periods p ON p.id=x.period_id WHERE p.account_id=?`;
-const accessSql=`NOT EXISTS(SELECT 1 FROM s_trust_ledgers l WHERE l.account_id=? AND NOT (${matterScope('l.matter_id')}))
- AND NOT EXISTS(SELECT 1 FROM s_documents d WHERE d.id IN(${sourceIds}) AND (NOT (${matterScope('d.matter_id')}) OR (d.visibility<>'matter' AND d.created_by<>? AND ?<>'owner')))`;
-function accessValues(actor:Actor,accountId:string){return [accountId,actor.role,actor.email,accountId,accountId,accountId,accountId,actor.role,actor.email,actor.email,actor.role];}
+export function accountTrustScope(accountSql:string,roleSql:string,emailSql:string){
+ const scope=(matterSql:string)=>matterScope(matterSql,"'person'",roleSql,emailSql);
+ const sourceIds=`SELECT s.source_document_id FROM s_trust_entry_sources s JOIN s_trust_entries e ON e.id=s.entry_id WHERE e.account_id=${accountSql}
+ UNION SELECT c.source_document_id FROM s_trust_clearings c JOIN s_trust_entries e ON e.id=c.entry_id WHERE e.account_id=${accountSql}
+ UNION SELECT source_document_id FROM s_trust_periods WHERE account_id=${accountSql}
+ UNION SELECT x.source_document_id FROM s_trust_period_events x JOIN s_trust_periods p ON p.id=x.period_id WHERE p.account_id=${accountSql}`;
+ return `NOT EXISTS(SELECT 1 FROM s_trust_ledgers account_ledger WHERE account_ledger.account_id=${accountSql} AND NOT (${scope('account_ledger.matter_id')}))
+ AND NOT EXISTS(SELECT 1 FROM s_documents d WHERE d.id IN(${sourceIds}) AND (NOT (${scope('d.matter_id')}) OR (d.visibility<>'matter' AND d.created_by<>${emailSql} AND ${roleSql}<>'owner')))`;
+}
+const accessSql=`EXISTS(SELECT 1 FROM (SELECT ? account_id,? role,? email) account_reader WHERE ${accountTrustScope('account_reader.account_id','account_reader.role','account_reader.email')})`;
+function accessValues(actor:Actor,accountId:string){return [accountId,actor.role,actor.email];}
 export function accountTrustGuard(db:D1Database,actor:Actor,accountId:string){return guard(db,accessSql,...accessValues(actor,accountId));}
 export async function accountTrustAccess(db:D1Database,actor:Actor,accountId:string){
  await trustReconciler(db,actor);

@@ -19,3 +19,13 @@ Email notifications contain no message content and are sent only to current read
 ## Scheduled summaries
 
 **Reports → Scheduled summaries** lets the principal schedule a weekly workload or deadlines summary to named recipients, by email or inside Satchel. Each summary carries counts only and is built with the recipient's own report permission when it is sent. A failed delivery opens an exception for the principal.
+
+## Named financial releases
+
+Ordinary shared-item access does not release a trust statement or replenishment request. Clients and co-clients are equally eligible, but the principal must release each exact signed statement separately to each named current grant. Payers and delegates receive neither. The current workspace has no financial-release or client trust controls; the documented API doors provide the bounded workflow while TRUST-008 remains partial.
+
+A principal with current trust-record authority and full account access can release a current officer-signed statement. The frozen release retains its original cutoff even after later postings or corrected packets. A new release must name the current signed version. Withdrawal ends access without deleting the signed record or its audit.
+
+The principal approves versioned retainer thresholds. A principal who also holds the designated trust-officer capability can approve an exact posted-balance crossing and publish a replenishment request. A sole practitioner may hold both capabilities. Publication is availability inside the authenticated portal, separate from access or acknowledgment. It sends no email or SMS, calls no payment provider and posts no debit.
+
+Every financial read rechecks the original grant, current authorizing principal, required trust capability, full account access and ethical walls. Replacing a withdrawn grant does not revive an old release. Native archives preserve signed records, policy versions and audit evidence, and restore no financial publication authority. State-record downloads remain incomplete firm-review previews; they certify no compliance or retention period.

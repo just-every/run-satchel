@@ -3,6 +3,8 @@ import {accessGuard,guard} from './trust-guards';
 import {accountTrustAccess,accountTrustGuard} from './trust-reports';
 import {getTrustPacket} from './trust-periods';
 import {portalAccess} from './portal';
+import {reconcilerGuard} from './trust';
+import {trustPublicationAuthority} from './trust-publication-authority';
 
 // A portal grant alone never publishes financial records. The principal releases
 // one officer-signed ledger statement to one current client or co-client grant.
@@ -25,7 +27,7 @@ export async function releaseTrustStatement(db:D1Database,actor:Actor,ledgerId:s
  const grant=await stmt(db,`SELECT g.id FROM s_portal_grants g WHERE g.email=? AND g.matter_id=? AND g.revoked_at IS NULL AND g.kind IN('client','co_client') AND ${portalAccess('?',statementReaders)}`,recipient,ledger.matter_id,recipient,ledger.matter_id).first<Data>();
  insist(grant,'Choose a current client or co-client grant without an ethical wall',409);
  const releaseId=id(),at=now();
- await atomic(db,actor,[guard(db,principalSql,actor.id,actor.email),accessGuard(db,actor,ledger.matter_id),accountTrustGuard(db,actor,ledger.account_id),
+ await atomic(db,actor,[guard(db,principalSql,actor.id,actor.email),reconcilerGuard(db,actor),accessGuard(db,actor,ledger.matter_id),accountTrustGuard(db,actor,ledger.account_id),
   guard(db,currentPacketSql,packet.id),guard(db,`EXISTS(SELECT 1 FROM s_portal_grants g WHERE g.id=? AND g.email=? AND g.matter_id=? AND g.revoked_at IS NULL AND g.kind IN('client','co_client') AND ${portalAccess('?',statementReaders)})`,grant.id,recipient,ledger.matter_id,recipient,ledger.matter_id),
   stmt(db,'INSERT INTO s_trust_statement_releases(id,ledger_id,packet_id,grant_id,recipient,created_by,created_at,reason) VALUES(?,?,?,?,?,?,?,?)',releaseId,ledger.id,packet.id,grant.id,recipient,actor.email,at,reason),
   audit(db,actor,'trust.statement_released',releaseId,JSON.stringify({ledgerId:ledger.id,packetId:packet.id,packetDigest:packet.digest,grantId:grant.id,recipient,reason}),{matterId:ledger.matter_id})]);
@@ -45,7 +47,7 @@ export async function portalTrustStatements(db:D1Database,actor:Actor,matterId:s
  human(actor);need(actor,'client');
  // The release is tied to the original grant: withdrawal followed by a fresh
  // grant cannot revive it. Full account packets and source files stay private.
- const released=await rows(db,`SELECT r.id,r.ledger_id,r.packet_id,r.created_at,p.snapshot,p.digest FROM s_trust_statement_releases r JOIN s_trust_ledgers l ON l.id=r.ledger_id JOIN s_trust_packets p ON p.id=r.packet_id JOIN s_portal_grants g ON g.id=r.grant_id WHERE l.matter_id=? AND r.recipient=? AND r.revoked_at IS NULL AND EXISTS(SELECT 1 FROM oa_operators approver WHERE approver.email=r.created_by AND approver.role='owner' AND approver.status='active') AND g.email=? AND g.matter_id=l.matter_id AND g.revoked_at IS NULL AND g.kind IN('client','co_client') AND ${portalAccess('l.matter_id',statementReaders)} ORDER BY r.created_at,r.id`,matterId,actor.email,actor.email,actor.email);
+ const released=await rows(db,`SELECT r.id,r.ledger_id,r.packet_id,r.created_at,p.snapshot,p.digest FROM s_trust_statement_releases r JOIN s_trust_ledgers l ON l.id=r.ledger_id JOIN s_trust_packets p ON p.id=r.packet_id JOIN s_portal_grants g ON g.id=r.grant_id WHERE l.matter_id=? AND r.recipient=? AND r.revoked_at IS NULL AND ${trustPublicationAuthority('l.account_id','r.created_by')} AND g.email=? AND g.matter_id=l.matter_id AND g.revoked_at IS NULL AND g.kind IN('client','co_client') AND ${portalAccess('l.matter_id',statementReaders)} ORDER BY r.created_at,r.id`,matterId,actor.email,actor.email,actor.email);
  const statements=released.map(r=>{
   const s=JSON.parse(r.snapshot).clientStatements.find((s:Data)=>s.ledgerId===r.ledger_id);
   insist(s,'Released statement is unavailable',409);
