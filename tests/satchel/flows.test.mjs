@@ -58,7 +58,7 @@ test('FIRM-001 principal enters, exports and imports US firm settings with prove
  assert.equal(imported.provenance.digest,sha256(content));
  assert.ok((await h.json('/audit?action=firm.settings_imported',undefined,h.owner)).records.some(a=>a.action==='firm.settings_imported'&&a.detail.includes(imported.provenance.digest)));
 });
-test('SAT-002 a party insert or update invalidates a conflict review; a fresh confirmed review opens exactly once',async()=>{
+test('INTAKE-005 a party insert or update invalidates a conflict review; a fresh confirmed review opens exactly once',async()=>{
  await h.json('/matters',{title:'No clearance'},h.owner,400);
  const review=()=>h.json('/conflicts',{client:'Barton Workshop',adverse:'Other company'},h.owner);
  let stale=await review();assert.ok(stale.matches.some(p=>p.name==='Barton Workshop LLC'));

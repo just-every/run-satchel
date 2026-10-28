@@ -2,7 +2,7 @@ import {exemptTaxReview} from './tax-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {harness,open} from './harness.mjs';
-test('MATTER-008 and SAT-002 concurrent single-use reviews, atomic firm and per-client numbers, collision avoidance, fixed records and permissioned search',async()=>{
+test('MATTER-008 and INTAKE-005 concurrent single-use reviews, atomic firm and per-client numbers, collision avoidance, fixed records and permissioned search',async()=>{
  const h=await harness();try{
   await h.json('/team',{email:'lawyer@example.test',name:'Marcus Lee',role:'lawyer'},h.owner);
   await h.json('/team/invite',{email:'lawyer@example.test'},h.owner);

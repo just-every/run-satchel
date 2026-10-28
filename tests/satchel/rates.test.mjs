@@ -39,7 +39,7 @@ test('TIME-003 versioned client, attorney, matter and task rates with increments
   // Task rate with a 15-minute increment and a 10% discount; nonbillable task work is recorded, never billed.
   const pleading=await entry(a,{date:'2026-10-15',description:'Answer',utbmsTask:'L210'});assert.deepEqual([pleading.rateCents,pleading.billedMinutes,pleading.discountBps,pleading.amountCents],[20000,60,1000,18000]);
   const assessment=await entry(a,{date:'2026-10-15',description:'Case assessment',minutes:30,utbmsTask:'L100'});assert.equal(assessment.billable,false);
-  // An explicit hourly rate is still recorded exactly as entered (SAT-004 door).
+  // An explicit hourly rate is still recorded exactly as entered (TIME-001 door).
   const explicit=await entry(a,{date:'2026-10-15',description:'Agreed flat call',minutes:90,rateCents:25000});assert.deepEqual([explicit.billedMinutes,explicit.amountCents,explicit.rateSource],[90,37500,'entry']);
 
   // Issue a bill, then change the rate retroactively: recorded work and the issued bill keep their price.

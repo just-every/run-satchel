@@ -3,33 +3,33 @@
   "old": "a752361bcb3d53127c4a1365e0f7bed05ef89e38",
   "ids": {
     "SAT-001": {
-      "how": "kept",
+      "how": "merged",
       "to": [
-        "SAT-001"
+        "FIRM-002"
       ]
     },
     "SAT-002": {
-      "how": "kept",
+      "how": "merged",
       "to": [
-        "SAT-002"
+        "INTAKE-005"
       ]
     },
     "SAT-003": {
-      "how": "kept",
+      "how": "merged",
       "to": [
-        "SAT-003"
+        "FIRM-002"
       ]
     },
     "SAT-004": {
-      "how": "kept",
+      "how": "merged",
       "to": [
-        "SAT-004"
+        "TIME-001"
       ]
     },
     "SAT-005": {
-      "how": "kept",
+      "how": "merged",
       "to": [
-        "SAT-005"
+        "BILL-001"
       ]
     },
     "SAT-006": {
@@ -39,15 +39,15 @@
       ]
     },
     "SAT-007": {
-      "how": "kept",
+      "how": "merged",
       "to": [
-        "SAT-007"
+        "DOC-001"
       ]
     },
     "SAT-008": {
-      "how": "kept",
+      "how": "merged",
       "to": [
-        "SAT-008"
+        "CAL-006"
       ]
     },
     "SAT-009": {
@@ -57,27 +57,27 @@
       ]
     },
     "SAT-010": {
-      "how": "kept",
+      "how": "merged",
       "to": [
-        "SAT-010"
+        "MOVE-002"
       ]
     },
     "SAT-011": {
-      "how": "kept",
+      "how": "merged",
       "to": [
-        "SAT-011"
+        "BASE-001"
       ]
     },
     "SAT-012": {
-      "how": "kept",
+      "how": "merged",
       "to": [
-        "SAT-012"
+        "FIRM-006"
       ]
     },
     "SAT-013": {
-      "how": "kept",
+      "how": "merged",
       "to": [
-        "SAT-013"
+        "MOBILE-001"
       ]
     },
     "OSS-001": {
@@ -507,9 +507,10 @@
       ]
     },
     "TIME-008": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "TIME-008"
+        "TIME-008",
+        "TIME-009"
       ]
     },
     "BILL-001": {
@@ -579,9 +580,10 @@
       ]
     },
     "BILL-012": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "BILL-012"
+        "BILL-012",
+        "BILL-017"
       ]
     },
     "BILL-013": {

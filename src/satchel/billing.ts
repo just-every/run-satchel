@@ -106,7 +106,7 @@ export async function addEntry(db: D1Database, actor: Actor, matterId: string, b
  const requested = body.expense?.category==='overhead' ? false : body.billable !== false, task = kind === 'time' ? utbmsTask(body.utbmsTask) : null, activity = kind === 'time' ? utbmsActivity(body.utbmsActivity) : null, expense = kind === 'time' ? null : utbmsExpense(body.utbmsExpense);
  await checkCodes(db,{task,activity,expense});
  const m = await matter(db,actor,matterId), pricing = await loadPricing(db), entryId = id(), at = now();
- // An explicit hourly rate is recorded exactly as entered (SAT-004); without one,
+ // An explicit hourly rate is recorded exactly as entered (TIME-001); without one,
  // TIME-003's fee agreement resolves the rate, increment, discount and billability.
  const p = kind === 'time' ? price(pricing,{matterId,client:m.client,date:workDate,timekeeper:actor.email,task,minutes:integer(body.minutes,'Minutes',1,1440),billable:requested,rateCents:body.rateCents === undefined ? undefined : integer(body.rateCents,'Hourly rate in USD cents',0,100000000)}) : null;
  const minutes = p ? integer(body.minutes,'Minutes',1,1440) : null, amount = p ? p.amountCents : money(body.amountCents);

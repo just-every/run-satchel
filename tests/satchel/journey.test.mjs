@@ -1,5 +1,5 @@
 import {exerciseAgentControls} from './agent-execution-browser.mjs';
-// SAT-013: the installed product's own surfaces, driven in a browser at desktop and phone widths.
+// MOBILE-001: the installed product's own surfaces, driven in a browser at desktop and phone widths.
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {chromium} from '@playwright/test';
@@ -17,7 +17,7 @@ async function tab(page,name){
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0,`${name} fits without horizontal scrolling`);
 }
 async function done(page,notice){await page.getByRole('status').getByText(notice).waitFor();}
-for(const [width,height] of [[1440,1000],[390,844]])test(`SAT-013 sign-in, setup and every workspace tab with real records at ${width}px`,async()=>{
+for(const [width,height] of [[1440,1000],[390,844]])test(`MOBILE-001 sign-in, setup and every workspace tab with real records at ${width}px`,async()=>{
  const h=await harness(),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});
  try{
   const context=await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(String(e)));

@@ -9,7 +9,7 @@ CREATE TABLE s_staff_relationships(id TEXT PRIMARY KEY,party_id TEXT NOT NULL RE
 CREATE TRIGGER s_staff_relationship_added AFTER INSERT ON s_staff_relationships BEGIN UPDATE s_meta SET party_revision=party_revision+1 WHERE id=1; END;
 CREATE TABLE s_matter_exclusions(matter_id TEXT NOT NULL REFERENCES s_matters(id),email TEXT NOT NULL,restriction TEXT NOT NULL,recorded_by TEXT NOT NULL,at TEXT NOT NULL,released_by TEXT,released_at TEXT,release_reason TEXT,PRIMARY KEY(matter_id,email));
 CREATE TRIGGER s_excluded_grant BEFORE INSERT ON s_matter_access WHEN EXISTS(SELECT 1 FROM s_matter_exclusions e WHERE e.matter_id=NEW.matter_id AND e.email=NEW.email AND e.released_at IS NULL) BEGIN SELECT RAISE(ABORT,'constraint: engagement restriction excludes staff'); END;
--- SAT-002's party-revision trigger is the atomic staleness fence. The application
+-- INTAKE-005's party-revision trigger is the atomic staleness fence. The application
 -- also fences the latest counsel and every latest route decision in its batch.
 DROP TRIGGER s_matter_conflict_disposition;
 CREATE TRIGGER s_matter_conflict_disposition BEFORE INSERT ON s_matters WHEN (SELECT COALESCE(disposition,CASE decision WHEN 'declined' THEN 'decline' ELSE 'no_conflict' END) FROM s_conflict_reviews WHERE search_id=NEW.conflict_id ORDER BY sequence DESC LIMIT 1)='decline' BEGIN SELECT RAISE(ABORT,'stale conflict disposition'); END;
