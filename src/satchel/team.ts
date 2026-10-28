@@ -1,5 +1,6 @@
 import { type Bindings, operatorAuth, runtimeBindings } from '../auth.server';
 import { atomic,audit,digest,human,id,insist,need,now,rows,stmt,text,type Actor,type Data } from './model';
+import {cancelAgentJobs} from './agent-authority';
 export async function saveMember(db:D1Database,actor:Actor,body:Data) {
  human(actor);need(actor,'owner');
  const email=text(body.email,'Email',254).toLowerCase(),name=text(body.name,'Name',100);
@@ -29,7 +30,7 @@ export async function createAgentKey(db:D1Database,actor:Actor,body:Data) {
  return {id:keyId,label,key};
 }
 export async function revokeAgentKey(db:D1Database,actor:Actor,keyId:string) {
- human(actor);await atomic(db,actor,[stmt(db,'UPDATE s_agent_keys SET revoked=1 WHERE id=? AND owner_id=?',keyId,actor.id),audit(db,actor,'agent.key_revoked',keyId)]);return {ok:true};
+ human(actor);insist(await stmt(db,'SELECT 1 FROM s_agent_keys WHERE id=? AND owner_id=?',keyId,actor.id).first(),'Agent key not found',404);await atomic(db,actor,[stmt(db,'UPDATE s_agent_keys SET revoked=1 WHERE id=? AND owner_id=?',keyId,actor.id),...cancelAgentJobs(db,'key_id=?',[keyId],'key_revoked',actor),audit(db,actor,'agent.key_revoked',keyId)]);return {ok:true};
 }
 export async function teamState(db:D1Database,actor:Actor) {
  return {keys:await rows(db,'SELECT id,label,revoked,created_at FROM s_agent_keys WHERE owner_id=? ORDER BY created_at DESC',actor.id)};

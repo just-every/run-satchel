@@ -707,6 +707,10 @@
       "sha256": "5bea1053a8b0b2d5154d514e5851a9a528cdecbdb997d3a6d6334940c41fd6b2",
       "executable": false
     },
+    "migrations/core/0115_agent_execution.sql": {
+      "sha256": "9c7a0dd7f09a54da72daa27e19d169902f412bc845565dd9a4a74f5dc77b43d9",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "31dbf44f24514b9f626261911b9b83c806cacdf00dd23e49f465f3fdfebb715e",
       "executable": false
@@ -3091,8 +3095,24 @@
       "sha256": "93398b67aa5953d7df61ae02e16e29af316a702f7bdba04a1995816a06c59067",
       "executable": false
     },
+    "src/satchel/agent-authority.ts": {
+      "sha256": "aa1c71f2cde1016c423066fdd3dfc05fc91e08c908defaee01b92efb1a73ef47",
+      "executable": false
+    },
+    "src/satchel/agent-context.ts": {
+      "sha256": "ec83b1ae6e68298f56a03b08f55cca21ecada6211d3dd69d0998e97f655312b2",
+      "executable": false
+    },
+    "src/satchel/agent-jobs.ts": {
+      "sha256": "29d5f6b0e33c9db23de41fc5e3212d0a2d63f43e3e93969c3fdbb4092e10345b",
+      "executable": false
+    },
+    "src/satchel/agent-preparations.ts": {
+      "sha256": "e28e26d5c000e1b90d09493ebe48d8983b138fdb0a8eb842c8f75b0ce603818a",
+      "executable": false
+    },
     "src/satchel/api.ts": {
-      "sha256": "4993047987dfa2981905059a3c4c4d7b9164cee72a2d64cd337cb5e4cfafec72",
+      "sha256": "b96c7111a334a1737a981c3db573fa27325d89fbe5bd3eaaa603bd853d806b35",
       "executable": false
     },
     "src/satchel/appointments.ts": {
@@ -3136,7 +3156,7 @@
       "executable": false
     },
     "src/satchel/audit-record.ts": {
-      "sha256": "58e88c4e32fdb42a1e1d3c9b76f31a22070e6d7b4e0952d5a6c5fdf665423e06",
+      "sha256": "e434a5fea1d2a7ca9b76793739e1bf26d8e2557a1d97b09d814eef74edce2426",
       "executable": false
     },
     "src/satchel/audit.ts": {
@@ -3504,7 +3524,7 @@
       "executable": false
     },
     "src/satchel/model.ts": {
-      "sha256": "ef30410dfa813f0c0f6ff7ae8287b050dd07476094f581a5d27ce9766caadf55",
+      "sha256": "fa9b0366f096b95d43e1f09860ea5be0f79c1554bf87f53b0b7ebba55cb0569e",
       "executable": false
     },
     "src/satchel/numbering.ts": {
@@ -3572,7 +3592,7 @@
       "executable": false
     },
     "src/satchel/proposals.ts": {
-      "sha256": "5de09d0ce7110a83f583a56f1069815971897084866c480898913000d567072c",
+      "sha256": "02ac848b67eae86bd6cb61c82c3beab093f30dd7f4f29f15372ca790ebb2e4b3",
       "executable": false
     },
     "src/satchel/providers.ts": {
@@ -3644,7 +3664,7 @@
       "executable": false
     },
     "src/satchel/role-areas.ts": {
-      "sha256": "595e5fe2fe1a2f48d105dfc3fbac66275ff551df4d612283bd5ec627473c0d80",
+      "sha256": "48d83ad54ccb38c474932e8865c0a45741abe56136e5784bdc60b801024d17dd",
       "executable": false
     },
     "src/satchel/role-doors.ts": {
@@ -3676,7 +3696,7 @@
       "executable": false
     },
     "src/satchel/session.ts": {
-      "sha256": "377580d15c0bd6295637dcf6657143a0e160215a8beb6964f65a1a95aaa3465c",
+      "sha256": "e02aacdf088cbb22e7e673224f93a75d50b8b14a7fe6b0667564b463a1ee62e2",
       "executable": false
     },
     "src/satchel/settlement-authority.ts": {
@@ -3732,7 +3752,7 @@
       "executable": false
     },
     "src/satchel/team.ts": {
-      "sha256": "1f234905d69a2277154a065eee8eabd1382a983b409042ed22bc38a5d245c84d",
+      "sha256": "16ae0f609320b1e5c7ec568293f98ed519eb8ad18db4bbf76ae5613413c8bd8d",
       "executable": false
     },
     "src/satchel/timeline.ts": {
@@ -3856,7 +3876,7 @@
       "executable": false
     },
     "src/server.ts": {
-      "sha256": "88037d0b3a4574f4a798f8e559076a139162810a62512840a3fc7a2e3f5e6f03",
+      "sha256": "07b020036f83a7f57f2df431d8d7fc53fad45aba444ab457f0068c0dc4e90e7d",
       "executable": false
     },
     "src/site/docs/DocsArticle.tsx": {
@@ -3989,6 +4009,10 @@
     },
     "src/ui/agenda.tsx": {
       "sha256": "6119ebbc743773eeb90e6a91aa5f189d9899654df500ca5907977eb5a19300a9",
+      "executable": false
+    },
+    "src/ui/agent-controls.tsx": {
+      "sha256": "5b3a0b565fe02c285f4815d8f5baa5a06aeeeb1d0caba9cbf5f28e540c140990",
       "executable": false
     },
     "src/ui/assembly.tsx": {
@@ -4340,7 +4364,7 @@
       "executable": false
     },
     "src/ui/team.tsx": {
-      "sha256": "86244619f0d4f235bcd0a9b3153d949c12e8d01beb594633a39ab8ad9c87c833",
+      "sha256": "82ae7de434b060db252825d6f87c8d2bb124d2a35b7e369a059bc95b32eb15b0",
       "executable": false
     },
     "src/ui/timeline.tsx": {
@@ -4420,7 +4444,19 @@
       "executable": false
     },
     "tests/satchel/agenda.test.mjs": {
-      "sha256": "7c0b814b0f76a4ca6e516cebef5976765908d9424dfb4d4cc741e03f0324e0e3",
+      "sha256": "629b68e7c14af30fdfdc8b0caaf9099d95fba86428c5486739f6cd6d61907aea",
+      "executable": false
+    },
+    "tests/satchel/agent-execution-browser.mjs": {
+      "sha256": "1d2cad1dd40c94cee908e48e2ebbadc8817b0c36f7212389943e2c19121e5b3c",
+      "executable": false
+    },
+    "tests/satchel/agent-execution-flow.mjs": {
+      "sha256": "0a5c8c354dc3fa1af92c1e39598bb831b948c96d626b1988efe3a0c1ccb7c7d5",
+      "executable": false
+    },
+    "tests/satchel/agent-fixture.mjs": {
+      "sha256": "6d7ea02f3fabea756a6ef69c236e8aea32b28ba5ec415366ee8816fecc38712e",
       "executable": false
     },
     "tests/satchel/assembly-fixture.mjs": {
@@ -4508,7 +4544,7 @@
       "executable": false
     },
     "tests/satchel/custom-roles.test.mjs": {
-      "sha256": "b9f991c448ba715a7fde7c0145e30da50bc4015024ebe7cded54fc6bdc497358",
+      "sha256": "53fb7d65ea4b72d2d50f880c29e8ee51a7575679f49217360d5f91ffa9658f2d",
       "executable": false
     },
     "tests/satchel/document-packet-fixture.mjs": {
@@ -4544,7 +4580,7 @@
       "executable": false
     },
     "tests/satchel/flows.test.mjs": {
-      "sha256": "a5e58a75c0097b87fe355746f1fa94d6bf8ae4c19434c3c05e313547780732ea",
+      "sha256": "c4a4528698805ea2bd55cfb4b9561fd42255c1834d8d8d02116ceedfa03cefda",
       "executable": false
     },
     "tests/satchel/followups.test.mjs": {
@@ -4616,7 +4652,7 @@
       "executable": false
     },
     "tests/satchel/journey.test.mjs": {
-      "sha256": "bd4d9a26aec22f35cb2216dc53be83c13ac1a955fec8ac8388635317c449eec9",
+      "sha256": "2d1d3ccff9640776c337a6b62fc8f71c0099a97696193d0ac7d9eb19b259487b",
       "executable": false
     },
     "tests/satchel/leads-journey.test.mjs": {

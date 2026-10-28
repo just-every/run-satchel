@@ -2,6 +2,9 @@
 // Explicit columns exclude credentials and original file bytes.
 const record=(table:string,columns:string[],matter='NULL',revision='NULL',where='x.id=i.object_id',extra:Record<string,string>={})=>`(SELECT json_object('recordType','${table}','matterId',${matter},'revision',${revision},${[...columns.flatMap(c=>[`'${c}'`,`x.${c}`]),...Object.entries(extra).flatMap(([k,v])=>[`'${k}'`,v])].join(',')}) FROM ${table} x WHERE ${where} LIMIT 1)`;
 const contexts=[
+ record('s_agent_agreements',['id','key_id','processor','model_revision','agreement_reference','retention_terms','training_terms','health_reference','expires_at','approved_by','approved_at','withdrawn_at'],'NULL','x.id',"i.action LIKE 'agent.%' AND x.id=i.object_id"),
+ record('s_agent_delegations',['id','key_id','agreement_id','actions','recipients','max_jobs','used_jobs','spend_cents','expires_at','stop_rule','escalation_email','approved_by','approved_at','revoked_at','revoke_reason'],'x.matter_id','x.id',"i.action LIKE 'agent.%' AND x.id=i.object_id",{sources:"(SELECT json_group_array(json_object('documentId',s.document_id,'version',s.version,'sha256',s.sha256,'kind',s.kind,'licenseReference',s.license_reference,'licenseExpiresAt',s.license_expires_at,'permittedUse',s.permitted_use)) FROM s_agent_sources s WHERE s.delegation_id=x.id)"}),
+ record('s_agent_jobs',['id','delegation_id','key_id','action','due_at','status','outcome','proposal_id','created_at','finished_at'],'x.matter_id','x.delegation_id',"i.action LIKE 'agent.%' AND x.id=i.object_id"),
  record('s_mfa',['operator_id','enabled','created_at'],'NULL','CAST(x.created_at AS TEXT)',"i.action LIKE 'security.mfa_%' AND x.operator_id=i.object_id"),
  record('oa_sessions',['id','kind','created_at','expires_at','revoked_at'],'NULL','CAST(x.operator_version AS TEXT)',"i.action='security.device_revoked' AND x.id=i.object_id"),
 
@@ -92,7 +95,7 @@ const contexts=[
  record('s_deadlines',['id','title','kind','owner_email','date','timezone','source','document_id','document_version','status','confirmed_by','confirmed_at','completed_by','completed_at','completion_evidence'],'x.matter_id','x.revision'),
  record('s_conflicts',['id','client','adverse','queries','matches','party_revision','actor','at','search_summary'],'NULL','CAST(x.party_revision AS TEXT)'),
  record('s_parties',['id','name','aliases','email','source'],'NULL','x.revision'),
- record('s_proposals',['id','kind','payload','for_email','agent_label','status','result_id','decided_by','decided_at'],'json_extract(x.payload,\'$.matterId\')'),
+ record('s_proposals',['id','kind','payload','for_email','agent_label','status','result_id','decided_by','decided_at','delegation_id','agreement_id'],'json_extract(x.payload,\'$.matterId\')'),
  record('s_members',['email','name','role','active'],'NULL','NULL','x.email=i.object_id'),
  record('s_agent_keys',['id','label','owner_id','revoked','created_at']),
  record('s_reminder_rules',['id','deadline_id','recipient','backup','advance_days','send_time','quiet_start','quiet_end','channels','escalate_hours','due_at','status','created_email','created_role','reason'], '(SELECT matter_id FROM s_deadlines WHERE id=x.deadline_id)','x.revision'),
