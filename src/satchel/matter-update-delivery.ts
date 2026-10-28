@@ -6,7 +6,7 @@ import {currentUpdateCounsel,responsibleUpdateCounsel,updateAuthorityGuards} fro
 
 // All scheduled message kinds share one recipient budget, including unknown attempts.
 export function updateContactCapGuard(db:D1Database,recipient:string,maxContacts:number,atMs:number){
- return guard(db,`(SELECT COUNT(*) FROM s_correspondence_attempts a JOIN s_correspondence m ON m.id=a.correspondence_id WHERE m.recipient=? AND a.attempted_at IS NOT NULL AND a.attempted_at>? AND (EXISTS(SELECT 1 FROM s_client_reminder_jobs r WHERE r.correspondence_id=m.id) OR EXISTS(SELECT 1 FROM s_matter_update_jobs u WHERE u.correspondence_id=m.id)))<?`,recipient,new Date(atMs-7*86400000).toISOString(),maxContacts);
+ return guard(db,`(SELECT COUNT(*) FROM s_correspondence_attempts a JOIN s_correspondence m ON m.id=a.correspondence_id WHERE m.recipient=? AND a.attempted_at IS NOT NULL AND a.attempted_at>? AND (EXISTS(SELECT 1 FROM s_client_reminder_jobs r WHERE r.correspondence_id=m.id) OR EXISTS(SELECT 1 FROM s_matter_update_jobs u WHERE u.correspondence_id=m.id) OR EXISTS(SELECT 1 FROM s_collection_attempts c WHERE c.correspondence_id=m.id)))<?`,recipient,new Date(atMs-7*86400000).toISOString(),maxContacts);
 }
 export async function matterUpdateSendGuards(db:D1Database,actor:Actor,attempt:Data,atMs:number){
  const job=await stmt(db,'SELECT * FROM s_matter_update_jobs WHERE correspondence_id=?',attempt.correspondence_id).first<Data>();if(!job)return [];

@@ -410,3 +410,6 @@ import {reconciliationFlow} from './stripe-reconciliation-flow.mjs';
 
 import {provePaymentPlans} from './payment-plan-flow.mjs';
 test('Exact client mandates dispatch each installment once and stop imported, revoked, failed, disputed and uncertain plans for human review',provePaymentPlans);
+
+import {collectionsFlow} from './collections-flow.mjs';
+test('Collections route replies, stop on payments, resume after returns and follow trust, rebills and replenishments without repeating contact',async()=>{await collectionsFlow();});

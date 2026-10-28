@@ -1,3 +1,4 @@
+import {collectionsState,startCollection,collectionAction,runCollection} from './collections';
 import {migrationAction,migrationState,matterMigration} from './migration';
 import {settlementPolicy,saveSettlementPolicy} from './settlement-policy';
 import {disposeSettlement} from './settlement-retention';
@@ -143,6 +144,10 @@ const asAgent=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>{const actor=awa
 // Integration keys carry their sponsor's custom-role ceiling exactly as the sponsor's own session does.
 const viaIntegration=async(c:C,fn:(i:Integration)=>Promise<unknown>)=>{const i=await integrationAuth(db(c),c.req.raw);await assertStripeEnvironment(runtimeBindings(c.env));gateGrants(i.actor,c.req.method,c.req.path);return c.json(await redact(db(c),i.actor,c.req.path,await fn(i)));};
 const currentSession=async(c:C)=>{const session=await operatorAuth(runtimeBindings(c.env)).getSession(c.req.raw);insist(session,'Sign in to continue',401);return session;};
+api.get('/api/satchel/matters/:id/collections',as((a,c)=>collectionsState(db(c),a,param(c))));
+api.post('/api/satchel/matters/:id/collections',as(async(a,c)=>startCollection(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/collections/:id/actions',as(async(a,c)=>collectionAction(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/collections/:id/run',as((a,c)=>runCollection(runtimeBindings(c.env),a,param(c))));
 api.get('/api/satchel/security/microsoft',as(async(a,c)=>microsoftState(runtimeBindings(c.env),a)));
 api.post('/api/satchel/security/microsoft',as(async(a,c)=>connectMicrosoft(runtimeBindings(c.env),a,await body(c),(await currentSession(c)).id)));
 api.post('/api/satchel/security/microsoft/jobs',as(async(a,c)=>queueMicrosoftRead(runtimeBindings(c.env),a,await body(c),(await currentSession(c)).id)));
