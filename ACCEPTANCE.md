@@ -992,7 +992,7 @@ Core · target · **partial** · From TIME-008 · Cites BASE-MAIL-001
 5. Import a weekly timesheet with one invalid row, repair it, bill and partially collect; inspect attributed collections and commission calculations without changing original timekeeper records.
 
 **Evidence.** `tests/satchel/timesheets.test.mjs`; `tests/satchel/trust-transfer.test.mjs`; `tests/satchel/providers.test.mjs`; `tests/satchel/timesheets-journey.test.mjs`; `tests/satchel/bulk-revenue-journey.mjs`
-**Gap.** Proof gap: The explicit absence of a payout and every listed non-commission state are not asserted by fee-allocation totals alone.
+**Gap.** Proof gap: The explicit absence of a payout and every listed non-commission state are not asserted by fee-allocation totals alone. The full weekly-input-to-collected-revenue and commission journey remains untraced.
 
 ### Billing and collections
 
