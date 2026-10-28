@@ -405,7 +405,9 @@ credentials, staff role, membership or billing approval are imported.
 Supply `sourceAccount`, `mappingRevision`, `phase`, `extractedAt`, `balances`,
 `counts`, `coverage`, `staff`, `staffFile`, `mappings` and `sourceExports`.
 Each source export has `name`, `contentBase64` and the SHA-256 of those exact
-uploaded bytes. ZIP members keep their original names, hashes and bytes. CSVs
+uploaded bytes. Data ZIPs must contain CSV datasets only; supply document and email originals
+separately in `files` so native erasure can destroy every retained copy.
+ZIP members keep their original names, hashes and bytes. CSVs
 must use UTF-8. Each file or ZIP member is at most 1 MiB, expanded data is at
 most 4 MiB and each package contains at most 1,000 native rows. Use reviewed
 deltas for larger moves. The account is namespaced separately from Clio.
@@ -416,7 +418,9 @@ record work. A source administrator role grants nothing. Current native matter
 access is checked for both the importing principal and the attributed person
 at posting; grant that access separately through the ordinary native door.
 
-For each supported dataset (`contacts`, `matters`, `time`, `expenses`),
+Supported datasets are `contacts`, `matters`, `relationships`, `documents`,
+`notes` (or `memos`), `calls`, `emails`, `calendar`, `tasks`, `time`, `expenses`,
+`invoices` and `trust`. For each dataset,
 `mappings` names its source `file` and a `columns` object mapping native
 column names to exact source headers. Use the native column names in the Clio
 package tables above; there is no automatic header guess. Matters may also
@@ -424,6 +428,12 @@ name an existing native `typeId`, `typeVersion` and `custom` object mapping
 native typed-field keys to source headers. Map standard fields with a `fields`
 JSON column using the documented native field shape. Invalid required fields,
 unknown typed fields or incompatible values prevent committing the package.
+A mapping may include `values` keyed by a mapped column, then by its exact
+source value, for example `status: {Completed: "done", Pending: "open"}`
+inside `values`. Every source value needs an explicit translation. Original
+values and full raw rows stay in provenance, alongside the retained source
+filenames and reviewed mappings. Newly supported history also records its
+source filename and row line directly.
 
 Time additionally requires source `staff_id`, `billable` and `autotime` columns;
 the latter two contain `true` or `false`. Preserve AutoTime's original source
@@ -449,11 +459,37 @@ package or its rows creates no second native record; changed or removed source
 identities are refused. The existing human conflict review is required for
 each matter. Inspect source history from the imported matter.
 
-This adapter does not yet ingest paid or unpaid invoices, memos, tasks,
-separately supplied Word and email originals, or remaining calendar and trust
-history. These datasets, authorized supplemental retrieval, complete source
-relationships and total reconciliation remain required. A declared complete
-coverage flag cannot certify these omitted datasets: reconciliation names the
-gaps and refuses cutover. This preserves every MOVE-004 and inherited BILL-015
-number-preservation obligation. QuickBooks Online operational proof, source
-invoice ingestion and the BILL-010 ledger prerequisites remain unchanged.
+Historic invoices map exact source numbers, permanent ordinals, total and
+receivable amounts and separately supplied PDF originals. Paid amounts remain
+source observations, never a new receipt or bank settlement. Original PDFs are
+served byte-identically and source numbers are reserved firm-wide; the native
+next counter advances above imported ordinals. These historical records do not
+grant authority to approve a new bill. Unbilled work remains separate from them.
+
+Memos retain explicit private or team visibility and mapped source authors.
+Tasks preserve source completion state and native assignee without granting
+membership. Calendar rows preserve dates, times, IANA zones and supported finite
+recurrences. Link Word and email originals through `documents` rows and `files`,
+using the same IDs, SHA-256 and modification timestamps as the native package
+format above. Small originals retain exact bytes as authenticated downloads;
+this is not malware clearance or large-file support. Missing originals prevent
+apply. Permitted erasure destroys the native original and retained package copy
+and fences later replay, including after archive recovery.
+
+Trust rows create source-backed opening balances only, against an existing
+native trust account and supporting document. They require separate current
+designated trust-officer approval of the exact client balance; they never move
+bank funds or import a source role as authority. Complete historical trust
+transactions are not represented by an opening balance.
+
+The checkpoint's **Review retained Smokeball source** control retrieves exact
+source CSV or ZIP bytes and the reviewed mappings. The principal-only
+`POST /api/satchel/migration/source` door accepts `{id}` for the same envelope.
+The native report compares cumulative mapped counts, original hashes, invoice
+receivables, unbilled work and approved trust openings in exact cents. Full
+source trust activity, authorized supplemental retrieval, complete source
+relationships and source-total reconciliation remain required. A coverage flag
+cannot certify these outstanding boundaries; cutover stays refused. This
+preserves every MOVE-004 and inherited BILL-015 number-preservation obligation.
+QuickBooks Online operational proof and the BILL-010 ledger prerequisites
+remain unchanged.
