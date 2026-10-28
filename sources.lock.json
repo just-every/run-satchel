@@ -3200,7 +3200,7 @@
       "executable": false
     },
     "src/satchel/bulk-work.ts": {
-      "sha256": "86acb994819d6c99d66d138330a1af2d20812d7329a0734ed3e0157f75160fa1",
+      "sha256": "b3ce7834da10362a236b8fe48f865e898692e3322f4261a06a1e883aa022bf88",
       "executable": false
     },
     "src/satchel/chronology-extraction.ts": {
@@ -3376,11 +3376,15 @@
       "executable": false
     },
     "src/satchel/imports/native.ts": {
-      "sha256": "0ab1cea586bafeb23e5095ea0ab63d1928ab4034ab027633525125a86894e3ca",
+      "sha256": "944f1f6b88e4f3c493fbb1aa20351c4da88bf060cb5e4790be055c25393e5d23",
       "executable": false
     },
     "src/satchel/imports/package.ts": {
-      "sha256": "361f5084f7fd7cd6d7527a731bf0e9a319a63c4a381bd43da71971208b68561c",
+      "sha256": "f388b5db4529b3263b18aa6ae050dee020a30d48e12f24a2cbf671994921e197",
+      "executable": false
+    },
+    "src/satchel/imports/smokeball.ts": {
+      "sha256": "ba102fbf1284a7c43bbe04a38a9f8220487e04c1c1cfbf7496d3735c2a7149a8",
       "executable": false
     },
     "src/satchel/imports/target.ts": {
@@ -3576,7 +3580,7 @@
       "executable": false
     },
     "src/satchel/migration.ts": {
-      "sha256": "2f58748d1ba220cd93bc972cf206971709ffccc1a24336137220dfe9a9dd00ec",
+      "sha256": "c6c09efb5976cb19f5a919f92ed5053549f6afcca76a1ce8ebdafb964ca15838",
       "executable": false
     },
     "src/satchel/model.ts": {
@@ -4764,7 +4768,7 @@
       "executable": false
     },
     "tests/satchel/matter-import.test.mjs": {
-      "sha256": "199b70e4c068a5d6cd00615874839be49c532a2bdd8b0012952cf3727e4b5bc2",
+      "sha256": "8b7281c8ccdafdbb1cdd1f1d86dd50cf596649d6e6d8c2afc017d71a14fd25dc",
       "executable": false
     },
     "tests/satchel/matter-types-journey.test.mjs": {
@@ -4949,6 +4953,10 @@
     },
     "tests/satchel/settlement-retention-flow.mjs": {
       "sha256": "e5c1a4d6a0f8749c4931b8cd69a34df998e8f18b8142b1bcb7082eaf58b4a828",
+      "executable": false
+    },
+    "tests/satchel/smokeball-migration-flow.mjs": {
+      "sha256": "b0f417653b6a20b4b489ef0d55005464ed6630714fae5aa750b739bb55c745d1",
       "executable": false
     },
     "tests/satchel/stages-journey.test.mjs": {

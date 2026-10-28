@@ -144,3 +144,23 @@ export async function postBulkWork(db:D1Database,actor:Actor,batchId:string,body
  writes.push(stmt(db,"UPDATE s_bulk_work_batches SET status='posted',posted_at=?,post_request_id=? WHERE id=?",at,requestId,batchId),audit(db,actor,'bulk_work.posted',batchId,canonical({requestId,reviewDigest:b.review_digest,rows:review.length})));
  await atomic(db,actor,writes);return batchJson(await readBatch(db,actor,batchId),actor);
 }
+
+// Migration supplies the same native validation and atomic posting guards as a
+// reviewed bulk-work row, while its own journal owns durable replay identity.
+export async function migrationWork(db:D1Database,actor:Actor,input:Data,sourceSystem:string,entryId:string){
+ await allowed(db,actor,true);
+ const policies=await policyGuards(db,actor),pricing=await loadPricing(db),review=await validate(db,actor,input,sourceSystem,pricing,1);
+ insist(review.value&&!review.errors.length,'Native work validation: '+review.errors.join('; '),409);
+ const v=review.value!,p=v.price,person=await attributed(db,actor,v.timekeeperEmail,v.matterId),at=now();
+ insist(v.amountCents===input.amountCents,'Source work amount does not match current native pricing; review the mapping without rounding or silently repricing',409);
+ const writes=[...policies,pricingGuard(db,pricing),accessGuard(db,actor,v.matterId),accessGuard(db,person,v.matterId),guard(db,staffSql,v.timekeeperEmail,v.timekeeperEmail),
+  stmt(db,'INSERT INTO s_entries(id,matter_id,revision,kind,date,description,minutes,rate_cents,amount_cents,created_by,created_at,billable,utbms_task,utbms_activity,utbms_expense,billed_minutes,discount_bps,rate_rule_id,rate_source,timekeeper_email) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',entryId,v.matterId,id(),v.kind,v.date,v.description,v.minutes,p?.rateCents??null,v.amountCents,actor.email,at,v.billable?1:0,v.task,v.activity,v.expense,p?.billedMinutes??null,p?.discountBps??null,p?.ruleId??null,p?.rateSource??null,v.timekeeperEmail),
+  ...budgetAlerts(db,actor,v.matterId,entryId,at),audit(db,actor,'billing.entry.recorded',entryId,JSON.stringify({sourceSystem,sourceId:v.sourceId,timekeeperEmail:v.timekeeperEmail}),{matterId:v.matterId})];
+ if(v.expenseMeta)writes.push(...await expenseReceipt(db,actor,v.matterId,v.expenseMeta),expenseInsert(db,entryId,v.expenseMeta));
+ return writes;
+}
+
+export async function migrationWorkMapping(db:D1Database,input:Data){
+ insist(await stmt(db,`SELECT 1 WHERE ${staffSql}`,input.timekeeperEmail,input.timekeeperEmail).first(),'Choose an active staff timekeeper with time-entry authority');
+ await checkCodes(db,{task:utbmsTask(input.utbmsTask),activity:utbmsActivity(input.utbmsActivity),expense:utbmsExpense(input.utbmsExpense)});
+}
