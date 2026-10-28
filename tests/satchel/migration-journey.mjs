@@ -84,7 +84,7 @@ export async function proveSmokeballMoveInUi(h,page,shot){
  const panel=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'Whole firm move',exact:true})});
  await panel.getByLabel('Prepared migration package',{exact:true}).setInputFiles({name:'synthetic-satchel-smokeball.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(p))});
  await panel.getByRole('button',{name:'Preview whole firm move',exact:true}).click();await panel.getByRole('heading',{name:'Review unbilled work',exact:true}).waitFor();
- await panel.getByText('AutoTime source review · $11.67',{exact:true}).waitFor();await panel.getByText('Source filing cost · $12.01',{exact:true}).waitFor();assert.ok((await panel.innerText()).includes('Legacy label'));assert.ok((await panel.innerText()).includes('Invoices.csv'));
+ await panel.getByText('AutoTime source review · $11.67',{exact:true}).waitFor();assert.ok((await panel.innerText()).includes('Synthetic Satchel Timekeeper (staff-1)')); await panel.getByText('Source filing cost · $12.01',{exact:true}).waitFor();assert.ok((await panel.innerText()).includes('Legacy label'));assert.ok((await panel.innerText()).includes('Invoices.csv'));
  await shot('smokeball-preview');
  await panel.getByRole('button',{name:'Commit reviewed package',exact:true}).click();await panel.getByText('applying · 0 of 4 records',{exact:true}).waitFor();
  await panel.getByRole('button',{name:'Apply next source record',exact:true}).click();await panel.getByText('applying · 1 of 4 records',{exact:true}).waitFor();

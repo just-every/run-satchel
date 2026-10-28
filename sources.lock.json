@@ -272,7 +272,7 @@
       "executable": false
     },
     "IMPORTING.md": {
-      "sha256": "65e35e33486ac66e3482bbabcab4c0df5409b7482ac7f4970ee2a257fbe39c50",
+      "sha256": "b6cd19f9457dc0e9e71420a8d21979bc7ef57baaa7d5555d95df30793ecce560",
       "executable": false
     },
     "LICENSE": {
@@ -3384,7 +3384,7 @@
       "executable": false
     },
     "src/satchel/imports/smokeball.ts": {
-      "sha256": "ba102fbf1284a7c43bbe04a38a9f8220487e04c1c1cfbf7496d3735c2a7149a8",
+      "sha256": "a41c1d8b587ae01d51bd9987afd4d9aabc6fb9181b958c68b1fe4ea9b4d175db",
       "executable": false
     },
     "src/satchel/imports/target.ts": {
@@ -3580,7 +3580,7 @@
       "executable": false
     },
     "src/satchel/migration.ts": {
-      "sha256": "601e166f80cb3a3b31f8ab0295658a954c74b1b2500c17c0d7abecce479226e2",
+      "sha256": "99287745af88bb610b4ff61d7d36c6274b97093571ce801848bef84241aff5e0",
       "executable": false
     },
     "src/satchel/model.ts": {
@@ -4304,7 +4304,7 @@
       "executable": false
     },
     "src/ui/migration.tsx": {
-      "sha256": "c4cdef82ec1c27ce1cbad8a3263d3dee3196c7f98311d59ef8e4d14ae2c16689",
+      "sha256": "46095e4c42f57c270f0620241b796d88ec746b4144caac0c55dc245fa72fe4c9",
       "executable": false
     },
     "src/ui/move-in.tsx": {
@@ -4812,7 +4812,7 @@
       "executable": false
     },
     "tests/satchel/migration-journey.mjs": {
-      "sha256": "cde101471c407bafa4a00ef627f192db1bf585e6496f83b96733699a7304253e",
+      "sha256": "3c15d424467c0150f4a6edb8d84497303511cdad1a05c0948aaa05252f42d0d8",
       "executable": false
     },
     "tests/satchel/mycase-migration-flow.mjs": {
@@ -4820,7 +4820,7 @@
       "executable": false
     },
     "tests/satchel/numbering-journey.test.mjs": {
-      "sha256": "716c65ba2bd4ff84974df11c0f4ee9230bfd0caf40dc29a8f036b29721084473",
+      "sha256": "5fc167a940fea3f5081cf04ec5c8faf2615d4cfc443be142af29ad51012d1d4f",
       "executable": false
     },
     "tests/satchel/numbering.test.mjs": {
@@ -4956,7 +4956,7 @@
       "executable": false
     },
     "tests/satchel/smokeball-migration-flow.mjs": {
-      "sha256": "497b9253ccc66c651939f825465d45ef6efd566082ef9c62851d4ed680cd9052",
+      "sha256": "b1146a068873d910178b3aed477bb2f4e89026941449f7b161d970eb25e0fd84",
       "executable": false
     },
     "tests/satchel/stages-journey.test.mjs": {

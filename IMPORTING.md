@@ -431,7 +431,9 @@ row and identify the human timekeeper explicitly. Costs require `staff_id`,
 `billable`, `category`, `vendor`, `vendor_reference` and `accounting_code`, plus
 an optional `utbms_expense`. Time may map `utbms_task` and `utbms_activity`.
 Only unbilled rows are supported here: an invoice association is refused.
-Current native code sets, client guidelines, timekeeper eligibility and pricing
+Preview rejects incorrect exact time amounts and displays the source timekeeper's
+name beside the native attribution. Current native code sets, client guidelines,
+timekeeper eligibility and pricing
 are validated again immediately before each work row posts. Explicit source
 hourly rates use the native explicit-rate rule; the source amount must equal
 the exact native cent calculation. A mismatch refuses the row without changing
