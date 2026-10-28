@@ -152,6 +152,7 @@ test('Scheduled invoice and appointment reminders survive restart, share a recip
   await h.restart();await h.scheduled('2026-11-02T12:00:00.000Z');assert.equal(h.mails.length,count+2,'Unknown acknowledgment and cap never retry automatically');
 
  }finally{await h.close();}
+ await collectionsFlow();
 });
 test('Client reminder withdrawal and merged consent, portal revocation, permission and matter walls are rechecked before scheduled sends',async()=>{
  const h=await harness();try{
@@ -412,4 +413,3 @@ import {provePaymentPlans} from './payment-plan-flow.mjs';
 test('Exact client mandates dispatch each installment once and stop imported, revoked, failed, disputed and uncertain plans for human review',provePaymentPlans);
 
 import {collectionsFlow} from './collections-flow.mjs';
-test('Collections route replies, stop on payments, resume after returns and follow trust, rebills and replenishments without repeating contact',async()=>{await collectionsFlow();});

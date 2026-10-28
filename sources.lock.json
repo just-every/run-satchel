@@ -144,7 +144,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "a96e19867a6b50e53222b1db31fcb69e05ed50839d98e7e74e6e32c8910d53af",
+      "sha256": "4df1d217ff136de2121a002fbceff64c1a77f535167164589a361827aa5abdae",
       "executable": false
     },
     "AGENTS.md": {
@@ -168,7 +168,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "5a440145596a0cda22a3de954b8ef7180b277090f7b63fa76e1d0d0e202b7d9c",
+      "sha256": "c2fef2d79f9981fc6e70080dbe13094a99c9694e06ebe50eeadf8da913b22e22",
       "executable": false
     },
     "DEMO.md": {
@@ -4856,7 +4856,7 @@
       "executable": false
     },
     "tests/satchel/providers.test.mjs": {
-      "sha256": "37b761e42ef0ad0f17c23bd9d167eb840336cb9b3def3b1f1fd5d75ca360ad02",
+      "sha256": "d774973791a843e7bb40a5d5bb6c3f835a842d9008ebe0f940bc72e7150786d6",
       "executable": false
     },
     "tests/satchel/rates-journey.test.mjs": {
