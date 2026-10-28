@@ -3,6 +3,7 @@ import { openMatter } from './matters';
 import { prepareBill } from './billing';
 import { proposeDeadline } from './deadlines';
 import { requireArea } from './role-areas';
+import {preparationWrites} from './agent-authority';
 export async function propose(db:D1Database,actor:Actor,kind:string,body:Data,integration?:{id:string;requestKey:string;fingerprint:string}) {
  need(actor,'owner','lawyer'); insist(['matter','bill','deadline'].includes(kind),'Unknown preparation command',404);
  if(kind==='bill')requireArea(actor,'billing','write');
@@ -10,7 +11,7 @@ export async function propose(db:D1Database,actor:Actor,kind:string,body:Data,in
  else { text(body.title,'Matter title',200); text(body.client,'Client',200); text(body.adverse,'Adverse party',200); }
  const proposalId=id();
  const result={id:proposalId,kind,status:'pending',payload:body},guardId=id();
- await atomic(db,actor,[...(integration?[stmt(db,"INSERT INTO s_guard VALUES(?,CASE WHEN EXISTS(SELECT 1 FROM s_integrations WHERE id=? AND revoked=0) THEN 1 ELSE 0 END)",guardId,integration.id),stmt(db,'INSERT INTO s_integration_requests VALUES(?,?,?,?,?)',integration.id,integration.requestKey,integration.fingerprint,JSON.stringify(result),now()),stmt(db,'DELETE FROM s_guard WHERE id=?',guardId)]:[]),stmt(db,'INSERT INTO s_proposals(id,kind,payload,for_email,agent_label,created_at) VALUES(?,?,?,?,?,?)',proposalId,kind,JSON.stringify(body),actor.email,(actor as any).label??'Prepared by person',now()),audit(db,actor,'proposal.prepared',proposalId,kind)]);
+ await atomic(db,actor,[...await preparationWrites(db,actor,proposalId),...(integration?[stmt(db,"INSERT INTO s_guard VALUES(?,CASE WHEN EXISTS(SELECT 1 FROM s_integrations WHERE id=? AND revoked=0) THEN 1 ELSE 0 END)",guardId,integration.id),stmt(db,'INSERT INTO s_integration_requests VALUES(?,?,?,?,?)',integration.id,integration.requestKey,integration.fingerprint,JSON.stringify(result),now()),stmt(db,'DELETE FROM s_guard WHERE id=?',guardId)]:[]),stmt(db,'INSERT INTO s_proposals(id,kind,payload,for_email,agent_label,created_at,delegation_id,agreement_id) VALUES(?,?,?,?,?,?,?,?)',proposalId,kind,JSON.stringify(body),actor.email,(actor as any).label??'Prepared by person',now(),actor.agentExecution?.delegation.id??null,actor.agentExecution?.delegation.agreement_id??null),audit(db,actor,'proposal.prepared',proposalId,kind)]);
  return result;
 }
 export async function decideProposal(db:D1Database,actor:Actor,proposalId:string,body:Data) {

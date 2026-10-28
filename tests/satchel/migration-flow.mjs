@@ -100,7 +100,9 @@ export async function proveWholeFirmMove(h){
 
 export async function proveMoveRefusals(h,lawyer){
  const p=await setupMove(h);p.clientRepairs['missing-client']='client-1';
- const other=(await h.json('/state',undefined,lawyer)).actor;
+ const unsupported=structuredClone(p);unsupported.schema='synthetic-satchel-unsupported';await h.json('/migration/preview',{package:unsupported},h.owner,400);
+ const invalidTyped=structuredClone(p);invalidTyped.datasets.matters=invalidTyped.datasets.matters.replace('1000000.01','1000000.001');const typedReview=await h.json('/migration/preview',{package:invalidTyped},h.owner);assert.ok(typedReview.errors.some(e=>e.includes('Insurance limit')),'The import validates typed source fields before writing');
+ const other=(await h.json('/state',undefined,lawyer)).actor,principal=(await h.json('/state',undefined,h.owner)).actor;p.staff['staff-1']=other.email;
  p.staff['staff-private']=other.email;
  p.datasets.notes=csvRows(['id','matter_id','title','body','occurred_at','visibility','staff_id'],[['note-1','matter-1','Private source note','Synthetic Satchel private source content','2020-03-01T12:00:00.000Z','private','staff-private']]);
  await h.json('/migration',undefined,lawyer,403);await h.json('/migration/preview',{package:p},lawyer,403);
@@ -117,6 +119,7 @@ export async function proveMoveRefusals(h,lawyer){
  await h.json('/migration/resume',{id:job.job.id,review:{confirmed:false,reviewNote:'Not yet approved'}},h.owner,400);
  job=await applyMove(h,p,job);
  const imported=(await h.json('/state',undefined,h.owner)).matters.find(m=>m.matter_number==='2020-C1');
+ const mappedWork=await h.json('/matters/'+imported.id+'/billing',undefined,h.owner);assert.equal(mappedWork.entries.find(e=>e.description==='Billed source advice').timekeeperEmail,other.email,'Source timekeepers retain the explicitly mapped non-principal staff identity');const pipeline=await h.json('/leads',undefined,h.owner);assert.equal(pipeline.leads.find(l=>l.name==='Synthetic Satchel Prospect').assignedEmail,other.email);
  await h.json('/matters/'+imported.id+'/migration',undefined,lawyer,404);
  await h.json('/matters/'+imported.id+'/access',{email:other.email},h.owner);
  const principalView=await h.json('/matters/'+imported.id+'/migration',undefined,h.owner);assert.ok(!JSON.stringify(principalView).includes('Synthetic Satchel private source content'));
@@ -130,7 +133,7 @@ export async function proveMoveRefusals(h,lawyer){
  const erasedArchive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(!erasedArchive.includes(original.contentBase64));assert.ok(erasedArchive.includes(p.files.find(f=>f.id==='original-2').contentBase64),'Erasure retains unrelated original bytes');
  await h.json('/team',{email:other.email,name:other.name,role:'lawyer',active:false},h.owner);await h.json('/matters/'+imported.id+'/migration',undefined,lawyer,403);
  // Safe undo is a contacts-only package: one used contact, one native edit and one untouched contact.
- const only=structuredClone(p);only.account='synthetic-satchel-undo';only.staff={'staff-1':p.staff['staff-1']};only.phase='snapshot';only.files=[];only.balances={billedCents:0,unbilledCents:0,arCents:0,trustCents:0};
+ const only=structuredClone(p);only.account='synthetic-satchel-undo';only.staff={'staff-1':principal.email};only.phase='snapshot';only.files=[];only.balances={billedCents:0,unbilledCents:0,arCents:0,trustCents:0};
  for(const kind of Object.keys(only.datasets))if(kind!=='contacts'){only.datasets[kind]=only.datasets[kind].split('\r\n')[0]+'\r\n';only.counts[kind]=0;}
  only.datasets.contacts=csvRows(['id','name'],[['undo-linked','Synthetic Satchel Linked'],['undo-edited','Synthetic Satchel Edited'],['undo-safe','Synthetic Satchel Safe']]);
  let undo=await commitMove(h,only);undo=await applyMove(h,only,undo);

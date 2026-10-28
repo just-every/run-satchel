@@ -1,3 +1,4 @@
+import {authorizeAgent} from './agent-fixture.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {harness,open} from './harness.mjs';
@@ -102,7 +103,7 @@ test('FIRM-008 custom roles gate bank, contacts, documents, settings, agent keys
   await h.json(base+'/documents',{name:'Denied.txt',mime:'text/plain',contentBase64:Buffer.from('x').toString('base64'),visibility:'matter'},lawyer,403);await h.json('/firm',undefined,lawyer);
   await apply(everything);await h.json(base+'/documents',{name:'Allowed.txt',mime:'text/plain',contentBase64:Buffer.from('x').toString('base64'),visibility:'matter'},lawyer);
   // Agent keys carry the sponsor's ceiling.
-  const key=await h.json('/keys',{label:'lawyer preparation'},lawyer),agent=path=>h.request('/api/satchel'+path,undefined,'',{authorization:'Bearer '+key.key});
+  const key=await h.json('/keys',{label:'lawyer preparation'},lawyer);await authorizeAgent(h,key,f.m.id,{sponsorCookie:lawyer});const agent=path=>h.request('/api/satchel'+path,undefined,'',{authorization:'Bearer '+key.key});
   assert.equal((await agent('/agent/matters/'+f.m.id)).status,200);await apply({...everything,documents:'none',rates:'none'});assert.equal((await agent('/agent/matters/'+f.m.id)).status,403);assert.equal((await agent('/agent/context')).status,200);
   await apply({...everything,rates:'none'});const sponsored=await(await agent('/agent/matters/'+f.m.id)).json();assert.ok(sponsored.billing.entries.every(e=>e.rateCents===null||e.rateCents===undefined));
   await apply({...everything,billing:'read'});

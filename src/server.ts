@@ -1,4 +1,5 @@
 import {runPaymentPlans} from './satchel/payment-plans';
+import {runAgentJobs} from './satchel/agent-jobs';
 import {runMatterUpdates} from './satchel/matter-update-delivery';
 import {runClientReminders} from './satchel/client-reminders';
 import { withDemo } from './modules/demo/index.mjs'
@@ -31,7 +32,7 @@ function noTransform(response: Response): Response {
 }
 
 export default withDemo({
-  async scheduled(controller,env) { await Promise.all([runPaymentPlans(runtimeBindings(env),controller.scheduledTime),runMatterUpdates(runtimeBindings(env),controller.scheduledTime),runClientReminders(runtimeBindings(env),controller.scheduledTime),scheduledFees(runtimeBindings(env).DB,controller.scheduledTime),dispatchWebhooks(runtimeBindings(env)),runReminders(runtimeBindings(env),controller.scheduledTime),runFollowups(runtimeBindings(env),controller.scheduledTime),runReportSchedules(runtimeBindings(env),controller.scheduledTime),purgeIntakeSecurity(runtimeBindings(env).DB,new Date(controller.scheduledTime).toISOString()),recoverIntakeUploads(runtimeBindings(env),new Date(controller.scheduledTime).toISOString())]) },
+  async scheduled(controller,env) { await Promise.all([runAgentJobs(runtimeBindings(env).DB,controller.scheduledTime),runPaymentPlans(runtimeBindings(env),controller.scheduledTime),runMatterUpdates(runtimeBindings(env),controller.scheduledTime),runClientReminders(runtimeBindings(env),controller.scheduledTime),scheduledFees(runtimeBindings(env).DB,controller.scheduledTime),dispatchWebhooks(runtimeBindings(env)),runReminders(runtimeBindings(env),controller.scheduledTime),runFollowups(runtimeBindings(env),controller.scheduledTime),runReportSchedules(runtimeBindings(env),controller.scheduledTime),purgeIntakeSecurity(runtimeBindings(env).DB,new Date(controller.scheduledTime).toISOString()),recoverIntakeUploads(runtimeBindings(env),new Date(controller.scheduledTime).toISOString())]) },
   async fetch(request, env, execution) {
     const asset = await staticAssetResponse(request, env)
     if (asset) return asset

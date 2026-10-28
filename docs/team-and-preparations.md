@@ -20,9 +20,19 @@ The principal or a lawyer can create a key for their own account:
 1. Under **Agent preparation keys**, enter **Agent name**.
 2. Choose **Create preparation key**. Copy the **New private key** immediately; it is shown only once.
 3. Keep the key private and give it only to the agent you intend to use. Choose **Hide key** when finished.
-4. Follow the repository's [API reference](https://github.com/just-every/run-satchel/blob/main/API.md) to prepare matters, bills or deadlines.
+4. The principal opens **Agent data & execution** and records the named processor, exact model or native preparation revision, reviewed agreement reference, retention and deletion terms, no-training terms and expiry. Health context also needs the applicable health-data agreement reference.
+5. Under **Approve a bounded delegation**, choose the key, agreement, matter, permitted actions, sponsor recipient, execution count, expiry and stop rule. Select each permitted original version explicitly. Research sources also require the firm's reviewed entitlement, provenance, permitted processing use and entitlement expiry. An unconfigured key receives no matter context.
+6. Follow the repository's [API reference](https://github.com/just-every/run-satchel/blob/main/API.md), passing the delegation identity with the key.
 
 The key follows your current role and matter access. Use **Revoke** beside its name to stop access immediately. Agents prepare proposals; they cannot perform human approvals, export bills, import contacts, restore archives or erase originals.
+
+The current native preparation policy allows no spend or external execution. The principal approves processing scope; a lawyer can inspect their own approved scope. Recorded agreement references retain the firm's review, rather than claiming that Satchel verified a vendor entitlement or agreement externally.
+
+Choose **Inspect redacted context** on an active delegation to inspect exactly the selected source versions. Source text is untrusted evidence: an instruction inside an upload cannot add an action, recipient or budget. Unselected originals and firm settings do not enter agent context. Later uploads do not expand the selected source versions.
+
+Agent requests may reserve finite scheduled preparations. Execution rechecks current key, sponsor, matter access, role permissions, source availability, agreement and delegation. The execution count is reserved when queued and is never refunded by a stop. A repeated request identity returns its existing job; changed work under that identity is refused. Stops retain their outcome for the principal to inspect and send no automatic escalation message.
+
+Use **Revoke agent delegation** with a reason, or **Withdraw processing agreement**, to cancel the corresponding queued authority immediately. Key revocation also cancels its queue. Prepared proposals and decisions remain history. Archives preserve agreement, delegation and execution records, while credentials remain excluded; restoring history cannot reactivate a key or execute its queued work.
 
 ## Review a preparation
 

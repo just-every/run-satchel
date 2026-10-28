@@ -5,17 +5,50 @@ installation's exact `Origin` header. Owner, lawyer/assistant role and matter
 membership are checked at the handler and at transactional writes. Private files
 also require uploader or principal access. No API trusts a role from the caller.
 
-Create an agent key in Team & safety. Send `Authorization: Bearer YOUR_KEY` to
-these routes only. Keys inherit their person's current role and matter access;
-revocation is immediate. Never send a session cookie to an untrusted agent.
+Create an agent key in Team & safety. The principal records its processing
+agreement and approves an explicit delegation in **Agent data & execution**.
+Send `Authorization: Bearer YOUR_KEY` and `X-Satchel-Delegation: DELEGATION_ID`
+to the preparation and scheduling routes. Keys intersect their sponsor's current
+role, matter access and delegation; revocation is immediate. Never send a
+session cookie to an untrusted agent. A key with no approved scope receives an
+empty aggregate context and cannot prepare work.
 
 | Route | JSON body / purpose |
 | --- | --- |
-| `GET /api/satchel/agent/context` | Assigned matters and the person's proposals |
-| `GET /api/satchel/agent/matters/:id` | Accessible entries, bills, document metadata and deadlines for preparation |
+| `GET /api/satchel/agent/context` | Currently delegated matters and limits; no roster, firm configuration or proposal payloads |
+| `GET /api/satchel/agent/matters/:id` | Authorized billing context, selected original versions and visible deadlines; selected plain-text sources are marked untrusted |
 | `POST /api/satchel/agent/prepare-matter` | `{title,client,adverse,aliases?}` |
 | `POST /api/satchel/agent/prepare-bill` | `{matterId,title,date,entryIds}` |
 | `POST /api/satchel/agent/prepare-deadline` | `{matterId,title,date,timezone,source,documentId?,version?}` |
+| `POST /api/satchel/agent/jobs` | `{action,requestKey,dueAt,payload}` reserves one scheduled preparation; the same identity and request returns the same job |
+
+`action` is an explicitly delegated `prepare-matter`, `prepare-bill` or
+`prepare-deadline`. `dueAt` is an ISO instant before delegation expiry. A
+document-bound preparation uses its selected version; another version is
+refused. Uploaded text and caller-supplied authority fields never expand scope.
+There is no outbound send, transfer or model execution in native preparation,
+and the spend budget is enforced at zero. Exhausted execution counts refuse
+additional work. Jobs survive restart and claim a single proposal atomically.
+
+Human control routes under `/api/satchel`:
+
+| Route | Purpose |
+| --- | --- |
+| `GET /agent-controls` | Current authorized agreement, delegation and execution history |
+| `POST /agent-agreements` | Principal approval: `keyId`, `processor`, `modelRevision`, `agreementReference`, `retentionTerms`, `trainingTerms`, `trainingAllowed:false`, optional `healthReference`, `expiresAt`, `confirmed:true` |
+| `POST /agent-delegations` | Principal approval: `keyId`, `agreementId`, `matterId`, `actions`, `recipients`, `maxJobs`, `spendCents:0`, `expiresAt`, `stopRule`, `escalationEmail`, `sources`, `confirmed:true` |
+| `GET /agent-delegations/:id/context` | Sponsor's current redacted context preview; current permissions still apply |
+| `POST /agent-delegations/:id/revoke` | Principal revocation with `reason`; queued jobs become refused |
+| `POST /agent-agreements/:id/withdraw` | Principal withdrawal with `reason`; dependent queues become refused |
+| `POST /agent-jobs/:id/run` | Principal checks due work through the same executor as the scheduled worker |
+
+Each selected source names `documentId`, `version` and `kind` (`matter`,
+`research` or `health`). Research also requires `licenseReference`,
+`licenseExpiresAt` and `permittedUse`; health requires the recorded health-data
+agreement. References record the firm's reviewed entitlement and provenance.
+Recipients are restricted to the key sponsor, and escalations are retained for
+the approving principal. Agreement, delegation, source and outcome provenance
+is retained in the append-only action audit. Keys are excluded from archives.
 
 A preparation returns `{id,kind,status:'pending',payload}`. It does not open a
 matter, reserve bill sources or activate a deadline. The person opens

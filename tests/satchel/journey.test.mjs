@@ -1,3 +1,4 @@
+import {exerciseAgentControls} from './agent-execution-browser.mjs';
 // SAT-013: the installed product's own surfaces, driven in a browser at desktop and phone widths.
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -44,6 +45,7 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`SAT-013 sign-in, setup
   await tab(page,'Deadlines');const deadline=form(page,'Propose deadline');await deadline.getByLabel('Deadline title').fill('Cure period ends');await deadline.getByLabel('Date').fill('2026-10-31');assert.equal(await deadline.getByLabel('Timezone').inputValue(),'America/New_York');await deadline.getByLabel('Source and citation').fill('Notice to cure, paragraph 2');await deadline.getByRole('button',{name:'Propose deadline'}).click();
   await page.getByText('proposed',{exact:true}).waitFor();const confirm=form(page,'Confirm deadline');await confirm.getByLabel('Review note').fill('Checked against the served notice');await confirm.getByRole('button',{name:'Confirm deadline'}).click();await page.getByText('confirmed',{exact:true}).waitFor();
   await tab(page,'Preparations');await page.getByRole('heading',{name:'Prepared by your agent'}).waitFor();
+  await exerciseAgentControls(page,h,width);
   await tab(page,'Move in');await page.getByRole('heading',{name:'Clio contacts'}).waitFor();
   await tab(page,'Firm');await page.getByRole('heading',{name:'Barton & Lee LLP'}).waitFor();
   // The assistant signs in from the invitation and sees only what the role allows.
