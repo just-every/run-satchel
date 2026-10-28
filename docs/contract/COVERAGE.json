@@ -3729,7 +3729,7 @@
       "line": 608,
       "cell": "gap",
       "text": "The agent joins permitted document/email activity, confirmed time, fee agreements, costs, bills, settlements and books to find unbilled work or payment mismatches. Timekeepers confirm billability, counsel reviews bills and finance alone authorizes transfers, refunds and write-offs; the agent pursues only approved collection actions.",
-      "to": "gap",
+      "to": "clause",
       "ids": [
         "AGENT-006"
       ]
