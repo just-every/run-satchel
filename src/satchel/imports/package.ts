@@ -4,7 +4,7 @@ import {date,insist,text,type Data} from '../model';
 import {contactProfile} from '../contact-data';
 import {calendarIcs} from './ics';
 import {parseCsv} from './csv';
-import {practicePantherPackage,practicePantherSchema,type PracticePantherSource} from './practicepanther';
+import {practicePantherPackage,practicePantherSchema,practicePantherGaps,type PracticePantherSource} from './practicepanther';
 
 export const kinds=['contacts','matters','relationships','documents','notes','calls','emails','calendar','tasks','time','expenses','invoices','trust','grow'] as const;
 export type Kind=typeof kinds[number];
@@ -35,7 +35,7 @@ export function parsePackage(input:unknown){
  insist(p.datasets&&p.counts&&p.coverage&&p.balances&&p.staff&&p.clientRepairs,'Supply datasets, counts, coverage, balances and explicit staff and client mappings');
  insist(Array.isArray(p.files)&&p.files.length<=500,'Supply at most 500 small originals per package');
  insist(JSON.stringify(p).length<=12_000_000,'Split packages larger than 12 MB into reviewed deltas');
- const errors:string[]=[],warnings:string[]=[],records:MoveRow[]=[];
+ const errors:string[]=[],warnings:string[]=p.practicePanther?practicePantherGaps():[],records:MoveRow[]=[];
  const fail=(message:string)=>errors.push(message);
  const files=new Map<string,MoveFile>();
  for(const f of p.files){
@@ -67,6 +67,7 @@ export function parsePackage(input:unknown){
     if(kind==='calendar'){insist(/^([01]\d|2[0-3]):[0-5]\d$/.test(v.time),'Use a 24-hour calendar time');new Intl.DateTimeFormat('en-US',{timeZone:v.timezone});insist(/^\d+$/.test(v.duration_minutes)&&Number(v.duration_minutes)>=5&&Number(v.duration_minutes)<=1440,'Calendar duration must be 5–1440 minutes');insist(!v.frequency||['once','daily','weekly'].includes(v.frequency),'Map a supported calendar frequency');for(const [key,max] of [['repeat_interval',12],['occurrences',104]] as const)if(v[key])insist(/^\d+$/.test(v[key])&&Number(v[key])>=1&&Number(v[key])<=max,'Map a finite supported calendar recurrence');}
     if(kind==='tasks')insist(['open','done'].includes(v.status),'Task status must be open or done');
     if(kind==='matters'){
+     timestamp(v.opened_at,'Source opening time');
      text(v.display_number,'Matter number',200);text(v.description,'Matter title',200);text(v.adverse_party,'Adverse party',200);
      insist(['open','closed'].includes(v.status),'Matter status must be open or closed');
      if(v.status==='closed')timestamp(v.closed_at,'Closed time');

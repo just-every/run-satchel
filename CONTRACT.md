@@ -465,6 +465,8 @@ That commit records the tested migration implementation. This candidate also pre
 
 Only MOVE-001 and MOVE-002 are assessed here. Every other clause retains its recorded status and obligations, including the newer bounded-agent evidence and its unchanged policy boundary.
 
+MOVE-005 CSV implementation and public-door proof are recorded at `4d445b97a67f4224fa944f73a3ed73a3225b521b`; its remaining scope stays PARTIAL. Exact candidate checks are supplied with the lane handoff.
+
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 14 | 0 | 0 | 14 |

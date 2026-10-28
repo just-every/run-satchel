@@ -5,6 +5,13 @@ import {parseCsv} from './csv';
 import type {Kind,MovePackage} from './package';
 
 export const practicePantherSchema='satchel-practicepanther-v1';
+export const practicePantherGaps=()=>[
+ 'payments: native payment history and financial reconciliation remain required',
+ 'messages: source message history has no native mapping',
+ 'PDF reports: evidence, originals and source relationship matching remain required',
+ 'XLSX: native workbook reading remains required; this path accepts UTF-8 CSV',
+ 'Vendor-assisted extraction: authorized retrieval must close every missing dataset before source shutdown',
+];
 export type PracticePantherSource={account:string;exports:Record<string,{name:string;contentBase64:string}>;mapping:{revision:string;columns:Record<string,Record<string,string>>;matterType?:{id:string;version:number;practiceCode:string};fields?:Record<string,string>;custom?:Record<string,string>;statuses?:Record<string,string>}};
 const allowed:Record<string,string[]>={contacts:['id','name','email','aliases'],matters:['id','display_number','description','client_id','adverse_party','status','opened_at','closed_at']};
 const required:Record<string,string[]>={contacts:['id','name'],matters:['id','display_number','description','client_id','adverse_party','status','opened_at']};

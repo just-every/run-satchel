@@ -6,7 +6,7 @@ import {parsePackage,kinds,type MovePackage,type MoveRow} from './imports/packag
 import {applyNative,nativeSnapshotSql,targetId} from './imports/native';
 import {importedMatterProfile,mappedMatterProfile,readProfile} from './matter-fields';
 import {invoiceFunds} from './trust-transfers';
-import {practicePantherExports} from './imports/practicepanther';
+import {practicePantherExports,practicePantherSchema,practicePantherGaps} from './imports/practicepanther';
 
 // Every ordinary native use fences safe contact removal, including graph and
 // consent history that does not change the party's own revision.
@@ -129,7 +129,7 @@ export async function migrationAction(db:D1Database,actor:Actor,op:string,b:Data
  insist(false,'Unknown migration action',404);
 }
 async function reconcile(db:D1Database,job:Data){
- const p=JSON.parse(job.package_json) as MovePackage,sources=await rows(db,"SELECT * FROM s_move_sources WHERE account=?",job.account),gaps:string[]=[];
+ const p=JSON.parse(job.package_json) as MovePackage,sources=await rows(db,"SELECT * FROM s_move_sources WHERE account=?",job.account),gaps:string[]=p.schema===practicePantherSchema?practicePantherGaps():[];
  const counts:Data={},balances={billedCents:0,unbilledCents:0,arCents:0,trustCents:0};
  for(const kind of kinds){counts[kind]={source:p.counts[kind],native:sources.filter(s=>s.kind===kind&&['imported','preserved'].includes(s.disposition)).length};if(counts[kind].source!==counts[kind].native)gaps.push(`${kind}: source count does not reconcile`);if(p.coverage[kind]!=='complete')gaps.push(`${kind}: retrieve missing source history through an authorized export`);}
  for(const s of sources){

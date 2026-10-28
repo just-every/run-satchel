@@ -12,6 +12,7 @@ export async function practicePantherFixture(h){
  }
  const original=(name,text)=>({name,contentBase64:Buffer.from(text).toString('base64')});
  return {schema:'satchel-practicepanther-v1',phase:'snapshot',extractedAt:'2020-04-03T12:00:00.000Z',clientRepairs:{},coverage:{contacts:'complete',matters:'complete'},practicePanther:{account:'synthetic-satchel-1',exports:{
+  messages:original('PracticePanther-Messages.csv',csvRows(['Message ID','Matter ID','Body'],[['message-1','matter-1','Synthetic Satchel source message retained without a native mapping']])),
   contacts:original('PracticePanther-Contacts.csv','\uFEFF'+csvRows(['Contact ID','Display Name','Former Names','Source label'],[['client-1','Synthetic Satchel Panther Client','Panther former name','Retained contact custom value'],['client-2','Synthetic Satchel Panther Spare','','Retained second value']])),
   matters:original('PracticePanther-Matters.csv',csvRows(['Matter ID','Matter Number','Matter Name','Client ID','Reviewed Adverse','Status','Opened At','Case Reference','Claim Amount','Hearing','Priority','Reviewed','Unsupported field'],[['matter-1','PP-2020-42','Panther custom-field advice','client-1','Synthetic Satchel Panther Adverse','Open','2020-01-01T12:00:00.000Z','PANTHER-42','250000.50','2020-05-06','Urgent','yes','Retain the source-only value']])),
  },mapping:{revision:'synthetic-satchel-review-1',columns:{contacts:{id:'Contact ID',name:'Display Name',aliases:'Former Names'},matters:{id:'Matter ID',display_number:'Matter Number',description:'Matter Name',client_id:'Client ID',adverse_party:'Reviewed Adverse',status:'Status',opened_at:'Opened At'}},matterType:{id:type.id,version:type.version,practiceCode:'LIT'},fields:{caseNumber:'Case Reference'},custom:{claim_value:'Claim Amount',hearing:'Hearing',priority:'Priority',reviewed:'Reviewed'},statuses:{Open:'open',Closed:'closed'}}}};
@@ -29,6 +30,7 @@ export async function provePracticePantherMove(h){
  assert.deepEqual(plan.errors,[]);assert.equal(plan.mappingVersion,p.practicePanther.mapping.revision);
  assert.deepEqual(plan.sourceExports.find(f=>f.kind==='matters').unsupportedFields,['Unsupported field']);
  assert.ok(plan.sourceExports.find(f=>f.kind==='contacts').unsupportedFields.includes('Source label'));
+ assert.ok(plan.coverageGaps.some(g=>g.startsWith('payments:')));assert.ok(plan.coverageGaps.some(g=>g.startsWith('messages:')));assert.equal(plan.sourceExports.find(f=>f.kind==='messages').supported,false);
  assert.ok(plan.coverageGaps.some(g=>g.startsWith('tasks:')));assert.ok(plan.coverageGaps.some(g=>g.startsWith('trust:')));
  await h.json('/migration/preview',{package:p},'',401);
  await h.json('/migration/commit',{package:p,fingerprint:plan.fingerprint,mappingConfirmed:false},h.owner,400);
@@ -75,6 +77,7 @@ export async function provePracticePantherMove(h){
   const report=await restored.json('/migration/reconcile',{id:final.job.id},restored.owner);assert.ok(report.report.gaps.some(g=>g.startsWith('tasks:')));assert.ok(report.report.gaps.some(g=>g.startsWith('invoices:')));assert.ok(report.report.gaps.some(g=>g.startsWith('trust:')));
   await restored.json('/migration/cutover',{id:final.job.id,fingerprint:report.fingerprint,confirmed:true,declaration:'Source inventory reviewed; missing history must still refuse cutover.'},restored.owner,409);
   assert.equal((await restored.json('/migration/status',{id:final.job.id},restored.owner)).cutover,null);
+  assert.ok(report.report.gaps.some(g=>g.startsWith('payments:')));assert.ok(report.report.gaps.some(g=>g.startsWith('messages:')));
   assert.equal((await restored.json('/state',undefined,restored.owner)).matters.length,stateBefore.matters.length);
  }finally{await restored.close();}
 }
