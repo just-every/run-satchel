@@ -41,6 +41,8 @@ export async function provePaymentPlans(){
   await h.json(planPath(hardship.id)+'/mandate',{revision:imported.revision,agree:true,requestKey:'synthetic-satchel-stale-plan'},s.client,409);
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),restored=await harness(edge);
   try{await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);await restored.scheduled('2027-03-02T12:00:00Z');assert.equal(edge.chargeCalls,2);const retained=await restored.json(planPath(p.id),undefined,restored.owner);assert.equal(retained.status,'stopped');assert.equal(retained.events.filter(e=>e.kind==='stopped').length,1);assert.equal((await restored.json('/portal/invoices/'+s.card.id+'/payment',undefined,restored.owner)).paidCents,12500);}finally{await restored.close();}
+  const renewed=await authorize(h,edge,hardship,s.client,'synthetic-satchel-hardship-consent');assert.equal(renewed.status,'active');
+  await h.scheduled('2027-02-01T12:00:00Z');await h.scheduled('2027-02-01T12:15:00Z');assert.equal(edge.chargeCalls,3);assert.equal((await h.json('/portal/invoices/'+s.ach.id+'/payment',undefined,s.client)).paidCents,22500);
   await proveStoppedProviderPlans(h,edge,s);
  }finally{await h.close();}
 }

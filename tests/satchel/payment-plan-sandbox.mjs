@@ -33,8 +33,8 @@ try{
   stage='hosted-mandate-create';
   const setup=await h.json('/payment-plans/'+plan.id+'/mandate',{revision:plan.revision,agree:true,requestKey:reference},s.client);
   await page.goto(setup.url);stage='hosted-mandate-card';
-  const email=page.locator('#email');if(await email.count())await email.fill('synthetic-satchel'+'@'+'example.test');
-  const card=page.getByText('Card',{exact:true});if(await card.count())await card.first().click({force:true});
+  await page.locator('#email').waitFor({state:'visible'});await page.locator('#email').fill('synthetic-satchel'+'@'+'example.test');
+  await page.getByText('Card',{exact:true}).click({force:true});
   await page.locator('#cardNumber').fill('4242424242424242');await page.locator('#cardExpiry').fill('1230');await page.locator('#cardCvc').fill('123');
   await page.locator('#billingCountry').selectOption('US');
   if(await page.locator('#billingName').isVisible())await page.locator('#billingName').fill('Synthetic Satchel Client');

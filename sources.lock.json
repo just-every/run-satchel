@@ -144,7 +144,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "8f18f43e532a7186cd98aa4558cbe9aeb0f2beaef45cbba42ce652b1db12d0a6",
+      "sha256": "783ef0a31ccb76652e2debcb578f80310aea61ad2248f349b24f77101a073a5c",
       "executable": false
     },
     "AGENTS.md": {
@@ -168,7 +168,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "0b1481e2aa0003f12b2fb206237995e4f2ef60eac46ccd7a38abb53e19196d7d",
+      "sha256": "c6307c7b2d7c087544bc31d454e53c1efe717e0ee9bb3189264001d33d21e1d0",
       "executable": false
     },
     "DEMO.md": {
@@ -1001,6 +1001,10 @@
     },
     "rer-setup.json": {
       "sha256": "e77e78ad28c97a8002f14718ab4fe8d0f50bca7c34ae570c5ae33056908df6ef",
+      "executable": false
+    },
+    "RULINGS.md": {
+      "sha256": "d788b0330561e4b392aaffe18494ddeaea8b7a76951af978a5337002f7369c51",
       "executable": false
     },
     "RUN-LOCALLY.md": {
@@ -4824,11 +4828,11 @@
       "executable": false
     },
     "tests/satchel/payment-plan-flow.mjs": {
-      "sha256": "4c548c3365277f292e420cccd7aca2a4905a9d7582fcd98a95d39e0bcf74ec91",
+      "sha256": "896d03082adf6777db584a9de569dcc2177e55a68d61cd8716f0fd43ad7b413f",
       "executable": false
     },
     "tests/satchel/payment-plan-sandbox.mjs": {
-      "sha256": "f2d0b0cc69752ecc1404bc7b3fec5bef1d59640275f252e057890d1770ac3270",
+      "sha256": "d79974107f53b713befb8832a06462a5d0e765e69fb01129b1503fd38c8da8b6",
       "executable": false
     },
     "tests/satchel/portal-identities-journey.test.mjs": {
