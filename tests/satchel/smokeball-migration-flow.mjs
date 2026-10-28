@@ -6,8 +6,7 @@ import {harness} from './harness.mjs';
 
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 export async function smokeballFixture(h,{zip=true}={}){
- const existing=await h.json('/matter-types',undefined,h.owner);
- if(!existing.types.some(t=>t.name==='Migration source fields'))await setupMove(h);
+ if(!(await h.json('/matter-types',undefined,h.owner)).types.some(t=>t.name==='Migration source fields'))await setupMove(h);
  const {actor}=await h.json('/state',undefined,h.owner),types=await h.json('/matter-types',undefined,h.owner),type=types.types.find(t=>t.name==='Migration source fields');
  const sources={
   'Staff.csv':csvRows(['Staff ID','Name','Source Role'],[['staff-1','Synthetic Satchel Timekeeper','Administrator']]),
@@ -25,8 +24,10 @@ export async function smokeballFixture(h,{zip=true}={}){
 const preview=(h,p)=>h.json('/migration/preview',{package:p},h.owner);
 const productRows=archive=>archive.trim().split('\n').map(JSON.parse).filter(r=>r.kind==='part').flatMap(p=>p.items).filter(r=>r.kind==='row'&&r.table!=='s_audit').map(JSON.stringify).sort();
 export async function proveSmokeballMove(h){
- const p=await smokeballFixture(h),before=await h.request('/api/satchel/backup',undefined,h.owner),plan=await preview(h,p),after=await h.request('/api/satchel/backup',undefined,h.owner);
- assert.deepEqual(productRows(await after.text()),productRows(await before.text()),'Smokeball preview changes no native records or jobs');
+ const p=await smokeballFixture(h),timekeeper='synthetic-satchel-4'+'@'+'example.test';
+ await h.json('/team',{email:timekeeper,name:'Synthetic Satchel Timekeeper',role:'lawyer'},h.owner);p.staff['staff-1']=timekeeper;
+ const before=await (await h.request('/api/satchel/backup',undefined,h.owner)).text(),plan=await preview(h,p),after=await (await h.request('/api/satchel/backup',undefined,h.owner)).text();
+ assert.deepEqual(productRows(after),productRows(before),'Smokeball preview changes no native records or jobs');
  assert.deepEqual(plan.errors,[]);assert.equal(plan.mappingVersion,'satchel-smokeball-v1:review-1');assert.ok(plan.coverageGaps.some(g=>g.includes('Legacy label')));assert.ok(plan.coverageGaps.some(g=>g.includes('Invoices.csv')));
  for(const kind of ['task','activity','expense'])await h.json('/ledes/codes',{kind,code:kind==='task'?'L110':kind==='activity'?'A101':'E101',label:'Synthetic Satchel code',active:true},h.owner);
  const invalid=structuredClone(p);invalid.staff['staff-1']='synthetic-satchel-no-member';assert.ok((await preview(h,invalid)).errors.some(e=>e.includes('active')));
@@ -34,12 +35,13 @@ export async function proveSmokeballMove(h){
  const badFields=structuredClone(p);badFields.mappings.matters.custom={unmapped:'Limit'};assert.ok((await preview(h,badFields)).errors.some(e=>e.includes('custom field')));
  const badCode=structuredClone(p);badCode.mappings.time.columns.utbms_task='Narrative';assert.ok((await preview(h,badCode)).errors.some(e=>e.includes('UTBMS')));
  const badWork=structuredClone(p);badWork.mappings.time.columns.amount_cents='Minutes';
- let stopped=await commitMove(h,badWork);stopped=await applyMove(h,badWork,stopped,{stopAt:2});
- const mid=stopped.sources.find(s=>s.kind==='matters').target_id;
- await h.json('/migration/resume',{id:stopped.job.id},h.owner,409);assert.equal((await h.json('/matters/'+mid+'/billing',undefined,h.owner)).entries.length,0,'Wrong source amount posts nothing');
- // A changed reviewed source identity cannot overwrite native records. Continue
- // the valid work in a delta with exactly the same contact and matter mapping.
- const good=await commitMove(h,p);let state=await applyMove(h,p,good,{stopAt:2});
+ const rejected=await preview(h,badWork);assert.ok(rejected.errors.some(e=>e.includes('native pricing')));await h.json('/migration/commit',{package:badWork,fingerprint:rejected.fingerprint},h.owner,409);
+ const good=await commitMove(h,p);let state=await applyMove(h,p,good,{stopAt:2});const mid=state.sources.find(s=>s.kind==='matters').target_id;
+ await h.json('/migration/resume',{id:state.job.id},h.owner,409);assert.equal((await h.json('/matters/'+mid+'/billing',undefined,h.owner)).entries.length,0,'Source attribution grants no matter access');
+ await h.json('/matters/'+mid+'/access',{email:timekeeper},h.owner);
+ await h.json('/team',{email:timekeeper,name:'Synthetic Satchel Timekeeper',role:'lawyer',active:false},h.owner);
+ await h.json('/migration/resume',{id:state.job.id},h.owner,409);assert.equal((await h.json('/matters/'+mid+'/billing',undefined,h.owner)).entries.length,0,'Revoked member cannot post through a retained package');
+ await h.json('/team',{email:timekeeper,name:'Synthetic Satchel Timekeeper',role:'lawyer'},h.owner);
  await h.json('/ledes/codes',{kind:'task',code:'L110',label:'Synthetic Satchel code',active:false},h.owner);
  await h.json('/migration/resume',{id:state.job.id},h.owner,409);assert.equal((await h.json('/matters/'+mid+'/billing',undefined,h.owner)).entries.length,0);
  await h.json('/ledes/codes',{kind:'task',code:'L110',label:'Synthetic Satchel code',active:true},h.owner);
