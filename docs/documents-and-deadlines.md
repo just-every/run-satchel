@@ -16,15 +16,15 @@ The original uploader or principal can add a revision: choose **Append version**
 
 Use **Search the firm** to find words in retained originals. Satchel reads
 embedded PDF text and UTF-8 text, recognizes English text in scanned PDF pages,
-PNG and JPEG originals, and reads retained EML message bodies and supported
+PNG and JPEG originals, reads stored Word, spreadsheet and slide text, and reads retained EML message bodies and supported
 attachments locally. Search never sends originals to an OCR service or follows
 remote message images. Extraction creates no malware clearance.
 
 Expand **Document filters** to narrow results by matter, the current original’s
-upload date, or its filed document type. Each text hit shows its exact original
+upload date, or its filed document type. Use type Email for native reviewed correspondence. Those messages use their review date and retain their current counsel-only read permission. Each text hit shows its exact original
 version, SHA-256 hash, page and index time. Open a hit to read that page’s indexed
 text and download its matching original. For a message, cited sections identify
-the message body, nested message or attachment and its source page.
+the message body, nested message or attachment and its source page. Office citations identify stored sections, worksheets or slides without claiming a reproduced print layout.
 
 **Document text coverage** distinguishes current, incomplete and unavailable
 text. Encrypted originals, unreadable scans, unsupported formats and unsupported

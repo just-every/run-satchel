@@ -1,3 +1,4 @@
+import {officeKind} from './office-package';
 import PostalMime from 'postal-mime';
 import {convert} from 'html-to-text';
 import {readableText} from './document-readable-text';
@@ -20,8 +21,8 @@ export async function emailText(bytes:Uint8Array){
    if(a.mimeType==='message/rfc822'){await parse(content,depth+1,label+' · '+name);continue;}
    if(a.mimeType.startsWith('text/')){
     try{const text=new TextDecoder('utf-8',{fatal:true}).decode(content);append(name,a.mimeType==='text/html'?convert(text,{wordwrap:false,selectors:[{selector:'img',format:'skip'},{selector:'script',format:'skip'},{selector:'style',format:'skip'}]}):text);}catch{missing.push(name+' (unreadable text encoding)');}
-   }else if(['application/pdf','image/png','image/jpeg'].includes(a.mimeType)){
-    try{const extracted=await readableText(content,a.mimeType);ocrPages+=extracted.ocrPages;for(const p of extracted.pages)append(name+' · original page '+p.page,p.body);for(const item of extracted.missing)missing.push(name+' · '+item);}catch{missing.push(name+' (unreadable attachment)');}
+   }else if(['application/pdf','image/png','image/jpeg'].includes(a.mimeType)||officeKind({mime:a.mimeType,name})){
+    try{const extracted=await readableText(content,a.mimeType,{mime:a.mimeType,name});ocrPages+=extracted.ocrPages;for(const p of extracted.pages)append(name+' · original page '+p.page,p.body);for(const item of extracted.missing)missing.push(name+' · '+item);}catch{missing.push(name+' (unreadable attachment)');}
    }else missing.push(name+' ('+a.mimeType+')');
   }
  };

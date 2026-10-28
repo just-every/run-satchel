@@ -19,7 +19,7 @@ export function FirmSearch({open,matters,tick}:{open:(item:Row)=>void;matters:Ro
   return()=>clearTimeout(timer);
  },[query,filters,refresh,tick]);
  useEffect(()=>{const hide=()=>{if(document.hidden)clear();},blur=()=>clear();document.addEventListener('visibilitychange',hide);window.addEventListener('blur',blur);return()=>{document.removeEventListener('visibilitychange',hide);window.removeEventListener('blur',blur);};},[]);
- const choose=(item:Row)=>{clear();if(item.citation)window.open('/api/satchel'+item.path,'_blank','noopener');else open(item);};
+ const choose=(item:Row)=>{clear();open(item);};
  const move=(step:number)=>{if(flat.length)setActive(a=>(a+step+flat.length)%flat.length);};
  const onKey=(e:React.KeyboardEvent)=>{
   if(e.key==='ArrowDown'){e.preventDefault();setShown(true);move(1);}
@@ -38,13 +38,13 @@ export function FirmSearch({open,matters,tick}:{open:(item:Row)=>void;matters:Ro
    <label>Original date from<input type="date" value={filters.from} onChange={e=>setFilters({...filters,from:e.target.value})}/></label>
    <label>Original date to<input type="date" value={filters.to} onChange={e=>setFilters({...filters,to:e.target.value})}/></label>
    <label>Document type<input value={filters.documentType} onChange={e=>setFilters({...filters,documentType:e.target.value})}/></label>
-   <p>Filters narrow results to documents. Dates use the current original’s upload date.</p>
+   <p>Filters narrow results to documents. Dates use the current original’s upload date or the email review date.</p>
   </div></details>
   {shown&&(result||error)&&<div className="results" id={list}>
    {error&&<p role="alert">{error}</p>}
    {result&&<p role="status">{result.total?`${result.total} result${result.total===1?'':'s'} in ${result.groups.length} group${result.groups.length===1?'':'s'}`:'No matching records you may see.'}</p>}
    {result&&result.documentIndex?.length>0&&<details><summary>Document text coverage</summary>{result.documentIndex.map((d:Row)=><p key={d.documentId}>{d.title} · version {d.version} · {d.status==='ready'?'Current text index':d.status==='partial'?'Partial text index':'Text unavailable'} · indexed {d.indexedAt}<br/>{d.detail}</p>)}</details>}
-   {result&&<ul role="listbox" aria-label="Search results">{result.groups.map((g:Row)=><li role="presentation" key={g.type}><h2 id={list+'-g-'+g.type}>{g.type} <span>{g.count}</span></h2><ul role="group" aria-labelledby={list+'-g-'+g.type}>{g.items.map((item:Row)=>{index++;const mine=index;return <li role="option" id={list+'-'+mine} key={g.type+item.id} aria-selected={mine===active} className={mine===active?'active':undefined} onMouseDown={e=>e.preventDefault()} onClick={()=>choose({...item,type:g.type})}><strong>{item.title}</strong><small>{item.snippet}</small>{item.citation&&<small>Version {item.citation.version} · page {item.citation.page} · SHA-256 {item.citation.sha256}<br/>{item.freshness.status==='partial'?'Partial text index':'Current text index'} · {item.freshness.indexedAt}</small>}</li>;})}</ul></li>)}</ul>}
+   {result&&<ul role="listbox" aria-label="Search results">{result.groups.map((g:Row)=><li role="presentation" key={g.type}><h2 id={list+'-g-'+g.type}>{g.type} <span>{g.count}</span></h2><ul role="group" aria-labelledby={list+'-g-'+g.type}>{g.items.map((item:Row)=>{index++;const mine=index;return <li role="option" id={list+'-'+mine} key={g.type+item.id} aria-selected={mine===active} className={mine===active?'active':undefined} onMouseDown={e=>e.preventDefault()} onClick={()=>choose({...item,type:g.type})}><strong>{item.title}</strong><small>{item.snippet}</small>{item.sourceCitation&&<small>Review {item.sourceCitation.revision} · SHA-256 {item.sourceCitation.sha256}</small>}{item.citation&&<small>Version {item.citation.version} · {item.citation.unit??'page'} {item.citation.page} · SHA-256 {item.citation.sha256}<br/>{item.freshness.status==='partial'?'Partial text index':'Current text index'} · {item.freshness.indexedAt}</small>}</li>;})}</ul></li>)}</ul>}
   </div>}
  </div>;
 }

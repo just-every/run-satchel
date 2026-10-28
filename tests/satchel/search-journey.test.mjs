@@ -12,7 +12,8 @@ async function signIn(page,h,email,name){
  await page.waitForURL(/\/app/);await page.getByRole('navigation',{name:'Workspace'}).waitFor();
 }
 const ask=async(page,box,query)=>{const [response]=await Promise.all([page.waitForResponse(r=>r.url().includes('/api/satchel/search?q='+encodeURIComponent(query))),box.fill(query)]);const body=await response.json();await page.waitForTimeout(100);return body;};
-for(const [width,height] of [[1440,1000],[390,844]])test(`MATTER-009 one search box: grouped keyboard results, matter and case numbers, unassigned and walled-out people see nothing at ${width}px`,async()=>{
+test('MATTER-009 one search box: grouped keyboard results, matter and case numbers, unassigned and walled-out people see nothing at desktop and phone widths',async()=>{
+ for(const [width,height] of [[1440,1000],[390,844]]){
  const h=await harness(),browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,args:['--no-sandbox','--use-mock-keychain','--password-store=basic']});
  try{
   const f=await searchFixture(h),base='/matters/'+f.m.id;
@@ -46,22 +47,26 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`MATTER-009 one search 
   const answer=await ask(page,box,'copper lantern');assert.equal(answer.total,2,'The principal may see both public and private originals');
   const bodyHit=results.getByRole('option').filter({hasText:'Testimony.pdf'});await bodyHit.waitFor();assert.match(await bodyHit.innerText(),/Version 1 · page 2 · SHA-256/);assert.match(await bodyHit.innerText(),/Current text index/);
   if(process.env.SATCHEL_SCREENSHOTS)await page.screenshot({path:`${process.env.SATCHEL_SCREENSHOTS}/document-text-search-${width}.png`});
-  const popupPromise=page.waitForEvent('popup');await bodyHit.click();const citation=await popupPromise;await citation.waitForLoadState();assert.match(await citation.locator('pre').innerText(),/Copper lantern testimony/);assert.ok(!(await citation.locator('pre').innerText()).includes('First page'));assert.match(await citation.locator('body').innerText(),/Version 1 · page 2/);
-  if(process.env.SATCHEL_SCREENSHOTS)await citation.screenshot({path:`${process.env.SATCHEL_SCREENSHOTS}/document-text-citation-${width}.png`});
-  await citation.close();await page.bringToFront();assert.equal(await results.count(),0,'Closing the citation cannot revive cached snippets');
-  await page.getByText('Document filters',{exact:true}).click();await page.getByLabel('Search matter',{exact:true}).selectOption(f.m.id);await page.getByLabel('Document type',{exact:true}).fill('Deposition');
+  await bodyHit.click();const citation=page.getByRole('region',{name:'Search citation',exact:true});await citation.getByRole('img',{name:'PDF version 1, page 2',exact:true}).waitFor();
+  await citation.getByText('Page 2 of 2',{exact:true}).waitFor();assert.match(await citation.locator('pre').innerText(),/Copper lantern testimony/);assert.ok(!(await citation.locator('pre').innerText()).includes('First page'));
+  if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,citation,process.env.SATCHEL_SCREENSHOTS,`document-text-citation-${width}`);
+  await citation.getByRole('button',{name:'Close search citation',exact:true}).click();assert.equal(await results.count(),0,'Closing the citation cannot revive cached snippets');
+  await page.getByText('Document filters',{exact:true}).click();await page.getByLabel('Search matter',{exact:true}).selectOption(f.m.id);await page.getByRole('search').getByLabel('Document type',{exact:true}).fill('Deposition');
   const day=textFixture.document.versions[0].createdAt.slice(0,10);await page.getByLabel('Original date from',{exact:true}).fill(day);await page.getByLabel('Original date to',{exact:true}).fill(day);
   await box.focus();await results.getByRole('option').filter({hasText:'Testimony.pdf'}).waitFor();assert.match(await status.innerText(),/^1 result in 1 group$/);
   // Refocusing after an authority change always asks the server; stale options
   // and text are discarded on blur rather than cached for a later focus.
-  await page.getByLabel('Document type',{exact:true}).fill('Correspondence');await box.focus();await status.getByText('No matching records you may see.').waitFor();
-  await page.getByLabel('Document type',{exact:true}).fill('');await page.getByLabel('Search matter',{exact:true}).selectOption('');await page.getByLabel('Original date from',{exact:true}).fill('');await page.getByLabel('Original date to',{exact:true}).fill('');
+  await page.getByRole('search').getByLabel('Document type',{exact:true}).fill('Correspondence');await box.focus();await status.getByText('No matching records you may see.').waitFor();
+  await page.getByRole('search').getByLabel('Document type',{exact:true}).fill('');await page.getByLabel('Search matter',{exact:true}).selectOption('');await page.getByLabel('Original date from',{exact:true}).fill('');await page.getByLabel('Original date to',{exact:true}).fill('');
   await page.getByText('Document filters',{exact:true}).click();
   const {scannedOriginal}=await import('./document-text-fixture.mjs'),scan=await scannedOriginal();await textFixture.upload('Witness scan.pdf',scan.pdf);
   const scannedAnswer=await ask(page,box,'quartz harbor');assert.equal(scannedAnswer.total,1);const scannedHit=results.getByRole('option').filter({hasText:'Witness scan.pdf'});await scannedHit.waitFor();assert.match(await scannedHit.innerText(),/Version 1 · page 2/);
   if(process.env.SATCHEL_SCREENSHOTS)await page.screenshot({path:`${process.env.SATCHEL_SCREENSHOTS}/scanned-page-search-${width}.png`});
-  const scanPopup=page.waitForEvent('popup');await scannedHit.click();const scannedPage=await scanPopup;await scannedPage.waitForLoadState();assert.match(await scannedPage.locator('pre').innerText(),/Quartz harbor witness statement/);assert.match(await scannedPage.locator('body').innerText(),/Version 1 · page 2/);
-  if(process.env.SATCHEL_SCREENSHOTS)await scannedPage.screenshot({path:`${process.env.SATCHEL_SCREENSHOTS}/scanned-page-citation-${width}.png`});await scannedPage.close();await page.bringToFront();
+  await scannedHit.click();const scannedPage=page.getByRole('region',{name:'Search citation',exact:true});const scannedCanvas=scannedPage.getByRole('img',{name:'PDF version 1, page 2',exact:true});await scannedCanvas.waitFor();await scannedPage.getByText('Page 2 of 2',{exact:true}).waitFor();
+  await scannedPage.getByText('No embedded text on this page.',{exact:true}).waitFor({state:'attached'});assert.match(await scannedPage.locator('pre').innerText(),/Quartz harbor witness statement/);
+  assert.ok(await scannedCanvas.evaluate(canvas=>{const data=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;return data.some((v,i)=>i%4!==3&&v<100);}), 'The exact scanned page is rendered from original bytes');
+  if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,scannedPage,process.env.SATCHEL_SCREENSHOTS,`scanned-page-citation-${width}`);await scannedPage.getByRole('button',{name:'Close search citation',exact:true}).click();
+  const {reviewedMessage}=await import('./document-text-fixture.mjs');await reviewedMessage(h,f.m);const nativeMailAnswer=await ask(page,box,'turquoise garden');assert.equal(nativeMailAnswer.total,1);const nativeOption=results.getByRole('option').filter({hasText:'Reviewed case letter'});await nativeOption.waitFor();assert.match(await nativeOption.innerText(),/SHA-256/);await nativeOption.click();const nativeLetter=page.getByRole('article',{name:'Email Reviewed case letter',exact:true});await nativeLetter.getByText('Turquoise garden counsel instructions are retained in this native letter.',{exact:true}).waitFor();await nativeLetter.getByText('Message source',{exact:true}).click();assert.ok((await nativeLetter.innerText()).includes(nativeMailAnswer.groups[0].items[0].sourceCitation.sha256));if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,nativeLetter,process.env.SATCHEL_SCREENSHOTS,`native-email-source-${width}`);
   // An unassigned assistant receives no record, title, count or snippet.
   await h.json('/team',{email:'reader@example.test',name:'Case assistant',role:'assistant'},h.owner);await h.json('/team/invite',{email:'reader@example.test'},h.owner);
   const assistant=await(await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true})).newPage();assistant.setDefaultTimeout(15000);
@@ -81,4 +86,5 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`MATTER-009 one search 
   for(const query of ['Barton',f.m.matter_number,'CASE-2026-BARTON-42']){const answer=await ask(page,box,query);assert.deepEqual(answer.groups,[],'The server returns no group, count or snippet');await status.getByText('No matching records you may see.').waitFor();assert.equal(await page.locator('.firm-search').locator('[role=option]').count(),0);assert.ok(!(await page.locator('.firm-search').innerText()).includes('Barton Workshop'));}
   assert.deepEqual(errors,[]);
  }finally{await browser.close();await h.close();}
+ }
 });

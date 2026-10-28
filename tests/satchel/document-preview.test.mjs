@@ -18,7 +18,8 @@ async function signIn(page,h){
  const mail=h.mails.at(-1),link=(mail.text??mail.html).match(/https:\/\/[^\s"<]+\/auth\/confirm\?token=[^\s"&<]+/)[0];await page.goto(link);await page.getByRole('button',{name:'Confirm',exact:true}).click();await page.waitForURL(/\/setup|\/app/);
  if(page.url().includes('/setup')){await page.getByLabel('Your name').fill('Avery Barton');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup'}).click();await page.waitForURL(/\/app/);}
 }
-for(const width of [1440,390])test(`DOC-002 authenticated PDF/image/text previews and exact original version comparison with author/time, revocation, erasure and recovery at ${width}px`,async()=>{
+test('DOC-002 authenticated PDF, image and text previews and exact original version comparison with author and time, revocation, erasure and recovery at desktop and phone widths',async()=>{
+ for(const width of [1440,390]){
  const h=await harness(),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});let recovered;
  try{
   const m=await open(h),base='/matters/'+m.id,original=await brief(),revised=await brief(true);
@@ -65,6 +66,7 @@ for(const width of [1440,390])test(`DOC-002 authenticated PDF/image/text preview
   await h.json('/documents/'+document.id+'/erase',{confirm:document.title,reason:'Counsel-approved fixture disposal'},h.owner);for(const version of [1,2])assert.equal((await h.request('/api/satchel/documents/'+document.id+'/file?version='+version,undefined,h.owner)).status,404);
   assert.deepEqual(errors,[]);
  }finally{await recovered?.close();await browser.close();await h.close();}
+ }
 });
 
 // Real compressed Office files pass the same original upload/download doors.

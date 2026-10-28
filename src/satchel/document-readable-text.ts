@@ -1,9 +1,11 @@
+import {officeText} from './document-office-text';
 import {decode as decodePng,convertIndexedToRgb} from 'fast-png';
 import {decode as decodeJpeg} from 'jpeg-js';
 import {nativePdfSearchPages} from './chronology-pdf-text';
 import {scanText,type ScanImage} from './document-ocr';
 
-export async function readableText(bytes:Uint8Array,mime:string){
+export async function readableText(bytes:Uint8Array,mime:string,version:Record<string,any>={mime}){
+ const office=officeText(bytes,version);if(office)return office;
  const pages:{page:number;body:string}[]=[],missing:string[]=[];let ocrPages=0;
  if(mime==='text/plain')pages.push(...new TextDecoder('utf-8',{fatal:true}).decode(bytes).split('\f').map((body,i)=>({page:i+1,body})));
  else if(mime==='application/pdf'){
