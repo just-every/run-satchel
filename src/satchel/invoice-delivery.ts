@@ -12,14 +12,15 @@ export async function pdfResponse(base64:string,expected:string,filename:string)
  return new Response(bytes,{headers:{'content-type':'application/pdf','content-length':String(bytes.length),'content-disposition':`attachment; filename*=UTF-8''${encodeURIComponent(filename).replace(/['()*]/g,c=>'%'+c.charCodeAt(0).toString(16))}`,'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});
 }
 export async function prepareInvoiceDelivery(db:D1Database,actor:Actor,billId:string,b:Data,origin:string){
- invoiceStaff(actor,true);const bill=await stmt(db,'SELECT b.*,i.number,i.issued_at,i.pdf_digest issue_digest,i.snapshot_digest issue_snapshot_digest,i.approved_digest issue_approved_digest,t.snapshot tax_snapshot FROM s_bills b JOIN s_invoice_issues i ON i.bill_id=b.id LEFT JOIN s_bill_tax_approvals t ON t.bill_id=b.id WHERE b.id=?',billId).first<Data>();
+ invoiceStaff(actor,true);const bill=await stmt(db,'SELECT b.*,i.number,i.issued_at,i.pdf_base64 issue_pdf_base64,i.pdf_digest issue_digest,i.snapshot_digest issue_snapshot_digest,i.approved_digest issue_approved_digest,t.snapshot tax_snapshot FROM s_bills b JOIN s_invoice_issues i ON i.bill_id=b.id LEFT JOIN s_bill_tax_approvals t ON t.bill_id=b.id WHERE b.id=?',billId).first<Data>();
  insist(bill&&bill.status!=='void','Choose a current issued invoice',409);await matter(db,actor,bill.matter_id);
  const recipient=text(b.recipient,'Payer portal email',254).toLowerCase(),payerName=text(b.payerName,'Payer name',300),templateId=text(b.templateId,'Approved invoice template',100);
  const d:Data={id:id(),bill_id:bill.id,matter_id:bill.matter_id,recipient,issue_digest:bill.issue_digest};const revision=await invoiceRecipient(db,actor,d);
  const snapshot=JSON.parse(bill.tax_snapshot??bill.snapshot);insist(await digest(JSON.stringify(snapshot))===bill.issue_snapshot_digest&&await digest(bill.artifact)===bill.issue_approved_digest,'Reviewed invoice no longer matches the immutable issue',409);
  const prior=await priorInvoiceBalance(db,bill,templateId);
  const branding=(await buildInvoiceBranding(db,{...bill,snapshot},origin,templateId,payerName,actor,prior.cents))!;
- const pdf=await invoicePdf({...bill,snapshot},bill.number,bill.issued_at,branding),hash=await digest(pdf),at=now();
+ const pdf=snapshot.imported?Uint8Array.from(atob(bill.issue_pdf_base64),c=>c.charCodeAt(0)):await invoicePdf({...bill,snapshot},bill.number,bill.issued_at,branding),hash=await digest(pdf),at=now();
+ if(snapshot.imported)insist(hash===bill.issue_digest,'Historic invoice original failed its integrity check',503);
  // Delivery freezes the exact issue's reviewed data under an approved template. The issued original is untouched.
  await atomic(db,actor,[...prior.guards,guard(db,'NOT EXISTS(SELECT 1 FROM s_invoice_template_retirements WHERE template_id=?)',templateId),...deliveryFences(db,actor,d,revision),stmt(db,'INSERT INTO s_invoice_deliveries VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',d.id,bill.id,templateId,recipient,payerName,branding.dueDate,JSON.stringify({number:bill.number,invoice:snapshot,branding}),bill.issue_digest,encodePdf(pdf),hash,actor.email,at),audit(db,actor,'invoice.portal_delivered',d.id,JSON.stringify({billId:bill.id,templateId,pdfDigest:hash,recipient,reviewedIssueDigest:bill.issue_digest}),{matterId:bill.matter_id})]);
  return {id:d.id,billId:bill.id,pdfDigest:hash,paymentUrl:branding.paymentUrl,dueDate:branding.dueDate};

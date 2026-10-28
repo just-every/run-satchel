@@ -1,3 +1,4 @@
+import {proveWholeFirmMove,proveMoveRefusals} from './migration-flow.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -61,6 +62,7 @@ test('MATTER-008 / MOVE-002 matter subset previews without writes, preserves sou
     assert.ok(changed.diagnostics.some(item => item.code === 'SOURCE_CHANGED'));
     await restored.json('/matter-import/commit', { csv: changedCsv, filename, fingerprint: changed.fingerprint, sourceId: plan.rows[0].sourceId }, restored.owner, 409);
     assert.equal((await restored.json('/state', undefined, restored.owner)).matters.length, 3);
+    await proveWholeFirmMove(h);
   } finally { await restored?.close(); await h.close(); }
 });
 
@@ -91,5 +93,6 @@ test('matter import requires principal authority and exact fresh human clearance
     const collisionPlan = await preview(h, collision);
     assert.ok(collisionPlan.diagnostics.some(item => item.code === 'NUMBER_TAKEN'));
     await h.json('/matter-import/commit', { ...body, csv: collision, fingerprint: collisionPlan.fingerprint, sourceId: 'another-source' }, h.owner, 409);
+    await proveMoveRefusals(h,lawyer);
   } finally { await h.close(); }
 });

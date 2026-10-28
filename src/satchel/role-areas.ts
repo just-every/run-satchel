@@ -8,6 +8,7 @@ const seg='[^/]+',any='.*';
 const rule=(pattern:string,areas:string[]):[RegExp,string[]]=>[new RegExp('^'+pattern+'$'),areas];
 const open:string[]=[];
 export const areaRules:[RegExp,string[]][]=[
+ rule('/matters/'+seg+'/migration',['documents','contacts','billing','rates:all']),
  rule('/security/mfa(?:/enroll|/verify)?',open),
  rule('/security/devices(?:/'+seg+'/revoke)?',open),
  rule('/security/microsoft(?:/jobs(?:/'+seg+'/run)?|/revoke)?',['settings']),
@@ -51,7 +52,7 @@ export const areaRules:[RegExp,string[]][]=[
  rule('/matters/'+seg+'/rates',['rates']),
  rule('/agent/matters/'+seg,['billing','documents']),
  rule('/trust',['bank:balances']),rule('/trust/'+any,['bank']),
- rule('/(firm|firm/export|firm/import|team|team/invite|keys|keys/'+seg+'/revoke|numbering|integrations|integrations/'+seg+'/(dispatch|journal|matter-access|reconcile|resume|revoke|rotate)|matter-import|matter-import/'+seg+'|import|import/'+seg+'|backup|restore|roles|roles/doors|matters/'+seg+'/portal|portal-grants/'+seg+'/revoke|intake/forms|v1/events)',['settings']),
+ rule('/(firm|firm/export|firm/import|team|team/invite|keys|keys/'+seg+'/revoke|numbering|integrations|integrations/'+seg+'/(dispatch|journal|matter-access|reconcile|resume|revoke|rotate)|migration|migration/'+seg+'|matter-import|matter-import/'+seg+'|import|import/'+seg+'|backup|restore|roles|roles/doors|matters/'+seg+'/portal|portal-grants/'+seg+'/revoke|intake/forms|v1/events)',['settings']),
  rule('/(requests/'+seg+'/(review|notes|reminders)|portal/matters/'+seg+'/requests|portal/requests/'+seg+'/(uploads|notes|reminder-consent)|threads/unread|threads/'+seg+'/(messages|assign|read)|attachments/'+seg+'|portal/matters/'+seg+'/(timeline|shares|invoices|threads)|portal/threads/'+seg+'/(open|messages)|portal/attachments/'+seg+'|portal/shares/'+seg+'/(acknowledge|complete|file)|portal/invoices/'+seg+'/pdf|client-shares/'+seg+'/revoke)',open),
  rule('/(providers|providers/'+seg+'/review|followups/settings)',['settings']),
  rule('/(leads/'+seg+'/(followups|consents|followup-events)|consult/offers|consultations|consultations/'+seg+'/cancel)',['contacts']),

@@ -187,3 +187,109 @@ restore. The restored installation's active principal can inspect and resume
 imports. Matter import has no undo path: a reviewed native matter and its
 provenance remain durable. It imports the fields above only; source status,
 dates, billing, balances, documents and Grow records remain outside this subset.
+
+## Reviewed whole firm Clio packages
+
+The **Whole firm Clio move** panel complements the older contact and matter CSV
+subsets. It accepts a prepared JSON package assembled from authorized Clio
+Manage exports, Grow exports and separately exported originals. It never asks
+for source credentials or contacts the Clio API. Missing history must be obtained
+through an authorized supplemental export or vendor-assisted extraction, added
+to the package and reconciled before cutover. A count or coverage declaration is
+the principal's source inventory, not a claim of independent provider verification.
+
+Use `schema: "satchel-clio-v1"`, a stable non-secret `account` reference,
+`phase: "snapshot"`, and an `extractedAt` UTC timestamp. `datasets` contains the
+following CSV strings, including the header for empty datasets. All identities
+are original source IDs, scoped to that same source account. CSV quoting, BOM
+and CRLF are accepted. Unknown columns stay in raw row provenance.
+
+| Dataset | Required columns |
+| --- | --- |
+| contacts | id, name |
+| matters | id, display_number, description, client_id, adverse_party, status, opened_at |
+| relationships | id, matter_id, contact_id, relation |
+| documents | id, matter_id, file_id, date, visibility |
+| notes, calls, emails | id, matter_id, title, body, occurred_at, visibility |
+| calendar | id, matter_id, title, date, time, timezone, duration_minutes |
+| tasks | id, matter_id, title, due_date, status |
+| time | id, matter_id, date, description, minutes, rate_cents, amount_cents, invoice_id |
+| expenses | id, matter_id, date, description, amount_cents, invoice_id |
+| invoices | id, matter_id, number, ordinal, date, total_cents, ar_cents, pdf_file_id |
+| trust | id, matter_id, client_id, balance_cents, statement_date, source_reference, document_id |
+| grow | id, name, summary, created_at |
+
+Dates are YYYY-MM-DD; historical instants are UTC ISO timestamps. Calendar time
+is local 24-hour HH:MM with an IANA timezone. Source appointments enter the
+native calendar; court deadlines still require their separate source and human
+confirmation. Matter status is open or closed; a closed matter also supplies
+`closed_at`. Source closed dates remain in its history without inventing a
+Satchel closure review. Relations use client or adverse. Documents explicitly
+map matter or private visibility; notes, calls and email history explicitly map
+team or private visibility. A private history entry is visible to its mapped
+author alone. Source data never creates portal credentials or access grants.
+
+Optional contact `email` and `aliases` map to the conflict register; a `profile`
+JSON cell uses the native contact fields kind, name, aliases, formerNames, emails,
+phones and addresses. Matter `case_number` maps directly. For the remaining
+fields, a `fields` JSON cell uses caseNumber, court, insuranceLimit (exact USD),
+feeArrangement, feeTerms, typeId, typeVersion and custom. Custom values must map
+to an existing native matter type and pass its exact adopted version's required
+and typed checks; a later type version never silently changes an imported matter.
+The optional `practice_code` must match that mapped type's practice. Grow may
+also supply email, phone, referral_source and staff_id. Other raw custom source
+fields remain available in the matter's source history and package journal.
+
+`staff` maps each source staff_id to an active native firm member. Mapped authors,
+timekeepers, task owners and Grow assignments use that identity. `clientRepairs`
+starts as an empty object and explicitly maps an unmatched source client ID to
+the correct source contact ID. Preview and repair create no product records;
+every repair invalidates the old fingerprint and requires another preview.
+
+`files` supplies original objects with id, name, sha256, contentBase64 and
+modifiedAt. Each file is 1 byte to 1 MiB; its hash is verified against its actual
+bytes. Supply every document and historic invoice PDF before applying. Historic
+invoices keep their source number, ordinal, original PDF and recorded paid
+balance. They appear with their matter, in Time & bills and in the authorized
+payer portal. Delivering or re-sending a historic invoice preserves its PDF
+byte-for-byte, even when a current template is selected. No PDF is reconstructed
+from source totals. The permanent invoice register reserves each imported number;
+an existing native counter advances beyond the greatest imported ordinal. The
+first later saved scheme must also start above that floor.
+
+`counts` lists cumulative source counts for every dataset, `balances` supplies
+billedCents, unbilledCents, arCents and trustCents in exact USD cents, and
+`coverage` identifies complete history for every dataset. Missing coverage is
+shown as a retrieval gap and always prevents cutover. A trust package also maps
+`trustAccountId` to an existing native trust bank account. Applying each trust
+opening requires the principal to hold the designated trust officer role,
+explicitly approve the exact statement and client allocation, and supply its
+imported supporting document. It posts a source-backed native opening into a
+new subsidiary ledger; it never transfers bank funds or bypasses trust authority.
+
+After committing the reviewed fingerprint, apply one durable record at a time.
+Each new matter needs its own fresh conflict search, conclusion and explicit
+human clearance. A record and its checkpoint commit atomically. Resume uses the
+retained package after an interruption or archive restore; identical commits and
+completed applies reuse the existing job and identities. A changed, erased or
+undone source identity is refused rather than overwritten or resurrected.
+Undo removes only unused, unchanged contact rows. Edited contacts, linked
+contacts and native append-only matter, billing, file and activity history are
+preserved with dispositions in the journal. Signed cutovers cannot be undone.
+
+For the final delta, use `phase: "delta"` and `previousFingerprint` naming the
+preceding completed package. Include new records and complete cumulative counts,
+balances and coverage; unchanged source identities may be repeated. Reconcile
+source counts, mapped matter fields, originals, native invoice balances, unbilled
+work and each native trust ledger. The principal can sign only a completed final
+delta with no remaining gap, the exact current report fingerprint and an explicit
+signed declaration. The signature and report are retained with the archive.
+
+The authenticated administrative doors are `GET /api/satchel/migration` and
+`POST /api/satchel/migration/{preview,commit,status,resume,undo,reconcile,cutover}`.
+Preview takes `{package}`; commit adds its fingerprint; subsequent operations
+name the job id. Resume supplies a `review` for a matter or trust opening;
+cutover supplies fingerprint, confirmed and declaration. Matter source history
+is at `GET /api/satchel/matters/:id/migration`, subject to native matter, private
+history and document permissions. Original erasure also removes the matching
+bytes from retained packages, while durable source fences prevent replay.

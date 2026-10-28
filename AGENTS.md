@@ -43,3 +43,12 @@ tests. CI is the full wall. Never change package, project, Worker or D1 IDs.
 Do not commit private settings, local state, credentials, research or screenshots.
 Before public pushes, use Base's publication scan on the exact tree with zero
 findings and no added exclusions. Do not alter sibling repositories.
+
+## Contract projections and source lock
+
+After changing a clause's Status row, regenerate its acceptance section and the
+clause register with `node scripts/contract-docs.mjs write --clauses MOVE-001,MOVE-002`,
+then use the same command with `check` instead of `write`. The `--clauses` list
+names the rows being worked; other acceptance sections are preserved.
+Stage new files before running `node scripts/edition-authoring/cli.mjs lock`;
+`node scripts/edition-authoring/cli.mjs check` verifies the final source lock.

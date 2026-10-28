@@ -1,3 +1,4 @@
+import {proveWholeFirmMoveInUi} from './migration-journey.mjs';
 import {selectExemptTax} from './tax-fixture.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -8,7 +9,7 @@ const form=(page,name)=>page.locator('form',{has:page.getByRole('button',{name,e
 async function notice(page,text){await page.getByRole('status').getByText(text).waitFor();}
 async function tab(page,name){await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name,exact:true}).click();await page.getByRole('heading',{level:1,name,exact:true}).waitFor();}
 for(const [width,height] of [[1440,1000],[390,844]])test(`MATTER-008 configure, open, import and find fixed matter numbers across the workspace at ${width}px`,async()=>{
- const h=await harness(),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});
+ const h=await harness(),browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,args:['--use-mock-keychain','--password-store=basic','--no-sandbox']});
  try{
   const address={line1:'200 Park Avenue',city:'New York',state:'NY',zip:'10166'};
   await h.json('/firm',{settings:{name:'Barton & Lee LLP',email:'office@bartonlee.example',phone:'2125550100',address,timezone:'America/New_York',currency:'USD',billing:{defaultRateCents:30000,incrementMinutes:6,paymentTermsDays:30},fiscal:{yearStartMonth:1,basis:'cash'},offices:[{name:'Manhattan',phone:'2125550100',timezone:'America/New_York',address}],practiceAreas:[{code:'LIT',name:'Litigation'}]}},h.owner);
@@ -29,6 +30,7 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`MATTER-008 configure, 
   await tab(page,'Firm');const changed=form(page,'Save number pattern');await changed.getByLabel('Matter number pattern').fill('NEW-{sequence}');await changed.getByRole('button',{name:'Save number pattern'}).click();await notice(page,'Matter number pattern saved');
   await tab(page,'Matters');await page.getByLabel('Find a matter').fill('2019-0042');assert.equal(await page.locator('section',{has:page.getByRole('heading',{name:'Matter register',exact:true})}).locator('button.record').count(),1);await page.getByRole('button',{name:/2019-0042/}).click();await page.getByText('2019-0042',{exact:true}).waitFor();await page.getByLabel('Find a matter').fill(number);await page.getByRole('button',{name:new RegExp(number)}).click();await page.getByText(number,{exact:true}).waitFor();
   await tab(page,'Documents');await page.getByText('Matter '+number,{exact:true}).waitFor();await tab(page,'Deadlines');await page.getByText('Matter '+number,{exact:true}).waitFor();await tab(page,'Time & bills');await page.getByText('Matter '+number,{exact:true}).waitFor();
+  if(width===1440)await proveWholeFirmMoveInUi(h,page,shot);
   assert.deepEqual(errors,[]);
  }finally{await browser.close();await h.close();}
 });

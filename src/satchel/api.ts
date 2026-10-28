@@ -1,3 +1,4 @@
+import {migrationAction,migrationState,matterMigration} from './migration';
 import {settlementPolicy,saveSettlementPolicy} from './settlement-policy';
 import {disposeSettlement} from './settlement-retention';
 import {prepareSettlementBill} from './settlement-billing';
@@ -481,6 +482,9 @@ api.post('/api/satchel/proposals/:id/decide',as(async(a,c)=>decideProposal(db(c)
 api.get('/api/satchel/agent/matters/:id',asAgent(async(a,c)=>({billing:await listBilling(db(c),a,param(c)),documents:await listDocuments(db(c),a,param(c)),deadlines:await listDeadlines(db(c),a,param(c))})));
 api.get('/api/satchel/agent/context',asAgent((a,c)=>workspace(db(c),a)));
 api.post('/api/satchel/agent/:command',asAgent(async(a,c)=>propose(db(c),a,param(c,'command').replace(/^prepare-/,''),await body(c))));
+api.get('/api/satchel/migration',as((a,c)=>migrationState(db(c),a)));
+api.post('/api/satchel/migration/:op',as(async(a,c)=>migrationAction(db(c),a,param(c,'op'),await body(c))));
+api.get('/api/satchel/matters/:id/migration',as((a,c)=>matterMigration(db(c),a,param(c))));
 api.get('/api/satchel/matter-import',as((a,c)=>matterImportState(db(c),a)));
 api.post('/api/satchel/matter-import/:op',as(async(a,c)=>matterImport(db(c),a,param(c,'op'),await body(c))));
 api.get('/api/satchel/import',as((a,c)=>importState(db(c),a)));
