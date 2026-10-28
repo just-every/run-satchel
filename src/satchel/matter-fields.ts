@@ -20,7 +20,7 @@ const builtinValue:Record<Builtin,(p:Profile)=>unknown>={caseNumber:p=>p.caseNum
 function validate(p:Profile,submitted:Data,def:TypeDefinition|null,label:string) {
  const custom:Data={},dropped:string[]=[];
  if(!def){insist(!Object.keys(p.custom).length&&!Object.keys(submitted).length,'Choose a matter type before entering custom fields');return {custom,dropped};}
- for(const key of def.required)insist(!blank(builtinValue[key](p)),`${builtinFields[key]} is required for ${label}`);
+ for(const key of def.required){insist(Object.hasOwn(builtinValue,key),'Required standard fields are case number, court, insurance limit and fee arrangement');insist(!blank(builtinValue[key](p)),`${builtinFields[key]} is required for ${label}`);}
  for(const field of def.fields) {
   const value=field.key in submitted?typedValue(field,submitted[field.key]):p.custom[field.key]===undefined?undefined:storedValue(field,p.custom[field.key]);
   insist(!field.required||value!==undefined,`${field.label} is required for ${label}`);
