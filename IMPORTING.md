@@ -378,7 +378,9 @@ bytes. Current matter and document permissions and native erasure fences apply.
 
 A principal can retrieve the exact source envelope with
 `POST /api/satchel/migration/source` and `{id}`. It includes the original ZIP or
-CSV objects, explicit mappings, mapping revision and case repairs. These travel
+CSV objects, explicit mappings, mapping revision, client repairs and case repairs.
+The checkpoint’s Review retained MyCase source button opens these details and
+lets the principal download the exact original data ZIP or CSVs. These travel
 in the existing firm archive with durable checkpoints and provenance. Document
 originals remain in the separate erasure-aware original store.
 

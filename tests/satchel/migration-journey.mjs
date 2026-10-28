@@ -71,6 +71,7 @@ export async function proveMyCaseMoveInUi(h,page,shot){
   }else await panel.getByRole('button',{name:'Apply next source record',exact:true}).click();
   await panel.getByText(new RegExp('^(applying|completed) · '+(index+1)+' of 5 records$')).waitFor();
  }
+ await panel.getByRole('button',{name:'Review retained MyCase source',exact:true}).click();const [sourceDownload]=await Promise.all([page.waitForEvent('download'),panel.getByRole('link',{name:'Download MyCase-Full-Backup.zip',exact:true}).click()]);assert.equal((await readFile(await sourceDownload.path())).toString('base64'),p.backup.contentBase64);await shot('mycase-retained-source');
  await panel.getByRole('button',{name:'Reconcile whole firm move',exact:true}).click();await panel.getByRole('alert').filter({hasText:'MyCase unsupported: financial activity'}).waitFor();assert.equal(await panel.getByRole('button',{name:'Sign reconciled cutover',exact:true}).count(),0);await shot('mycase-incomplete-reconciliation');
  await tab(page,'Matters');await page.getByLabel('Find a matter').fill('MC-2020-1');await page.getByRole('button',{name:/MC-2020-1 · MyCase active advice/}).click();const history=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'Imported source history',exact:true})});await history.getByText('matters · matter-1 · imported',{exact:true}).waitFor();await shot('mycase-case-provenance');
  await tab(page,'Documents');await page.getByText('MyCase-advice.txt',{exact:true}).first().waitFor();await shot('mycase-original');

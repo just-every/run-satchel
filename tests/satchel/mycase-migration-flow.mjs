@@ -54,7 +54,7 @@ export async function proveMyCaseMove(h){
   let review;if(job.next.kind==='matters'){const search=await h.json('/conflicts',{client:job.next.client,adverse:job.next.adverse},h.owner);review={conflictId:search.id,confirmed:true,reviewNote:'Principal reviewed the archived source case and every match.'};}
   job=await h.json('/migration/resume',{id,review},h.owner);
  }
- const retained=await h.json('/migration/source',{id},h.owner);assert.deepEqual(retained.source.backup,p.backup);assert.deepEqual(retained.source.mappings,p.mappings);assert.equal(retained.source.mappingRevision,p.mappingRevision);
+ const retained=await h.json('/migration/source',{id},h.owner);assert.deepEqual(retained.source.backup,p.backup);assert.deepEqual(retained.source.mappings,p.mappings);assert.deepEqual(retained.source.clientRepairs,p.clientRepairs);assert.equal(retained.source.mappingRevision,p.mappingRevision);
  const state=await h.json('/state',undefined,h.owner),active=state.matters.find(m=>m.matter_number==='MC-2020-1'),archived=state.matters.find(m=>m.matter_number==='MC-2019-2');
  assert.equal(active.lifecycle_status,'open');assert.equal(archived.lifecycle_status,'closed');assert.equal(active.opened_at,'2020-01-01T12:00:00.000Z');
  const history=await h.json('/matters/'+archived.id+'/migration',undefined,h.owner),source=JSON.parse(history.sources.find(s=>s.kind==='matters').source_json);assert.equal(source.closed_at,'2020-03-03T12:00:00.000Z');assert.equal(source.source_status,'Archived');assert.equal(source.source_mapping_revision,'review-1');

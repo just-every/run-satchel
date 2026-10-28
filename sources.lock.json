@@ -144,7 +144,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "d03ffb890cc222c2550d96b07e3d10a3b8022c60f8f24202cd1aaf5600954c59",
+      "sha256": "8ae69b436e1c1e7ebc10e25a3269e65b2f10c0fcb5bb8d05c2525b16c96fd13e",
       "executable": false
     },
     "AGENTS.md": {
@@ -168,7 +168,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "2930ee4043f909775b8afaa6a3440283fa77fb6896dee21cd31cfc823efd8e3c",
+      "sha256": "c8585be61985d4d20fe2f03b2795f722eb3e42227654af30fc03f676579a5282",
       "executable": false
     },
     "DEMO.md": {
@@ -272,7 +272,7 @@
       "executable": false
     },
     "IMPORTING.md": {
-      "sha256": "ff7d8a8d93fc7340e8136a543ede9c2cb4021e7340d4e5a9bd99a7f6cd3581df",
+      "sha256": "1a646f2b3a99605a6aabd87955a4a5032fc86bcdccd9fcea855a6d7479fcb6d1",
       "executable": false
     },
     "LICENSE": {
@@ -3576,7 +3576,7 @@
       "executable": false
     },
     "src/satchel/migration.ts": {
-      "sha256": "0cc60f7020edee43d40d56a29baa873b0e2d70d6ec5e27ad37eac8161a6f5ade",
+      "sha256": "2f58748d1ba220cd93bc972cf206971709ffccc1a24336137220dfe9a9dd00ec",
       "executable": false
     },
     "src/satchel/model.ts": {
@@ -4300,7 +4300,7 @@
       "executable": false
     },
     "src/ui/migration.tsx": {
-      "sha256": "5a47f5c310ba7840872bd2985a2e978578a85aaf2049106f40025ee30b1af894",
+      "sha256": "ac52a3ad315809a759b224cb753295000b0651bfcc11a568106f38ed1db4ca4f",
       "executable": false
     },
     "src/ui/move-in.tsx": {
@@ -4808,11 +4808,11 @@
       "executable": false
     },
     "tests/satchel/migration-journey.mjs": {
-      "sha256": "c32bbad2850fc13fbd8a1addf93be756ea518aa9cf4c252ddeeb3f2385c186fb",
+      "sha256": "5d3cd12b984491eb5eb5a2308a88577a35d9dcc0ef52475ddda43a5fcb4f87f2",
       "executable": false
     },
     "tests/satchel/mycase-migration-flow.mjs": {
-      "sha256": "0544b7c240a4b7d442a50828c70ee425da2902d87df1e981ce46500bc67f6476",
+      "sha256": "b1e2cc1619a81164832dbea18dc824994c81e2594cdd3759d2dcb6443cdfc059",
       "executable": false
     },
     "tests/satchel/numbering-journey.test.mjs": {

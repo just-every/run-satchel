@@ -78,11 +78,11 @@ export async function migrationAction(db:D1Database,actor:Actor,op:string,b:Data
   return migrationAction(db,actor,'status',{id:jobId});
  }
  const job=await load(db,b.id);
- if(op==='source'){const p=await retainedPackage(db,job);insist(p.mycase,'This job has no MyCase source envelope',404);return {source:p.mycase};}
+ if(op==='source'){const p=await retainedPackage(db,job);insist(p.mycase,'This job has no MyCase source envelope',404);return {source:{...p.mycase,clientRepairs:p.clientRepairs}};}
  if(op==='status'){
   let next:Data|null=null;
   if(job.state==='applying'){const plan=parsePackage(await retainedPackage(db,job)),r=plan.records[job.checkpoint];if(r){next={kind:r.kind,sourceId:r.id,title:r.value.description??r.value.title??r.value.name??r.id,number:r.value.display_number,adverse:r.value.adverse_party};if(r.kind==='matters'){const clientId=plan.package.clientRepairs[r.value.client_id]??r.value.client_id;const client=await stmt(db,"SELECT source_json FROM s_move_sources WHERE account=? AND kind='contacts' AND source_id=?",job.account,clientId).first<Data>();next.client=client?JSON.parse(client.source_json).name:null;}}}
-  return {next,job:{...job,package_json:undefined},sources:await rows(db,'SELECT kind,source_id,target_id,disposition,source_json FROM s_move_sources WHERE job_id=? ORDER BY rowid',job.id),cutover:await stmt(db,'SELECT * FROM s_move_cutovers WHERE job_id=?',job.id).first()};}
+  return {next,job:{...job,provider:JSON.parse(job.package_json).provider??'clio',package_json:undefined},sources:await rows(db,'SELECT kind,source_id,target_id,disposition,source_json FROM s_move_sources WHERE job_id=? ORDER BY rowid',job.id),cutover:await stmt(db,'SELECT * FROM s_move_cutovers WHERE job_id=?',job.id).first()};}
  if(op==='resume'){
   insist(job.state!=='undone','An undone package cannot be replayed',409);
   if(job.state==='completed')return migrationAction(db,actor,'status',{id:job.id});
