@@ -310,3 +310,119 @@ relation text; no access permission or portal invitation follows from a role.
 Preview lists the SHA-256 and byte size of every retained data export as well
 as the separately supplied originals. Packages span bounded source rows and
 separate original rows, so multiple originals do not exceed a single D1 row.
+
+## Reviewed PracticePanther CSV packages
+
+The **Whole firm move** panel also accepts `satchel-practicepanther-v1` prepared
+packages. This path maps contacts and custom-field matters from explicitly
+reviewed CSV columns. It does not contact PracticePanther, request source
+credentials, infer source roles or authorize source shutdown.
+
+Export the authorized contact and matter spreadsheets as UTF-8 CSV. Preserve
+the original bytes, including BOM and line endings, as base64 in
+`practicePanther.exports.contacts.contentBase64` and
+`practicePanther.exports.matters.contentBase64`; each object also names its
+original filename in `name`. Each export is at most 1 MiB, with at most 1,000
+native rows across a package. XLSX parsing is not implemented in this path.
+A separately retained CSV is still required; renaming a workbook is refused.
+
+Use a stable non-secret `practicePanther.account` reference and an explicit
+`practicePanther.mapping.revision`. PracticePanther identities are stored under
+the reserved `practicepanther:` account prefix, separately from Clio identities.
+Clio packages cannot use that reserved prefix. Keep the same account reference
+and original IDs across later snapshots and deltas. The same ID in each source
+system names two different records.
+
+A package has the following shape. The base64 values are populated from the
+actual source files; they are not CSV filenames or reconstructed rows.
+
+```js
+const packageForReview = {
+  schema: 'satchel-practicepanther-v1',
+  phase: 'snapshot',
+  extractedAt: '2020-04-03T12:00:00.000Z',
+  clientRepairs: {},
+  coverage: { contacts: 'complete', matters: 'complete' },
+  practicePanther: {
+    account: 'synthetic-satchel-1',
+    exports: {
+      contacts: { name: 'Contacts.csv', contentBase64: contactBytes.toString('base64') },
+      matters: { name: 'Matters.csv', contentBase64: matterBytes.toString('base64') }
+    },
+    mapping: {
+      revision: 'review-1',
+      columns: {
+        contacts: { id: 'Contact ID', name: 'Display Name', aliases: 'Former Names' },
+        matters: {
+          id: 'Matter ID', display_number: 'Matter Number', description: 'Matter Name',
+          client_id: 'Client ID', adverse_party: 'Reviewed Adverse', status: 'Status',
+          opened_at: 'Opened At'
+        }
+      },
+      statuses: { Open: 'open', Closed: 'closed' },
+      matterType: { id: existingNativeTypeId, version: 1, practiceCode: 'LIT' },
+      fields: { caseNumber: 'Case Reference', court: 'Court' },
+      custom: { claim_value: 'Claim Amount', hearing: 'Hearing' }
+    }
+  }
+};
+```
+
+These source headings are illustrative, not assumed vendor-wide column names.
+Map the headings that exist in the actual original. Contacts require `id` and
+`name`; optional `email` and `aliases` use the existing native contact validation.
+Matters require `id`, `display_number`, `description`, `client_id`,
+`adverse_party`, `status` and `opened_at`; closed matters also map `closed_at`.
+Source IDs are never inferred from display names. Include independently reviewed
+adverse-party and opening metadata in the authorized source CSV before review
+when the export omits them; retain that prepared original. Instants use the
+UTC format documented for Clio packages. An optional explicit `statuses` map
+converts source status labels to native `open` or `closed`.
+
+Every mapping names an existing source header and one supported native field.
+Missing, duplicate or unknown mapping destinations refuse preview or commit.
+Standard matter `fields` may map caseNumber, court, insuranceLimit,
+feeArrangement and feeTerms. `custom` maps existing native field keys to source
+headers; `matterType` pins an existing native type and version in its practice
+area. Required values and money, number, date, choice and yes-or-no values pass
+Satchel's ordinary typed-field validator. Custom money is exact USD with at
+most two decimals. Source role columns remain unsupported and confer no grants.
+
+Preview writes nothing and displays the source filenames, exact byte sizes and
+SHA-256 digests, mapped headers, unsupported fields and missing history. The
+principal must explicitly confirm the mapping revision with
+`mappingConfirmed: true` when committing the current preview fingerprint. The
+UI provides that confirmation beside the mapping table. Changed files, mappings
+or client repairs invalidate the fingerprint. Each matter still needs a fresh
+native conflict search, reviewed conclusion and explicit opening confirmation.
+No source row substitutes for that clearance.
+
+The private package checkpoint retains downloadable original CSV bytes, the
+reviewed mapping, reviewer and review time. Native contacts record the source
+provider. Matter field history and the source journal retain the mapping
+revision, original IDs, headers, raw cells and source row location. Unsupported
+cells are retained in provenance and are never silently promoted to native
+fields. Packages, originals, mappings and checkpoints round-trip in the native
+archive. Resume uses the retained originals after restart or restore; identical
+replay reuses the job and native identities. A changed or undone identity
+requires reconciliation and cannot overwrite or resurrect a native record.
+
+`counts` may declare cumulative source counts for each dataset. If omitted,
+contact and matter counts use this package's rows and unsupported counts remain
+unknown behind a mandatory coverage gap. `balances`, when supplied, preserves
+the source billedCents, unbilledCents, arCents and trustCents declarations without
+posting money. Additional export files can be retained under other export keys;
+preview identifies them as unsupported. Every unsupported dataset stays missing
+regardless of a submitted `coverage` declaration or injected normalized datasets.
+A final delta uses the same reviewed mapping and `previousFingerprint`, but
+cutover remains refused until all required history has supported native mapping
+and reconciliation.
+
+This is a partial PracticePanther migration. Tasks including recurrence, time,
+payments, messages, PDF-report evidence, document originals, additional financial
+and calendar exports, complete relationships, trust and AR reconciliation, XLSX
+reading and guided authorized vendor-assisted extraction before source shutdown
+remain required. BILL-015's source-number preservation, cutover and complete
+QuickBooks Online and client-ledger obligations remain unchanged. This path
+moves no bank funds, issues no invoices and releases no existing provider,
+account or scanner hold.

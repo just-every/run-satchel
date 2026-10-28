@@ -144,7 +144,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "8f18f43e532a7186cd98aa4558cbe9aeb0f2beaef45cbba42ce652b1db12d0a6",
+      "sha256": "ec3b758b6882691bf98346df40f69c23db3d14d7ebff242cbe2ca23174c6b299",
       "executable": false
     },
     "AGENTS.md": {
@@ -168,7 +168,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "0b1481e2aa0003f12b2fb206237995e4f2ef60eac46ccd7a38abb53e19196d7d",
+      "sha256": "341e27d3bd0b11d203878f36c2a3d0b1c76e1c8d74e6c4b92be245b4f6dc5e4a",
       "executable": false
     },
     "DEMO.md": {
@@ -196,7 +196,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "e9032a1d705d1721dabbe522abfca744289529f9dcdd4af0f5d823e46a2bafba",
+      "sha256": "c7619641a17a00506822f77835a4678955b2362ba08697db10c1b00bb42897f8",
       "executable": false
     },
     "docs/client-portal.md": {
@@ -272,7 +272,7 @@
       "executable": false
     },
     "IMPORTING.md": {
-      "sha256": "da1aae2112c03368929d0690ac82868d675a1ab9e8a7f0fe03bddcd08071cae3",
+      "sha256": "4334a327608278f88d8c6400c08d42785d3ba85aec577ef6da58fa319ab524a6",
       "executable": false
     },
     "LICENSE": {
@@ -3256,7 +3256,7 @@
       "executable": false
     },
     "src/satchel/contact-data.ts": {
-      "sha256": "c1ea8a8402f34c83af9147e27aa2b2489fe5d66318c5f33c9c6795a9b23a9705",
+      "sha256": "96ed67526daa66e20e752b37b81977bf824d7c610074560f7545604c4706302b",
       "executable": false
     },
     "src/satchel/contact-graph.ts": {
@@ -3368,11 +3368,15 @@
       "executable": false
     },
     "src/satchel/imports/native.ts": {
-      "sha256": "a719efa3e4273e821122e8618d8b6eefc88f08a5b6bb882c48263eb1785313b8",
+      "sha256": "c89878822095172e2387e8548da02264366fb34a992f61ca14ddced1c1da15a0",
       "executable": false
     },
     "src/satchel/imports/package.ts": {
-      "sha256": "3c6754b4f5db569551d59fa693b8d6a574d3882035be78375682f18a2a952a81",
+      "sha256": "f8d3c60b61037b7e587e9014d8007cdd56e11f5e9339a1a31f9f8c9fcdd53e2c",
+      "executable": false
+    },
+    "src/satchel/imports/practicepanther.ts": {
+      "sha256": "6538bd1784b7afcc0c3b6432e32c472a928657a926a45e83981aefc1b84134ca",
       "executable": false
     },
     "src/satchel/imports/target.ts": {
@@ -3568,7 +3572,7 @@
       "executable": false
     },
     "src/satchel/migration.ts": {
-      "sha256": "c91d824e8d32e5c7eb9a777080b51e2014e8f2b0e466fe8aaa3d0b1bcff2267d",
+      "sha256": "d6415481048d09d5a5401d71414a30b21672dd8c4a7b301bea602c7258f75458",
       "executable": false
     },
     "src/satchel/model.ts": {
@@ -4292,7 +4296,7 @@
       "executable": false
     },
     "src/ui/migration.tsx": {
-      "sha256": "b625f4748079686b37e52885dd491dfc4b8fd6341993b3b2bfcf9637ef035e88",
+      "sha256": "e7dee2d04c4ba166a4b429be6eb6911685f0ca677ff37c622cdd56fde2c12436",
       "executable": false
     },
     "src/ui/move-in.tsx": {
@@ -4756,7 +4760,7 @@
       "executable": false
     },
     "tests/satchel/matter-import.test.mjs": {
-      "sha256": "812bae42988dd2fa123eaf0eafadfbad5e9bee110fe374a1bf1d21c2f9a0720f",
+      "sha256": "faba0b56f6cd110274357210440cf1f78270bb44f92a3f3999be89dcf08f7350",
       "executable": false
     },
     "tests/satchel/matter-types-journey.test.mjs": {
@@ -4800,11 +4804,11 @@
       "executable": false
     },
     "tests/satchel/migration-journey.mjs": {
-      "sha256": "90ab6b49bd9a2ecdd5fe9e4ae1da3568727e59cd39d216a617fbb90a78b7676e",
+      "sha256": "518bbd08be4ef90dbe30deb2e5d32d72c4cf1fa76cfc93a2f33d7238a17b4062",
       "executable": false
     },
     "tests/satchel/numbering-journey.test.mjs": {
-      "sha256": "a300dce5be607d8521c108978805ca16f608e75ca737a32210d6c18f37ecacd3",
+      "sha256": "05b519be8fa55438bb87e171169b02166f5e304e5c746ef3fcfc241ae639b318",
       "executable": false
     },
     "tests/satchel/numbering.test.mjs": {
@@ -4841,6 +4845,10 @@
     },
     "tests/satchel/portal-threads.test.mjs": {
       "sha256": "590d932d388655c8560df29a362243637709f5f1cf172f78413fb3f746a07b6e",
+      "executable": false
+    },
+    "tests/satchel/practicepanther-migration-flow.mjs": {
+      "sha256": "7f7e4fad333b3a736237e042cbc4f8d7189388c0847e69a4dd428ad470d551c7",
       "executable": false
     },
     "tests/satchel/prebill-journey.mjs": {

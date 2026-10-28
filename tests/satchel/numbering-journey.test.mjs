@@ -1,4 +1,4 @@
-import {proveWholeFirmMoveInUi} from './migration-journey.mjs';
+import {proveWholeFirmMoveInUi,provePracticePantherMoveInUi} from './migration-journey.mjs';
 import {selectExemptTax} from './tax-fixture.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -30,7 +30,7 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`MATTER-008 configure, 
   await tab(page,'Firm');const changed=form(page,'Save number pattern');await changed.getByLabel('Matter number pattern').fill('NEW-{sequence}');await changed.getByRole('button',{name:'Save number pattern'}).click();await notice(page,'Matter number pattern saved');
   await tab(page,'Matters');await page.getByLabel('Find a matter').fill('2019-0042');assert.equal(await page.locator('section',{has:page.getByRole('heading',{name:'Matter register',exact:true})}).locator('button.record').count(),1);await page.getByRole('button',{name:/2019-0042/}).click();await page.getByText('2019-0042',{exact:true}).waitFor();await page.getByLabel('Find a matter').fill(number);await page.getByRole('button',{name:new RegExp(number)}).click();await page.getByText(number,{exact:true}).waitFor();
   await tab(page,'Documents');await page.getByText('Matter '+number,{exact:true}).waitFor();await tab(page,'Deadlines');await page.getByText('Matter '+number,{exact:true}).waitFor();await tab(page,'Time & bills');await page.getByText('Matter '+number,{exact:true}).waitFor();
-  if(width===1440)await proveWholeFirmMoveInUi(h,page,shot);
+  if(width===1440){await proveWholeFirmMoveInUi(h,page,shot);await provePracticePantherMoveInUi(h,page);}
   assert.deepEqual(errors,[]);
  }finally{await browser.close();await h.close();}
 });

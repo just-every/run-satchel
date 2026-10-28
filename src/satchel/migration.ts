@@ -6,6 +6,7 @@ import {parsePackage,kinds,type MovePackage,type MoveRow} from './imports/packag
 import {applyNative,nativeSnapshotSql,targetId} from './imports/native';
 import {importedMatterProfile,mappedMatterProfile,readProfile} from './matter-fields';
 import {invoiceFunds} from './trust-transfers';
+import {practicePantherExports} from './imports/practicepanther';
 
 // Every ordinary native use fences safe contact removal, including graph and
 // consent history that does not change the party's own revision.
@@ -47,7 +48,7 @@ async function review(db:D1Database,input:unknown){
  }
  return {...plan,prior};
 }
-const publicReview=(p:Awaited<ReturnType<typeof review>>)=>({fingerprint:p.fingerprint,mappingVersion:p.mappingVersion,phase:p.package.phase,counts:Object.fromEntries(kinds.map(k=>[k,{package:p.records.filter(r=>r.kind===k).length,source:p.package.counts[k],imported:p.prior.filter(r=>r.kind===k&&['imported','preserved'].includes(r.disposition)).length}])),datasets:kinds.map(kind=>({kind,name:kind+(p.package.datasets[kind].startsWith('BEGIN:VCALENDAR')?'.ics':'.csv'),sha256:sha256(p.package.datasets[kind]),size:new TextEncoder().encode(p.package.datasets[kind]).length})),files:[...p.files.values()].map(({contentBase64,...f})=>f),relationships:p.references.map(ref=>({from:ref.row.id,kind:ref.kind,to:ref.id})),errors:p.errors,coverageGaps:p.warnings,fileRequirements:p.records.filter(r=>['documents','invoices'].includes(r.kind)).map(r=>({id:r.kind==='documents'?r.value.file_id:r.value.pdf_file_id,kind:r.kind,sourceId:r.id,present:p.files.has(r.kind==='documents'?r.value.file_id:r.value.pdf_file_id)})),contacts:p.records.filter(r=>r.kind==='contacts').map(r=>({id:r.id,name:r.value.name})),rows:p.records.map(r=>({kind:r.kind,sourceId:r.id,status:p.prior.some(s=>s.identity===r.identity)?'imported':'pending',...r.kind==='matters'?{clientId:r.value.client_id,client:p.records.find(c=>c.kind==='contacts'&&c.id===(p.package.clientRepairs[r.value.client_id]??r.value.client_id))?.value.name,title:r.value.description,number:r.value.display_number,adverse:r.value.adverse_party}:{}}))});
+const publicReview=(p:Awaited<ReturnType<typeof review>>)=>({fingerprint:p.fingerprint,mappingVersion:p.mappingVersion,phase:p.package.phase,counts:Object.fromEntries(kinds.map(k=>[k,{package:p.records.filter(r=>r.kind===k).length,source:p.package.counts[k],imported:p.prior.filter(r=>r.kind===k&&['imported','preserved'].includes(r.disposition)).length}])),sourceExports:p.package.practicePanther?practicePantherExports(p.package.practicePanther).map(({csv,...f})=>f):[],columnMapping:p.package.practicePanther?.mapping??null,datasets:kinds.map(kind=>({kind,name:kind+(p.package.datasets[kind].startsWith('BEGIN:VCALENDAR')?'.ics':'.csv'),sha256:sha256(p.package.datasets[kind]),size:new TextEncoder().encode(p.package.datasets[kind]).length})),files:[...p.files.values()].map(({contentBase64,...f})=>f),relationships:p.references.map(ref=>({from:ref.row.id,kind:ref.kind,to:ref.id})),errors:p.errors,coverageGaps:p.warnings,fileRequirements:p.records.filter(r=>['documents','invoices'].includes(r.kind)).map(r=>({id:r.kind==='documents'?r.value.file_id:r.value.pdf_file_id,kind:r.kind,sourceId:r.id,present:p.files.has(r.kind==='documents'?r.value.file_id:r.value.pdf_file_id)})),contacts:p.records.filter(r=>r.kind==='contacts').map(r=>({id:r.id,name:r.value.name})),rows:p.records.map(r=>({kind:r.kind,sourceId:r.id,status:p.prior.some(s=>s.identity===r.identity)?'imported':'pending',...r.kind==='matters'?{clientId:r.value.client_id,client:p.records.find(c=>c.kind==='contacts'&&c.id===(p.package.clientRepairs[r.value.client_id]??r.value.client_id))?.value.name,title:r.value.description,number:r.value.display_number,adverse:r.value.adverse_party}:{}}))});
 async function retainedPackage(db:D1Database,job:Data):Promise<MovePackage>{
  const [parts,originals]=await Promise.all([rows(db,'SELECT body FROM s_move_package_chunks WHERE job_id=? ORDER BY ordinal',job.id),rows(db,'SELECT metadata_json,content_base64 FROM s_move_originals WHERE job_id=?',job.id)]);
  const payload=JSON.parse(parts.map(p=>p.body).join(''));
@@ -65,9 +66,10 @@ export async function migrationAction(db:D1Database,actor:Actor,op:string,b:Data
   if(op==='preview')return publicReview(plan);
   insist(plan.errors.length===0,'Resolve package errors before applying: '+plan.errors.join('; '),409);
   insist(b.fingerprint===plan.fingerprint,'The package changed; preview it again',409);
+  if(p.practicePanther)insist(b.mappingConfirmed===true,'Explicitly confirm the reviewed PracticePanther column mapping');
   const previous=await stmt(db,'SELECT id FROM s_move_jobs WHERE fingerprint=?',plan.fingerprint).first<Data>();
   if(previous)return migrationAction(db,actor,'status',{id:previous.id});
-  const jobId=id(),payload=JSON.stringify({...p,files:undefined}),header=JSON.stringify({schema:p.schema,account:p.account,phase:p.phase,extractedAt:p.extractedAt,counts:p.counts,balances:p.balances,coverage:p.coverage});
+  const jobId=id(),payload=JSON.stringify({...p,files:undefined}),header=JSON.stringify({schema:p.schema,account:p.account,phase:p.phase,extractedAt:p.extractedAt,counts:p.counts,balances:p.balances,coverage:p.coverage,...(p.practicePanther?{mappingRevision:p.practicePanther.mapping.revision,mappingReviewedBy:actor.email,mappingReviewedAt:now()}: {})});
   const writes=[stmt(db,"INSERT INTO s_move_jobs(id,account,fingerprint,package_json,phase,previous_fingerprint,total,state,created_by,created_at) VALUES(?,?,?,?,?,?,?,'applying',?,?)",jobId,p.account,plan.fingerprint,header,p.phase,p.previousFingerprint??null,plan.records.length,actor.email,now())];
   // Bounded rows keep a package containing several small originals below D1's
   // per-row ceiling; every part is published with the reviewed job atomically.
@@ -79,9 +81,10 @@ export async function migrationAction(db:D1Database,actor:Actor,op:string,b:Data
  }
  const job=await load(db,b.id);
  if(op==='status'){
+  const metadata=JSON.parse(job.package_json),sourcePackage=metadata.mappingRevision?await retainedPackage(db,job):null;
   let next:Data|null=null;
   if(job.state==='applying'){const plan=parsePackage(await retainedPackage(db,job)),r=plan.records[job.checkpoint];if(r){next={kind:r.kind,sourceId:r.id,title:r.value.description??r.value.title??r.value.name??r.id,number:r.value.display_number,adverse:r.value.adverse_party};if(r.kind==='matters'){const clientId=plan.package.clientRepairs[r.value.client_id]??r.value.client_id;const client=await stmt(db,"SELECT source_json FROM s_move_sources WHERE account=? AND kind='contacts' AND source_id=?",job.account,clientId).first<Data>();next.client=client?JSON.parse(client.source_json).name:null;}}}
-  return {next,job:{...job,package_json:undefined},sources:await rows(db,'SELECT kind,source_id,target_id,disposition,source_json FROM s_move_sources WHERE job_id=? ORDER BY rowid',job.id),cutover:await stmt(db,'SELECT * FROM s_move_cutovers WHERE job_id=?',job.id).first()};}
+  return {next,sourceExports:sourcePackage?.practicePanther?practicePantherExports(sourcePackage.practicePanther).map(({csv,...file})=>({...file,contentBase64:sourcePackage.practicePanther!.exports[file.kind].contentBase64})):[],columnMapping:sourcePackage?.practicePanther?.mapping??null,mappingReview:metadata.mappingRevision?{revision:metadata.mappingRevision,by:metadata.mappingReviewedBy,at:metadata.mappingReviewedAt}:null,job:{...job,package_json:undefined},sources:await rows(db,'SELECT kind,source_id,target_id,disposition,source_json FROM s_move_sources WHERE job_id=? ORDER BY rowid',job.id),cutover:await stmt(db,'SELECT * FROM s_move_cutovers WHERE job_id=?',job.id).first()};}
  if(op==='resume'){
   insist(job.state!=='undone','An undone package cannot be replayed',409);
   if(job.state==='completed')return migrationAction(db,actor,'status',{id:job.id});

@@ -20,7 +20,7 @@ export async function applyNative(db:D1Database,actor:Actor,job:Data,p:MovePacka
  const mid=v.matter_id?targetId(p.account,'matters',v.matter_id):'',staff=v.staff_id?p.staff[v.staff_id]:actor.email;
  const writes:D1PreparedStatement[]=[];
  if(v.staff_id)writes.push(guard(db,"EXISTS(SELECT 1 FROM s_members WHERE email=? AND active=1 AND role<>'client') OR EXISTS(SELECT 1 FROM oa_operators WHERE email=? AND role='owner' AND status='active')",staff,staff));
- if(r.kind==='contacts')writes.push(stmt(db,'INSERT INTO s_parties(id,name,aliases,email,source,revision) VALUES(?,?,?,?,?,?)',target,v.name,v.aliases??'',v.email??'','clio',id()));
+ if(r.kind==='contacts')writes.push(stmt(db,'INSERT INTO s_parties(id,name,aliases,email,source,revision) VALUES(?,?,?,?,?,?)',target,v.name,v.aliases??'',v.email??'',p.practicePanther?'practicepanther':'clio',id()));
  if(r.kind==='contacts'&&v.profile){const profile=contactProfile(JSON.parse(v.profile));writes.push(stmt(db,'INSERT INTO s_contact_profiles VALUES(?,?,?,?,?,?,?,?,?,?,?)',target,profile.kind,profile.name,JSON.stringify(profile.aliases),JSON.stringify(profile.formerNames),JSON.stringify(profile.emails),JSON.stringify(profile.phones),JSON.stringify(profile.addresses),id(),actor.email,at));}
  if(r.kind==='relationships'){
   if(v.other_contact_id){table='s_contact_relationships';writes.push(stmt(db,'INSERT INTO s_contact_relationships VALUES(?,?,?,?,?,?)',target,targetId(p.account,'contacts',v.contact_id),targetId(p.account,'contacts',v.other_contact_id),v.relation,actor.email,at));}
@@ -33,7 +33,7 @@ export async function applyNative(db:D1Database,actor:Actor,job:Data,p:MovePacka
   const conflict=await stmt(db,'SELECT client,adverse FROM s_conflicts WHERE id=? AND actor=?',review.conflictId??'',actor.email).first<Data>();
   insist(conflict&&conflict.client===client.name&&conflict.adverse===v.adverse_party,'Run and review a fresh conflict search for this matter',409);
   const fields=v.fields?JSON.parse(v.fields):{caseNumber:v.case_number??undefined};
-  writes.push(...await importedMatterProfile(db,actor,target,v.practice_code??'',fields,{account:p.account,sourceId:r.id,job:job.id,sourceHash:r.hash}));
+  writes.push(...await importedMatterProfile(db,actor,target,v.practice_code??'',fields,{account:p.account,sourceId:r.id,job:job.id,sourceHash:r.hash,...(p.practicePanther?{provider:'practicepanther',mappingRevision:p.practicePanther.mapping.revision}: {})}));
   writes.push(stmt(db,'UPDATE s_matters SET lifecycle_status=?,practice_code=? WHERE id=?',v.status,v.practice_code??'',target));
  }
  if(r.kind==='documents'){

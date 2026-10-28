@@ -129,7 +129,7 @@ Generated from CONTRACT.md; regenerate with the documented contract-docs command
 | MOVE-002 | Migrate Clio Manage and Grow completely | done |
 | MOVE-003 | Migrate 8am MyCase completely | missing |
 | MOVE-004 | Migrate Smokeball completely | missing |
-| MOVE-005 | Migrate PracticePanther completely | missing |
+| MOVE-005 | Migrate PracticePanther completely | partial |
 | MOVE-006 | Migrate Filevine completely | missing |
 | MOVE-007 | Migrate Eve work and source references | missing |
 | MOVE-008 | Prove finance and authority at cutover | missing |

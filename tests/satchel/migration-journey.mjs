@@ -8,9 +8,9 @@ const tab=async(page,name)=>{await page.getByRole('navigation',{name:'Workspace'
 export async function proveWholeFirmMoveInUi(h,page,shot){
  const p=await setupMove(h),original=structuredClone(p.files.find(f=>f.id==='original-2'));p.files=p.files.filter(f=>f.id!=='original-2');await designate(h);
  await tab(page,'Move in');
- const panel=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'Whole firm Clio move',exact:true})});
+ const panel=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'Whole firm move',exact:true})});
  const preview=async()=>{await panel.getByRole('button',{name:'Preview whole firm move',exact:true}).click();await panel.getByRole('heading',{name:'Review package',exact:true}).waitFor();};
- await panel.getByLabel('Prepared Clio package',{exact:true}).setInputFiles({name:'synthetic-satchel-package.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(p))});
+ await panel.getByLabel('Prepared migration package',{exact:true}).setInputFiles({name:'synthetic-satchel-package.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(p))});
  await preview();const initialErrors=await panel.getByRole('alert').allTextContents();assert.ok(initialErrors.some(e=>e.includes('unmatched contacts identity missing-client')));assert.ok(initialErrors.some(e=>e.includes('missing original original-2')));assert.equal(await panel.getByRole('button',{name:'Commit reviewed package',exact:true}).isDisabled(),true);
  await shot('migration-repair');
  await panel.getByLabel('Repair client for 2020-C1',{exact:true}).selectOption('client-1');await preview();
@@ -41,8 +41,8 @@ export async function proveWholeFirmMoveInUi(h,page,shot){
  assert.equal(await reconciliation.getByRole('alert').count(),0);
  const sign=form(panel,'Sign reconciled cutover');await sign.getByLabel('Signed reconciliation declaration',{exact:true}).fill('Principal signs the reviewed final source inventory, originals and cent balances.');await sign.getByLabel('Source counts, originals and balances match after the final delta.',{exact:true}).check();await sign.getByRole('button',{name:'Sign reconciled cutover',exact:true}).click();await panel.getByText(/^Cutover signed ·/).waitFor();await shot('migration-cutover');
  await tab(page,'Matters');await page.getByLabel('Find a matter').fill('2020-C1');await page.getByRole('button',{name:/2020-C1 · Source active advice/}).click();
- const history=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'Imported Clio history',exact:true})});await history.getByText('Historic invoice CLIO-2020-81 · $120.00',{exact:true}).waitFor();
- const [download]=await Promise.all([page.waitForEvent('download'),history.getByRole('link',{name:'Open original Clio invoice PDF',exact:true}).click()]);assert.equal((await readFile(await download.path())).toString('base64'),p.files.find(f=>f.id==='pdf-1').contentBase64);await shot('migration-matter-history');
+ const history=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'Imported source history',exact:true})});await history.getByText('Historic invoice CLIO-2020-81 · $120.00',{exact:true}).waitFor();
+ const [download]=await Promise.all([page.waitForEvent('download'),history.getByRole('link',{name:'Open original source invoice PDF',exact:true}).click()]);assert.equal((await readFile(await download.path())).toString('base64'),p.files.find(f=>f.id==='pdf-1').contentBase64);await shot('migration-matter-history');
  const m=(await h.json('/state',undefined,h.owner)).matters.find(m=>m.matter_number==='2020-C1');await setupInvoicePayers(h,m);
  const templates=await h.json('/invoice-templates',undefined,h.owner);await h.json('/invoice-templates',invoiceTemplate(templates.templates.at(-1)?.id??null,{includeTrustBalance:false}),h.owner);
  const recipient=(await h.json('/contacts',undefined,h.owner)).contacts.find(c=>c.name===m.client).emails[0];
@@ -50,4 +50,37 @@ export async function proveWholeFirmMoveInUi(h,page,shot){
  const bill=page.locator('section.bill-packages article.record').filter({has:page.getByText('Clio invoice CLIO-2020-81 · $120.00',{exact:true})});await bill.getByText('Invoice delivery',{exact:true}).click();
  const deliver=form(bill,'Deliver invoice to portal');await deliver.getByLabel('Payer portal email',{exact:true}).fill(recipient);await deliver.getByLabel('Invoice payer name',{exact:true}).fill(m.client);await deliver.getByRole('button',{name:'Deliver invoice to portal',exact:true}).click();await page.getByRole('status').getByText('Branded invoice delivered inside the authenticated portal',{exact:true}).waitFor();const deliveryDetails=bill.locator('details').filter({has:page.getByText('Invoice delivery',{exact:true})});await deliveryDetails.waitFor();if(await deliveryDetails.getAttribute('open')===null)await bill.getByText('Invoice delivery',{exact:true}).click();await bill.getByRole('link',{name:'Download delivered PDF',exact:true}).waitFor();
  const [delivered]=await Promise.all([page.waitForEvent('download'),bill.getByRole('link',{name:'Download delivered PDF',exact:true}).click()]);assert.equal((await readFile(await delivered.path())).toString('base64'),p.files.find(f=>f.id==='pdf-1').contentBase64);await shot('migration-original-delivery');
+}
+
+export async function provePracticePantherMoveInUi(h,page){
+ const {practicePantherFixture}=await import('./practicepanther-migration-flow.mjs');
+ const {capturePanel}=await import('./browser-shots.mjs');
+ const p=await practicePantherFixture(h),viewport=page.viewportSize();
+ await tab(page,'Move in');
+ const panel=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'Whole firm move',exact:true})});
+ const capture=async(name,target=panel)=>{
+  if(!process.env.SATCHEL_SCREENSHOTS)return;
+  for(const width of [1440,390]){await page.setViewportSize({width,height:width===390?844:1000});await capturePanel(page,target,process.env.SATCHEL_SCREENSHOTS,`practicepanther-${name}-${width}`);}
+  await page.setViewportSize(viewport);
+ };
+ await panel.getByLabel('Prepared migration package',{exact:true}).setInputFiles({name:'synthetic-satchel-practicepanther.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(p))});
+ await panel.getByRole('button',{name:'Preview whole firm move',exact:true}).click();
+ const mapping=panel.getByRole('region',{name:'PracticePanther mapping review'});await mapping.getByRole('heading',{name:'PracticePanther column mapping',exact:true}).waitFor();
+ await mapping.getByText('Unsupported fields: Unsupported field. Retained in source history.',{exact:true}).waitFor();await mapping.getByRole('cell',{name:'Custom: claim_value',exact:true}).waitFor();await panel.getByText(/^tasks: source history is not complete/).waitFor();
+ assert.equal(await panel.getByRole('button',{name:'Commit reviewed package',exact:true}).isDisabled(),true);
+ assert.ok(!(await h.json('/state',undefined,h.owner)).matters.some(m=>m.matter_number==='PP-2020-42'));
+ await capture('mapping',mapping);
+ await mapping.getByRole('checkbox').check();await panel.getByRole('button',{name:'Commit reviewed package',exact:true}).click();await panel.getByText('applying · 0 of 3 records',{exact:true}).waitFor();
+ for(let i=0;i<2;i++){await panel.getByRole('button',{name:'Apply next source record',exact:true}).click();await panel.getByText(`applying · ${i+1} of 3 records`,{exact:true}).waitFor();}
+ await page.reload();await tab(page,'Move in');
+ const entry=panel.getByRole('article').filter({has:page.getByText(/^practicepanther:synthetic-satchel-1 · snapshot/)});await entry.getByRole('button',{name:'Open move checkpoint',exact:true}).click();await panel.getByText('applying · 2 of 3 records',{exact:true}).waitFor();
+ await panel.getByRole('button',{name:'Search conflicts for next matter',exact:true}).click();
+ const review=form(panel,'Import reviewed source matter');await review.getByLabel('Conflict conclusion and clearance',{exact:true}).fill('Principal reviewed PracticePanther columns, source relationships and every possible native conflict.');await review.getByLabel('I reviewed the source matter, every match and my authority to open it.',{exact:true}).check();await review.getByRole('button',{name:'Import reviewed source matter',exact:true}).click();await panel.getByText('completed · 3 of 3 records',{exact:true}).waitFor();
+ await panel.getByText('Reviewed mapping and original CSV files',{exact:true}).click();
+ const [download]=await Promise.all([page.waitForEvent('download'),panel.getByRole('link',{name:'Download original PracticePanther-Contacts.csv',exact:true}).click()]);assert.equal((await readFile(await download.path())).toString('base64'),p.practicePanther.exports.contacts.contentBase64);
+ await panel.getByRole('button',{name:'Reconcile whole firm move',exact:true}).click();await panel.getByRole('alert').filter({hasText:'tasks: retrieve missing source history'}).waitFor();assert.equal(await panel.getByRole('button',{name:'Sign reconciled cutover',exact:true}).count(),0);await capture('checkpoint');
+ await tab(page,'Matters');await page.getByLabel('Find a matter').fill('PP-2020-42');await page.getByRole('button',{name:/PP-2020-42 · Panther custom-field advice/}).click();
+ const fields=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'Matter type and fields',exact:true})});await fields.getByLabel('Claim value',{exact:true}).waitFor();assert.equal(await fields.getByLabel('Claim value',{exact:true}).inputValue(),'250000.50');assert.equal(await fields.getByLabel('Hearing date',{exact:true}).inputValue(),'2020-05-06');assert.equal(await fields.getByRole('combobox',{name:/^Source priority/}).inputValue(),'Urgent');assert.equal(await fields.getByRole('combobox',{name:/^Source reviewed/}).inputValue(),'yes');await capture('native-fields',fields);
+ const history=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'Imported source history',exact:true})});await history.locator('summary').filter({hasText:'matters · matter-1'}).click();await history.getByText('Retain the source-only value',{exact:false}).waitFor();await capture('provenance',history);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);
 }

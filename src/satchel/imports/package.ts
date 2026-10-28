@@ -4,12 +4,13 @@ import {date,insist,text,type Data} from '../model';
 import {contactProfile} from '../contact-data';
 import {calendarIcs} from './ics';
 import {parseCsv} from './csv';
+import {practicePantherPackage,practicePantherSchema,type PracticePantherSource} from './practicepanther';
 
 export const kinds=['contacts','matters','relationships','documents','notes','calls','emails','calendar','tasks','time','expenses','invoices','trust','grow'] as const;
 export type Kind=typeof kinds[number];
 export type MoveRow={kind:Kind;id:string;identity:string;hash:string;value:Data;line:number};
 export type MoveFile={id:string;name:string;sha256:string;contentBase64:string;modifiedAt:string;mime:string;size:number};
-export type MovePackage={schema:string;account:string;phase:string;previousFingerprint?:string;extractedAt:string;datasets:Record<Kind,string>;files:MoveFile[];staff:Record<string,string>;clientRepairs:Record<string,string>;coverage:Record<string,string>;counts:Record<Kind,number>;balances:Data;trustAccountId?:string;calendarMatters?:Record<string,string>};
+export type MovePackage={schema:string;account:string;phase:string;previousFingerprint?:string;extractedAt:string;datasets:Record<Kind,string>;files:MoveFile[];staff:Record<string,string>;clientRepairs:Record<string,string>;coverage:Record<string,string>;counts:Record<Kind,number>;balances:Data;trustAccountId?:string;calendarMatters?:Record<string,string>;practicePanther?:PracticePantherSource};
 const columns:Record<Kind,string[]>={
  contacts:['id','name'],matters:['id','display_number','description','client_id','adverse_party','status','opened_at'],
  relationships:['id','matter_id','contact_id','relation'],documents:['id','matter_id','file_id','date','visibility'],
@@ -22,9 +23,12 @@ const columns:Record<Kind,string[]>={
 export const money=(v:unknown,label:string)=>{const s=String(v);insist(/^\d{1,12}$/.test(s)&&Number.isSafeInteger(Number(s)),`${label} must be exact nonnegative USD cents`);return Number(s);};
 export function timestamp(v:unknown,label:string){const s=text(v,label,40);insist(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{3})?Z$/.test(s)&&Number.isFinite(Date.parse(s))&&new Date(s).toISOString()===(s.includes('.')?s:s.slice(0,-1)+'.000Z'),`${label} must be a UTC timestamp`);return s;}
 export function parsePackage(input:unknown){
- insist(input&&typeof input==='object'&&!Array.isArray(input),'Supply a prepared Clio package');
- const p=input as MovePackage;
- insist(p.schema==='satchel-clio-v1','Use the satchel-clio-v1 prepared export schema');
+ insist(input&&typeof input==='object'&&!Array.isArray(input),'Supply a prepared migration package');
+ insist(JSON.stringify(input).length<=12_000_000,'Split packages larger than 12 MB into reviewed deltas');
+ const raw=input as MovePackage;
+ insist(raw.schema==='satchel-clio-v1'||raw.schema===practicePantherSchema,'Use a supported prepared export schema');
+ if(raw.schema==='satchel-clio-v1')insist(!String(raw.account).startsWith('practicepanther:'),'The practicepanther: account namespace is reserved for PracticePanther exports');
+ const p=raw.schema===practicePantherSchema?practicePantherPackage(raw,columns):raw;
  text(p.account,'Source account reference',100);timestamp(p.extractedAt,'Extraction time');
  insist(p.phase==='snapshot'||p.phase==='delta','Choose snapshot or delta');
  if(p.phase==='delta')insist(typeof p.previousFingerprint==='string'&&/^[a-f0-9]{64}$/.test(p.previousFingerprint),'A delta must name its preceding completed package');
@@ -80,8 +84,10 @@ export function parsePackage(input:unknown){
      if(kind==='invoices'&&file&&file.mime!=='application/pdf')fail(`Invoice ${sid}: supply the original PDF`);
     }
    }catch(e){fail(`${kind} ${sid}: ${(e as Error).message}`);}
+   let sourceValue=v;
+   if(p.practicePanther&&v._source){const {line,filename,...provenance}=JSON.parse(v._source);sourceValue={...v,_source:provenance};}
    const file=['documents','invoices'].includes(kind)?files.get(kind==='documents'?v.file_id:v.pdf_file_id):undefined;
-   records.push({kind,id:sid,identity:sha256(canonicalJson([p.account,kind,sid])),hash:sha256(canonicalJson({value:v,mapping:{...(kind==='matters'?{clientId:p.clientRepairs[v.client_id]??v.client_id??null}:{}),...(v.staff_id?{staff:p.staff[v.staff_id]??null}:{}),...(kind==='trust'?{trustAccountId:p.trustAccountId??null}:{})},...(file?{file:{id:file.id,sha256:file.sha256,modifiedAt:file.modifiedAt,name:file.name}}:{})})),value:v,line});
+   records.push({kind,id:sid,identity:sha256(canonicalJson([p.account,kind,sid])),hash:sha256(canonicalJson({value:sourceValue,mapping:{...(kind==='matters'?{clientId:p.clientRepairs[v.client_id]??v.client_id??null}:{}),...(v.staff_id?{staff:p.staff[v.staff_id]??null}:{}),...(kind==='trust'?{trustAccountId:p.trustAccountId??null}:{})},...(file?{file:{id:file.id,sha256:file.sha256,modifiedAt:file.modifiedAt,name:file.name}}:{})})),value:v,line});
   }
   if(!Number.isSafeInteger(p.counts[kind])||p.counts[kind]<ids.size)fail(`${kind}: cumulative source count cannot be below package count`);
   if(p.coverage[kind]!=='complete')warnings.push(`${kind}: source history is not complete; retrieve an authorized supplemental export before cutover`);
@@ -93,5 +99,5 @@ export function parsePackage(input:unknown){
  for(const r of byKind('trust')){references.push({row:r,kind:'documents',id:r.value.document_id});references.push({row:r,kind:'contacts',id:p.clientRepairs[r.value.client_id]??r.value.client_id});}
  for(const r of [...byKind('time'),...byKind('expenses')])if(r.value.invoice_id)references.push({row:r,kind:'invoices',id:r.value.invoice_id});
  for(const k of ['billedCents','unbilledCents','arCents','trustCents'])money(p.balances[k],k);
- return {package:p,records,files,references,errors,warnings,fingerprint:sha256(canonicalJson(p)),mappingVersion:p.schema,columns,contactIds,matterIds};
+ return {package:p,records,files,references,errors,warnings,fingerprint:sha256(canonicalJson(p)),mappingVersion:p.practicePanther?.mapping.revision??p.schema,columns,contactIds,matterIds};
 }
