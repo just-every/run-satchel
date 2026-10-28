@@ -98,12 +98,13 @@ export async function proveSmokeballMoveInUi(h,page,shot){
 }
 
 async function proveMyCaseHistoryInUi(h,page,shot){
- const {mycaseHistoryPackage}=await import('./mycase-migration-flow.mjs'),p=await mycaseHistoryPackage(h);await designate(h);
+ const {mycaseHistoryPackage,mycaseAuthority}=await import('./mycase-migration-flow.mjs'),p=await mycaseHistoryPackage(h);await designate(h);
  await tab(page,'Move in');const panel=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'Whole firm move',exact:true})});
  await panel.getByLabel('Prepared migration package',{exact:true}).setInputFiles({name:'synthetic-satchel-mycase-history.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(p))});
  await panel.getByRole('button',{name:'Preview whole firm move',exact:true}).click();await panel.getByRole('heading',{name:'Review source work',exact:true}).waitFor();
  await panel.getByText('MyCase billed advice · $100.00',{exact:true}).waitFor();await panel.getByText('MyCase filing expense · $20.00',{exact:true}).waitFor();assert.equal(await panel.getByRole('alert').count(),0);await shot('mycase-history-review');
  const plan=await h.json('/migration/preview',{package:p},h.owner);assert.equal(plan.counts.fees.package,2);assert.equal(plan.counts.financial.package,4);assert.equal(plan.counts.portal.package,1);assert.equal(plan.counts.sms.package,1);
+ const authorization=form(panel,'Commit reviewed package');await authorization.getByLabel('Supplemental export authority declaration',{exact:true}).fill(mycaseAuthority.reference);await authorization.getByLabel('I confirm authorization to import these exact supplemental source exports.',{exact:true}).check();await shot('mycase-supplemental-review');
  await panel.getByRole('button',{name:'Commit reviewed package',exact:true}).click();await panel.getByText('applying · 0 of '+plan.rows.length+' records',{exact:true}).waitFor();
  for(let index=0;index<plan.rows.length;index++){
   const search=panel.getByRole('button',{name:'Search conflicts for next matter',exact:true}),trust=panel.getByRole('button',{name:'Approve source trust opening',exact:true}),fee=panel.getByRole('button',{name:'Adopt reviewed source fee',exact:true});
@@ -112,10 +113,11 @@ async function proveMyCaseHistoryInUi(h,page,shot){
   }else if(await trust.count()){
    const review=form(panel,'Approve source trust opening');await review.getByLabel('Trust source reconciliation approval',{exact:true}).fill('Designated officer reviewed the source statement and exact client balance.');await review.getByLabel('I approve the exact source-backed client trust opening.',{exact:true}).check();await trust.click();
   }else if(await fee.count()){
-   const review=form(panel,'Adopt reviewed source fee');await review.getByText('Source engagement review · Agreement: Synthetic Satchel source signed agreement',{exact:true}).waitFor();await shot('mycase-fee-terms');await review.getByLabel('Source fee terms review',{exact:true}).fill('Principal reviewed the exact source fee and prohibited trust draw.');await review.getByLabel('I reviewed the exact source fee terms and native earning rules.',{exact:true}).check();await fee.click();
+   const review=form(panel,'Adopt reviewed source fee');await review.getByText('Source engagement review · Agreement: Synthetic Satchel source signed agreement',{exact:true}).waitFor();await review.getByText('Exact source fee terms',{exact:true}).click();await review.getByText('once',{exact:true}).waitFor();await review.getByText('none',{exact:true}).waitFor();await shot('mycase-fee-terms');await review.getByLabel('Source fee terms review',{exact:true}).fill('Principal reviewed the exact source fee and prohibited trust draw.');await review.getByLabel('I reviewed the exact source fee terms and native earning rules.',{exact:true}).check();await fee.click();
   }else await panel.getByRole('button',{name:'Apply next source record',exact:true}).click();
   await panel.getByText(new RegExp('^(applying|completed) · '+(index+1)+' of '+plan.rows.length+' records$')).waitFor();
  }
+ await panel.getByRole('button',{name:'Review retained MyCase source',exact:true}).click();await panel.getByText(/^Supplemental export authority:/).waitFor();const [supplemental]=await Promise.all([page.waitForEvent('download'),panel.getByRole('link',{name:'Download Full Backup/portal.csv',exact:true}).click()]);assert.equal((await readFile(await supplemental.path())).toString('base64'),p.supplements[0].file.contentBase64);await shot('mycase-supplemental-authority');
  await panel.getByRole('button',{name:'Reconcile whole firm move',exact:true}).click();await panel.getByText('AR · invoice-1: source $130.00 · activity $130.00 · 2 records',{exact:true}).waitFor();await panel.getByText('TRUST · trust-1: source $1,500.01 · activity $1,500.01 · 2 records',{exact:true}).waitFor();assert.equal(await panel.getByRole('button',{name:'Sign reconciled cutover',exact:true}).count(),0);await shot('mycase-activity-reconciliation');
  await tab(page,'Matters');await page.getByLabel('Find a matter').fill('MCH-2020-1');await page.getByRole('button',{name:/MCH-2020-1 · MyCase active advice/}).click();
  const history=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'Imported source history',exact:true})});await history.getByText('Historic invoice MYCASE-2020-81 · $150.00',{exact:true}).waitFor();

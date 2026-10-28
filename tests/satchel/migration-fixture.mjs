@@ -48,4 +48,4 @@ export async function applyMove(h,p,job,options={}){
  }
  return state;
 }
-export const commitMove=async(h,p)=>{const preview=await h.json('/migration/preview',{package:p},h.owner);return h.json('/migration/commit',{package:p,fingerprint:preview.fingerprint},h.owner);};
+export const commitMove=async(h,p,approval={})=>{const preview=await h.json('/migration/preview',{package:p},h.owner);return h.json('/migration/commit',{package:p,fingerprint:preview.fingerprint,...approval},h.owner);};

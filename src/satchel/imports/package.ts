@@ -13,7 +13,7 @@ export type Kind=typeof kinds[number]|typeof mycaseExtraKinds[number];
 export const kindsFor=(p:{schema:string})=>p.schema==='satchel-mycase-v1'?[...kinds.slice(0,kinds.indexOf('invoices')),'fees',...kinds.slice(kinds.indexOf('invoices')),'financial','portal','sms'] as Kind[]:[...kinds];
 export type MoveRow={kind:Kind;id:string;identity:string;hash:string;value:Data;line:number};
 export type MoveFile={id:string;name:string;sha256:string;contentBase64:string;modifiedAt:string;mime:string;size:number};
-export type MovePackage={schema:string;account:string;phase:string;previousFingerprint?:string;extractedAt:string;datasets:Record<Kind,string>;files:MoveFile[];staff:Record<string,string>;clientRepairs:Record<string,string>;coverage:Record<string,string>;counts:Record<Kind,number>;balances:Data;trustAccountId?:string;calendarMatters?:Record<string,string>;binaryArchive?:Data;mycase?:MyCaseSource;mycaseReview?:Data;sourceAccount?:string;mappingRevision?:string;sourceExports?:Data[];sourceWarnings?:string[];sourceFiles?:Data[]};
+export type MovePackage={schema:string;account:string;phase:string;currency?:string;previousFingerprint?:string;extractedAt:string;datasets:Record<Kind,string>;files:MoveFile[];staff:Record<string,string>;clientRepairs:Record<string,string>;coverage:Record<string,string>;counts:Record<Kind,number>;balances:Data;trustAccountId?:string;calendarMatters?:Record<string,string>;binaryArchive?:Data;mycase?:MyCaseSource;mycaseReview?:Data;sourceAccount?:string;mappingRevision?:string;sourceExports?:Data[];sourceWarnings?:string[];sourceFiles?:Data[]};
 const columns:Record<Kind,string[]>={
  contacts:['id','name'],matters:['id','display_number','description','client_id','adverse_party','status','opened_at'],
  relationships:['id','matter_id','contact_id','relation'],documents:['id','matter_id','file_id','date','visibility'],
@@ -77,7 +77,7 @@ export function parsePackage(input:unknown){
     if(['time','expenses'].includes(kind)){text(v.description,'Work description',2000);if(kind==='time')insist(/^\d+$/.test(v.minutes)&&Number(v.minutes)>=1&&Number(v.minutes)<=1440,'Time must contain 1–1440 minutes');}
     if(kind==='fees'){
      text(v.description,'Source fee description',2000);
-     if(!v.invoice_id){const terms=JSON.parse(v.terms);insist(terms&&['flat','retainer','milestone','capped','blended'].includes(terms.kind)&&['on_approval','period_end','milestone'].includes(terms.earning)&&['permitted','prohibited'].includes(terms.trustDraw),'Unbilled fees need exact native fee terms for human review');}
+     if(!v.invoice_id){const terms=JSON.parse(v.terms);insist(terms&&['flat','retainer','milestone'].includes(terms.kind)&&['on_approval','period_end','milestone'].includes(terms.earning)&&['permitted','prohibited'].includes(terms.trustDraw),'Unbilled fees need exact native fee terms for human review');}
     }
     if(kind==='financial'){
      insist(['ar','trust'].includes(v.ledger),'Map AR or trust source activity explicitly');
@@ -105,6 +105,7 @@ export function parsePackage(input:unknown){
   if(p.coverage[kind]!=='complete')warnings.push(`${kind}: source history is not complete; retrieve an authorized supplemental export before cutover`);
  }
  insist(records.length>0&&records.length<=1000,'Supply 1–1,000 records per package');
+ if(p.mycase&&records.some(r=>['time','expenses','fees','invoices','trust','financial'].includes(r.kind))&&p.currency!=='USD')fail('Money datasets require explicitly reviewed source currency USD; currency conversion is not supported');
  const byKind=(kind:Kind)=>records.filter(r=>r.kind===kind),contactIds=new Set(byKind('contacts').map(r=>r.id)),matterIds=new Set(byKind('matters').map(r=>r.id));
  const references=records.flatMap(r=>r.kind==='matters'?[{row:r,kind:'contacts' as Kind,id:p.clientRepairs[r.value.client_id]??r.value.client_id}]:r.value.matter_id?[{row:r,kind:'matters' as Kind,id:r.value.matter_id}]:[]);
  for(const r of byKind('relationships')){references.push({row:r,kind:'contacts',id:r.value.contact_id});if(r.value.other_contact_id)references.push({row:r,kind:'contacts',id:r.value.other_contact_id});}

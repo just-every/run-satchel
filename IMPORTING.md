@@ -334,6 +334,8 @@ Use a JSON envelope with these fields:
   are required. Every omitted dataset remains an explicit coverage gap.
 - `staff`: source staff identities mapped to existing eligible native members.
   A source role is never a membership, matter-access or billing-authority grant.
+- `currency`: explicitly choose `USD` when importing any monetary dataset. Currency
+  conversion is refused; map any per-row currency column too.
 - `counts`, `coverage` and `balances`: reviewed cumulative source inventories,
   dataset completeness and exact billed, unbilled, AR and trust USD-cent totals.
   Missing coverage, unmapped columns and unselected files still prevent cutover.
@@ -344,6 +346,20 @@ Use a JSON envelope with these fields:
   format: `{id, name, contentBase64, sha256, modifiedAt}`. Each original is
   1 byte to 1 MiB. Match its ID to the document index; never reconstruct it.
 
+Supplemental CSVs can accompany either representation in a `supplements`
+array. Each item contains `file: {name, contentBase64, sha256}` and a
+`sourceReference` naming the authorized supplied extraction. The same explicit
+column mappings address those exact paths. Supplemental CSVs share the
+100-file and 6 MiB data limits; at most twenty are supplemental. Preview still
+writes nothing. Before a new package commits, the active principal must provide
+`supplementalAuthority: {confirmed: true, reference}` recording their exact
+source-account authorization declaration. Missing confirmation refuses without
+a job or native row. The declaration, actor, timestamp, source references and
+file hashes are retained with the job and audit; restart and replay retain the
+original declaration. Source roles, the declaration and supplied file metadata
+grant no login, native access, consent or outbound authority. This records the
+principal's declaration; it is not independent provider verification.
+
 A separately supplied binary ZIP can use `binaryArchive` instead of repeating
 its members in `files`. Supply `file: {name, contentBase64, sha256}` and a
 `members` array of `{id, path, modifiedAt}` objects. Each path names one exact
@@ -353,7 +369,9 @@ compressed, 6 MiB expanded and 500 originals, each within the existing 1 MiB
 supported-file limit. Missing members refuse apply; unmatched members remain
 visible coverage gaps. The retained archive and member bytes survive restart
 and native archive recovery. Erasing an imported member destroys the compressed
-copies containing it too; replay cannot reconstruct a disposed archive.
+copies containing it too; replay cannot reconstruct a disposed archive. New captures
+and recompressed archives are also checked against erased original hashes,
+including unindexed members. Unassociated originals remain explicit gaps.
 
 Each mapping has a `file` naming the exact relative CSV path and `columns`
 mapping the following target fields to exact source header names:
@@ -422,7 +440,7 @@ Billed work and fees reference their source invoice. Invoice lines and mapped
 tax must equal the source total before its checkpoint applies. The original PDF
 is matched by `pdf_file_id`, downloaded byte-identically and associated with the
 native matter and permanent source invoice number. Unbilled fees contain a JSON
-`terms` cell with the existing native fee-plan fields: kind, recurrence, endDate,
+`terms` cell with the existing native fee-plan fields: kind (flat, retainer or milestone), recurrence, endDate,
 earning, trustDraw, includedWork, exceptions, reference and optional billing
 codes. Description, date and amount come from the source fee. The principal must
 review and explicitly adopt those exact terms at the checkpoint; source data

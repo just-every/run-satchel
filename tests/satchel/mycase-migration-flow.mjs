@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {zipSync,strToU8,unzipSync} from 'fflate';
 import {csvRows} from './migration-fixture.mjs';
+export const mycaseAuthority={confirmed:true,reference:'Principal confirmed the source administrator authorization for this exact supplemental export.'};
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 export const sourceFile=(name,bytes)=>({name,sha256:hash(bytes),contentBase64:Buffer.from(bytes).toString('base64')});
 export function mycasePackage(){
@@ -82,8 +83,9 @@ export async function mycaseHistoryPackage(h){
  const {movePackage}=await import('./migration-fixture.mjs'),{actor}=await h.json('/state',undefined,h.owner);
  const account=await h.json('/trust/accounts',{name:'Synthetic Satchel MyCase history',kind:'trust',bankReference:'Prepared source statement'},h.owner);
  const native=await movePackage(actor.email,account.id),p=mycaseCsvPackage(mycasePackage());
- p.account='synthetic-satchel-mycase-history';p.staff={'staff-1':actor.email};p.clientRepairs={'missing-client':'client-1'};p.caseRepairs={'missing-case':'matter-1'};
+ p.account='synthetic-satchel-mycase-history';p.currency='USD';p.staff={'staff-1':actor.email};p.clientRepairs={'missing-client':'client-1'};p.caseRepairs={'missing-case':'matter-1'};
  p.trustAccountId=account.id;p.balances={billedCents:15000,unbilledCents:10000,arCents:13000,trustCents:150001};
+ const contactCsv=p.csvFiles.find(f=>f.name.endsWith('Contacts.csv'));Object.assign(contactCsv,sourceFile(contactCsv.name,Buffer.from(Buffer.from(contactCsv.contentBase64,'base64').toString().replaceAll('Synthetic Satchel MyCase Client','Synthetic Satchel MyCase History Client'))));
  p.csvFiles=p.csvFiles.filter(f=>!f.name.endsWith('Tasks.csv')&&!f.name.endsWith('Unknown.csv'));
  const cases=p.csvFiles.find(f=>f.name.endsWith('Cases.csv'));Object.assign(cases,sourceFile(cases.name,Buffer.from(Buffer.from(cases.contentBase64,'base64').toString().replaceAll('MC-2020-1','MCH-2020-1').replaceAll('MC-2019-2','MCH-2019-2'))));
  for(const kind of ['relationships','notes','calls','emails','calendar','tasks','time','expenses','fees','invoices','trust','financial','portal','sms']){
@@ -105,6 +107,7 @@ export async function mycaseHistoryPackage(h){
  const members=p.files.map(f=>({id:f.id,path:'originals/'+f.name,modifiedAt:f.modifiedAt}));
  const originals=zipSync(Object.fromEntries(p.files.map((f,i)=>[members[i].path,Buffer.from(f.contentBase64,'base64')])));
  p.binaryArchive={file:sourceFile('MyCase-originals.zip',originals),members};p.files=[];
+ const supplemental=p.csvFiles.find(f=>f.name.endsWith('/portal.csv'));p.csvFiles=p.csvFiles.filter(f=>f!==supplemental);p.supplements=[{file:supplemental,sourceReference:'Authorized MyCase administrator supplied the omitted portal history.'}];
  return p;
 }
 export async function proveMyCaseHistoryMove(h){
@@ -114,7 +117,14 @@ export async function proveMyCaseHistoryMove(h){
  assert.deepEqual(await h.json('/state',undefined,h.owner),before);assert.deepEqual(await h.json('/migration',undefined,h.owner),jobs);
  const bad=structuredClone(p);bad.staff['staff-1']='synthetic-satchel-unmapped';assert.ok((await preview(h,bad)).errors.some(e=>e.includes('Staff staff-1')));await h.json('/migration/commit',{package:bad,fingerprint:(await preview(h,bad)).fingerprint},h.owner,409);
  const amount=structuredClone(p),time=amount.csvFiles.find(f=>f.name.endsWith('/time.csv'));Object.assign(time,sourceFile(time.name,Buffer.from(Buffer.from(time.contentBase64,'base64').toString().replace('"10000","invoice-1"','"10001","invoice-1"'))));assert.ok((await preview(h,amount)).errors.some(e=>e.includes('Source work amount')));await h.json('/migration/commit',{package:amount,fingerprint:(await preview(h,amount)).fingerprint},h.owner,409);
- let job=await commitMove(h,p);job=await applyMove(h,p,job,{stopAt:7});await h.restart();assert.equal((await h.json('/migration/status',{id:job.job.id},h.owner)).job.checkpoint,7);await designate(h);
+ await h.json('/migration/commit',{package:p,fingerprint:plan.fingerprint},h.owner,409);
+ await h.json('/migration/commit',{package:p,fingerprint:plan.fingerprint,supplementalAuthority:{...mycaseAuthority,confirmed:false}},h.owner,409);
+ assert.deepEqual(await h.json('/migration',undefined,h.owner),jobs);
+ const foreign=structuredClone(p);foreign.currency='EUR';const foreignPlan=await preview(h,foreign);assert.ok(foreignPlan.errors.some(e=>e.includes('source currency USD')));await h.json('/migration/commit',{package:foreign,fingerprint:foreignPlan.fingerprint,supplementalAuthority:mycaseAuthority},h.owner,409);
+ const wrongInvoice=structuredClone(p),invoiceCsv=wrongInvoice.csvFiles.find(f=>f.name.endsWith('/invoices.csv'));
+ Object.assign(invoiceCsv,sourceFile(invoiceCsv.name,Buffer.from(Buffer.from(invoiceCsv.contentBase64,'base64').toString().replace('"15000","13000"','"15001","13000"'))));
+ const refusedInvoice=await preview(h,wrongInvoice);assert.ok(refusedInvoice.errors.some(e=>e.includes('source lines and tax do not reconcile')));await h.json('/migration/commit',{package:wrongInvoice,fingerprint:refusedInvoice.fingerprint,supplementalAuthority:mycaseAuthority},h.owner,409);
+ let job=await commitMove(h,p,{supplementalAuthority:mycaseAuthority});job=await applyMove(h,p,job,{stopAt:7});await h.restart();assert.equal((await h.json('/migration/status',{id:job.job.id},h.owner)).job.checkpoint,7);await designate(h);
  while(job.job.state==='applying'){
   let review;
   if(job.next.kind==='matters'){const search=await h.json('/conflicts',{client:job.next.client,adverse:job.next.adverse},h.owner);review={conflictId:search.id,confirmed:true,reviewNote:'Principal reviewed the source case and every match.'};}
@@ -137,19 +147,37 @@ export async function proveMyCaseHistoryMove(h){
  const calendar=await h.json('/matters/'+archived.id+'/calendar',undefined,h.owner);assert.equal(calendar.appointments[0].timezone,'America/New_York');assert.equal(calendar.appointments[0].occurrences[0].time,'09:30');
  const reconciliation=await h.json('/migration/reconcile',{id:job.job.id},h.owner);assert.deepEqual(reconciliation.report.nativeBalances,p.balances);assert.deepEqual(reconciliation.report.activity.map(a=>[a.ledger,a.sourceBalanceCents,a.activityBalanceCents,a.records]),[['ar',13000,13000,2],['trust',150001,150001,2]]);
  assert.ok(reconciliation.report.gaps.some(g=>g.includes('authorized supplemental')));
- assert.deepEqual((await h.json('/migration/source',{id:job.job.id},h.owner)).source.binaryArchive,p.binaryArchive);
+ const receipt=(await h.json('/migration/source',{id:job.job.id},h.owner)).source;
+ assert.deepEqual(receipt.binaryArchive,p.binaryArchive);assert.deepEqual(receipt.supplements,p.supplements);assert.equal(receipt.supplementalAuthority.reference,mycaseAuthority.reference);assert.equal(receipt.supplementalAuthority.actor,(await h.json('/state',undefined,h.owner)).actor.email);assert.equal(receipt.supplementalAuthority.files[0].sha256,p.supplements[0].file.sha256);
  assert.equal((await commitMove(h,p)).job.id,job.job.id);await h.json('/migration/resume',{id:job.job.id},h.owner);assert.equal((await h.json('/matters/'+active.id+'/billing',undefined,h.owner)).bills.length,1);assert.equal((await h.json('/matters/'+archived.id+'/tasks',undefined,h.owner)).length,tasks.length);
  const saved=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),{harness}=await import('./harness.mjs'),restored=await harness();
- try{await restored.json('/restore',{archive:saved,confirm:'RESTORE'},restored.owner);const restoredHistory=await restored.json('/matters/'+active.id+'/migration',undefined,restored.owner);assert.equal(restoredHistory.invoices[0].number,'MYCASE-2020-81');const original=await restored.request('/api/satchel/bills/'+history.invoices[0].id+'/invoice.pdf',undefined,restored.owner);assert.equal(Buffer.from(await original.arrayBuffer()).toString('base64'),Buffer.from(unzipSync(Buffer.from(p.binaryArchive.file.contentBase64,'base64'))['originals/MyCase-2020-81.pdf']).toString('base64'));assert.equal((await commitMove(restored,p)).job.id,job.job.id);assert.deepEqual((await restored.json('/migration/source',{id:job.job.id},restored.owner)).source.csvFiles,p.csvFiles);}finally{await restored.close();}
+ try{await restored.json('/restore',{archive:saved,confirm:'RESTORE'},restored.owner);const restoredHistory=await restored.json('/matters/'+active.id+'/migration',undefined,restored.owner);assert.equal(restoredHistory.invoices[0].number,'MYCASE-2020-81');const original=await restored.request('/api/satchel/bills/'+history.invoices[0].id+'/invoice.pdf',undefined,restored.owner);assert.equal(Buffer.from(await original.arrayBuffer()).toString('base64'),Buffer.from(unzipSync(Buffer.from(p.binaryArchive.file.contentBase64,'base64'))['originals/MyCase-2020-81.pdf']).toString('base64'));assert.equal((await commitMove(restored,p)).job.id,job.job.id);assert.deepEqual((await restored.json('/migration/source',{id:job.job.id},restored.owner)).source.csvFiles,p.csvFiles);
+  const {invoiceTemplate,setupInvoicePayers}=await import('./invoice-delivery-fixture.mjs');
+  await setupInvoicePayers(restored,active);const templates=await restored.json('/invoice-templates',undefined,restored.owner),template=await restored.json('/invoice-templates',invoiceTemplate(templates.templates.at(-1)?.id??null,{includeTrustBalance:false}),restored.owner),recipient=(await restored.json('/contacts',undefined,restored.owner)).contacts.find(c=>c.name===active.client).emails[0];
+  const delivery=await restored.json('/bills/'+history.invoices[0].id+'/deliveries',{recipient,payerName:active.client,templateId:template.id},restored.owner),originalBytes=Buffer.from(unzipSync(Buffer.from(p.binaryArchive.file.contentBase64,'base64'))['originals/MyCase-2020-81.pdf']);
+  const delivered=await restored.request('/api/satchel/invoice-deliveries/'+delivery.id+'/pdf',undefined,restored.owner);assert.equal(delivered.status,200);assert.equal(Buffer.from(await delivered.arrayBuffer()).toString('base64'),originalBytes.toString('base64'));
+  await restored.json('/invoice-numbering',{prefix:'MYCASE',padding:3,separator:'-',year:false,nextNumber:81,revision:null},restored.owner,422);
+  await restored.json('/invoice-numbering',{prefix:'MYCASE',padding:3,separator:'-',year:false,nextNumber:82,revision:null},restored.owner);
+  const {draft,reviewed}=await import('./invoice-numbering-fixture.mjs'),approved=await reviewed(restored,active,await draft(restored,active,'Native bill after preserved MyCase source number'));
+  const issued=await restored.json('/invoices/issue',{bills:[{id:approved.id,revision:approved.revision}]},restored.owner);assert.equal(issued.issues[0].number,'MYCASE-082');
+  const again=await restored.request('/api/satchel/bills/'+history.invoices[0].id+'/invoice.pdf',undefined,restored.owner);assert.equal(Buffer.from(await again.arrayBuffer()).toString('base64'),originalBytes.toString('base64'));
+}finally{await restored.close();}
  const delta=structuredClone(p);delta.phase='delta';delta.previousFingerprint=plan.fingerprint;
  const finance=delta.csvFiles.find(f=>f.name.endsWith('/financial.csv')),contents=Buffer.from(finance.contentBase64,'base64').toString();
  Object.assign(finance,sourceFile(finance.name,Buffer.from(contents+csvRows(['id','matter_id','client_id','ledger','kind','date','amount_cents','invoice_id','document_id','source_reference'],[['finance-5','matter-1','client-1','ar','credit','2020-04-03',1,'invoice-1','document-1','Unreconciled source credit']]).split('\r\n').slice(1).join('\r\n'))));
- let changed=await commitMove(h,delta);while(changed.job.state==='applying')changed=await h.json('/migration/resume',{id:changed.job.id},h.owner);
+ let changed=await commitMove(h,delta,{supplementalAuthority:mycaseAuthority});while(changed.job.state==='applying')changed=await h.json('/migration/resume',{id:changed.job.id},h.owner);
  const mismatch=await h.json('/migration/reconcile',{id:changed.job.id},h.owner);assert.equal(mismatch.report.activity.find(a=>a.ledger==='ar').activityBalanceCents,12999);assert.ok(mismatch.report.gaps.some(g=>g.includes('ar invoice-1: source financial activity does not reconcile')));await h.json('/migration/cutover',{id:changed.job.id,fingerprint:mismatch.fingerprint,confirmed:true,declaration:'Unreconciled source credit must prevent cutover.'},h.owner,409);
  const email=['synthetic-satchel-history-reader','example.test'].join('@');await h.json('/team',{email,name:'Synthetic Satchel History Reader',role:'lawyer'},h.owner);await h.json('/team/invite',{email},h.owner);const reader=await h.login(email);await h.json('/matters/'+active.id+'/access',{email},h.owner);
  const limited=await h.json('/matters/'+active.id+'/migration',undefined,reader);assert.ok(!limited.sources.some(s=>['trust','financial','portal','sms'].includes(s.kind)));await h.json('/migration/source',{id:job.job.id},reader,403);await h.json('/matters/'+active.id+'/access',{email,remove:true},h.owner);await h.json('/matters/'+active.id+'/migration',undefined,reader,404);
  const documents=await h.json('/matters/'+active.id+'/documents',undefined,h.owner);await h.json('/documents/'+documents[0].id+'/erase',{confirm:documents[0].title,reason:'Principal approved disposal of the imported source original.'},h.owner);
  for(const id of [job.job.id,changed.job.id])assert.equal((await h.json('/migration/source',{id},h.owner)).source.binaryArchive.file.contentBase64,undefined);
  const erasedArchive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(!erasedArchive.includes(p.binaryArchive.file.contentBase64));assert.ok((await preview(h,p)).errors.some(e=>e.includes('no overwrite or resurrection')));
+ const hidden=structuredClone(p);hidden.phase='delta';hidden.previousFingerprint=changed.job.fingerprint;
+ for(const file of [...hidden.csvFiles,...hidden.supplements.map(s=>s.file)])Object.assign(file,sourceFile(file.name,Buffer.from(Buffer.from(file.contentBase64,'base64').toString().split('\r\n')[0]+'\r\n')));
+ const note=hidden.csvFiles.find(f=>f.name.endsWith('/notes.csv'));Object.assign(note,sourceFile(note.name,Buffer.from(csvRows(['id','matter_id','title','body','occurred_at','visibility','staff_id'],[['note-after-erasure','matter-1','Later source capture','A new capture cannot retain disposed bytes.','2020-04-03T12:00:00.000Z','team','staff-1']]))));
+ hidden.binaryArchive.members=hidden.binaryArchive.members.filter(m=>m.id!=='original-1');
+ hidden.binaryArchive.file=sourceFile('Repacked-MyCase-originals.zip',zipSync(unzipSync(Buffer.from(p.binaryArchive.file.contentBase64,'base64')),{level:0}));
+ const denied=await preview(h,hidden);assert.ok(denied.errors.some(e=>e.includes('later capture or changed binary archive cannot resurrect')));
+ const jobsBefore=await h.json('/migration',undefined,h.owner);await h.json('/migration/commit',{package:hidden,fingerprint:denied.fingerprint,supplementalAuthority:mycaseAuthority},h.owner,409);assert.deepEqual(await h.json('/migration',undefined,h.owner),jobsBefore);
  const missingStatement=await h.json('/migration/reconcile',{id:changed.job.id},h.owner);assert.ok(missingStatement.report.gaps.some(g=>g.includes('source statement original unavailable')));
 }

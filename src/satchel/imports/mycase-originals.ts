@@ -28,5 +28,5 @@ export function mycaseOriginals(input:Data){
   else files.push(original);
  }
  for(const path of Object.keys(unpacked))if(!paths.has(path))warnings.push('MyCase unmatched binary archive member '+path+': retained only; map and reconcile before cutover');
- return {files,warnings,errors,archive,sourceFile:{name:archive.file.name,sha256:archive.file.sha256,size:bytes.length}};
+ return {files,warnings,errors,archive,archiveContents:Object.entries(unpacked).map(([path,body])=>({path,sha256:sha256(body)})),sourceFile:{name:archive.file.name,sha256:archive.file.sha256,size:bytes.length}};
 }
