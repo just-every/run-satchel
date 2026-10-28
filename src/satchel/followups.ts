@@ -83,7 +83,7 @@ const outcomes:Record<string,{reason:string;action:string;counsel:boolean}>={
  declined:{reason:'declined',action:'Prospect declined: record the outcome and close the lead',counsel:false}};
 async function owner(db:D1Database,lead:Data){return lead.assigned_email??(await stmt(db,"SELECT email FROM oa_operators WHERE role='owner' AND status='active' ORDER BY email LIMIT 1").first<Data>())?.email??null;}
 export async function recordFollowupEvent(db:D1Database,actor:Actor,leadId:string,body:Data) {
- const lead=await visibleLead(db,actor,leadId),o=outcomes[String(body.kind)];insist(o,'Choose reply, conflict or declined');
+ const lead=await visibleLead(db,actor,leadId),k=String(body.kind),o=Object.hasOwn(outcomes,k)?outcomes[k]:undefined;insist(o,'Choose reply, conflict or declined');
  if(o.counsel)insist(counselRole(actor),'Only the principal or a lawyer records a conflict stop',403);
  const note=text(body.note,'What was received or decided',1000),at=now(),calendar=await leadCalendar(db),who=await owner(db,lead);
  await atomic(db,actor,[...stopStatements(db,lead,o.reason,o.action,who,actor.email,at),

@@ -25,7 +25,7 @@ export const blank=(value:unknown)=>value===undefined||value===null||(typeof val
 export function definition(body:unknown):TypeDefinition {
  insist(body&&typeof body==='object'&&!Array.isArray(body),'Supply a matter type definition');
  const d=body as Data;
- insist(Array.isArray(d.required)&&d.required.every((k:unknown)=>typeof k==='string'&&k in builtinFields),'Required standard fields are case number, court, insurance limit and fee arrangement');
+ insist(Array.isArray(d.required)&&d.required.every((k:unknown)=>typeof k==='string'&&Object.hasOwn(builtinFields,k)),'Required standard fields are case number, court, insurance limit and fee arrangement');
  insist(Array.isArray(d.fields)&&d.fields.length<=40,'Define at most 40 custom fields');
  insist(Array.isArray(d.records)&&d.records.length<=30,'Name at most 30 required record types');
  const keys=new Set<string>();

@@ -3332,7 +3332,7 @@
       "executable": false
     },
     "src/satchel/followups.ts": {
-      "sha256": "e932d56fa5a53fbfb9534f26e545ad0c3b6e48d4b6aac8321ffe3d6d5b6c8b6a",
+      "sha256": "7e4edcefc7fc46cef4b42e1eb166263ddbf0e8fbea01dfa9d36bf97dd5770907",
       "executable": false
     },
     "src/satchel/imports.ts": {
@@ -3424,7 +3424,7 @@
       "executable": false
     },
     "src/satchel/invoice-sendgrid-events.ts": {
-      "sha256": "0a0935f45959702b53e9351121bc5f12db9e99f227968e7b04be34faaf6fcf96",
+      "sha256": "7f64048705f0e2bf1f9160233af2ed9b0bd9ad4d61f2c8231c7e390ea666895c",
       "executable": false
     },
     "src/satchel/invoice-templates.ts": {
@@ -3464,7 +3464,7 @@
       "executable": false
     },
     "src/satchel/matter-fields.ts": {
-      "sha256": "e95507a8c6072adb6d7dfa6df59739221549dd46027479e33d311c6b169361ea",
+      "sha256": "c2039073e533a4e40cac8c5856b349a908d69ce37956846142529a3c3580dbf8",
       "executable": false
     },
     "src/satchel/matter-invoice-templates.ts": {
@@ -3496,7 +3496,7 @@
       "executable": false
     },
     "src/satchel/matter-types.ts": {
-      "sha256": "8255ba0e7f866e2758fc4dd3a3ab6d04757a5d18e1a2be6234af6a77dddcc0b4",
+      "sha256": "e3d183b2c79a7f8610aca94ec6dec6e8ab584c73e25159912555818415f868b8",
       "executable": false
     },
     "src/satchel/matter-update-authority.ts": {
@@ -4624,7 +4624,7 @@
       "executable": false
     },
     "tests/satchel/followups.test.mjs": {
-      "sha256": "3a821e9e5258ba2159c0ed78f0c98f18ebb12aae981f4db6d147404f55398a53",
+      "sha256": "846048c7847f8051eed71f173a191b1604336b55c81b590778d228a0c701156f",
       "executable": false
     },
     "tests/satchel/fresh-install.mjs": {

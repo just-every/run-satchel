@@ -25,7 +25,7 @@ export async function invoiceSendgridEvents(request:Request,env:InvoiceDeliveryE
  const writes:D1PreparedStatement[]=[],at=now(),system={id:'sendgrid-events',email:'sendgrid',role:'system',channel:'provider'} as any;
  const outcomes:Data={processed:'processed',delivered:'delivered',bounce:'bounced',deferred:'deferred',dropped:'dropped',spamreport:'complained',unsubscribe:'unsubscribed',group_unsubscribe:'unsubscribed'};
  for(const event of events){
-  if(!event||typeof event!=='object'||!outcomes[event.event])continue;
+  if(!event||typeof event!=='object'||!Object.hasOwn(outcomes,event.event))continue;
   const eventId=String(event.sg_event_id??''),attemptId=String(event.rer_delivery_id??'');insist(eventId.length>0&&eventId.length<=500,'Provider event identity required');if(!attemptId)continue;
   const a=await stmt(env.DB,"SELECT a.*,d.recipient,b.matter_id FROM s_invoice_delivery_attempts a JOIN s_invoice_deliveries d ON d.id=a.delivery_id JOIN s_bills b ON b.id=d.bill_id WHERE a.id=? AND a.provider='sendgrid' AND a.status IN('sending','accepted','uncertain')",attemptId).first<Data>();if(!a)continue;
   insist(String(event.email??'').toLowerCase()===a.recipient,'Provider event recipient does not match the attempt',409);

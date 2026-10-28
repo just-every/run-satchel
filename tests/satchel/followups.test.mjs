@@ -64,3 +64,31 @@ test('INTAKE-008 consented bounded follow-ups: authority, consent, quiet hours, 
   await h.scheduled(daytime(Date.now()+90*24*hour));assert.equal(mailsTo(h,'con@example.test').length+mailsTo(h,'dee@example.test').length,0);
  }finally{await h.close();}
 });
+
+// Exercise the authenticated HTTP door without putting response bodies in assertion failures.
+test('follow-up events treat inherited names exactly like unknown names for a signed-in member',async()=>{
+ const h=await harness({bindings:{MAIL_API_KEY:'prototype-door-binding-sentinel'}});
+ try{
+  const email='lawyer@example.test';
+  await h.json('/team',{email,name:'Follow-up lawyer',role:'lawyer'},h.owner);
+  await h.json('/team/invite',{email},h.owner);
+  const member=await h.login(email),prospect=await lead(h,{name:'Prototype door prospect'},h.owner);
+  const path='/api/satchel/leads/'+prospect.id+'/followup-events';
+  const results=[];
+  for(const kind of ['unknown-followup-event','constructor','__proto__','reply']){
+   const response=await h.request(path,{kind,note:'Prospect replied requesting a call'},member);
+   results.push({kind,status:response.status,body:await response.text()});
+  }
+  console.log('follow-up event HTTP statuses: '+results.map(r=>r.kind+'='+r.status).join(', '));
+  const unknown=results[0];
+  assert.equal(unknown.status,400,'Unknown event uses the existing 400 refusal');
+  assert.ok(unknown.body===JSON.stringify({error:'Choose reply, conflict or declined'}),'Unknown event returns only the documented refusal');
+  for(const result of results.slice(1,3)){
+   assert.equal(result.status,unknown.status,result.kind+' uses the unknown-event status');
+   assert.ok(result.body===unknown.body,result.kind+' returns only the unknown-event refusal, with no binding or environment content');
+  }
+  assert.equal(results[3].status,200,'A registered reply still works for the member');
+  const detail=await h.json('/leads/'+prospect.id,undefined,member);
+  assert.ok(detail.history.some(e=>e.kind==='followup_reply'),'The registered reply is recorded');
+ }finally{await h.close();}
+});
