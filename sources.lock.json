@@ -4580,7 +4580,7 @@
       "executable": false
     },
     "tests/satchel/collections-flow.mjs": {
-      "sha256": "7f5f4f70305bc8653a98b1e1ffce7c743d97d78feddd68341de723f54e0aa238",
+      "sha256": "5c322725e2b2bb373070996ce3b81e020ad5ce8f0435fe01a06adebf41c67b2e",
       "executable": false
     },
     "tests/satchel/collections-sandbox.mjs": {
