@@ -144,7 +144,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "4df1d217ff136de2121a002fbceff64c1a77f535167164589a361827aa5abdae",
+      "sha256": "8f18f43e532a7186cd98aa4558cbe9aeb0f2beaef45cbba42ce652b1db12d0a6",
       "executable": false
     },
     "AGENTS.md": {
@@ -168,7 +168,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "c2fef2d79f9981fc6e70080dbe13094a99c9694e06ebe50eeadf8da913b22e22",
+      "sha256": "0b1481e2aa0003f12b2fb206237995e4f2ef60eac46ccd7a38abb53e19196d7d",
       "executable": false
     },
     "DEMO.md": {
@@ -4580,7 +4580,7 @@
       "executable": false
     },
     "tests/satchel/collections-flow.mjs": {
-      "sha256": "5a4946d0f32f3c9ecee729564ca3968fcb235742e3de9c2ea2ba0ffd0c839e09",
+      "sha256": "5926c947bae2466a9204d72b244bea336171ff45bf21c802aef7040e7ba5abef",
       "executable": false
     },
     "tests/satchel/collections-sandbox.mjs": {
