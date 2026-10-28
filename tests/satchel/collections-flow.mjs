@@ -7,7 +7,7 @@ import {exemptTaxReview} from './tax-fixture.mjs';
 import {collectionsBrowser} from './collections-browser.mjs';
 export const address=name=>[name,'example.test'].join('@');
 export async function collectionsFlow(options={}){
- const h=await harness(options);try{
+ const h=await harness(options),original=h.json;h.json=async(...args)=>{try{return await original(...args);}catch(error){throw new Error('Collection journey door '+args[0]+': '+error.message,{cause:error});}};try{
   const f=await foundation(h),m=f.m,base='/matters/'+m.id,client=address('client');
   const parties=await setupInvoicePayers(h,m);
   await h.json('/providers/mail/review',{termsUrl:'https://www.twilio.com/en-us/legal/tos',confirmed:true},h.owner);
