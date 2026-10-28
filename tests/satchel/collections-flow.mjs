@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import {harness} from './harness.mjs';
-import {foundation,earnedBill} from './trust-fixture.mjs';
+import {foundation} from './trust-fixture.mjs';
 import {scheme} from './invoice-numbering-fixture.mjs';
 import {invoiceTemplate,setupInvoicePayers} from './invoice-delivery-fixture.mjs';
-import {withTaxAllocation} from './tax-fixture.mjs';
+import {exemptTaxReview} from './tax-fixture.mjs';
 import {collectionsBrowser} from './collections-browser.mjs';
 export const address=name=>[name,'example.test'].join('@');
 export async function collectionsFlow(options={}){
@@ -18,9 +18,8 @@ export async function collectionsFlow(options={}){
   const template=await h.json('/invoice-templates',invoiceTemplate(null,{dueDays:0}),h.owner);
   const bills=[];
   async function issued(title,cents=10000,entryIds){
-   let b;
-   if(entryIds){b=await h.json(base+'/bills',{title,date:'2026-10-01',entryIds},h.owner);const {exemptTaxReview}=await import('./tax-fixture.mjs');b=await h.json('/bills/'+b.id+'/approve',{revision:b.revision,reviewNote:'Reviewed replacement after void',taxReviewId:await exemptTaxReview(h,'/bills/'+b.id+'/approve')},h.owner);}
-   else b=await earnedBill(h,m,cents,title);
+   if(!entryIds){const entry=await h.json(base+'/entries',{kind:'time',date:'2026-10-01',description:title,minutes:60,rateCents:cents},h.owner);entryIds=[entry.id];}
+   let b=await h.json(base+'/bills',{title,date:'2026-10-01',entryIds},h.owner);b=await h.json('/bills/'+b.id+'/approve',{revision:b.revision,reviewNote:'Counsel reviewed the exact earned services',taxReviewId:await exemptTaxReview(h,'/bills/'+b.id+'/approve')},h.owner);
    await h.json('/invoices/issue',{bills:[{id:b.id,revision:b.revision,templateId:template.id}]},h.owner);
    await h.json('/bills/'+b.id+'/deliveries',{recipient:client,payerName:m.client,templateId:template.id},h.owner);bills.push(b);return b;
   }

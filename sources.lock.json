@@ -724,7 +724,7 @@
       "executable": false
     },
     "migrations/core/0116_collections.sql": {
-      "sha256": "be1341782d01f3b7eb1cfd6ffa1deba41747a18aa4196f1e77c8b1bd484b130a",
+      "sha256": "ad0ccfffa9ca2629c7302ccbd85f047b6a0b2b0949cf95a4080b0ae5b4e10283",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -3220,7 +3220,7 @@
       "executable": false
     },
     "src/satchel/collection-state.ts": {
-      "sha256": "18e16186b5e1ddcfeea85e697ea3d010db4742f2d1004e16a5b25298e0067920",
+      "sha256": "0b3882cb29458b76cd92faf08a06810e191ddfea707bccf6912fb824f6f54e39",
       "executable": false
     },
     "src/satchel/collections.ts": {
@@ -4580,7 +4580,11 @@
       "executable": false
     },
     "tests/satchel/collections-flow.mjs": {
-      "sha256": "61cbd670689ea5583f94badd6232a62ca7fc3d33288e8b80ff905b86cd8022c3",
+      "sha256": "116271b758d757fe45f215074b4708e00f132fc96b75504f265798184968a33c",
+      "executable": false
+    },
+    "tests/satchel/collections-sandbox.mjs": {
+      "sha256": "35ab69ab69392190897f672f7c84445a6deb57d8682d6f867373588fa3048db7",
       "executable": false
     },
     "tests/satchel/connector-journal-journey.test.mjs": {

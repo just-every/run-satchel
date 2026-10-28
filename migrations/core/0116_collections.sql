@@ -3,7 +3,7 @@ CREATE TABLE s_collection_sequences (
  matter_id TEXT NOT NULL REFERENCES s_matters(id),
  bill_id TEXT REFERENCES s_bills(id),
  ledger_id TEXT REFERENCES s_trust_ledgers(id),
- replenishment_id TEXT REFERENCES s_retainer_requests(id),
+ replenishment_id TEXT,
  recipient TEXT NOT NULL,
  authorization_id TEXT NOT NULL REFERENCES s_client_reminder_authorizations(id),
  owner_id TEXT NOT NULL,
