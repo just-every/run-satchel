@@ -115,6 +115,10 @@
     }
   ],
   "files": {
+    ".github/satchel-shards.json": {
+      "sha256": "0daae8419b924dce1f64d39a4f769330121bb162d4138ec0c33742554ffd8a5e",
+      "executable": false
+    },
     ".github/workflows/rer-managed.yml": {
       "sha256": "272fc0a0722e4c60f99ef911340bfe5944b1afbb1730e2a6810f6262fdc5d656",
       "executable": false
@@ -128,7 +132,7 @@
       "executable": false
     },
     ".github/workflows/verify.yml": {
-      "sha256": "216795e0b50efd951454d77221f08473993de24175521e84d6fc2e89113bdbd0",
+      "sha256": "f445efceb098e64a0b797d6aa726253fb98c42fffa8cfdec27b995f96eab7f96",
       "executable": false
     },
     ".gitignore": {
@@ -208,15 +212,15 @@
       "executable": false
     },
     "docs/contract/COVERAGE.json": {
-      "sha256": "b8afb588200caf4d988afee7a286aa312fb59ea5e2ec6ec0aecd7c3363a7660d",
+      "sha256": "c62f9de42a876e0dce5431de63947362eb3e65ed197e1c4d9e1304f88b56c970",
       "executable": false
     },
     "docs/contract/DONE-AUDIT.md": {
-      "sha256": "a9e07de18d43809e6faf546d093b9ae9d50089dc03f5fe2c91fbff900cf6c3c2",
+      "sha256": "c190f0c786463ddc2743453fc3d44f83427fc455b4499727e2e809f24bd0605c",
       "executable": false
     },
     "docs/contract/ID-MAP.json": {
-      "sha256": "a56e09b71522ec2e43c0957b06ed9fb6c70b9ea3178d42aa8643d2a4b742f1aa",
+      "sha256": "9c9852079a9c43dd6d5e9684064304b41d4213b2330b97a8c565dbed873020b3",
       "executable": false
     },
     "docs/documents-and-deadlines.md": {
@@ -1217,6 +1221,10 @@
     },
     "scripts/operations-config.mjs": {
       "sha256": "decbd8619e40c741708b49639d54282bd19edc4581a782b240d96a423ad47f01",
+      "executable": false
+    },
+    "scripts/test-satchel-shard.mjs": {
+      "sha256": "11802bfc92e0c36ebab062df0d5df71ecec27eb96de1c6b1dcc4c18b17279ed7",
       "executable": false
     },
     "SEED-COMMAND-CONTRACT.md": {

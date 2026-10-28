@@ -1,4 +1,4 @@
-Old reference: `a752361bcb3d53127c4a1365e0f7bed05ef89e38`.
+Old reference: `99ef6ff0509414263b2212f88f26d3bc14f1807a`.
 | Clause | Point | Outcome | Asserting test | Result |
 | --- | --- | --- | --- | --- |
 | SAT-006 | 1. Create and approve a courtesy reduction through the billing API; export its negative delta and download the original again with identical bytes. | The prepared correction has negative USD cents. | `tests/satchel/flows.test.mjs:94` | asserted |
