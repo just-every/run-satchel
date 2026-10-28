@@ -83,7 +83,7 @@ test('Offline operating receipts allocate once, preserve credit, refuse unauthor
   await h.json('/offline-payments',{...payment,purpose:'trust'},billing,400);
   await h.json('/offline-payments',{...payment,operatingAccountId:f.account.id},billing,409);
   const [r,replayed]=await Promise.all([h.json('/offline-payments',payment,billing),h.json('/offline-payments',payment,billing)]);assert.equal(r.id,replayed.id);assert.equal(r.allocations.length,3);assert.equal(r.creditCents,0);
-  // The native TIME-008 rule reviews actual invoice allocations, never receipt face value.
+  // The native TIME-009 rule reviews actual invoice allocations, never receipt face value.
   const revenuePath='/matters/'+f.m.id+'/revenue',allocationPath=revenuePath+'/allocations';
   const approvedRule={requestKey:'synthetic-satchel-revenue-rule-1',previousId:null,sourceDocumentId:f.source.id,sourceVersion:f.source.currentVersion,sourceDigest:f.source.versions.find(v=>v.version===f.source.currentVersion).sha256,basis:'proportional_fee_receipts',reference:'Signed firm agreement, origination and responsible-attorney compensation schedule',splits:[{kind:'origination',email:'owner@example.test',shareBps:2500,commissionBps:1000},{kind:'responsible',email:'owner@example.test',shareBps:5000,commissionBps:2000}],approve:true};
   await h.json(revenuePath+'/rules',approvedRule,assistant,403);await h.json(revenuePath+'/rules',approvedRule,billing,403);

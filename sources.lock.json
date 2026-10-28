@@ -140,7 +140,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "f7defc0c24a46edca949ed15aa3f126dd2af59e9c2430969c051139c09657dcf",
+      "sha256": "fd7a74e9d68e11855e9385e80861d06976aa94064b89d9823f068398fb9f6bbe",
       "executable": false
     },
     "AGENTS.md": {
@@ -164,7 +164,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "1489dd761b686ab4ebc90ae9af022e3a2604febb1b2cbd9dc7a9a885997a3a70",
+      "sha256": "4c890e43eb082dee91d8fef2bb9f2f63b451ec6d9e43a91a70b597e68018ac19",
       "executable": false
     },
     "DEMO.md": {
@@ -5028,7 +5028,7 @@
       "executable": false
     },
     "tests/satchel/trust-transfer.test.mjs": {
-      "sha256": "c89dd02db84c8c3357e541ceeb7438200720e49e8bdd0cba513b55c5a09aea2f",
+      "sha256": "7a221ec98160bd353dd096786c30edcbec7c5253204c377976aa17ac0063e99d",
       "executable": false
     },
     "tests/satchel/trust.test.mjs": {
