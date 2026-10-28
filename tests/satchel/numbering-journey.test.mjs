@@ -1,4 +1,4 @@
-import {proveWholeFirmMoveInUi} from './migration-journey.mjs';
+import {proveWholeFirmMoveInUi,proveMyCaseMoveInUi} from './migration-journey.mjs';
 import {selectExemptTax} from './tax-fixture.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -14,7 +14,7 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`MATTER-008 configure, 
   const address={line1:'200 Park Avenue',city:'New York',state:'NY',zip:'10166'};
   await h.json('/firm',{settings:{name:'Barton & Lee LLP',email:'office@bartonlee.example',phone:'2125550100',address,timezone:'America/New_York',currency:'USD',billing:{defaultRateCents:30000,incrementMinutes:6,paymentTermsDays:30},fiscal:{yearStartMonth:1,basis:'cash'},offices:[{name:'Manhattan',phone:'2125550100',timezone:'America/New_York',address}],practiceAreas:[{code:'LIT',name:'Litigation'}]}},h.owner);
   const context=await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true}),page=await context.newPage(),errors=[];page.setDefaultTimeout(15000);page.on('pageerror',e=>errors.push(String(e)));
-  async function shot(name){assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0,`${name} fits at ${width}px`);if(process.env.SATCHEL_SCREENSHOTS){await mkdir(process.env.SATCHEL_SCREENSHOTS,{recursive:true});await page.screenshot({path:`${process.env.SATCHEL_SCREENSHOTS}/${width}-${name}.png`,fullPage:true});}}
+  async function shot(name){assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0,`${name} fits at ${width}px`);if(process.env.SATCHEL_SCREENSHOTS){await mkdir(process.env.SATCHEL_SCREENSHOTS,{recursive:true});await page.screenshot({path:`${process.env.SATCHEL_SCREENSHOTS}/${width}-${name}.png`,fullPage:true});if(name.startsWith('mycase-')&&width===1440){await page.setViewportSize({width:390,height:844});await page.screenshot({path:`${process.env.SATCHEL_SCREENSHOTS}/390-${name}.png`,fullPage:true});await page.setViewportSize({width,height});}}}
   await page.goto(h.origin+'/signin');await page.getByLabel('Email').fill('owner@example.test');await page.getByRole('button',{name:'Email a sign-in link'}).click();await page.getByText('a sign-in link is on its way').waitFor();
   const mail=h.mails.toReversed().find(m=>m.to.includes('owner@example.test')),link=(mail.text??mail.html).match(/https:\/\/[^\s"<]+\/auth\/confirm\?token=[^\s"&<]+/)[0];
   await page.goto(link);await page.getByRole('button',{name:'Confirm'}).click();await page.waitForURL(/\/setup/);await page.getByLabel('Your name').fill('Avery Barton');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup'}).click();await page.waitForURL(/\/app/);
@@ -30,7 +30,7 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`MATTER-008 configure, 
   await tab(page,'Firm');const changed=form(page,'Save number pattern');await changed.getByLabel('Matter number pattern').fill('NEW-{sequence}');await changed.getByRole('button',{name:'Save number pattern'}).click();await notice(page,'Matter number pattern saved');
   await tab(page,'Matters');await page.getByLabel('Find a matter').fill('2019-0042');assert.equal(await page.locator('section',{has:page.getByRole('heading',{name:'Matter register',exact:true})}).locator('button.record').count(),1);await page.getByRole('button',{name:/2019-0042/}).click();await page.getByText('2019-0042',{exact:true}).waitFor();await page.getByLabel('Find a matter').fill(number);await page.getByRole('button',{name:new RegExp(number)}).click();await page.getByText(number,{exact:true}).waitFor();
   await tab(page,'Documents');await page.getByText('Matter '+number,{exact:true}).waitFor();await tab(page,'Deadlines');await page.getByText('Matter '+number,{exact:true}).waitFor();await tab(page,'Time & bills');await page.getByText('Matter '+number,{exact:true}).waitFor();
-  if(width===1440)await proveWholeFirmMoveInUi(h,page,shot);
+  if(width===1440){await proveWholeFirmMoveInUi(h,page,shot);await proveMyCaseMoveInUi(h,page,shot);}
   assert.deepEqual(errors,[]);
  }finally{await browser.close();await h.close();}
 });

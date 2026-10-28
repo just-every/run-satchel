@@ -310,3 +310,85 @@ relation text; no access permission or portal invitation follows from a role.
 Preview lists the SHA-256 and byte size of every retained data export as well
 as the separately supplied originals. Packages span bounded source rows and
 separate original rows, so multiple originals do not exceed a single D1 row.
+
+## Reviewed MyCase Full Backup data
+
+The Whole firm move panel also accepts `schema: "satchel-mycase-v1"`.
+This is a MyCase data adapter, with its own source namespace and reviewed
+mappings. It does not convert a MyCase package label into a Clio import, contact
+the vendor, infer authority from source roles or certify a complete migration.
+Obtain the Full Backup from an authorized source-account administrator. Export
+headers vary: map the actual headers explicitly, retaining the exact source
+ZIP or CSV bytes rather than replacing them with the normalized values.
+
+Use a JSON envelope with these fields:
+
+- `account`: a stable non-secret MyCase source-account reference.
+- `phase` and `extractedAt`: snapshot or delta and a UTC extraction timestamp.
+  A delta also names its completed `previousFingerprint`.
+- `backup`: `{name, contentBase64, sha256}` for the Full Backup data ZIP;
+  alternatively `csvFiles` is an array of those objects for individual CSVs.
+  Use exactly one representation. SHA-256 must match the original bytes.
+- `mappingRevision`: the human-reviewed mapping version, for example `review-1`.
+- `mappings`: the contacts, cases and documents mappings described below.
+- `clientRepairs` and `caseRepairs`: initially empty objects. Explicitly map an
+  unmatched client ID to a source contact, or a document's unmatched case ID
+  to its reviewed source case. Every repair requires a fresh preview.
+- `files`: separately downloaded document originals in the existing original
+  format: `{id, name, contentBase64, sha256, modifiedAt}`. Each original is
+  1 byte to 1 MiB. Match its ID to the document index; never reconstruct it.
+
+Each mapping has a `file` naming the exact relative CSV path and `columns`
+mapping the following target fields to exact source header names:
+
+| Mapping | Required target fields | Optional target fields |
+| --- | --- | --- |
+| contacts | id, name | aliases, email |
+| cases | id, display_number, description, client_id, adverse_party, status, opened_at, closed_at | case_number |
+| documents | id, matter_id, file_id, date, visibility | document_type |
+
+For example, cases may use `columns: {"id":"Case ID", "status":"Case Status"}`
+as part of the full mapping. It must also supply explicit value mappings such
+as `values: {"status":{"Active":"open","Archived":"closed"}}`.
+Documents likewise supply `values: {"visibility":{"Firm":"matter","Private":"private"}}`.
+No status or visibility is guessed. Preserve archived cases; map their actual
+archived UTC instant to `closed_at`. Empty active-case closure cells are allowed.
+Opened instants use UTC; document dates use YYYY-MM-DD. Map adverse-party names
+from reviewed source information and still perform native human conflict review.
+
+The data ZIP supports at most 4 MiB compressed, 100 CSV files, 1 MiB per CSV and
+6 MiB expanded. Individual UTF-8 CSVs have the same count and expanded limits.
+CSV paths may contain folders; file identities and names must be unique. Put
+binary originals in `files`, outside the data ZIP. Other archive entries are
+refused explicitly, so their omission cannot silently count as coverage.
+Missing required mappings, unknown mapped headers, duplicate IDs, unknown status
+or visibility, unmatched cases and missing originals prevent apply. Unknown
+columns and every unselected CSV remain in retained source bytes and are listed
+as unsupported in preview. No source file is silently treated as imported.
+
+The preview displays active and archived counts, exact source hashes, mappings,
+relationships, missing originals and unsupported datasets without writing.
+Commit saves the exact reviewed package; resume applies one native record per
+checkpoint. Every case uses the ordinary fresh conflict search, human conclusion
+and clearance. Imported contacts are identified as MyCase; source identities are
+isolated from Clio even when the source-account and row IDs match. The journal
+retains the original status, raw row, source file, line, mapping version, client
+repair and case repair. Authorized native downloads return the supplied original
+bytes. Current matter and document permissions and native erasure fences apply.
+
+A principal can retrieve the exact source envelope with
+`POST /api/satchel/migration/source` and `{id}`. It includes the original ZIP or
+CSV objects, explicit mappings, mapping revision and case repairs. These travel
+in the existing firm archive with durable checkpoints and provenance. Document
+originals remain in the separate erasure-aware original store.
+
+This slice imports contacts, active and archived cases and the document index
+with supported-size separately supplied originals. Tasks, calendars, time, fees,
+expenses, financial activity, portal, email and SMS history, historic invoice
+PDFs and their invoice associations, full AR and trust activity and reconciliation,
+authorized supplemental extraction and complete cutover remain unsupported.
+These are always reported as gaps even if an envelope declares coverage complete;
+retaining their CSVs is not import or reconciliation. Source shutdown and signed
+cutover remain refused. BILL-015 number-preservation duties and its provider and
+ledger prerequisites remain unchanged. This path grants no quarantine clearance,
+malware verdict, large-file support, source-account authority or other hold release.

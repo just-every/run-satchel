@@ -47,14 +47,14 @@ async function review(db:D1Database,input:unknown){
  }
  return {...plan,prior};
 }
-const publicReview=(p:Awaited<ReturnType<typeof review>>)=>({fingerprint:p.fingerprint,mappingVersion:p.mappingVersion,phase:p.package.phase,counts:Object.fromEntries(kinds.map(k=>[k,{package:p.records.filter(r=>r.kind===k).length,source:p.package.counts[k],imported:p.prior.filter(r=>r.kind===k&&['imported','preserved'].includes(r.disposition)).length}])),datasets:kinds.map(kind=>({kind,name:kind+(p.package.datasets[kind].startsWith('BEGIN:VCALENDAR')?'.ics':'.csv'),sha256:sha256(p.package.datasets[kind]),size:new TextEncoder().encode(p.package.datasets[kind]).length})),files:[...p.files.values()].map(({contentBase64,...f})=>f),relationships:p.references.map(ref=>({from:ref.row.id,kind:ref.kind,to:ref.id})),errors:p.errors,coverageGaps:p.warnings,fileRequirements:p.records.filter(r=>['documents','invoices'].includes(r.kind)).map(r=>({id:r.kind==='documents'?r.value.file_id:r.value.pdf_file_id,kind:r.kind,sourceId:r.id,present:p.files.has(r.kind==='documents'?r.value.file_id:r.value.pdf_file_id)})),contacts:p.records.filter(r=>r.kind==='contacts').map(r=>({id:r.id,name:r.value.name})),rows:p.records.map(r=>({kind:r.kind,sourceId:r.id,status:p.prior.some(s=>s.identity===r.identity)?'imported':'pending',...r.kind==='matters'?{clientId:r.value.client_id,client:p.records.find(c=>c.kind==='contacts'&&c.id===(p.package.clientRepairs[r.value.client_id]??r.value.client_id))?.value.name,title:r.value.description,number:r.value.display_number,adverse:r.value.adverse_party}:{}}))});
+const publicReview=(p:Awaited<ReturnType<typeof review>>)=>({provider:p.package.mycase?'MyCase':'Clio',sourceFiles:p.package.mycaseReview?.sourceFiles,mappings:p.package.mycaseReview?.mappings,caseCounts:p.package.mycaseReview?.caseCounts,fingerprint:p.fingerprint,mappingVersion:p.mappingVersion,phase:p.package.phase,counts:Object.fromEntries(kinds.map(k=>[k,{package:p.records.filter(r=>r.kind===k).length,source:p.package.counts[k],imported:p.prior.filter(r=>r.kind===k&&['imported','preserved'].includes(r.disposition)).length}])),datasets:kinds.map(kind=>({kind,name:kind+(p.package.datasets[kind].startsWith('BEGIN:VCALENDAR')?'.ics':'.csv'),sha256:sha256(p.package.datasets[kind]),size:new TextEncoder().encode(p.package.datasets[kind]).length})),files:[...p.files.values()].map(({contentBase64,...f})=>f),relationships:p.references.map(ref=>({from:ref.row.id,kind:ref.kind,to:ref.id})),errors:p.errors,coverageGaps:p.warnings,fileRequirements:p.records.filter(r=>['documents','invoices'].includes(r.kind)).map(r=>({id:r.kind==='documents'?r.value.file_id:r.value.pdf_file_id,kind:r.kind,sourceId:r.id,present:p.files.has(r.kind==='documents'?r.value.file_id:r.value.pdf_file_id)})),contacts:p.records.filter(r=>r.kind==='contacts').map(r=>({id:r.id,name:r.value.name})),rows:p.records.map(r=>({kind:r.kind,sourceId:r.id,status:p.prior.some(s=>s.identity===r.identity)?'imported':'pending',...r.kind==='matters'?{clientId:r.value.client_id,client:p.records.find(c=>c.kind==='contacts'&&c.id===(p.package.clientRepairs[r.value.client_id]??r.value.client_id))?.value.name,title:r.value.description,number:r.value.display_number,adverse:r.value.adverse_party}:{}}))});
 async function retainedPackage(db:D1Database,job:Data):Promise<MovePackage>{
  const [parts,originals]=await Promise.all([rows(db,'SELECT body FROM s_move_package_chunks WHERE job_id=? ORDER BY ordinal',job.id),rows(db,'SELECT metadata_json,content_base64 FROM s_move_originals WHERE job_id=?',job.id)]);
  const payload=JSON.parse(parts.map(p=>p.body).join(''));
  return {...payload,files:originals.filter(f=>f.content_base64!==null).map(f=>({...JSON.parse(f.metadata_json),contentBase64:f.content_base64}))};
 }
 async function load(db:D1Database,jobId:unknown){const job=await stmt(db,'SELECT * FROM s_move_jobs WHERE id=?',text(jobId,'Move job',100)).first<Data>();insist(job,'Move job not found',404);return job;}
-export async function migrationState(db:D1Database,actor:Actor){await principal(db,actor);return {jobs:await rows(db,'SELECT id,account,fingerprint,phase,checkpoint,total,state,created_at FROM s_move_jobs ORDER BY rowid DESC')};}
+export async function migrationState(db:D1Database,actor:Actor){await principal(db,actor);return {jobs:await rows(db,"SELECT id,account,COALESCE(json_extract(package_json,'$.sourceAccount'),account) sourceAccount,COALESCE(json_extract(package_json,'$.provider'),'clio') provider,fingerprint,phase,checkpoint,total,state,created_at FROM s_move_jobs ORDER BY rowid DESC")};}
 export async function migrationAction(db:D1Database,actor:Actor,op:string,b:Data){
  await principal(db,actor);
  if(op==='preview'||op==='commit'){
@@ -67,7 +67,7 @@ export async function migrationAction(db:D1Database,actor:Actor,op:string,b:Data
   insist(b.fingerprint===plan.fingerprint,'The package changed; preview it again',409);
   const previous=await stmt(db,'SELECT id FROM s_move_jobs WHERE fingerprint=?',plan.fingerprint).first<Data>();
   if(previous)return migrationAction(db,actor,'status',{id:previous.id});
-  const jobId=id(),payload=JSON.stringify({...p,files:undefined}),header=JSON.stringify({schema:p.schema,account:p.account,phase:p.phase,extractedAt:p.extractedAt,counts:p.counts,balances:p.balances,coverage:p.coverage});
+  const jobId=id(),payload=JSON.stringify({...p,files:undefined}),header=JSON.stringify({schema:p.schema,account:p.account,phase:p.phase,extractedAt:p.extractedAt,counts:p.counts,balances:p.balances,coverage:p.coverage,provider:p.mycase?'mycase':'clio',sourceAccount:p.mycase?.sourceAccount,coverageGaps:p.mycase?plan.warnings:[]});
   const writes=[stmt(db,"INSERT INTO s_move_jobs(id,account,fingerprint,package_json,phase,previous_fingerprint,total,state,created_by,created_at) VALUES(?,?,?,?,?,?,?,'applying',?,?)",jobId,p.account,plan.fingerprint,header,p.phase,p.previousFingerprint??null,plan.records.length,actor.email,now())];
   // Bounded rows keep a package containing several small originals below D1's
   // per-row ceiling; every part is published with the reviewed job atomically.
@@ -78,6 +78,7 @@ export async function migrationAction(db:D1Database,actor:Actor,op:string,b:Data
   return migrationAction(db,actor,'status',{id:jobId});
  }
  const job=await load(db,b.id);
+ if(op==='source'){const p=await retainedPackage(db,job);insist(p.mycase,'This job has no MyCase source envelope',404);return {source:p.mycase};}
  if(op==='status'){
   let next:Data|null=null;
   if(job.state==='applying'){const plan=parsePackage(await retainedPackage(db,job)),r=plan.records[job.checkpoint];if(r){next={kind:r.kind,sourceId:r.id,title:r.value.description??r.value.title??r.value.name??r.id,number:r.value.display_number,adverse:r.value.adverse_party};if(r.kind==='matters'){const clientId=plan.package.clientRepairs[r.value.client_id]??r.value.client_id;const client=await stmt(db,"SELECT source_json FROM s_move_sources WHERE account=? AND kind='contacts' AND source_id=?",job.account,clientId).first<Data>();next.client=client?JSON.parse(client.source_json).name:null;}}}
@@ -86,6 +87,7 @@ export async function migrationAction(db:D1Database,actor:Actor,op:string,b:Data
   insist(job.state!=='undone','An undone package cannot be replayed',409);
   if(job.state==='completed')return migrationAction(db,actor,'status',{id:job.id});
   const plan=parsePackage(await retainedPackage(db,job)),r=plan.records[job.checkpoint];
+  insist(!plan.errors.length,'Retained package has unresolved originals or mappings: '+plan.errors.join('; '),409);
   if(r){
    const old=await stmt(db,'SELECT source_hash,disposition FROM s_move_sources WHERE identity=?',r.identity).first<Data>();
    if(old){insist(old.source_hash===r.hash&&['imported','preserved'].includes(old.disposition),'Source changed or erased; reconcile without overwriting',409);await atomic(db,actor,[guard(db,"EXISTS(SELECT 1 FROM s_move_jobs WHERE id=? AND checkpoint=? AND state='applying')",job.id,job.checkpoint),stmt(db,'UPDATE s_move_jobs SET checkpoint=checkpoint+1 WHERE id=?',job.id)]);}
@@ -156,6 +158,7 @@ async function reconcile(db:D1Database,job:Data){
   if(s.kind==='trust'){const t=await stmt(db,'SELECT COALESCE(SUM(e.cents),0) balance_cents FROM s_move_trust t JOIN s_trust_entries e ON e.ledger_id=t.ledger_id WHERE t.id=?',s.target_id).first<Data>();balances.trustCents+=Number(t?.balance_cents??0);}
  }
  for(const k of Object.keys(balances) as (keyof typeof balances)[])if(balances[k]!==Number(p.balances[k]))gaps.push(`${k}: source and native totals differ`);
+ gaps.push(...((p as MovePackage & {coverageGaps?:string[]}).coverageGaps??[]));
  if(job.state!=='completed')gaps.push('Package apply is not complete');
  return {account:job.account,finalDelta:job.phase==='delta',fingerprint:job.fingerprint,counts,sourceBalances:p.balances,nativeBalances:balances,trustBoundary:'Source-backed native opening approved by the designated trust officer; no bank funds are moved',gaps};
 }

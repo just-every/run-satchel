@@ -127,7 +127,7 @@ Generated from CONTRACT.md; regenerate with the documented contract-docs command
 | MOBILE-002 | Protect offline work and push alerts | missing |
 | MOVE-001 | Preview and reconcile a whole firm move | done |
 | MOVE-002 | Migrate Clio Manage and Grow completely | done |
-| MOVE-003 | Migrate 8am MyCase completely | missing |
+| MOVE-003 | Migrate 8am MyCase completely | partial |
 | MOVE-004 | Migrate Smokeball completely | missing |
 | MOVE-005 | Migrate PracticePanther completely | missing |
 | MOVE-006 | Migrate Filevine completely | missing |
