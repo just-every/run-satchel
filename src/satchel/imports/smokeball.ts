@@ -56,7 +56,7 @@ export function smokeballPackage(input:Data,columns:Record<Kind,string[]>):MoveP
     insist(input.staff[v.staff_id],`${kind} row ${row.line}: map source staff to an existing eligible native member`);
     insist(v.billable==='true'||v.billable==='false',`${kind} row ${row.line}: explicitly map billable true or false`);
     insist(!v.invoice_id,`${kind} row ${row.line}: only unbilled work is supported by this mapping`);
-    v.invoice_id='';v.source_staff=JSON.stringify(sourceStaff.get(v.staff_id));
+    v.invoice_id='';v.source_staff=JSON.stringify(sourceStaff.get(v.staff_id));v.source_staff_name=sourceStaff.get(v.staff_id)![staffMap.name];
     if(kind==='time')insist(v.autotime==='true'||v.autotime==='false',`Time row ${row.line}: preserve whether work is AutoTime-derived`);
    }
    v.source_system='smokeball';v.source_mapping_revision=revision;v.source_fields=JSON.stringify(row.value);

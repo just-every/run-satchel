@@ -28,7 +28,7 @@ export async function proveSmokeballMove(h){
  await h.json('/team',{email:timekeeper,name:'Synthetic Satchel Timekeeper',role:'lawyer'},h.owner);p.staff['staff-1']=timekeeper;
  const before=await (await h.request('/api/satchel/backup',undefined,h.owner)).text(),plan=await preview(h,p),after=await (await h.request('/api/satchel/backup',undefined,h.owner)).text();
  assert.deepEqual(productRows(after),productRows(before),'Smokeball preview changes no native records or jobs');
- assert.deepEqual(plan.errors,[]);assert.equal(plan.mappingVersion,'satchel-smokeball-v1:review-1');assert.ok(plan.coverageGaps.some(g=>g.includes('Legacy label')));assert.ok(plan.coverageGaps.some(g=>g.includes('Invoices.csv')));
+ assert.deepEqual(plan.errors,[]);assert.equal(plan.work.find(w=>w.kind==='time').sourceStaffName,'Synthetic Satchel Timekeeper');assert.equal(plan.mappingVersion,'satchel-smokeball-v1:review-1');assert.ok(plan.coverageGaps.some(g=>g.includes('Legacy label')));assert.ok(plan.coverageGaps.some(g=>g.includes('Invoices.csv')));
  for(const kind of ['task','activity','expense'])await h.json('/ledes/codes',{kind,code:kind==='task'?'L110':kind==='activity'?'A101':'E101',label:'Synthetic Satchel code',active:true},h.owner);
  const invalid=structuredClone(p);invalid.staff['staff-1']='synthetic-satchel-no-member';assert.ok((await preview(h,invalid)).errors.some(e=>e.includes('active')));
  await h.json('/migration/commit',{package:invalid,fingerprint:(await preview(h,invalid)).fingerprint},h.owner,409);
