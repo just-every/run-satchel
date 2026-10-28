@@ -164,7 +164,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "a1b7acb2ca214f8a2c91853a5435ed258fc0e74667ceb4dd6dbeab735fff4a3b",
+      "sha256": "c33074b4f2f3f8dcc25146d2c517a45cbe578580a40fcac00b2c8640bc064778",
       "executable": false
     },
     "DEMO.md": {
@@ -4452,7 +4452,7 @@
       "executable": false
     },
     "tests/satchel/agent-execution-flow.mjs": {
-      "sha256": "fbac869ea9b68d2330630e13bb7353b608079273854b2e3a349d056032107011",
+      "sha256": "3af54fbe0f0e778ec5d79f0cb9afb9a2e78ccb64967fa5ecdb99384fc3b10fdd",
       "executable": false
     },
     "tests/satchel/agent-fixture.mjs": {

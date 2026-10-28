@@ -41,12 +41,14 @@ export async function proveAgentExecution(){
   assert.equal(p.payload.version,1);await h.json('/agent/prepare-deadline',{...payload,version:2},'',403,auth);
   const dueAt=new Date(Date.now()-60000).toISOString(),futureAt=new Date(Date.now()+600000).toISOString(),jobBody={action:'prepare-deadline',requestKey:'synthetic-satchel-8',payload:{...payload,title:'Durable source preparation'},dueAt};
   const job=await h.json('/agent/jobs',jobBody,'',200,auth),cancelled=await h.json('/agent/jobs',{...jobBody,requestKey:'synthetic-satchel-9',dueAt:futureAt,payload:{...payload,title:'Must never execute'}},'',200,auth);
+  assert.equal((await h.json('/agent-jobs/'+cancelled.id+'/run',{},h.owner)).status,'queued','The human execution door cannot run a future job early');
   assert.equal((await h.json('/agent/jobs',jobBody,'',200,auth)).id,job.id);
   await h.json('/agent/jobs',{...jobBody,payload:{...payload,title:'Changed replay'}},'',409,auth);
   await h.json('/agent/jobs',{...jobBody,requestKey:'synthetic-satchel-10'},'',409,auth);
   await h.restart();await h.scheduled(Date.now());
   let controls=await h.json('/agent-controls',undefined,h.owner),prepared=controls.jobs.find(j=>j.id===job.id);
   assert.equal(prepared.status,'prepared');assert.equal(prepared.outcome,'human_review_required');assert.ok(prepared.proposal_id);
+  assert.equal((await h.json('/agent-jobs/'+job.id+'/run',{},h.owner)).proposalId,prepared.proposal_id,'Human replay reports the original outcome');
   await h.scheduled(Date.now());assert.equal((await h.json('/state',undefined,h.owner)).proposals.filter(p=>p.id===prepared.proposal_id).length,1);
   await h.json('/agent-delegations/'+delegation.id+'/revoke',{reason:'Principal withdrew queued authority'},h.owner);
   controls=await h.json('/agent-controls',undefined,h.owner);const refused=controls.jobs.find(j=>j.id===cancelled.id);
@@ -68,6 +70,7 @@ export async function proveAgentExecution(){
   const sponsorEmail=['synthetic-satchel-17','example.test'].join('@');await h.json('/team',{email:sponsorEmail,name:'Delegated counsel',role:'lawyer'},h.owner);await h.json('/team/invite',{email:sponsorEmail},h.owner);const sponsorCookie=await h.login(sponsorEmail);await h.json(base+'/access',{email:sponsorEmail},h.owner);
   const sponsoredKey=await h.json('/keys',{label:'Counsel sponsored preparation'},sponsorCookie),sponsored=await authorizeAgent(h,sponsoredKey,m.id,{sponsorCookie}),sj=await queue(sponsored,'synthetic-satchel-18');
   await h.json('/agent-agreements',{keyId:sponsoredKey.id},sponsorCookie,403);await h.json('/agent-delegations',sponsored.delegationBody,sponsorCookie,403);await h.json('/agent-delegations/'+sponsored.delegation.id+'/revoke',{reason:'Not the principal'},sponsorCookie,403);
+  await h.json('/agent-jobs/'+sj.id+'/run',{},sponsorCookie,403);
   await h.json('/team',{email:sponsorEmail,name:'Delegated counsel',role:'lawyer',active:false},h.owner);await h.scheduled(Date.now());assert.equal((await h.json('/agent-controls',undefined,h.owner)).jobs.find(j=>j.id===sj.id).status,'refused');await h.json('/agent/context',undefined,'',403,sponsored.auth);
   const withdrawn=await make('Withdrawn agreement'),wj=await queue(withdrawn,'synthetic-satchel-11');await h.json('/agent-agreements/'+withdrawn.agreement.id+'/withdraw',{reason:'Terms no longer approved'},h.owner);await h.scheduled(Date.now());assert.equal((await h.json('/agent-controls',undefined,h.owner)).jobs.find(j=>j.id===wj.id).outcome,'agreement_withdrawn');
   const erased=await make('Erased source fence',{delegation:{sources:[{documentId:record.id,version:1,kind:'matter'}]}}),ej=await queue(erased,'synthetic-satchel-12');
