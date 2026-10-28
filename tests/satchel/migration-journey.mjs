@@ -1,3 +1,4 @@
+import {smokeballFixture} from './smokeball-migration-flow.mjs';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {setupMove,csvRows} from './migration-fixture.mjs';
@@ -8,9 +9,9 @@ const tab=async(page,name)=>{await page.getByRole('navigation',{name:'Workspace'
 export async function proveWholeFirmMoveInUi(h,page,shot){
  const p=await setupMove(h),original=structuredClone(p.files.find(f=>f.id==='original-2'));p.files=p.files.filter(f=>f.id!=='original-2');await designate(h);
  await tab(page,'Move in');
- const panel=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'Whole firm Clio move',exact:true})});
+ const panel=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'Whole firm move',exact:true})});
  const preview=async()=>{await panel.getByRole('button',{name:'Preview whole firm move',exact:true}).click();await panel.getByRole('heading',{name:'Review package',exact:true}).waitFor();};
- await panel.getByLabel('Prepared Clio package',{exact:true}).setInputFiles({name:'synthetic-satchel-package.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(p))});
+ await panel.getByLabel('Prepared migration package',{exact:true}).setInputFiles({name:'synthetic-satchel-package.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(p))});
  await preview();const initialErrors=await panel.getByRole('alert').allTextContents();assert.ok(initialErrors.some(e=>e.includes('unmatched contacts identity missing-client')));assert.ok(initialErrors.some(e=>e.includes('missing original original-2')));assert.equal(await panel.getByRole('button',{name:'Commit reviewed package',exact:true}).isDisabled(),true);
  await shot('migration-repair');
  await panel.getByLabel('Repair client for 2020-C1',{exact:true}).selectOption('client-1');await preview();
@@ -41,8 +42,8 @@ export async function proveWholeFirmMoveInUi(h,page,shot){
  assert.equal(await reconciliation.getByRole('alert').count(),0);
  const sign=form(panel,'Sign reconciled cutover');await sign.getByLabel('Signed reconciliation declaration',{exact:true}).fill('Principal signs the reviewed final source inventory, originals and cent balances.');await sign.getByLabel('Source counts, originals and balances match after the final delta.',{exact:true}).check();await sign.getByRole('button',{name:'Sign reconciled cutover',exact:true}).click();await panel.getByText(/^Cutover signed ·/).waitFor();await shot('migration-cutover');
  await tab(page,'Matters');await page.getByLabel('Find a matter').fill('2020-C1');await page.getByRole('button',{name:/2020-C1 · Source active advice/}).click();
- const history=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'Imported Clio history',exact:true})});await history.getByText('Historic invoice CLIO-2020-81 · $120.00',{exact:true}).waitFor();
- const [download]=await Promise.all([page.waitForEvent('download'),history.getByRole('link',{name:'Open original Clio invoice PDF',exact:true}).click()]);assert.equal((await readFile(await download.path())).toString('base64'),p.files.find(f=>f.id==='pdf-1').contentBase64);await shot('migration-matter-history');
+ const history=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'Imported source history',exact:true})});await history.getByText('Historic invoice CLIO-2020-81 · $120.00',{exact:true}).waitFor();
+ const [download]=await Promise.all([page.waitForEvent('download'),history.getByRole('link',{name:'Open original invoice PDF',exact:true}).click()]);assert.equal((await readFile(await download.path())).toString('base64'),p.files.find(f=>f.id==='pdf-1').contentBase64);await shot('migration-matter-history');
  const m=(await h.json('/state',undefined,h.owner)).matters.find(m=>m.matter_number==='2020-C1');await setupInvoicePayers(h,m);
  const templates=await h.json('/invoice-templates',undefined,h.owner);await h.json('/invoice-templates',invoiceTemplate(templates.templates.at(-1)?.id??null,{includeTrustBalance:false}),h.owner);
  const recipient=(await h.json('/contacts',undefined,h.owner)).contacts.find(c=>c.name===m.client).emails[0];
@@ -50,4 +51,22 @@ export async function proveWholeFirmMoveInUi(h,page,shot){
  const bill=page.locator('section.bill-packages article.record').filter({has:page.getByText('Clio invoice CLIO-2020-81 · $120.00',{exact:true})});await bill.getByText('Invoice delivery',{exact:true}).click();
  const deliver=form(bill,'Deliver invoice to portal');await deliver.getByLabel('Payer portal email',{exact:true}).fill(recipient);await deliver.getByLabel('Invoice payer name',{exact:true}).fill(m.client);await deliver.getByRole('button',{name:'Deliver invoice to portal',exact:true}).click();await page.getByRole('status').getByText('Branded invoice delivered inside the authenticated portal',{exact:true}).waitFor();const deliveryDetails=bill.locator('details').filter({has:page.getByText('Invoice delivery',{exact:true})});await deliveryDetails.waitFor();if(await deliveryDetails.getAttribute('open')===null)await bill.getByText('Invoice delivery',{exact:true}).click();await bill.getByRole('link',{name:'Download delivered PDF',exact:true}).waitFor();
  const [delivered]=await Promise.all([page.waitForEvent('download'),bill.getByRole('link',{name:'Download delivered PDF',exact:true}).click()]);assert.equal((await readFile(await delivered.path())).toString('base64'),p.files.find(f=>f.id==='pdf-1').contentBase64);await shot('migration-original-delivery');
+}
+
+export async function proveSmokeballMoveInUi(h,page,shot){
+ const p=await smokeballFixture(h,{zip:false});
+ await tab(page,'Move in');
+ const panel=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'Whole firm move',exact:true})});
+ await panel.getByLabel('Prepared migration package',{exact:true}).setInputFiles({name:'synthetic-satchel-smokeball.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(p))});
+ await panel.getByRole('button',{name:'Preview whole firm move',exact:true}).click();await panel.getByRole('heading',{name:'Review unbilled work',exact:true}).waitFor();
+ await panel.getByText('AutoTime source review · $11.67',{exact:true}).waitFor();await panel.getByText('Source filing cost · $12.01',{exact:true}).waitFor();assert.ok((await panel.innerText()).includes('Legacy label'));assert.ok((await panel.innerText()).includes('Invoices.csv'));
+ await shot('smokeball-preview');
+ await panel.getByRole('button',{name:'Commit reviewed package',exact:true}).click();await panel.getByText('applying · 0 of 4 records',{exact:true}).waitFor();
+ await panel.getByRole('button',{name:'Apply next source record',exact:true}).click();await panel.getByText('applying · 1 of 4 records',{exact:true}).waitFor();
+ await panel.getByRole('button',{name:'Search conflicts for next matter',exact:true}).click();const review=form(panel,'Import reviewed source matter');await review.getByLabel('Conflict conclusion and clearance',{exact:true}).fill('Principal reviewed all Smokeball source relationships and cleared the matter.');await review.getByLabel('I reviewed the source matter, every match and my authority to open it.',{exact:true}).check();await review.getByRole('button',{name:'Import reviewed source matter',exact:true}).click();await panel.getByText('applying · 2 of 4 records',{exact:true}).waitFor();
+ for(const count of [3,4]){await panel.getByRole('button',{name:'Apply next source record',exact:true}).click();await panel.getByText(`${count===4?'completed':'applying'} · ${count} of 4 records`,{exact:true}).waitFor();}
+ await panel.getByRole('button',{name:'Reconcile whole firm move',exact:true}).click();await panel.getByRole('heading',{name:'Source and native balances',exact:true}).waitFor();assert.ok((await panel.getByRole('alert').allTextContents()).some(t=>t.includes('invoices')));assert.equal(await panel.getByRole('button',{name:'Sign reconciled cutover',exact:true}).count(),0);await shot('smokeball-incomplete-reconciliation');
+ await tab(page,'Matters');await page.getByLabel('Find a matter').fill('SB-2020-1');await page.getByRole('button',{name:/SB-2020-1 · Smokeball source matter/}).click();
+ const history=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'Imported source history',exact:true})});await history.getByText('time · work-1 · imported',{exact:true}).click();await history.getByText('AutoTime source review',{exact:true}).first().waitFor();assert.ok((await history.innerText()).includes('review-1'));await shot('smokeball-provenance');
+ await tab(page,'Time & bills');await page.getByRole('row').filter({hasText:'AutoTime source review'}).getByRole('cell',{name:'$11.67',exact:true}).waitFor();await shot('smokeball-native-work');
 }

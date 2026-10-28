@@ -310,3 +310,64 @@ relation text; no access permission or portal invitation follows from a role.
 Preview lists the SHA-256 and byte size of every retained data export as well
 as the separately supplied originals. Packages span bounded source rows and
 separate original rows, so multiple originals do not exceed a single D1 row.
+
+## Smokeball Data Import Export
+
+The existing **Whole firm move** panel also accepts a prepared
+`schema: "satchel-smokeball-v1"` package. Obtain the CSV files or Data Import
+Export ZIP through your authorized Smokeball account or vendor. No source
+credentials, staff role, membership or billing approval are imported.
+
+Supply `sourceAccount`, `mappingRevision`, `phase`, `extractedAt`, `balances`,
+`counts`, `coverage`, `staff`, `staffFile`, `mappings` and `sourceExports`.
+Each source export has `name`, `contentBase64` and the SHA-256 of those exact
+uploaded bytes. ZIP members keep their original names, hashes and bytes. CSVs
+must use UTF-8. Each file or ZIP member is at most 1 MiB, expanded data is at
+most 4 MiB and each package contains at most 1,000 native rows. Use reviewed
+deltas for larger moves. The account is namespaced separately from Clio.
+
+`staffFile` explicitly names its `file`, source `id` column and `name` column.
+`staff` maps those source IDs to existing active native members eligible to
+record work. A source administrator role grants nothing. Current native matter
+access is checked for both the importing principal and the attributed person
+at posting; grant that access separately through the ordinary native door.
+
+For each supported dataset (`contacts`, `matters`, `time`, `expenses`),
+`mappings` names its source `file` and a `columns` object mapping native
+column names to exact source headers. Use the native column names in the Clio
+package tables above; there is no automatic header guess. Matters may also
+name an existing native `typeId`, `typeVersion` and `custom` object mapping
+native typed-field keys to source headers. Map standard fields with a `fields`
+JSON column using the documented native field shape. Invalid required fields,
+unknown typed fields or incompatible values prevent committing the package.
+
+Time additionally requires source `staff_id`, `billable` and `autotime` columns;
+the latter two contain `true` or `false`. Preserve AutoTime's original source
+row and identify the human timekeeper explicitly. Costs require `staff_id`,
+`billable`, `category`, `vendor`, `vendor_reference` and `accounting_code`, plus
+an optional `utbms_expense`. Time may map `utbms_task` and `utbms_activity`.
+Only unbilled rows are supported here: an invoice association is refused.
+Current native code sets, client guidelines, timekeeper eligibility and pricing
+are validated again immediately before each work row posts. Explicit source
+hourly rates use the native explicit-rate rule; the source amount must equal
+the exact native cent calculation. A mismatch refuses the row without changing
+work or its checkpoint, requiring a reviewed mapping correction. Never round
+or silently reprice the exported amount. Imported work stays unbilled and does
+not approve an invoice or move money.
+
+Preview changes nothing. It lists raw files, hashes, unmapped columns, omitted
+datasets, reviewed mapping version, source staff attribution and work amounts.
+Every source row, source staff record, AutoTime flag, mapping revision and raw
+export survives the native archive and checkpoint restart. Repeating the exact
+package or its rows creates no second native record; changed or removed source
+identities are refused. The existing human conflict review is required for
+each matter. Inspect source history from the imported matter.
+
+This adapter does not yet ingest paid or unpaid invoices, memos, tasks,
+separately supplied Word and email originals, or remaining calendar and trust
+history. These datasets, authorized supplemental retrieval, complete source
+relationships and total reconciliation remain required. A declared complete
+coverage flag cannot certify these omitted datasets: reconciliation names the
+gaps and refuses cutover. This preserves every MOVE-004 and inherited BILL-015
+number-preservation obligation. QuickBooks Online operational proof, source
+invoice ingestion and the BILL-010 ledger prerequisites remain unchanged.

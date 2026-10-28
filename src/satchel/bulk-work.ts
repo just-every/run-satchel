@@ -152,7 +152,7 @@ export async function migrationWork(db:D1Database,actor:Actor,input:Data,sourceS
  const policies=await policyGuards(db,actor),pricing=await loadPricing(db),review=await validate(db,actor,input,sourceSystem,pricing,1);
  insist(review.value&&!review.errors.length,'Native work validation: '+review.errors.join('; '),409);
  const v=review.value!,p=v.price,person=await attributed(db,actor,v.timekeeperEmail,v.matterId),at=now();
- insist(v.amountCents===input.amountCents,'Source work amount does not match current native pricing; review the mapping without rounding or silently repricing',409);
+ insist(v.amountCents===input.amountCents&&v.billable===input.billable,'Source work amount does not match current native pricing; review the mapping without rounding or silently repricing',409);
  const writes=[...policies,pricingGuard(db,pricing),accessGuard(db,actor,v.matterId),accessGuard(db,person,v.matterId),guard(db,staffSql,v.timekeeperEmail,v.timekeeperEmail),
   stmt(db,'INSERT INTO s_entries(id,matter_id,revision,kind,date,description,minutes,rate_cents,amount_cents,created_by,created_at,billable,utbms_task,utbms_activity,utbms_expense,billed_minutes,discount_bps,rate_rule_id,rate_source,timekeeper_email) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',entryId,v.matterId,id(),v.kind,v.date,v.description,v.minutes,p?.rateCents??null,v.amountCents,actor.email,at,v.billable?1:0,v.task,v.activity,v.expense,p?.billedMinutes??null,p?.discountBps??null,p?.ruleId??null,p?.rateSource??null,v.timekeeperEmail),
   ...budgetAlerts(db,actor,v.matterId,entryId,at),audit(db,actor,'billing.entry.recorded',entryId,JSON.stringify({sourceSystem,sourceId:v.sourceId,timekeeperEmail:v.timekeeperEmail}),{matterId:v.matterId})];
@@ -162,5 +162,13 @@ export async function migrationWork(db:D1Database,actor:Actor,input:Data,sourceS
 
 export async function migrationWorkMapping(db:D1Database,input:Data){
  insist(await stmt(db,`SELECT 1 WHERE ${staffSql}`,input.timekeeperEmail,input.timekeeperEmail).first(),'Choose an active staff timekeeper with time-entry authority');
- await checkCodes(db,{task:utbmsTask(input.utbmsTask),activity:utbmsActivity(input.utbmsActivity),expense:utbmsExpense(input.utbmsExpense)});
+ const task=utbmsTask(input.utbmsTask);await checkCodes(db,{task,activity:utbmsActivity(input.utbmsActivity),expense:utbmsExpense(input.utbmsExpense)});
+ if(input.kind==='time'){
+  const pricing=await loadPricing(db),q=price(pricing,{matterId:input.matterId,client:'',date:input.date,timekeeper:input.timekeeperEmail,task,minutes:integer(input.minutes,'Minutes',1,1440),billable:input.billable,rateCents:integer(input.rateCents,'Hourly USD cents',0,100000000)});
+  insist(q.amountCents===input.amountCents,'Source work amount does not match native pricing; repair the reviewed mapping',409);
+ }else{
+  const expense={category:input.category,vendor:input.vendor,vendorReference:input.vendor_reference,accountingCode:input.accounting_code};
+  await expenseInput(input.matterId,{kind:'disbursement',expense},input);
+  insist(expense.category!=='overhead'||input.billable===false,'Overhead work must be explicitly nonbillable');
+ }
 }
