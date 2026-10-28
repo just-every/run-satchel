@@ -4576,7 +4576,7 @@
       "executable": false
     },
     "tests/satchel/collections-browser.mjs": {
-      "sha256": "fa5961491313f7e3f3ccd1826d5ed188ca7fe843443d493566cc8aead5d9bfe2",
+      "sha256": "3bf644d4c9136998291f216b62b20536d4460d3db1f092c427dd8bdaedad483c",
       "executable": false
     },
     "tests/satchel/collections-flow.mjs": {
