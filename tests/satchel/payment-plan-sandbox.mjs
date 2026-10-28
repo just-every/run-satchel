@@ -33,8 +33,8 @@ try{
   stage='hosted-mandate-create';
   const setup=await h.json('/payment-plans/'+plan.id+'/mandate',{revision:plan.revision,agree:true,requestKey:reference},s.client);
   await page.goto(setup.url);stage='hosted-mandate-card';
-  const email=page.locator('#email');if(await email.count())await email.fill('synthetic-satchel'+'@'+'example.test');
-  const card=page.getByText('Card',{exact:true});if(await card.count())await card.first().click({force:true});
+  await page.locator('#email').waitFor({state:'visible'});await page.locator('#email').fill('synthetic-satchel'+'@'+'example.test');
+  await page.getByText('Card',{exact:true}).click({force:true});
   await page.locator('#cardNumber').fill('4242424242424242');await page.locator('#cardExpiry').fill('1230');await page.locator('#cardCvc').fill('123');
   await page.locator('#billingCountry').selectOption('US');
   if(await page.locator('#billingName').isVisible())await page.locator('#billingName').fill('Synthetic Satchel Client');
@@ -50,6 +50,7 @@ try{
  stage='first-installment';await h.scheduled('2026-11-01T12:00:00Z');await h.scheduled('2026-11-01T12:15:00Z');
  assert.equal(intents.length,1);assert.equal(intents[0].livemode,false);assert.equal(intents[0].status,'succeeded');assert.equal(intents[0].amount,12500);
  assert.equal((await h.json('/portal/invoices/'+s.card.id+'/payment',undefined,s.client)).paidCents,12500);
+ for(const width of [1440,390]){await page.setViewportSize({width,height:width===1440?1000:844});await page.goto(h.origin+'/app/invoices/'+s.card.id+'/pay');await page.getByText('2026-11-01 · $125.00 · paid',{exact:true}).waitFor();await shot('live-plan-active-'+width);}
  stage='revoke';plan=await h.json('/payment-plans/'+plan.id+'/actions',{kind:'revoke',revision:plan.revision,reason:'Client withdraws future collection consent'},s.client);
  await h.restart();await h.scheduled('2027-01-02T12:00:00Z');assert.equal(intents.length,1);
  plan=await h.json('/payment-plans/'+plan.id,undefined,h.owner);assert.equal(plan.status,'stopped');
@@ -58,10 +59,11 @@ try{
  stage='import';let imported=await h.json('/bills/'+s.ach.id+'/payment-plans',{...definition(s.ach),sourceSystem:'Synthetic source practice',sourceReference:'synthetic-satchel-source-plan'},h.owner);
  assert.equal(imported.status,'paused');assert.equal(imported.consent,null);
  await h.restart();await h.scheduled('2027-01-02T12:00:00Z');assert.equal(intents.length,1);
- await page.goto(h.origin+'/app/invoices/'+s.ach.id+'/pay');await page.getByText('Installment plan · paused',{exact:true}).waitFor();await shot('live-import-paused-390');
- await page.setViewportSize({width:1440,height:1000});imported=await authorize(imported,'synthetic-satchel-live-import-consent');assert.equal(imported.status,'active');
+ await page.goto(h.origin+'/app/invoices/'+s.ach.id+'/pay');await page.getByText('Imported Synthetic source practice plan · paused',{exact:true}).waitFor();await shot('live-import-paused-390');
+ await page.setViewportSize({width:1440,height:1000});await shot('live-import-paused-1440');imported=await authorize(imported,'synthetic-satchel-live-import-consent');assert.equal(imported.status,'active');
  stage='import-collection';await h.scheduled('2026-11-01T12:00:00Z');await h.scheduled('2026-11-01T12:15:00Z');assert.equal(intents.length,2);assert.equal(intents[1].status,'succeeded');assert.equal(intents[1].amount,12500);
  assert.equal((await h.json('/portal/invoices/'+s.ach.id+'/payment',undefined,s.client)).paidCents,12500);
+ for(const width of [1440,390]){await page.setViewportSize({width,height:width===1440?1000:844});await page.goto(h.origin+'/app/invoices/'+s.ach.id+'/pay');await page.getByText('Imported Synthetic source practice plan · active',{exact:true}).waitFor();await page.getByText('2026-11-01 · $125.00 · paid',{exact:true}).waitFor();await shot('live-import-active-'+width);}
  await h.json('/payment-plans/'+imported.id+'/actions',{kind:'revoke',revision:imported.revision,reason:'Sandbox journey complete; no future collection authorized'},s.client);
  console.log(JSON.stringify({testMode:true,hostedMandates:sessions.length,threeInstallments:true,oneChargeBeforeRevocation:true,stoppedAcrossRestart:true,humanTask:true,importPausedUntilFreshMandate:true,importChargedOnce:true,journeyPassed:true}));
 }catch(error){
