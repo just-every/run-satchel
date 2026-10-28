@@ -30,6 +30,11 @@ async function review(db:D1Database,input:unknown){
  }
  if(plan.records.some(r=>r.kind==='trust')&&!await stmt(db,"SELECT 1 FROM s_trust_accounts WHERE id=? AND kind='trust'",p.trustAccountId??'').first())plan.errors.push('Map an existing native trust bank account before importing balances');
  for(const [source,email] of Object.entries(p.staff))if(!await stmt(db,"SELECT 1 FROM s_members WHERE email=? AND active=1 AND role<>'client' UNION SELECT 1 FROM oa_operators WHERE email=? AND role='owner' AND status='active'",email,email).first())plan.errors.push(`Staff ${source}: choose an active firm staff member`);
+ const sourceValue=(kind:string,sourceId:string)=>plan.records.find(r=>r.kind===kind&&r.id===sourceId)?.value??(()=>{const row=prior.find(r=>r.kind===kind&&r.source_id===sourceId&&['imported','preserved'].includes(r.disposition));return row?JSON.parse(row.source_json):null;})();
+ for(const r of plan.records){
+  if(['time','expenses'].includes(r.kind)&&r.value.invoice_id){const invoice=sourceValue('invoices',r.value.invoice_id);if(invoice&&invoice.matter_id!==r.value.matter_id)plan.errors.push(`${r.kind} ${r.id}: billed work and source invoice must belong to the same matter`);}
+  if(r.kind==='trust'){const m=sourceValue('matters',r.value.matter_id);if(m&&(p.clientRepairs[m.client_id]??m.client_id)!==(p.clientRepairs[r.value.client_id]??r.value.client_id))plan.errors.push(`Trust ${r.id}: source client does not match the matter client`);}
+ }
  for(const r of plan.records){
   const old=byIdentity.get(r.identity);
   if(old&&(old.source_hash!==r.hash||!['imported','preserved'].includes(old.disposition)))plan.errors.push(`${r.kind} ${r.id}: source changed, undone or erased; no overwrite or resurrection is allowed`);
@@ -42,7 +47,7 @@ async function review(db:D1Database,input:unknown){
  }
  return {...plan,prior};
 }
-const publicReview=(p:Awaited<ReturnType<typeof review>>)=>({fingerprint:p.fingerprint,mappingVersion:p.mappingVersion,phase:p.package.phase,counts:Object.fromEntries(kinds.map(k=>[k,{package:p.records.filter(r=>r.kind===k).length,source:p.package.counts[k],imported:p.prior.filter(r=>r.kind===k&&['imported','preserved'].includes(r.disposition)).length}])),files:[...p.files.values()].map(({contentBase64,...f})=>f),relationships:p.references.map(ref=>({from:ref.row.id,kind:ref.kind,to:ref.id})),errors:p.errors,coverageGaps:p.warnings,fileRequirements:p.records.filter(r=>['documents','invoices'].includes(r.kind)).map(r=>({id:r.kind==='documents'?r.value.file_id:r.value.pdf_file_id,kind:r.kind,sourceId:r.id,present:p.files.has(r.kind==='documents'?r.value.file_id:r.value.pdf_file_id)})),contacts:p.records.filter(r=>r.kind==='contacts').map(r=>({id:r.id,name:r.value.name})),rows:p.records.map(r=>({kind:r.kind,sourceId:r.id,status:p.prior.some(s=>s.identity===r.identity)?'imported':'pending',...r.kind==='matters'?{clientId:r.value.client_id,client:p.records.find(c=>c.kind==='contacts'&&c.id===(p.package.clientRepairs[r.value.client_id]??r.value.client_id))?.value.name,title:r.value.description,number:r.value.display_number,adverse:r.value.adverse_party}:{}}))});
+const publicReview=(p:Awaited<ReturnType<typeof review>>)=>({fingerprint:p.fingerprint,mappingVersion:p.mappingVersion,phase:p.package.phase,counts:Object.fromEntries(kinds.map(k=>[k,{package:p.records.filter(r=>r.kind===k).length,source:p.package.counts[k],imported:p.prior.filter(r=>r.kind===k&&['imported','preserved'].includes(r.disposition)).length}])),datasets:kinds.map(kind=>({kind,name:kind+(p.package.datasets[kind].startsWith('BEGIN:VCALENDAR')?'.ics':'.csv'),sha256:sha256(p.package.datasets[kind]),size:new TextEncoder().encode(p.package.datasets[kind]).length})),files:[...p.files.values()].map(({contentBase64,...f})=>f),relationships:p.references.map(ref=>({from:ref.row.id,kind:ref.kind,to:ref.id})),errors:p.errors,coverageGaps:p.warnings,fileRequirements:p.records.filter(r=>['documents','invoices'].includes(r.kind)).map(r=>({id:r.kind==='documents'?r.value.file_id:r.value.pdf_file_id,kind:r.kind,sourceId:r.id,present:p.files.has(r.kind==='documents'?r.value.file_id:r.value.pdf_file_id)})),contacts:p.records.filter(r=>r.kind==='contacts').map(r=>({id:r.id,name:r.value.name})),rows:p.records.map(r=>({kind:r.kind,sourceId:r.id,status:p.prior.some(s=>s.identity===r.identity)?'imported':'pending',...r.kind==='matters'?{clientId:r.value.client_id,client:p.records.find(c=>c.kind==='contacts'&&c.id===(p.package.clientRepairs[r.value.client_id]??r.value.client_id))?.value.name,title:r.value.description,number:r.value.display_number,adverse:r.value.adverse_party}:{}}))});
 async function retainedPackage(db:D1Database,job:Data):Promise<MovePackage>{
  const [parts,originals]=await Promise.all([rows(db,'SELECT body FROM s_move_package_chunks WHERE job_id=? ORDER BY ordinal',job.id),rows(db,'SELECT metadata_json,content_base64 FROM s_move_originals WHERE job_id=?',job.id)]);
  const payload=JSON.parse(parts.map(p=>p.body).join(''));
@@ -126,7 +131,7 @@ async function reconcile(db:D1Database,job:Data){
  for(const kind of kinds){counts[kind]={source:p.counts[kind],native:sources.filter(s=>s.kind===kind&&['imported','preserved'].includes(s.disposition)).length};if(counts[kind].source!==counts[kind].native)gaps.push(`${kind}: source count does not reconcile`);if(p.coverage[kind]!=='complete')gaps.push(`${kind}: retrieve missing source history through an authorized export`);}
  for(const s of sources){
   if(!['imported','preserved'].includes(s.disposition)){gaps.push(`${s.kind} ${s.source_id}: ${s.disposition}`);continue;}
-  if(s.kind!=='relationships'){
+  if(s.target_table!=='s_matter_parties'){
    const row=await stmt(db,await nativeSnapshotSql(db,s.target_table),s.target_id).first<Data>();
    const actual=row?Object.values(row)[0]:null;
    if(!actual||canonicalJson(JSON.parse(String(actual)))!==canonicalJson(JSON.parse(s.native_json)))gaps.push(`${s.kind} ${s.source_id}: native record changed or missing`);
@@ -136,7 +141,7 @@ async function reconcile(db:D1Database,job:Data){
    const expected=await mappedMatterProfile(db,v.practice_code??'',v.fields?JSON.parse(v.fields):{caseNumber:v.case_number}),actual=await readProfile(db,s.target_id);
    if(canonicalJson({...actual,revision:null})!==canonicalJson(expected))gaps.push(`Matter ${s.source_id}: mapped fields differ from the source`);
   }
-  if(s.kind==='relationships'&&!await stmt(db,'SELECT 1 FROM s_matter_parties WHERE matter_id=? AND party_id=? AND relation=?',targetId(job.account,'matters',v.matter_id),targetId(job.account,'contacts',v.contact_id),v.relation).first())gaps.push(`Relationship ${s.source_id}: native link missing`);
+  if(s.target_table==='s_matter_parties'&&!await stmt(db,'SELECT 1 FROM s_matter_parties WHERE matter_id=? AND party_id=? AND relation=?',targetId(job.account,'matters',v.matter_id),targetId(job.account,'contacts',v.contact_id),v.relation).first())gaps.push(`Relationship ${s.source_id}: native link missing`);
   if(s.kind==='invoices'){
    const original=await stmt(db,"SELECT i.pdf_base64,i.pdf_digest,json_extract(b.snapshot,'$.originalPdfDigest') source_digest FROM s_invoice_issues i JOIN s_bills b ON b.id=i.bill_id WHERE b.id=?",s.target_id).first<Data>();
    if(!original||original.pdf_digest!==original.source_digest||sha256(Uint8Array.from(atob(original.pdf_base64),c=>c.charCodeAt(0)))!==original.source_digest)gaps.push(`Invoice ${s.source_id}: original PDF does not reconcile`);
@@ -146,6 +151,7 @@ async function reconcile(db:D1Database,job:Data){
    if(!d?.content_base64||sha256(Uint8Array.from(atob(d.content_base64),c=>c.charCodeAt(0)))!==d.sha256)gaps.push(`Document ${s.source_id}: original unavailable`);
   }
   if(s.kind==='invoices'){const b=await stmt(db,"SELECT json_extract(snapshot,'$.totalCents') total FROM s_bills WHERE id=?",s.target_id).first<Data>();balances.billedCents+=Number(b?.total??0);balances.arCents+=Number((await invoiceFunds(db,s.target_id)).due_cents);}
+  if(['time','expenses'].includes(s.kind)&&v.invoice_id&&!await stmt(db,'SELECT 1 FROM s_billing_sources WHERE entry_id=? AND bill_id=?',s.target_id,targetId(job.account,'invoices',v.invoice_id)).first())gaps.push(`Work ${s.source_id}: billed source is not reserved by its source invoice`);
   if(['time','expenses'].includes(s.kind)&&!v.invoice_id){const e=await stmt(db,'SELECT amount_cents FROM s_entries WHERE id=? AND NOT EXISTS(SELECT 1 FROM s_billing_sources WHERE entry_id=?)',s.target_id,s.target_id).first<Data>();balances.unbilledCents+=Number(e?.amount_cents??0);}
   if(s.kind==='trust'){const t=await stmt(db,'SELECT COALESCE(SUM(e.cents),0) balance_cents FROM s_move_trust t JOIN s_trust_entries e ON e.ledger_id=t.ledger_id WHERE t.id=?',s.target_id).first<Data>();balances.trustCents+=Number(t?.balance_cents??0);}
  }

@@ -1,13 +1,15 @@
 import {canonicalJson,sha256} from '../../modules/import-kit/src/d1/index';
 import {decode,mediaType} from '../documents';
 import {date,insist,text,type Data} from '../model';
+import {contactProfile} from '../contact-data';
+import {calendarIcs} from './ics';
 import {parseCsv} from './csv';
 
 export const kinds=['contacts','matters','relationships','documents','notes','calls','emails','calendar','tasks','time','expenses','invoices','trust','grow'] as const;
 export type Kind=typeof kinds[number];
 export type MoveRow={kind:Kind;id:string;identity:string;hash:string;value:Data;line:number};
 export type MoveFile={id:string;name:string;sha256:string;contentBase64:string;modifiedAt:string;mime:string;size:number};
-export type MovePackage={schema:string;account:string;phase:string;previousFingerprint?:string;extractedAt:string;datasets:Record<Kind,string>;files:MoveFile[];staff:Record<string,string>;clientRepairs:Record<string,string>;coverage:Record<string,string>;counts:Record<Kind,number>;balances:Data;trustAccountId?:string};
+export type MovePackage={schema:string;account:string;phase:string;previousFingerprint?:string;extractedAt:string;datasets:Record<Kind,string>;files:MoveFile[];staff:Record<string,string>;clientRepairs:Record<string,string>;coverage:Record<string,string>;counts:Record<Kind,number>;balances:Data;trustAccountId?:string;calendarMatters?:Record<string,string>};
 const columns:Record<Kind,string[]>={
  contacts:['id','name'],matters:['id','display_number','description','client_id','adverse_party','status','opened_at'],
  relationships:['id','matter_id','contact_id','relation'],documents:['id','matter_id','file_id','date','visibility'],
@@ -41,7 +43,7 @@ export function parsePackage(input:unknown){
  }
  for(const kind of kinds){
   if(typeof p.datasets[kind]!=='string'){fail(`Missing ${kind} dataset; provide its header even when empty`);continue;}
-  const parsed=parseCsv(p.datasets[kind]),missing=columns[kind].filter(c=>!parsed.headers.includes(c));
+  const parsed=kind==='calendar'&&p.datasets[kind].startsWith('BEGIN:VCALENDAR')?calendarIcs(p.datasets[kind],p.calendarMatters):parseCsv(p.datasets[kind]),missing=columns[kind].filter(c=>!parsed.headers.includes(c));
   insist(!missing.length,`${kind}: missing required columns ${missing.join(', ')}`);
   const ids=new Set<string>();
   for(const {line,value} of parsed.rows){
@@ -50,13 +52,15 @@ export function parsePackage(input:unknown){
    for(const key of columns[kind])if(v[key]===undefined)fail(`${kind} row ${line}: missing ${key}`);
    if(v.staff_id&&!p.staff[v.staff_id])fail(`${kind} ${sid}: map source staff ${v.staff_id} to an active firm member`);
    try{
+    insist(!v.currency||v.currency==='USD','Only source USD records are supported; do not silently convert currency');
     for(const key of Object.keys(v)){
      if(key.endsWith('_cents')||key==='ordinal')money(v[key],`${kind} ${sid} ${key}`);
      if((key==='date'||key.endsWith('_date'))&&v[key])date(v[key]);
      if((key.endsWith('_at'))&&v[key])timestamp(v[key],`${kind} ${sid} ${key}`);
     }
+    if(kind==='contacts'&&v.profile)contactProfile(JSON.parse(v.profile));
     if(kind==='contacts'||kind==='grow'){text(v.name,'Contact name',300);if(v.email)insist(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email),'Supply a valid contact email');}
-    if(kind==='calendar'){insist(/^([01]\d|2[0-3]):[0-5]\d$/.test(v.time),'Use a 24-hour calendar time');new Intl.DateTimeFormat('en-US',{timeZone:v.timezone});insist(/^\d+$/.test(v.duration_minutes)&&Number(v.duration_minutes)>=5&&Number(v.duration_minutes)<=1440,'Calendar duration must be 5–1440 minutes');}
+    if(kind==='calendar'){insist(/^([01]\d|2[0-3]):[0-5]\d$/.test(v.time),'Use a 24-hour calendar time');new Intl.DateTimeFormat('en-US',{timeZone:v.timezone});insist(/^\d+$/.test(v.duration_minutes)&&Number(v.duration_minutes)>=5&&Number(v.duration_minutes)<=1440,'Calendar duration must be 5–1440 minutes');insist(!v.frequency||['once','daily','weekly'].includes(v.frequency),'Map a supported calendar frequency');for(const [key,max] of [['repeat_interval',12],['occurrences',104]] as const)if(v[key])insist(/^\d+$/.test(v[key])&&Number(v[key])>=1&&Number(v[key])<=max,'Map a finite supported calendar recurrence');}
     if(kind==='tasks')insist(['open','done'].includes(v.status),'Task status must be open or done');
     if(kind==='matters'){
      text(v.display_number,'Matter number',200);text(v.description,'Matter title',200);text(v.adverse_party,'Adverse party',200);
@@ -69,7 +73,7 @@ export function parsePackage(input:unknown){
     if(kind==='documents')insist(['private','matter'].includes(v.visibility),'Map source document visibility explicitly');
     if(['notes','calls','emails'].includes(kind)){text(v.title,'History title',200);text(v.body,'History text',20000);}
     if(['notes','calls','emails'].includes(kind))insist(['private','team'].includes(v.visibility),'Map source history visibility explicitly');
-    if(kind==='relationships')insist(['client','adverse'].includes(v.relation),'Relationship must be client or adverse');
+    if(kind==='relationships'){if(v.other_contact_id){text(v.relation,'Contact relationship',200);insist(v.other_contact_id!==v.contact_id,'A contact relationship needs two different contacts');}else insist(['client','adverse','insurer','witness','expert','counsel'].includes(v.relation),'Map a supported native matter role');}
     if(['documents','invoices'].includes(kind)){
      const file=files.get(kind==='documents'?v.file_id:v.pdf_file_id);
      if(!file)fail(`${kind} ${sid}: missing original ${kind==='documents'?v.file_id:v.pdf_file_id}; supply it before apply`);
@@ -85,8 +89,8 @@ export function parsePackage(input:unknown){
  insist(records.length>0&&records.length<=1000,'Supply 1–1,000 records per package');
  const byKind=(kind:Kind)=>records.filter(r=>r.kind===kind),contactIds=new Set(byKind('contacts').map(r=>r.id)),matterIds=new Set(byKind('matters').map(r=>r.id));
  const references=records.flatMap(r=>r.kind==='matters'?[{row:r,kind:'contacts' as Kind,id:p.clientRepairs[r.value.client_id]??r.value.client_id}]:r.value.matter_id?[{row:r,kind:'matters' as Kind,id:r.value.matter_id}]:[]);
- for(const r of byKind('relationships'))references.push({row:r,kind:'contacts',id:r.value.contact_id});
- for(const r of byKind('trust'))references.push({row:r,kind:'documents',id:r.value.document_id});
+ for(const r of byKind('relationships')){references.push({row:r,kind:'contacts',id:r.value.contact_id});if(r.value.other_contact_id)references.push({row:r,kind:'contacts',id:r.value.other_contact_id});}
+ for(const r of byKind('trust')){references.push({row:r,kind:'documents',id:r.value.document_id});references.push({row:r,kind:'contacts',id:p.clientRepairs[r.value.client_id]??r.value.client_id});}
  for(const r of [...byKind('time'),...byKind('expenses')])if(r.value.invoice_id)references.push({row:r,kind:'invoices',id:r.value.invoice_id});
  for(const k of ['billedCents','unbilledCents','arCents','trustCents'])money(p.balances[k],k);
  return {package:p,records,files,references,errors,warnings,fingerprint:sha256(canonicalJson(p)),mappingVersion:p.schema,columns,contactIds,matterIds};

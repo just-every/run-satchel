@@ -268,7 +268,7 @@
       "executable": false
     },
     "IMPORTING.md": {
-      "sha256": "9e0bf955304ec5042c5d671ca6e4fcb304aee89af74bf2f28035f383085cbd83",
+      "sha256": "da1aae2112c03368929d0690ac82868d675a1ab9e8a7f0fe03bddcd08071cae3",
       "executable": false
     },
     "LICENSE": {
@@ -3319,16 +3319,20 @@
       "sha256": "67aa0886c7d83d5f6f302f3dbe0a4297a292564f48a0943136bb2d8d4a173af1",
       "executable": false
     },
+    "src/satchel/imports/ics.ts": {
+      "sha256": "cae3b58239dae28aad842b768e6d326655c9274791b6d0aea831835e7f0ff80f",
+      "executable": false
+    },
     "src/satchel/imports/matters.ts": {
       "sha256": "07cc9e0cbf59ad49c0bc02bb0b25c68d725d511e3edf56b744b1a08065a83bc7",
       "executable": false
     },
     "src/satchel/imports/native.ts": {
-      "sha256": "917f78597c3afb767e54f591c275aa0e32442895ab6b7a2794c5ed1b8325ca81",
+      "sha256": "a719efa3e4273e821122e8618d8b6eefc88f08a5b6bb882c48263eb1785313b8",
       "executable": false
     },
     "src/satchel/imports/package.ts": {
-      "sha256": "7da7e8833532350f6ad4af31f443890d08570c93c513fb70162c8c967ccce260",
+      "sha256": "3c6754b4f5db569551d59fa693b8d6a574d3882035be78375682f18a2a952a81",
       "executable": false
     },
     "src/satchel/imports/target.ts": {
@@ -3524,7 +3528,7 @@
       "executable": false
     },
     "src/satchel/migration.ts": {
-      "sha256": "abab08982e115be5148c4cd2a7b9d24a23e0af36b209eb2eadb9ced99030bb81",
+      "sha256": "c91d824e8d32e5c7eb9a777080b51e2014e8f2b0e466fe8aaa3d0b1bcff2267d",
       "executable": false
     },
     "src/satchel/model.ts": {
@@ -3588,7 +3592,7 @@
       "executable": false
     },
     "src/satchel/processor-balances.ts": {
-      "sha256": "e13e0806943240dca4d6b4bb792eabfae0eacb2338a61a3deb3fa2c985f64421",
+      "sha256": "26b58d1be9672f8c196a236dc97aed2668c78ab0db2e4fc82a1fbbd7979dcb54",
       "executable": false
     },
     "src/satchel/production-shares.ts": {
@@ -4236,7 +4240,7 @@
       "executable": false
     },
     "src/ui/migration.tsx": {
-      "sha256": "cfb86d6514aeffc3151d9a9d5d3cf1db672f67f53235ad38e84d64f62bebb9f3",
+      "sha256": "b625f4748079686b37e52885dd491dfc4b8fd6341993b3b2bfcf9637ef035e88",
       "executable": false
     },
     "src/ui/move-in.tsx": {
@@ -4716,11 +4720,11 @@
       "executable": false
     },
     "tests/satchel/migration-flow.mjs": {
-      "sha256": "da1bd7af95e8e20e97abca20353549464348c434beb7df40f53e394935d0e2f6",
+      "sha256": "7069a5dc8da5a4e81223e977dfdafe8a35f5c0219c4a68f2eff54cdc82fc81bd",
       "executable": false
     },
     "tests/satchel/migration-journey.mjs": {
-      "sha256": "05ae5606e024d047819eea32f36fe46f966ecd620e054d448d2e68f528e0a363",
+      "sha256": "90ab6b49bd9a2ecdd5fe9e4ae1da3568727e59cd39d216a617fbb90a78b7676e",
       "executable": false
     },
     "tests/satchel/numbering-journey.test.mjs": {

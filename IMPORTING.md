@@ -293,3 +293,20 @@ cutover supplies fingerprint, confirmed and declaration. Matter source history
 is at `GET /api/satchel/matters/:id/migration`, subject to native matter, private
 history and document permissions. Original erasure also removes the matching
 bytes from retained packages, while durable source fences prevent replay.
+
+The calendar dataset can alternatively contain a complete ICS calendar. Supply
+`calendarMatters` mapping each original UID to its source matter ID, or add an
+explicit X-SATCHEL-MATTER-ID property when preparing the export. Original ICS
+bytes are retained. Native mapping preserves the UID, local date, time, timezone,
+location and finite daily or weekly recurrence. CSV can also supply frequency,
+repeat_interval and occurrences. Unsupported exceptions or recurrence rules are
+rejected for explicit expansion to a complete prepared CSV; they are never
+silently omitted or treated as confirmed court deadlines.
+
+Matter relationships may also use the native insurer, witness, expert and
+counsel roles. A relationship with an `other_contact_id` instead maps the two
+source contact identities to a native contact relationship with its source
+relation text; no access permission or portal invitation follows from a role.
+Preview lists the SHA-256 and byte size of every retained data export as well
+as the separately supplied originals. Packages span bounded source rows and
+separate original rows, so multiple originals do not exceed a single D1 row.
