@@ -4576,11 +4576,11 @@
       "executable": false
     },
     "tests/satchel/collections-browser.mjs": {
-      "sha256": "3bf644d4c9136998291f216b62b20536d4460d3db1f092c427dd8bdaedad483c",
+      "sha256": "40cff666a8b147d399eb1644a8ef3735e1cbecb0b41dc5f03c42571d2be0b60e",
       "executable": false
     },
     "tests/satchel/collections-flow.mjs": {
-      "sha256": "f3e4cf7490cc5c4687f8296d6f73d710138512ab749dd0706ac0dfd54eb79b3f",
+      "sha256": "b24014ad1c31c663d5337565f5407e2889e96cdd6c1a6c4d9327008aea677d5c",
       "executable": false
     },
     "tests/satchel/collections-sandbox.mjs": {
