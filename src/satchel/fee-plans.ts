@@ -9,7 +9,7 @@ export async function loadFeePlan(db:D1Database,actor:Actor,matterId:string,plan
 export async function feePlans(db:D1Database,actor:Actor,matterId:string){
  await matter(db,actor,matterId);return {errors:await rows(db,'SELECT at,reason FROM s_fee_schedule_errors WHERE matter_id=? ORDER BY at DESC,id DESC LIMIT 20',matterId),plans:(await rows(db,'SELECT * FROM s_fee_plans WHERE matter_id=? ORDER BY created_at,id',matterId)).map(feePlan),occurrences:await rows(db,'SELECT o.*,b.status FROM s_fee_occurrences o JOIN s_fee_plans p ON p.id=o.plan_id JOIN s_bills b ON b.id=o.bill_id WHERE p.matter_id=? ORDER BY o.period',matterId)};
 }
-export async function saveFeePlan(db:D1Database,actor:Actor,matterId:string,b:Data){
+async function feePlanWrites(db:D1Database,actor:Actor,matterId:string,b:Data,planId:string){
  human(actor);need(actor,'owner','lawyer');await matter(db,actor,matterId);
  insist(['flat','retainer','milestone','capped','blended'].includes(b.kind),'Choose a flat, retainer, milestone, capped or blended fee');
  insist(['once','monthly'].includes(b.recurrence),'Choose once or monthly recurrence');
@@ -26,7 +26,13 @@ export async function saveFeePlan(db:D1Database,actor:Actor,matterId:string,b:Da
  const existing=(await rows(db,'SELECT * FROM s_fee_plans WHERE matter_id=?',matterId)).map(feePlan);
  if(['capped','blended'].includes(terms.kind)){insist(!existing.some(p=>['capped','blended'].includes(p.kind)&&p.startDate<=end&&p.endDate>=start),'A capped or blended plan already covers these dates',409);}
  const planCount=existing.length;
- const planId=id();await atomic(db,actor,[accessGuard(db,actor,matterId),guard(db,'(SELECT COUNT(*) FROM s_fee_plans WHERE matter_id=?)=?',matterId,planCount),stmt(db,'INSERT INTO s_fee_plans VALUES(?,?,?,?,?)',planId,matterId,JSON.stringify(terms),actor.email,now()),audit(db,actor,'fee.terms_reviewed',planId,JSON.stringify(terms),{matterId})]);return loadFeePlan(db,actor,matterId,planId);
+ return [accessGuard(db,actor,matterId),guard(db,'(SELECT COUNT(*) FROM s_fee_plans WHERE matter_id=?)=?',matterId,planCount),stmt(db,'INSERT INTO s_fee_plans VALUES(?,?,?,?,?)',planId,matterId,JSON.stringify(terms),actor.email,now()),audit(db,actor,'fee.terms_reviewed',planId,JSON.stringify(terms),{matterId})];
+}
+export async function saveFeePlan(db:D1Database,actor:Actor,matterId:string,b:Data){
+ const planId=id();await atomic(db,actor,await feePlanWrites(db,actor,matterId,b,planId));return loadFeePlan(db,actor,matterId,planId);
+}
+export async function migrationFeePlan(db:D1Database,actor:Actor,matterId:string,b:Data,planId:string){
+ return feePlanWrites(db,actor,matterId,b,planId);
 }
 export function periods(p:Data,asOf:string){
  if(p.recurrence==='once')return p.startDate<=asOf?[p.startDate]:[];

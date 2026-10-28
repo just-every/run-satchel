@@ -76,6 +76,7 @@ export async function proveMyCaseMoveInUi(h,page,shot){
  await panel.getByRole('button',{name:'Reconcile whole firm move',exact:true}).click();await panel.getByRole('alert').filter({hasText:'MyCase unsupported: financial activity'}).waitFor();assert.equal(await panel.getByRole('button',{name:'Sign reconciled cutover',exact:true}).count(),0);await shot('mycase-incomplete-reconciliation');
  await tab(page,'Matters');await page.getByLabel('Find a matter').fill('MC-2020-1');await page.getByRole('button',{name:/MC-2020-1 · MyCase active advice/}).click();const history=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'Imported source history',exact:true})});await history.getByText('matters · matter-1 · imported',{exact:true}).waitFor();await shot('mycase-case-provenance');
  await tab(page,'Documents');await page.getByText('MyCase-advice.txt',{exact:true}).first().waitFor();await shot('mycase-original');
+ await proveMyCaseHistoryInUi(h,page,shot);
 }
 
 export async function proveSmokeballMoveInUi(h,page,shot){
@@ -94,4 +95,31 @@ export async function proveSmokeballMoveInUi(h,page,shot){
  await tab(page,'Matters');await page.getByLabel('Find a matter').fill('SB-2020-1');await page.getByRole('button',{name:/SB-2020-1 · Smokeball source matter/}).click();
  const history=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'Imported source history',exact:true})});await history.getByText('time · work-1 · imported',{exact:true}).click();await history.getByText('AutoTime source review',{exact:true}).first().waitFor();assert.ok((await history.innerText()).includes('review-1'));await shot('smokeball-provenance');
  await tab(page,'Time & bills');await page.getByRole('row').filter({hasText:'AutoTime source review'}).getByRole('cell',{name:'$11.67',exact:true}).waitFor();await shot('smokeball-native-work');
+}
+
+async function proveMyCaseHistoryInUi(h,page,shot){
+ const {mycaseHistoryPackage}=await import('./mycase-migration-flow.mjs'),p=await mycaseHistoryPackage(h);await designate(h);
+ await tab(page,'Move in');const panel=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'Whole firm move',exact:true})});
+ await panel.getByLabel('Prepared migration package',{exact:true}).setInputFiles({name:'synthetic-satchel-mycase-history.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(p))});
+ await panel.getByRole('button',{name:'Preview whole firm move',exact:true}).click();await panel.getByRole('heading',{name:'Review source work',exact:true}).waitFor();
+ await panel.getByText('MyCase billed advice · $100.00',{exact:true}).waitFor();await panel.getByText('MyCase filing expense · $20.00',{exact:true}).waitFor();assert.equal(await panel.getByRole('alert').count(),0);await shot('mycase-history-review');
+ const plan=await h.json('/migration/preview',{package:p},h.owner);assert.equal(plan.counts.fees.package,2);assert.equal(plan.counts.financial.package,4);assert.equal(plan.counts.portal.package,1);assert.equal(plan.counts.sms.package,1);
+ await panel.getByRole('button',{name:'Commit reviewed package',exact:true}).click();await panel.getByText('applying · 0 of '+plan.rows.length+' records',{exact:true}).waitFor();
+ for(let index=0;index<plan.rows.length;index++){
+  const search=panel.getByRole('button',{name:'Search conflicts for next matter',exact:true}),trust=panel.getByRole('button',{name:'Approve source trust opening',exact:true}),fee=panel.getByRole('button',{name:'Adopt reviewed source fee',exact:true});
+  if(await search.count()){
+   await search.click();const review=form(panel,'Import reviewed source matter');await review.getByLabel('Conflict conclusion and clearance',{exact:true}).fill('Principal reviewed MyCase source relationships and every conflict match.');await review.getByLabel('I reviewed the source matter, every match and my authority to open it.',{exact:true}).check();await review.getByRole('button',{name:'Import reviewed source matter',exact:true}).click();
+  }else if(await trust.count()){
+   const review=form(panel,'Approve source trust opening');await review.getByLabel('Trust source reconciliation approval',{exact:true}).fill('Designated officer reviewed the source statement and exact client balance.');await review.getByLabel('I approve the exact source-backed client trust opening.',{exact:true}).check();await trust.click();
+  }else if(await fee.count()){
+   const review=form(panel,'Adopt reviewed source fee');await review.getByText('Source engagement review · Agreement: Synthetic Satchel source signed agreement',{exact:true}).waitFor();await shot('mycase-fee-terms');await review.getByLabel('Source fee terms review',{exact:true}).fill('Principal reviewed the exact source fee and prohibited trust draw.');await review.getByLabel('I reviewed the exact source fee terms and native earning rules.',{exact:true}).check();await fee.click();
+  }else await panel.getByRole('button',{name:'Apply next source record',exact:true}).click();
+  await panel.getByText(new RegExp('^(applying|completed) · '+(index+1)+' of '+plan.rows.length+' records$')).waitFor();
+ }
+ await panel.getByRole('button',{name:'Reconcile whole firm move',exact:true}).click();await panel.getByText('AR · invoice-1: source $130.00 · activity $130.00 · 2 records',{exact:true}).waitFor();await panel.getByText('TRUST · trust-1: source $1,500.01 · activity $1,500.01 · 2 records',{exact:true}).waitFor();assert.equal(await panel.getByRole('button',{name:'Sign reconciled cutover',exact:true}).count(),0);await shot('mycase-activity-reconciliation');
+ await tab(page,'Matters');await page.getByLabel('Find a matter').fill('MCH-2020-1');await page.getByRole('button',{name:/MCH-2020-1 · MyCase active advice/}).click();
+ const history=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'Imported source history',exact:true})});await history.getByText('Historic invoice MYCASE-2020-81 · $150.00',{exact:true}).waitFor();
+ const [download]=await Promise.all([page.waitForEvent('download'),history.getByRole('link',{name:'Open original invoice PDF',exact:true}).click()]);assert.equal((await readFile(await download.path())).toString('base64'),Buffer.from((await import('fflate')).unzipSync(Buffer.from(p.binaryArchive.file.contentBase64,'base64'))['originals/MyCase-2020-81.pdf']).toString('base64'));await shot('mycase-historic-invoice');
+ await history.getByText('portal · portal-1 · imported',{exact:true}).click();await history.getByText('Source portal body retained without sending.',{exact:true}).waitFor();await history.getByText('sms · sms-1 · imported',{exact:true}).click();await history.getByText('Source SMS body retained without sending.',{exact:true}).waitFor();await shot('mycase-message-history');
+ await tab(page,'Time & bills');await page.getByRole('row').filter({hasText:'MyCase billed advice'}).getByRole('cell',{name:'$100.00',exact:true}).waitFor();await shot('mycase-native-billed-work');
 }

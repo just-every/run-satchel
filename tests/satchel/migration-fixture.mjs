@@ -41,6 +41,7 @@ export async function applyMove(h,p,job,options={}){
    const search=await h.json('/conflicts',{client:pending.client,adverse:pending.adverse},h.owner);
    review={conflictId:search.id,confirmed:true,reviewNote:'Principal reviewed source matter and every conflict match.'};
   }
+  if(pending?.kind==='fees')review={confirmed:true,reviewNote:'Principal reviewed the exact source fee terms and native earning rules.'};
   if(pending?.kind==='trust')review={confirmed:true,reviewNote:'Designated trust officer reviewed the exact statement and client allocation.'};
   try{state=await h.json('/migration/resume',{id:state.job.id,review},h.owner);}catch(e){throw new Error('Applying '+pending?.kind+' '+pending?.sourceId+' at checkpoint '+state.job.checkpoint+': '+e.message,{cause:e});}
   if(options.stopAt&&state.job.checkpoint>=options.stopAt)break;

@@ -330,7 +330,13 @@ Use a JSON envelope with these fields:
   alternatively `csvFiles` is an array of those objects for individual CSVs.
   Use exactly one representation. SHA-256 must match the original bytes.
 - `mappingRevision`: the human-reviewed mapping version, for example `review-1`.
-- `mappings`: the contacts, cases and documents mappings described below.
+- `mappings`: the source datasets described below. Contacts, cases and documents
+  are required. Every omitted dataset remains an explicit coverage gap.
+- `staff`: source staff identities mapped to existing eligible native members.
+  A source role is never a membership, matter-access or billing-authority grant.
+- `counts`, `coverage` and `balances`: reviewed cumulative source inventories,
+  dataset completeness and exact billed, unbilled, AR and trust USD-cent totals.
+  Missing coverage, unmapped columns and unselected files still prevent cutover.
 - `clientRepairs` and `caseRepairs`: initially empty objects. Explicitly map an
   unmatched client ID to a source contact, or a document's unmatched case ID
   to its reviewed source case. Every repair requires a fresh preview.
@@ -338,14 +344,36 @@ Use a JSON envelope with these fields:
   format: `{id, name, contentBase64, sha256, modifiedAt}`. Each original is
   1 byte to 1 MiB. Match its ID to the document index; never reconstruct it.
 
+A separately supplied binary ZIP can use `binaryArchive` instead of repeating
+its members in `files`. Supply `file: {name, contentBase64, sha256}` and a
+`members` array of `{id, path, modifiedAt}` objects. Each path names one exact
+relative ZIP member and each ID matches a document or invoice index. Preserve
+the original UTC modification instant explicitly. The ZIP supports 4 MiB
+compressed, 6 MiB expanded and 500 originals, each within the existing 1 MiB
+supported-file limit. Missing members refuse apply; unmatched members remain
+visible coverage gaps. The retained archive and member bytes survive restart
+and native archive recovery. Erasing an imported member destroys the compressed
+copies containing it too; replay cannot reconstruct a disposed archive.
+
 Each mapping has a `file` naming the exact relative CSV path and `columns`
 mapping the following target fields to exact source header names:
 
 | Mapping | Required target fields | Optional target fields |
 | --- | --- | --- |
-| contacts | id, name | aliases, email |
-| cases | id, display_number, description, client_id, adverse_party, status, opened_at, closed_at | case_number |
-| documents | id, matter_id, file_id, date, visibility | document_type |
+| contacts | id, name | aliases, email, profile |
+| cases | id, display_number, description, client_id, adverse_party, status, opened_at, closed_at | case_number, practice_code, fields |
+| documents | id, matter_id, file_id, date, visibility | document_type, staff_id |
+| relationships | id, matter_id, contact_id, relation | other_contact_id |
+| notes, calls, emails | id, matter_id, title, body, occurred_at, visibility | staff_id |
+| calendar | id, matter_id, title, date, time, timezone, duration_minutes | staff_id, location, video_url, frequency, repeat_interval, occurrences |
+| tasks | id, matter_id, title, due_date, status | staff_id |
+| time | id, matter_id, date, description, minutes, rate_cents, amount_cents, invoice_id, staff_id, billable | utbms_task, utbms_activity |
+| expenses | id, matter_id, date, description, amount_cents, invoice_id, staff_id, billable, category, vendor, vendor_reference, accounting_code | utbms_expense |
+| fees | id, matter_id, date, description, amount_cents, invoice_id, terms | none |
+| invoices | id, matter_id, number, ordinal, date, total_cents, ar_cents, pdf_file_id | tax_cents |
+| trust | id, matter_id, client_id, balance_cents, statement_date, source_reference, document_id | none |
+| financial | id, matter_id, client_id, ledger, kind, date, amount_cents, invoice_id, document_id, source_reference | none |
+| portal, sms | id, matter_id, title, body, occurred_at, visibility, thread_id, author, recipient | staff_id |
 
 For example, cases may use `columns: {"id":"Case ID", "status":"Case Status"}`
 as part of the full mapping. It must also supply explicit value mappings such
@@ -384,16 +412,45 @@ lets the principal download the exact original data ZIP or CSVs. These travel
 in the existing firm archive with durable checkpoints and provenance. Document
 originals remain in the separate erasure-aware original store.
 
-This slice imports contacts, active and archived cases and the document index
-with supported-size separately supplied originals. Tasks, calendars, time, fees,
-expenses, financial activity, portal, email and SMS history, historic invoice
-PDFs and their invoice associations, full AR and trust activity and reconciliation,
-authorized supplemental extraction and complete cutover remain unsupported.
-These are always reported as gaps even if an envelope declares coverage complete;
-retaining their CSVs is not import or reconciliation. Source shutdown and signed
-cutover remain refused. BILL-015 number-preservation duties and its provider and
-ledger prerequisites remain unchanged. This path grants no quarantine clearance,
-malware verdict, large-file support, source-account authority or other hold release.
+Map task statuses explicitly to `open` or `done` and history visibility to
+`team` or `private`. Value mappings can also translate billable flags to `true`
+or `false`; amounts remain exact nonnegative USD cents. Work uses current native
+timekeeper, matter-access, pricing, expense and code validation. A changed source
+amount is refused rather than rounded or silently repriced.
+
+Billed work and fees reference their source invoice. Invoice lines and mapped
+tax must equal the source total before its checkpoint applies. The original PDF
+is matched by `pdf_file_id`, downloaded byte-identically and associated with the
+native matter and permanent source invoice number. Unbilled fees contain a JSON
+`terms` cell with the existing native fee-plan fields: kind, recurrence, endDate,
+earning, trustDraw, includedWork, exceptions, reference and optional billing
+codes. Description, date and amount come from the source fee. The principal must
+review and explicitly adopt those exact terms at the checkpoint; source data
+cannot mark a fee reviewed or earned. Native earning and invoice-approval gates
+remain in force.
+
+Portal and SMS records preserve the original thread, sender, recipient, body,
+date and reviewed visibility as native matter history. They send nothing, grant
+no portal access and create no channel consent. Private history stays subject
+to the native author boundary and current matter access.
+
+Financial activity is retained historical evidence, separate from new payments,
+bank deposits or trust movements. Map `ledger` to `ar` or `trust`. AR activity
+kinds are `invoice`, `payment`, `credit` and `refund`; trust activity kinds are
+`opening`, `deposit` and `withdrawal`. Each positive exact amount names its source
+reference, client, case and retained statement document; AR rows also name their
+source invoice. Reconciliation compares each invoice's activity with its AR and
+each case's trust activity with its source-backed native opening. Opposite errors
+on separate cases cannot cancel out. Missing statement originals, changed
+native rows, incomplete counts and unequal balances remain visible gaps.
+
+Authorized supplemental extraction and complete source shutdown remain required;
+this adapter does not log into MyCase or certify source-account authority.
+BILL-015 complete number preservation, the complete BILL-010 client ledger and
+the BOOKS-001 QuickBooks Online sandbox and application proof remain outstanding.
+Cutover stays refused while these boundaries or any dataset gap remain. DOC-001
+scanner and hosted-bucket holds are unchanged: this path grants no quarantine
+clearance, malware verdict or large-file proof.
 
 ## Smokeball Data Import Export
 

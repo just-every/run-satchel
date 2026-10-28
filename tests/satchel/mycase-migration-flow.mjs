@@ -76,3 +76,80 @@ export async function proveMyCaseMove(h){
  const erased=await preview(h,p);assert.ok(erased.errors.some(e=>e.includes('no overwrite or resurrection')));await h.json('/migration/commit',{package:p,fingerprint:erased.fingerprint},h.owner,409);const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(!archive.includes(p.files[0].contentBase64));assert.ok(archive.includes(p.files[1].contentBase64));
  await h.json('/team',{email,name:'Synthetic Satchel Member',role:'lawyer',active:false},h.owner);await h.json('/migration/source',{id},lawyer,403);
 }
+
+// Additional Full Backup datasets use the same reviewed checkpoint as cases.
+export async function mycaseHistoryPackage(h){
+ const {movePackage}=await import('./migration-fixture.mjs'),{actor}=await h.json('/state',undefined,h.owner);
+ const account=await h.json('/trust/accounts',{name:'Synthetic Satchel MyCase history',kind:'trust',bankReference:'Prepared source statement'},h.owner);
+ const native=await movePackage(actor.email,account.id),p=mycaseCsvPackage(mycasePackage());
+ p.account='synthetic-satchel-mycase-history';p.staff={'staff-1':actor.email};p.clientRepairs={'missing-client':'client-1'};p.caseRepairs={'missing-case':'matter-1'};
+ p.trustAccountId=account.id;p.balances={billedCents:15000,unbilledCents:10000,arCents:13000,trustCents:150001};
+ p.csvFiles=p.csvFiles.filter(f=>!f.name.endsWith('Tasks.csv')&&!f.name.endsWith('Unknown.csv'));
+ const cases=p.csvFiles.find(f=>f.name.endsWith('Cases.csv'));Object.assign(cases,sourceFile(cases.name,Buffer.from(Buffer.from(cases.contentBase64,'base64').toString().replaceAll('MC-2020-1','MCH-2020-1').replaceAll('MC-2019-2','MCH-2019-2'))));
+ for(const kind of ['relationships','notes','calls','emails','calendar','tasks','time','expenses','fees','invoices','trust','financial','portal','sms']){
+  let contents=native.datasets[kind];
+  if(kind==='invoices')contents=contents.replaceAll('CLIO-2020-81','MYCASE-2020-81').replace('"12000","10000"','"15000","13000"');
+  if(kind==='trust')contents=csvRows(['id','matter_id','client_id','balance_cents','statement_date','source_reference','document_id'],[['trust-1','matter-1','client-1',150001,'2020-04-01','Source statement page one','document-1']]);
+  if(kind==='time')contents=csvRows(['id','matter_id','date','description','minutes','rate_cents','amount_cents','invoice_id','staff_id','billable'],[['time-1','matter-1','2020-03-01','MyCase billed advice',60,10000,10000,'invoice-1','staff-1','Yes'],['time-2','matter-2','2020-03-02','MyCase unbilled advice',30,10000,5000,'','staff-1','Yes']]);
+  if(kind==='expenses')contents=csvRows(['id','matter_id','date','description','amount_cents','invoice_id','staff_id','billable','category','vendor','vendor_reference','accounting_code'],[['expense-1','matter-1','2020-03-01','MyCase filing expense',2000,'invoice-1','staff-1','Yes','advanced_cost','Synthetic Satchel Court','MC-COST-1','5010']]);
+  if(kind==='fees')contents=csvRows(['id','matter_id','date','description','amount_cents','invoice_id','terms'],[['fee-1','matter-1','2020-03-01','Historic MyCase fixed fee',3000,'invoice-1',''],['fee-2','matter-2','2020-03-01','MyCase reviewed fixed fee',5000,'',JSON.stringify({kind:'flat',recurrence:'once',endDate:'2020-03-01',earning:'on_approval',trustDraw:'prohibited',includedWork:'Source engagement review',exceptions:'none',reference:'Synthetic Satchel source signed agreement'})]]);
+  if(kind==='financial')contents=csvRows(['id','matter_id','client_id','ledger','kind','date','amount_cents','invoice_id','document_id','source_reference'],[['finance-1','matter-1','client-1','ar','invoice','2020-04-01',15000,'invoice-1','document-1','Source invoice issue'],['finance-2','matter-1','client-1','ar','payment','2020-04-02',2000,'invoice-1','document-1','Source recorded operating receipt'],['finance-3','matter-1','client-1','trust','deposit','2020-03-01',160001,'','document-1','Source trust deposit'],['finance-4','matter-1','client-1','trust','withdrawal','2020-03-02',10000,'','document-1','Source trust disbursement']]);
+  if(['portal','sms'].includes(kind))contents=csvRows(['id','matter_id','title','body','occurred_at','visibility','thread_id','author','recipient'],[[kind+'-1','matter-1',kind==='portal'?'Historic portal discussion':'Historic SMS conversation',kind==='portal'?'Source portal body retained without sending.':'Source SMS body retained without sending.','2020-03-03T12:00:00.000Z','private','thread-1','Synthetic Satchel Sender','Synthetic Satchel Recipient']]);
+  const name='Full Backup/'+kind+'.csv',headers=contents.split('\r\n')[0].split(',').map(s=>s.slice(1,-1));
+  p.csvFiles.push(sourceFile(name,Buffer.from(contents)));p.mappings[kind]={file:name,columns:Object.fromEntries(headers.map(key=>[key,key]))};
+  if(['notes','calls','emails','portal','sms'].includes(kind))p.mappings[kind].values={visibility:{team:'team',private:'private'}};
+  if(kind==='tasks')p.mappings[kind].values={status:{open:'open',done:'done'}};
+  if(['time','expenses'].includes(kind))p.mappings[kind].values={billable:{Yes:'true',No:'false'}};
+ }
+ const {PDFDocument,StandardFonts}=await import('pdf-lib'),pdf=await PDFDocument.create();pdf.addPage().drawText('Historic MyCase invoice MYCASE-2020-81. Total USD 150.00. Paid USD 20.00.',{font:await pdf.embedFont(StandardFonts.Helvetica),size:14});p.files.push({id:'pdf-1',...sourceFile('MyCase-2020-81.pdf',await pdf.save()),modifiedAt:'2020-04-02T13:14:15.000Z'});
+ const members=p.files.map(f=>({id:f.id,path:'originals/'+f.name,modifiedAt:f.modifiedAt}));
+ const originals=zipSync(Object.fromEntries(p.files.map((f,i)=>[members[i].path,Buffer.from(f.contentBase64,'base64')])));
+ p.binaryArchive={file:sourceFile('MyCase-originals.zip',originals),members};p.files=[];
+ return p;
+}
+export async function proveMyCaseHistoryMove(h){
+ const {applyMove,commitMove}=await import('./migration-fixture.mjs'),{designate}=await import('./trust-fixture.mjs');
+ const p=await mycaseHistoryPackage(h),before=await h.json('/state',undefined,h.owner),jobs=await h.json('/migration',undefined,h.owner);
+ const plan=await preview(h,p);assert.deepEqual(plan.errors,[]);assert.equal(plan.counts.invoices.package,1);assert.equal(plan.counts.time.package,2);assert.equal(plan.counts.calendar.package,1);
+ assert.deepEqual(await h.json('/state',undefined,h.owner),before);assert.deepEqual(await h.json('/migration',undefined,h.owner),jobs);
+ const bad=structuredClone(p);bad.staff['staff-1']='synthetic-satchel-unmapped';assert.ok((await preview(h,bad)).errors.some(e=>e.includes('Staff staff-1')));await h.json('/migration/commit',{package:bad,fingerprint:(await preview(h,bad)).fingerprint},h.owner,409);
+ const amount=structuredClone(p),time=amount.csvFiles.find(f=>f.name.endsWith('/time.csv'));Object.assign(time,sourceFile(time.name,Buffer.from(Buffer.from(time.contentBase64,'base64').toString().replace('"10000","invoice-1"','"10001","invoice-1"'))));assert.ok((await preview(h,amount)).errors.some(e=>e.includes('Source work amount')));await h.json('/migration/commit',{package:amount,fingerprint:(await preview(h,amount)).fingerprint},h.owner,409);
+ let job=await commitMove(h,p);job=await applyMove(h,p,job,{stopAt:7});await h.restart();assert.equal((await h.json('/migration/status',{id:job.job.id},h.owner)).job.checkpoint,7);await designate(h);
+ while(job.job.state==='applying'){
+  let review;
+  if(job.next.kind==='matters'){const search=await h.json('/conflicts',{client:job.next.client,adverse:job.next.adverse},h.owner);review={conflictId:search.id,confirmed:true,reviewNote:'Principal reviewed the source case and every match.'};}
+  if(job.next.kind==='trust')review={confirmed:true,reviewNote:'Designated officer checked the source statement and exact client allocation.'};
+  if(job.next.needsFeeReview){const checkpoint=job.job.checkpoint;await h.json('/migration/resume',{id:job.job.id},h.owner,409);assert.equal((await h.json('/migration/status',{id:job.job.id},h.owner)).job.checkpoint,checkpoint);review={confirmed:true,reviewNote:'Principal reviewed exact source fee terms, earning and prohibited trust draw.'};}
+  try{job=await h.json('/migration/resume',{id:job.job.id,review},h.owner);}catch(error){throw new Error('MyCase '+job.next.kind+' '+job.next.sourceId+' checkpoint '+job.job.checkpoint+': '+error.message,{cause:error});}
+ }
+ assert.equal(job.job.state,'completed');
+ const state=await h.json('/state',undefined,h.owner),active=state.matters.find(m=>m.matter_number==='MCH-2020-1'),archived=state.matters.find(m=>m.matter_number==='MCH-2019-2');
+ const history=await h.json('/matters/'+active.id+'/migration',undefined,h.owner);
+ for(const [kind,body] of [['notes','Exact historic note body'],['calls','Exact historic call body'],['emails','Exact historic email body']])assert.equal(JSON.parse(history.sources.find(s=>s.kind===kind).source_json).body,body);
+ assert.equal(history.invoices[0].number,'MYCASE-2020-81');assert.equal(history.invoices[0].paid_cents,2000);
+ const pdf=await h.request('/api/satchel/bills/'+history.invoices[0].id+'/invoice.pdf',undefined,h.owner);assert.equal(pdf.status,200);assert.equal(Buffer.from(await pdf.arrayBuffer()).toString('base64'),Buffer.from(unzipSync(Buffer.from(p.binaryArchive.file.contentBase64,'base64'))['originals/MyCase-2020-81.pdf']).toString('base64'));
+ const work=await h.json('/matters/'+active.id+'/billing',undefined,h.owner);assert.deepEqual(work.entries.map(e=>e.amountCents).sort((a,b)=>a-b),[2000,10000]);assert.ok(work.entries.every(e=>e.reservedBy===history.invoices[0].id));assert.equal(work.entries.find(e=>e.kind==='disbursement').expense.vendorReference,'MC-COST-1');
+ const unbilled=await h.json('/matters/'+archived.id+'/billing',undefined,h.owner);assert.equal(unbilled.entries[0].amountCents,5000);assert.equal(unbilled.entries[0].reservedBy,null);
+ const fees=await h.json('/matters/'+archived.id+'/fee-plans',undefined,h.owner);assert.ok(fees.plans.some(f=>f.title==='MyCase reviewed fixed fee'&&f.amountCents===5000&&f.trustDraw==='prohibited'));
+ for(const channel of ['portal','sms']){const message=JSON.parse(history.sources.find(s=>s.kind===channel).source_json);assert.equal(message.thread_id,'thread-1');assert.equal(message.author,'Synthetic Satchel Sender');}
+ assert.equal(JSON.parse(history.sources.find(s=>s.kind==='financial').source_json).ledger,'ar');
+ const tasks=await h.json('/matters/'+archived.id+'/tasks',undefined,h.owner);assert.ok(JSON.stringify(tasks).includes('Source review task'));
+ const calendar=await h.json('/matters/'+archived.id+'/calendar',undefined,h.owner);assert.equal(calendar.appointments[0].timezone,'America/New_York');assert.equal(calendar.appointments[0].occurrences[0].time,'09:30');
+ const reconciliation=await h.json('/migration/reconcile',{id:job.job.id},h.owner);assert.deepEqual(reconciliation.report.nativeBalances,p.balances);assert.deepEqual(reconciliation.report.activity.map(a=>[a.ledger,a.sourceBalanceCents,a.activityBalanceCents,a.records]),[['ar',13000,13000,2],['trust',150001,150001,2]]);
+ assert.ok(reconciliation.report.gaps.some(g=>g.includes('authorized supplemental')));
+ assert.deepEqual((await h.json('/migration/source',{id:job.job.id},h.owner)).source.binaryArchive,p.binaryArchive);
+ assert.equal((await commitMove(h,p)).job.id,job.job.id);await h.json('/migration/resume',{id:job.job.id},h.owner);assert.equal((await h.json('/matters/'+active.id+'/billing',undefined,h.owner)).bills.length,1);assert.equal((await h.json('/matters/'+archived.id+'/tasks',undefined,h.owner)).length,tasks.length);
+ const saved=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),{harness}=await import('./harness.mjs'),restored=await harness();
+ try{await restored.json('/restore',{archive:saved,confirm:'RESTORE'},restored.owner);const restoredHistory=await restored.json('/matters/'+active.id+'/migration',undefined,restored.owner);assert.equal(restoredHistory.invoices[0].number,'MYCASE-2020-81');const original=await restored.request('/api/satchel/bills/'+history.invoices[0].id+'/invoice.pdf',undefined,restored.owner);assert.equal(Buffer.from(await original.arrayBuffer()).toString('base64'),Buffer.from(unzipSync(Buffer.from(p.binaryArchive.file.contentBase64,'base64'))['originals/MyCase-2020-81.pdf']).toString('base64'));assert.equal((await commitMove(restored,p)).job.id,job.job.id);assert.deepEqual((await restored.json('/migration/source',{id:job.job.id},restored.owner)).source.csvFiles,p.csvFiles);}finally{await restored.close();}
+ const delta=structuredClone(p);delta.phase='delta';delta.previousFingerprint=plan.fingerprint;
+ const finance=delta.csvFiles.find(f=>f.name.endsWith('/financial.csv')),contents=Buffer.from(finance.contentBase64,'base64').toString();
+ Object.assign(finance,sourceFile(finance.name,Buffer.from(contents+csvRows(['id','matter_id','client_id','ledger','kind','date','amount_cents','invoice_id','document_id','source_reference'],[['finance-5','matter-1','client-1','ar','credit','2020-04-03',1,'invoice-1','document-1','Unreconciled source credit']]).split('\r\n').slice(1).join('\r\n'))));
+ let changed=await commitMove(h,delta);while(changed.job.state==='applying')changed=await h.json('/migration/resume',{id:changed.job.id},h.owner);
+ const mismatch=await h.json('/migration/reconcile',{id:changed.job.id},h.owner);assert.equal(mismatch.report.activity.find(a=>a.ledger==='ar').activityBalanceCents,12999);assert.ok(mismatch.report.gaps.some(g=>g.includes('ar invoice-1: source financial activity does not reconcile')));await h.json('/migration/cutover',{id:changed.job.id,fingerprint:mismatch.fingerprint,confirmed:true,declaration:'Unreconciled source credit must prevent cutover.'},h.owner,409);
+ const email=['synthetic-satchel-history-reader','example.test'].join('@');await h.json('/team',{email,name:'Synthetic Satchel History Reader',role:'lawyer'},h.owner);await h.json('/team/invite',{email},h.owner);const reader=await h.login(email);await h.json('/matters/'+active.id+'/access',{email},h.owner);
+ const limited=await h.json('/matters/'+active.id+'/migration',undefined,reader);assert.ok(!limited.sources.some(s=>['trust','financial','portal','sms'].includes(s.kind)));await h.json('/migration/source',{id:job.job.id},reader,403);await h.json('/matters/'+active.id+'/access',{email,remove:true},h.owner);await h.json('/matters/'+active.id+'/migration',undefined,reader,404);
+ const documents=await h.json('/matters/'+active.id+'/documents',undefined,h.owner);await h.json('/documents/'+documents[0].id+'/erase',{confirm:documents[0].title,reason:'Principal approved disposal of the imported source original.'},h.owner);
+ for(const id of [job.job.id,changed.job.id])assert.equal((await h.json('/migration/source',{id},h.owner)).source.binaryArchive.file.contentBase64,undefined);
+ const erasedArchive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(!erasedArchive.includes(p.binaryArchive.file.contentBase64));assert.ok((await preview(h,p)).errors.some(e=>e.includes('no overwrite or resurrection')));
+ const missingStatement=await h.json('/migration/reconcile',{id:changed.job.id},h.owner);assert.ok(missingStatement.report.gaps.some(g=>g.includes('source statement original unavailable')));
+}

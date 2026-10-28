@@ -2,7 +2,7 @@ import {canonicalJson,sha256} from '../modules/import-kit/src/d1/index';
 import {atomic,audit,human,id,insist,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
 import {requireWholeFirmWallAccess} from './wall-doors';
 import {guard} from './trust-guards';
-import {parsePackage,kinds,type MovePackage,type MoveRow} from './imports/package';
+import {parsePackage,kindsFor,type MovePackage,type MoveRow} from './imports/package';
 import {applyNative,nativeSnapshotSql,targetId} from './imports/native';
 import {importedMatterProfile,mappedMatterProfile,readProfile} from './matter-fields';
 import {invoiceFunds} from './trust-transfers';
@@ -31,11 +31,15 @@ async function review(db:D1Database,input:unknown){
  }
  if(plan.records.some(r=>r.kind==='trust')&&!await stmt(db,"SELECT 1 FROM s_trust_accounts WHERE id=? AND kind='trust'",p.trustAccountId??'').first())plan.errors.push('Map an existing native trust bank account before importing balances');
  for(const [source,email] of Object.entries(p.staff))if(!await stmt(db,"SELECT 1 FROM s_members WHERE email=? AND active=1 AND role<>'client' UNION SELECT 1 FROM oa_operators WHERE email=? AND role='owner' AND status='active'",email,email).first())plan.errors.push(`Staff ${source}: choose an active firm staff member`);
- if(p.schema==='satchel-smokeball-v1')for(const r of plan.records.filter(r=>['time','expenses'].includes(r.kind)))try{await migrationWorkMapping(db,{kind:r.kind==='time'?'time':'disbursement',matterId:targetId(p.account,'matters',r.value.matter_id),date:r.value.date,minutes:Number(r.value.minutes),rateCents:Number(r.value.rate_cents),amountCents:Number(r.value.amount_cents),billable:r.value.billable==='true',category:r.value.category,vendor:r.value.vendor,vendor_reference:r.value.vendor_reference,accounting_code:r.value.accounting_code,timekeeperEmail:p.staff[r.value.staff_id],utbmsTask:r.value.utbms_task,utbmsActivity:r.value.utbms_activity,utbmsExpense:r.value.utbms_expense});}catch(e){plan.errors.push(`${r.kind} ${r.id}: ${(e as Error).message}`);}
+ if(p.schema==='satchel-smokeball-v1'||p.mycase)for(const r of plan.records.filter(r=>['time','expenses'].includes(r.kind)))try{await migrationWorkMapping(db,{kind:r.kind==='time'?'time':'disbursement',matterId:targetId(p.account,'matters',r.value.matter_id),date:r.value.date,minutes:Number(r.value.minutes),rateCents:Number(r.value.rate_cents),amountCents:Number(r.value.amount_cents),billable:r.value.billable==='true',category:r.value.category,vendor:r.value.vendor,vendor_reference:r.value.vendor_reference,accounting_code:r.value.accounting_code,timekeeperEmail:p.staff[r.value.staff_id],utbmsTask:r.value.utbms_task,utbmsActivity:r.value.utbms_activity,utbmsExpense:r.value.utbms_expense});}catch(e){plan.errors.push(`${r.kind} ${r.id}: ${(e as Error).message}`);}
  const sourceValue=(kind:string,sourceId:string)=>plan.records.find(r=>r.kind===kind&&r.id===sourceId)?.value??(()=>{const row=prior.find(r=>r.kind===kind&&r.source_id===sourceId&&['imported','preserved'].includes(r.disposition));return row?JSON.parse(row.source_json):null;})();
  for(const r of plan.records){
-  if(['time','expenses'].includes(r.kind)&&r.value.invoice_id){const invoice=sourceValue('invoices',r.value.invoice_id);if(invoice&&invoice.matter_id!==r.value.matter_id)plan.errors.push(`${r.kind} ${r.id}: billed work and source invoice must belong to the same matter`);}
-  if(r.kind==='trust'){const m=sourceValue('matters',r.value.matter_id);if(m&&(p.clientRepairs[m.client_id]??m.client_id)!==(p.clientRepairs[r.value.client_id]??r.value.client_id))plan.errors.push(`Trust ${r.id}: source client does not match the matter client`);}
+  if(['time','expenses','fees','financial'].includes(r.kind)&&r.value.invoice_id){const invoice=sourceValue('invoices',r.value.invoice_id);if(invoice&&invoice.matter_id!==r.value.matter_id)plan.errors.push(`${r.kind} ${r.id}: billed work and source invoice must belong to the same matter`);}
+  if(r.kind==='trust'||r.kind==='financial'){const m=sourceValue('matters',r.value.matter_id);if(m&&(p.clientRepairs[m.client_id]??m.client_id)!==(p.clientRepairs[r.value.client_id]??r.value.client_id))plan.errors.push(`Trust ${r.id}: source client does not match the matter client`);}
+ }
+ for(const r of plan.records.filter(r=>r.kind==='financial')){
+  const doc=sourceValue('documents',r.value.document_id);
+  if(doc&&doc.matter_id!==r.value.matter_id)plan.errors.push('Financial '+r.id+': statement original must belong to the same case');
  }
  for(const r of plan.records){
   const old=byIdentity.get(r.identity);
@@ -49,11 +53,12 @@ async function review(db:D1Database,input:unknown){
  }
  return {...plan,prior};
 }
-const publicReview=(p:Awaited<ReturnType<typeof review>>)=>({provider:p.package.mycase?'MyCase':p.package.schema==='satchel-smokeball-v1'?'Smokeball':'Clio',sourceFiles:p.package.mycaseReview?.sourceFiles??p.package.sourceFiles??[],omittedFields:p.package.sourceWarnings??[],mappings:p.package.mycaseReview?.mappings,caseCounts:p.package.mycaseReview?.caseCounts,fingerprint:p.fingerprint,mappingVersion:p.mappingVersion,phase:p.package.phase,counts:Object.fromEntries(kinds.map(k=>[k,{package:p.records.filter(r=>r.kind===k).length,source:p.package.counts[k],imported:p.prior.filter(r=>r.kind===k&&['imported','preserved'].includes(r.disposition)).length}])),work:p.records.filter(r=>['time','expenses'].includes(r.kind)&&r.value.source_system==='smokeball').map(r=>({kind:r.kind,sourceId:r.id,description:r.value.description,amountCents:Number(r.value.amount_cents),sourceStaffId:r.value.staff_id,sourceStaffName:r.value.source_staff_name,timekeeper:p.package.staff[r.value.staff_id],autoTime:r.value.autotime})),datasets:kinds.map(kind=>({kind,name:kind+(p.package.datasets[kind].startsWith('BEGIN:VCALENDAR')?'.ics':'.csv'),sha256:sha256(p.package.datasets[kind]),size:new TextEncoder().encode(p.package.datasets[kind]).length})),files:[...p.files.values()].map(({contentBase64,...f})=>f),relationships:p.references.map(ref=>({from:ref.row.id,kind:ref.kind,to:ref.id})),errors:p.errors,coverageGaps:p.warnings,fileRequirements:p.records.filter(r=>['documents','invoices'].includes(r.kind)).map(r=>({id:r.kind==='documents'?r.value.file_id:r.value.pdf_file_id,kind:r.kind,sourceId:r.id,present:p.files.has(r.kind==='documents'?r.value.file_id:r.value.pdf_file_id)})),contacts:p.records.filter(r=>r.kind==='contacts').map(r=>({id:r.id,name:r.value.name})),rows:p.records.map(r=>({kind:r.kind,sourceId:r.id,status:p.prior.some(s=>s.identity===r.identity)?'imported':'pending',...r.kind==='matters'?{clientId:r.value.client_id,client:p.records.find(c=>c.kind==='contacts'&&c.id===(p.package.clientRepairs[r.value.client_id]??r.value.client_id))?.value.name,title:r.value.description,number:r.value.display_number,adverse:r.value.adverse_party}:{}}))});
+const publicReview=(p:Awaited<ReturnType<typeof review>>)=>({provider:p.package.mycase?'MyCase':p.package.schema==='satchel-smokeball-v1'?'Smokeball':'Clio',sourceFiles:p.package.mycaseReview?.sourceFiles??p.package.sourceFiles??[],omittedFields:p.package.sourceWarnings??[],mappings:p.package.mycaseReview?.mappings,caseCounts:p.package.mycaseReview?.caseCounts,fingerprint:p.fingerprint,mappingVersion:p.mappingVersion,phase:p.package.phase,counts:Object.fromEntries(p.kinds.map(k=>[k,{package:p.records.filter(r=>r.kind===k).length,source:p.package.counts[k],imported:p.prior.filter(r=>r.kind===k&&['imported','preserved'].includes(r.disposition)).length}])),work:p.records.filter(r=>['time','expenses'].includes(r.kind)&&(r.value.source_system==='smokeball'||Boolean(p.package.mycase))).map(r=>({kind:r.kind,sourceId:r.id,description:r.value.description,amountCents:Number(r.value.amount_cents),sourceStaffId:r.value.staff_id,sourceStaffName:r.value.source_staff_name,timekeeper:p.package.staff[r.value.staff_id],autoTime:r.value.autotime})),datasets:p.kinds.map(kind=>({kind,name:kind+(p.package.datasets[kind].startsWith('BEGIN:VCALENDAR')?'.ics':'.csv'),sha256:sha256(p.package.datasets[kind]),size:new TextEncoder().encode(p.package.datasets[kind]).length})),files:[...p.files.values()].map(({contentBase64,...f})=>f),relationships:p.references.map(ref=>({from:ref.row.id,kind:ref.kind,to:ref.id})),errors:p.errors,coverageGaps:p.warnings,fileRequirements:p.records.filter(r=>['documents','invoices'].includes(r.kind)).map(r=>({id:r.kind==='documents'?r.value.file_id:r.value.pdf_file_id,kind:r.kind,sourceId:r.id,present:p.files.has(r.kind==='documents'?r.value.file_id:r.value.pdf_file_id)})),contacts:p.records.filter(r=>r.kind==='contacts').map(r=>({id:r.id,name:r.value.name})),rows:p.records.map(r=>({kind:r.kind,sourceId:r.id,status:p.prior.some(s=>s.identity===r.identity)?'imported':'pending',...r.kind==='matters'?{clientId:r.value.client_id,client:p.records.find(c=>c.kind==='contacts'&&c.id===(p.package.clientRepairs[r.value.client_id]??r.value.client_id))?.value.name,title:r.value.description,number:r.value.display_number,adverse:r.value.adverse_party}:{}}))});
 async function retainedPackage(db:D1Database,job:Data):Promise<MovePackage>{
  const [parts,originals]=await Promise.all([rows(db,'SELECT body FROM s_move_package_chunks WHERE job_id=? ORDER BY ordinal',job.id),rows(db,'SELECT metadata_json,content_base64 FROM s_move_originals WHERE job_id=?',job.id)]);
  const payload=JSON.parse(parts.map(p=>p.body).join(''));
- return {...payload,files:originals.filter(f=>f.content_base64!==null).map(f=>({...JSON.parse(f.metadata_json),contentBase64:f.content_base64}))};
+ const archive=originals.find(f=>JSON.parse(f.metadata_json).sourceArchive);
+ return {...payload,...(payload.binaryArchive?{binaryArchive:{...payload.binaryArchive,file:{...payload.binaryArchive.file,contentBase64:archive?.content_base64??undefined}}}:{}),files:originals.filter(f=>f.content_base64!==null&&!JSON.parse(f.metadata_json).sourceArchive).map(f=>({...JSON.parse(f.metadata_json),contentBase64:f.content_base64}))};
 }
 async function load(db:D1Database,jobId:unknown){const job=await stmt(db,'SELECT * FROM s_move_jobs WHERE id=?',text(jobId,'Move job',100)).first<Data>();insist(job,'Move job not found',404);return job;}
 export async function migrationState(db:D1Database,actor:Actor){await principal(db,actor);return {jobs:await rows(db,"SELECT id,account,COALESCE(json_extract(package_json,'$.sourceAccount'),account) sourceAccount,COALESCE(json_extract(package_json,'$.provider'),'clio') provider,fingerprint,phase,checkpoint,total,state,created_at FROM s_move_jobs ORDER BY rowid DESC")};}
@@ -69,21 +74,22 @@ export async function migrationAction(db:D1Database,actor:Actor,op:string,b:Data
   insist(b.fingerprint===plan.fingerprint,'The package changed; preview it again',409);
   const previous=await stmt(db,'SELECT id FROM s_move_jobs WHERE fingerprint=?',plan.fingerprint).first<Data>();
   if(previous)return migrationAction(db,actor,'status',{id:previous.id});
-  const jobId=id(),payload=JSON.stringify({...p,files:undefined}),header=JSON.stringify({schema:p.schema,account:p.account,phase:p.phase,extractedAt:p.extractedAt,counts:p.counts,balances:p.balances,coverage:p.coverage,provider:p.mycase?'mycase':p.schema==='satchel-smokeball-v1'?'smokeball':'clio',sourceAccount:p.mycase?.sourceAccount??p.sourceAccount,sourceWarnings:p.sourceWarnings,coverageGaps:p.mycase?plan.warnings:[]});
+  const jobId=id(),payload=JSON.stringify({...p,files:undefined,...(p.binaryArchive?{binaryArchive:{...p.binaryArchive,file:{...p.binaryArchive.file,contentBase64:undefined}}}:{})}),header=JSON.stringify({schema:p.schema,account:p.account,phase:p.phase,extractedAt:p.extractedAt,counts:p.counts,balances:p.balances,coverage:p.coverage,provider:p.mycase?'mycase':p.schema==='satchel-smokeball-v1'?'smokeball':'clio',sourceAccount:p.mycase?.sourceAccount??p.sourceAccount,sourceWarnings:p.sourceWarnings,coverageGaps:p.mycase?plan.warnings:[]});
   const writes=[stmt(db,"INSERT INTO s_move_jobs(id,account,fingerprint,package_json,phase,previous_fingerprint,total,state,created_by,created_at) VALUES(?,?,?,?,?,?,?,'applying',?,?)",jobId,p.account,plan.fingerprint,header,p.phase,p.previousFingerprint??null,plan.records.length,actor.email,now())];
   // Bounded rows keep a package containing several small originals below D1's
   // per-row ceiling; every part is published with the reviewed job atomically.
   for(let offset=0,ordinal=0;offset<payload.length;offset+=200000,ordinal++)writes.push(stmt(db,'INSERT INTO s_move_package_chunks VALUES(?,?,?)',jobId,ordinal,payload.slice(offset,offset+200000)));
   for(const f of p.files){const {contentBase64,...metadata}=f;writes.push(stmt(db,'INSERT INTO s_move_originals VALUES(?,?,?,?,?)',jobId,f.id,f.sha256,JSON.stringify(metadata),contentBase64));}
+  if(p.binaryArchive){const archive=p.binaryArchive.file,metadata={...archive,contentBase64:undefined,sourceArchive:true,members:p.binaryArchive.members.map((m:Data)=>({id:m.id,path:m.path,sha256:plan.files.get(m.id)?.sha256}))};writes.push(stmt(db,'INSERT INTO s_move_originals VALUES(?,?,?,?,?)',jobId,'binary-archive:'+archive.sha256,archive.sha256,JSON.stringify(metadata),archive.contentBase64));}
   writes.push(audit(db,actor,'move.reviewed',jobId,JSON.stringify({fingerprint:plan.fingerprint,counts:p.counts,coverageGaps:plan.warnings})));
   await atomic(db,actor,writes);
   return migrationAction(db,actor,'status',{id:jobId});
  }
  const job=await load(db,b.id);
- if(op==='source'){const p=await retainedPackage(db,job);insist(p.mycase,'This job has no MyCase source envelope',404);return {source:{...p.mycase,clientRepairs:p.clientRepairs}};}
+ if(op==='source'){const p=await retainedPackage(db,job);insist(p.mycase,'This job has no MyCase source envelope',404);return {source:{...p.mycase,binaryArchive:p.binaryArchive,clientRepairs:p.clientRepairs,staff:p.staff,counts:p.counts,balances:p.balances,coverage:p.coverage}};}
  if(op==='status'){
   let next:Data|null=null;
-  if(job.state==='applying'){const plan=parsePackage(await retainedPackage(db,job)),r=plan.records[job.checkpoint];if(r){next={kind:r.kind,sourceId:r.id,title:r.value.description??r.value.title??r.value.name??r.id,number:r.value.display_number,adverse:r.value.adverse_party};if(r.kind==='matters'){const clientId=plan.package.clientRepairs[r.value.client_id]??r.value.client_id;const client=await stmt(db,"SELECT source_json FROM s_move_sources WHERE account=? AND kind='contacts' AND source_id=?",job.account,clientId).first<Data>();next.client=client?JSON.parse(client.source_json).name:null;}}}
+  if(job.state==='applying'){const plan=parsePackage(await retainedPackage(db,job)),r=plan.records[job.checkpoint];if(r){next={kind:r.kind,sourceId:r.id,title:r.value.description??r.value.title??r.value.name??r.id,number:r.value.display_number,adverse:r.value.adverse_party,needsFeeReview:r.kind==='fees'&&!r.value.invoice_id,feeTerms:r.kind==='fees'&&!r.value.invoice_id?JSON.parse(r.value.terms):undefined,amountCents:r.kind==='fees'?Number(r.value.amount_cents):undefined};if(r.kind==='matters'){const clientId=plan.package.clientRepairs[r.value.client_id]??r.value.client_id;const client=await stmt(db,"SELECT source_json FROM s_move_sources WHERE account=? AND kind='contacts' AND source_id=?",job.account,clientId).first<Data>();next.client=client?JSON.parse(client.source_json).name:null;}}}
   return {next,job:{...job,provider:JSON.parse(job.package_json).provider??'clio',package_json:undefined},sources:await rows(db,'SELECT kind,source_id,target_id,disposition,source_json FROM s_move_sources WHERE job_id=? ORDER BY rowid',job.id),cutover:await stmt(db,'SELECT * FROM s_move_cutovers WHERE job_id=?',job.id).first()};}
  if(op==='resume'){
   insist(job.state!=='undone','An undone package cannot be replayed',409);
@@ -132,7 +138,7 @@ export async function migrationAction(db:D1Database,actor:Actor,op:string,b:Data
 async function reconcile(db:D1Database,job:Data){
  const p=JSON.parse(job.package_json) as MovePackage,sources=await rows(db,"SELECT * FROM s_move_sources WHERE account=?",job.account),gaps:string[]=[...(p.sourceWarnings??[])];
  const counts:Data={},balances={billedCents:0,unbilledCents:0,arCents:0,trustCents:0};
- for(const kind of kinds){counts[kind]={source:p.counts[kind],native:sources.filter(s=>s.kind===kind&&['imported','preserved'].includes(s.disposition)).length};if(counts[kind].source!==counts[kind].native)gaps.push(`${kind}: source count does not reconcile`);if(p.coverage[kind]!=='complete')gaps.push(`${kind}: retrieve missing source history through an authorized export`);}
+ for(const kind of kindsFor(p)){counts[kind]={source:p.counts[kind],native:sources.filter(s=>s.kind===kind&&['imported','preserved'].includes(s.disposition)).length};if(counts[kind].source!==counts[kind].native)gaps.push(`${kind}: source count does not reconcile`);if(p.coverage[kind]!=='complete')gaps.push(`${kind}: retrieve missing source history through an authorized export`);}
  for(const s of sources){
   if(!['imported','preserved'].includes(s.disposition)){gaps.push(`${s.kind} ${s.source_id}: ${s.disposition}`);continue;}
   if(s.target_table!=='s_matter_parties'){
@@ -157,14 +163,39 @@ async function reconcile(db:D1Database,job:Data){
   if(s.kind==='invoices'){const b=await stmt(db,"SELECT json_extract(snapshot,'$.totalCents') total FROM s_bills WHERE id=?",s.target_id).first<Data>();balances.billedCents+=Number(b?.total??0);balances.arCents+=Number((await invoiceFunds(db,s.target_id)).due_cents);}
   if(['time','expenses'].includes(s.kind)&&v.invoice_id&&!await stmt(db,'SELECT 1 FROM s_billing_sources WHERE entry_id=? AND bill_id=?',s.target_id,targetId(job.account,'invoices',v.invoice_id)).first())gaps.push(`Work ${s.source_id}: billed source is not reserved by its source invoice`);
   if(['time','expenses'].includes(s.kind)&&!v.invoice_id){const e=await stmt(db,'SELECT amount_cents FROM s_entries WHERE id=? AND NOT EXISTS(SELECT 1 FROM s_billing_sources WHERE entry_id=?)',s.target_id,s.target_id).first<Data>();balances.unbilledCents+=Number(e?.amount_cents??0);}
+  if(s.kind==='fees'&&!v.invoice_id){
+   const fee=await stmt(db,"SELECT json_extract(p.terms,'$.amountCents') cents FROM s_move_fee_lines f JOIN s_fee_plans p ON p.id=f.native_plan_id WHERE f.id=?",s.target_id).first<Data>();balances.unbilledCents+=Number(fee?.cents??0);
+   if(!fee||Number(fee.cents)!==Number(v.amount_cents))gaps.push('Fee '+s.source_id+': reviewed native fee terms do not reconcile');
+  }
   if(s.kind==='trust'){const t=await stmt(db,'SELECT COALESCE(SUM(e.cents),0) balance_cents FROM s_move_trust t JOIN s_trust_entries e ON e.ledger_id=t.ledger_id WHERE t.id=?',s.target_id).first<Data>();balances.trustCents+=Number(t?.balance_cents??0);}
  }
+ const activity=p.schema==='satchel-mycase-v1'?await mycaseActivity(db,job.account,sources,gaps):[];
  for(const k of Object.keys(balances) as (keyof typeof balances)[])if(balances[k]!==Number(p.balances[k]))gaps.push(`${k}: source and native totals differ`);
  gaps.push(...((p as MovePackage & {coverageGaps?:string[]}).coverageGaps??[]));
  if(job.state!=='completed')gaps.push('Package apply is not complete');
- return {account:job.account,finalDelta:job.phase==='delta',fingerprint:job.fingerprint,counts,sourceBalances:p.balances,nativeBalances:balances,trustBoundary:'Source-backed native opening approved by the designated trust officer; no bank funds are moved',gaps};
+ return {account:job.account,finalDelta:job.phase==='delta',fingerprint:job.fingerprint,counts,sourceBalances:p.balances,nativeBalances:balances,activity,trustBoundary:'Source-backed native opening approved by the designated trust officer; no bank funds are moved',gaps};
 }
 export async function matterMigration(db:D1Database,actor:Actor,matterId:string){
  await matter(db,actor,matterId);human(actor);need(actor,'owner','lawyer','assistant');
- return {sources:await rows(db,"SELECT kind,source_id,source_json,disposition,target_id FROM s_move_sources WHERE (kind<>'trust' OR ?='owner') AND (kind<>'documents' OR EXISTS(SELECT 1 FROM s_documents d WHERE d.id=s_move_sources.target_id AND (d.visibility='matter' OR d.created_by=? OR ?='owner'))) AND (kind NOT IN('notes','calls','emails') OR EXISTS(SELECT 1 FROM s_matter_notes n WHERE n.id=s_move_sources.target_id AND (n.visibility='team' OR n.author_email=?))) AND ((target_id=? AND kind='matters') OR (account IN(SELECT account FROM s_move_sources WHERE target_id=? AND kind='matters') AND json_extract(source_json,'$.matter_id') IN(SELECT source_id FROM s_move_sources WHERE target_id=? AND kind='matters')))",actor.role,actor.email,actor.role,actor.email,matterId,matterId,matterId),invoices:await rows(db,"SELECT b.id,i.number,i.pdf_digest,ib.paid_cents,json_extract(b.snapshot,'$.totalCents') total_cents FROM s_bills b JOIN s_invoice_issues i ON i.bill_id=b.id JOIN s_move_invoice_balances ib ON ib.bill_id=b.id WHERE b.matter_id=?",matterId)};
+ return {sources:await rows(db,"SELECT kind,source_id,source_json,disposition,target_id FROM s_move_sources WHERE (kind NOT IN('trust','financial') OR ?='owner') AND (kind<>'documents' OR EXISTS(SELECT 1 FROM s_documents d WHERE d.id=s_move_sources.target_id AND (d.visibility='matter' OR d.created_by=? OR ?='owner'))) AND (kind NOT IN('notes','calls','emails','portal','sms') OR EXISTS(SELECT 1 FROM s_matter_notes n WHERE n.id=s_move_sources.target_id AND (n.visibility='team' OR n.author_email=?))) AND ((target_id=? AND kind='matters') OR (account IN(SELECT account FROM s_move_sources WHERE target_id=? AND kind='matters') AND json_extract(source_json,'$.matter_id') IN(SELECT source_id FROM s_move_sources WHERE target_id=? AND kind='matters')))",actor.role,actor.email,actor.role,actor.email,matterId,matterId,matterId),invoices:await rows(db,"SELECT b.id,i.number,i.pdf_digest,ib.paid_cents,json_extract(b.snapshot,'$.totalCents') total_cents FROM s_bills b JOIN s_invoice_issues i ON i.bill_id=b.id JOIN s_move_invoice_balances ib ON ib.bill_id=b.id WHERE b.matter_id=?",matterId)};
+}
+
+async function mycaseActivity(db:D1Database,account:string,sources:Data[],gaps:string[]){
+ const activity=await rows(db,"SELECT f.* FROM s_move_financial_activity f JOIN s_move_sources s ON s.target_id=f.id WHERE s.account=? AND s.kind='financial' AND s.disposition IN('imported','preserved')",account);
+ const compared:Data[]=[];
+ for(const source of sources.filter(s=>['invoices','trust'].includes(s.kind)&&['imported','preserved'].includes(s.disposition))){
+  const v=JSON.parse(source.source_json),ledger=source.kind==='invoices'?'ar':'trust';
+  const group=activity.filter(f=>f.ledger===ledger&&(ledger==='ar'?f.invoice_id===source.target_id:f.matter_id===targetId(account,'matters',v.matter_id)));
+  const balance=group.reduce((sum,f)=>sum+(['invoice','refund','opening','deposit'].includes(f.kind)?Number(f.amount_cents):-Number(f.amount_cents)),0);
+  const expected=Number(ledger==='ar'?v.ar_cents:v.balance_cents);
+  compared.push({ledger,sourceId:source.source_id,sourceBalanceCents:expected,activityBalanceCents:balance,records:group.length});
+  if(!group.length||balance!==expected)gaps.push(ledger+' '+source.source_id+': source financial activity does not reconcile to the case balance');
+ }
+ for(const f of activity){
+  const linked=sources.some(s=>s.kind===(f.ledger==='ar'?'invoices':'trust')&&(f.ledger==='ar'?s.target_id===f.invoice_id:targetId(account,'matters',JSON.parse(s.source_json).matter_id)===f.matter_id));
+  if(!linked)gaps.push('Financial '+f.id+': no matching source balance');
+  const d=await stmt(db,'SELECT 1 FROM s_documents d JOIN s_document_versions v ON v.document_id=d.id WHERE d.id=? AND d.erased_at IS NULL AND v.content_base64 IS NOT NULL',f.document_id).first();
+  if(!d)gaps.push('Financial '+f.id+': source statement original unavailable');
+ }
+ return compared;
 }

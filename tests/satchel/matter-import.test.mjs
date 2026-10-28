@@ -1,4 +1,4 @@
-import {proveMyCaseMove} from './mycase-migration-flow.mjs';
+import {proveMyCaseMove,proveMyCaseHistoryMove} from './mycase-migration-flow.mjs';
 import {proveSmokeballMove} from './smokeball-migration-flow.mjs';
 import {proveWholeFirmMove,proveMoveRefusals} from './migration-flow.mjs';
 import { test } from 'node:test';
@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { harness, open } from './harness.mjs';
 
+const importLawyer=['import-lawyer','example.test'].join('@');
 const filename = 'clio-reviewed-matters.csv';
 const csv = '\uFEFFid,display_number,description,client,adverse_party,source_note\r\n842,2019-0042,"Lease, review",Barton Workshop LLC,Riverbend Holdings LLC,Retain me\r\n843,2019-0043,Boundary dispute,Pine Studio,Cedar Property,Original note\r\n';
 const preview = (h, contents = csv) => h.json('/matter-import/preview', { csv: contents, filename }, h.owner);
@@ -66,6 +67,7 @@ test('MATTER-008 / MOVE-002 matter subset previews without writes, preserves sou
     assert.equal((await restored.json('/state', undefined, restored.owner)).matters.length, 3);
     await proveMyCaseMove(h);
     await proveWholeFirmMove(h);
+    await proveMyCaseHistoryMove(h);
     await proveSmokeballMove(h);
   } finally { await restored?.close(); await h.close(); }
 });
@@ -74,9 +76,9 @@ test('matter import requires principal authority and exact fresh human clearance
   const h = await harness();
   try {
     await h.json('/matter-import/preview', { csv, filename }, '', 401);
-    await h.json('/team', { email: 'import-lawyer@example.test', name: 'Associate', role: 'lawyer' }, h.owner);
-    await h.json('/team/invite', { email: 'import-lawyer@example.test' }, h.owner);
-    const lawyer = await h.login('import-lawyer@example.test');
+    await h.json('/team', { email: importLawyer, name: 'Associate', role: 'lawyer' }, h.owner);
+    await h.json('/team/invite', { email: importLawyer }, h.owner);
+    const lawyer = await h.login(importLawyer);
     await h.json('/matter-import/preview', { csv, filename }, lawyer, 403);
     await h.json('/matter-import', undefined, lawyer, 403);
     const plan = await preview(h), row = plan.rows[0];
