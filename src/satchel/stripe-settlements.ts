@@ -36,7 +36,7 @@ export async function ingestPayout(env:StripeEnv,event:Data){
  if(!included.length)return {received:true};
  const config=configs.find(c=>c.id===included[0].config_id)!;
  const provider={id:'stripe',email:['processor','stripe.invalid'].join('@'),role:'provider',channel:'provider'};
- const trail=included.map(a=>audit(env.DB,provider,'stripe.payout_observed',observationId,JSON.stringify({eventId:event.id,payoutId:snapshot.payoutId,status:snapshot.status,transactions:snapshot.transactions.filter(t=>t.paymentIntentId===a.payment_intent_id)}),{matterId:a.matter_id,billId:a.bill_id,reviewedRevision:a.revision}));
+ const trail=included.map(a=>audit(env.DB,provider,'stripe.payout_observed',a.bill_id,JSON.stringify({observationId,matterId:a.matter_id,eventId:event.id,payoutId:snapshot.payoutId,status:snapshot.status,transactions:snapshot.transactions.filter(t=>t.paymentIntentId===a.payment_intent_id)}),{matterId:a.matter_id,billId:a.bill_id,reviewedRevision:a.revision}));
  try{await env.DB.batch([guard(env.DB,'NOT EXISTS(SELECT 1 FROM s_stripe_payout_events WHERE id=?)',event.id),...settlementWrites(env,config,snapshot,observationId),stmt(env.DB,'INSERT INTO s_stripe_payout_events VALUES(?,?,?)',event.id,observationId,now()),...trail]);}
  catch(error){if(!await stmt(env.DB,'SELECT 1 FROM s_stripe_payout_events WHERE id=?',event.id).first())throw error;}
  return {received:true};

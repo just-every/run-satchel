@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import {mkdir} from 'node:fs/promises';
+import {mkdir,writeFile} from 'node:fs/promises';
+import {dirname} from 'node:path';
 import {chromium} from '@playwright/test';
 import {harness} from './harness.mjs';
 import {paymentFixture} from './stripe-fixture.mjs';
@@ -248,6 +249,15 @@ try{
  balanceTransaction(readCharge.balance_transaction,totalCents,charge.id);balanceTransaction(readRefund.balance_transaction,-refundCents,refund.id);
  proof.chargeFeeCents=readCharge.balance_transaction.fee;
  proof.processorNetCents=readCharge.balance_transaction.net+readRefund.balance_transaction.net;proof.realBalanceTransactions=true;
+ proof.chargeSettlementStatus=readCharge.balance_transaction.status;
+ proof.chargeAvailableAt=new Date(readCharge.balance_transaction.available_on*1000).toISOString();
+ proof.refundSettlementStatus=readRefund.balance_transaction.status;
+ if(process.env.SATCHEL_RECONCILIATION_ARCHIVE){
+  const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();
+  assert.ok(!archive.includes(key),'The native archive must exclude the injected provider credential');
+  await mkdir(dirname(process.env.SATCHEL_RECONCILIATION_ARCHIVE),{recursive:true});
+  await writeFile(process.env.SATCHEL_RECONCILIATION_ARCHIVE,archive,{mode:0o600});proof.resumeArchiveSaved=true;
+ }
 
  stage='automaticPayoutReadback';
  await inspectAutomaticPayouts(path,intent.id,readCharge.balance_transaction,readRefund.balance_transaction);
