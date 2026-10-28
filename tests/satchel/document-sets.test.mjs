@@ -212,3 +212,62 @@ test('native medical chronology requires health setup, pins source pages, reconc
   const after=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(!after.includes('synthetic-satchel-7 reviewed visit'));
  }finally{await restored?.close();await h.close();}
 });
+
+test('readable original search pins pages and filters, fences current access and stale citations, and disposes indexed derivatives with archive protection',async()=>{
+ const {textSearchFixture,readablePdf}=await import('./document-text-fixture.mjs');
+ const {createHash}=await import('node:crypto');
+ const h=await harness();let restored;
+ try{
+  const m=await open(h,'Indexed records'),base='/matters/'+m.id,f=await textSearchFixture(h,m);
+  // Reuse an ordinary invited person: no direct database access or index seeding.
+  await h.json('/team',{email:'reader@example.test',name:'Search reader',role:'assistant'},h.owner);
+  await h.json('/team/invite',{email:'reader@example.test'},h.owner);const reader=await h.login('reader@example.test');
+  const search=(q,c=h.owner,filters={})=>h.json('/search?q='+encodeURIComponent(q)+'&'+new URLSearchParams(filters),undefined,c);
+  assert.equal((await search('copper lantern',reader)).total,0);
+  await h.json(base+'/access',{email:'reader@example.test'},h.owner);
+  const answer=await search('copper lantern',reader);assert.equal(answer.total,1);
+  const hit=answer.groups[0].items[0];assert.equal(hit.citation.documentId,f.document.id);assert.equal(hit.citation.page,2);assert.equal(hit.citation.version,1);
+  assert.equal(hit.citation.sha256,createHash('sha256').update(f.bytes).digest('hex'));assert.match(hit.snippet,/Copper lantern testimony/);assert.equal(hit.freshness.status,'ready');assert.ok(hit.freshness.indexedAt);
+  assert.ok(!JSON.stringify(answer).includes(f.privateDocument.id));assert.ok(!JSON.stringify(answer).includes('Counsel private'));
+  const citation=await h.request('/api/satchel'+hit.path,undefined,reader);assert.equal(citation.status,200);assert.match(citation.headers.get('cache-control'),/no-store/);
+  const text=await citation.text();assert.match(text,/Copper lantern testimony/);assert.ok(!text.includes('First page of retained testimony'));assert.ok(text.includes(hit.citation.sha256));
+  const file=await h.request('/api/satchel/documents/'+f.document.id+'/file?version=1',undefined,reader);assert.deepEqual(Buffer.from(await file.arrayBuffer()),f.bytes);
+  assert.equal((await h.request('/api/satchel'+hit.path.replace(hit.citation.sha256,'0'.repeat(64)),undefined,reader)).status,409);
+  const day=f.document.versions[0].createdAt.slice(0,10);
+  assert.equal((await search('copper lantern',reader,{matterId:m.id,from:day,to:day,documentType:'Deposition'})).total,1);
+  for(const filters of [{matterId:'synthetic-satchel-1'},{documentType:'Correspondence'},{from:'1900-01-01',to:'1900-12-31'}])assert.equal((await search('copper lantern',reader,filters)).total,0);
+  await h.json('/search?q=copper&from=2026-10-30&to=2026-10-01',undefined,reader,400);
+  assert.equal((await search('silver compass',reader)).groups[0].items[0].citation.page,1);
+  // New head removes old text immediately; a saved URL cannot open a stale page.
+  const current=(await h.json(base+'/documents',undefined,h.owner)).find(d=>d.id===f.document.id);
+  await f.upload('Testimony revised.pdf',await readablePdf(['Revised first page of retained testimony','Amber vessel replacement testimony is the current record']),'application/pdf','matter',{documentId:current.id,revision:current.revision});
+  assert.equal((await search('copper lantern',reader)).total,0);assert.equal((await h.request('/api/satchel'+hit.path,undefined,reader)).status,409);
+  const revised=(await search('amber vessel',reader)).groups[0].items[0];assert.equal(revised.citation.version,2);assert.equal(revised.citation.page,2);
+  await h.json(base+'/access',{email:'reader@example.test',remove:true},h.owner);
+  assert.equal((await search('amber vessel',reader)).total,0);assert.deepEqual((await search('amber vessel',reader)).documentIndex,[]);assert.equal((await h.request('/api/satchel'+revised.path,undefined,reader)).status,404);
+  await h.json(base+'/access',{email:'reader@example.test'},h.owner);
+  const permissions={rates:'none',bank:'none',reports:'none',contacts:'none',documents:'none',billing:'none',settings:'none'},role=await h.json('/roles',{name:'No document access',permissions,reason:'Document search denied'},h.owner);
+  await h.json('/team',{email:'reader@example.test',name:'Search reader',role:'assistant',customRoleId:role.id},h.owner);
+  const denied=await search('amber vessel',reader);assert.equal(denied.total,0);assert.deepEqual(denied.documentIndex,[]);assert.equal((await h.request('/api/satchel'+revised.path,undefined,reader)).status,403);
+  await h.json('/team',{email:'reader@example.test',name:'Search reader',role:'assistant',customRoleId:null},h.owner);
+  const beforeArchive=await search('amber vessel');await h.restart();assert.deepEqual(await search('amber vessel'),beforeArchive);
+  const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();
+  restored=await harness();await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);assert.deepEqual(await restored.json('/search?q=amber%20vessel',undefined,restored.owner),beforeArchive);
+  assert.equal((await restored.request('/api/satchel'+revised.path,undefined,restored.owner)).status,200);
+  await h.json('/retention',{matterId:m.id,documentId:f.document.id,disposeAfter:'2000-01-01',basis:'Expired retained evidence'},h.owner);
+  const hold=await h.json('/holds',{matterId:m.id,documentId:f.document.id,reason:'Preserve current testimony'},h.owner);
+  const dispose={confirm:f.document.title,reason:'Authorized expired-record disposal'};
+  await h.json('/documents/'+f.document.id+'/dispose',dispose,h.owner,409);assert.equal((await search('amber vessel',reader)).total,1);
+  await h.json('/documents/'+f.document.id+'/erase',{confirm:f.document.title,reason:'Ordinary erasure also respects holds'},h.owner,409);
+  await h.json('/holds/'+hold.id+'/release',{reason:'Counsel released preservation'},h.owner);
+  const disposed=await h.json('/documents/'+f.document.id+'/dispose',dispose,h.owner);assert.equal(disposed.journal.derivatives.searchVectors,2);
+  const absent=await search('amber vessel');assert.equal(absent.total,0);assert.ok(!JSON.stringify(absent.documentIndex).includes(f.document.id));assert.equal((await h.request('/api/satchel'+revised.path,undefined,h.owner)).status,404);
+  const journal=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(!journal.includes('Amber vessel replacement testimony'));
+  await restored.close();restored=await harness();await restored.json('/restore',{archive,journal,confirm:'RESTORE'},restored.owner,409);
+  await restored.json('/restore',{archive:journal,confirm:'RESTORE'},restored.owner);assert.equal((await restored.json('/search?q=amber%20vessel',undefined,restored.owner)).total,0);
+  await h.json('/documents/'+f.plain.id+'/erase',{confirm:f.plain.title,reason:'Approved ordinary erasure'},h.owner);assert.equal((await search('silver compass')).total,0);
+  await h.json('/team',{email:'custodian@example.test',name:'Wall counsel',role:'lawyer'},h.owner);await h.json('/team/invite',{email:'custodian@example.test'},h.owner);await h.login('custodian@example.test');await h.json(base+'/access',{email:'custodian@example.test'},h.owner);
+  await h.json(base+'/wall',{custodianEmail:'custodian@example.test',members:[],reason:'Current ethical wall',revision:null},h.owner);
+  assert.equal((await search('copper lantern')).total,0);assert.deepEqual((await search('copper lantern')).documentIndex,[]);
+ }finally{await restored?.close();await h.close();}
+});
