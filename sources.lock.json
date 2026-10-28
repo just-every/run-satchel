@@ -148,7 +148,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "10b092a349ff60049c0bb1d5f81215f2560bff126e45eabae5f0884fb160de2d",
+      "sha256": "6aedb645b8f9dae5541cb78c1c41494c84717916c550f6d1bda0635790ca3355",
       "executable": false
     },
     "base-copies.json": {
@@ -240,7 +240,7 @@
       "executable": false
     },
     "docs/team-and-preparations.md": {
-      "sha256": "2a7706cba529a662e39c7e859b8ed84c985ad3d61883251ee6018e2d9f303c7f",
+      "sha256": "7d677722259e95551e01bb8b9e79921066f05c40bcd8430a4f648ee9f2b4cda4",
       "executable": false
     },
     "docs/time-and-bills.md": {
@@ -4448,11 +4448,11 @@
       "executable": false
     },
     "tests/satchel/agent-execution-browser.mjs": {
-      "sha256": "1d2cad1dd40c94cee908e48e2ebbadc8817b0c36f7212389943e2c19121e5b3c",
+      "sha256": "26d11fa33c37040ea48e409f9a136a44b8d6b75c4fa138bc45cba36949a74fb2",
       "executable": false
     },
     "tests/satchel/agent-execution-flow.mjs": {
-      "sha256": "46e9f15c5239ae66aabba5eee8c278eb03f9006aa35dc11dd1541714acf44f3c",
+      "sha256": "fbac869ea9b68d2330630e13bb7353b608079273854b2e3a349d056032107011",
       "executable": false
     },
     "tests/satchel/agent-fixture.mjs": {

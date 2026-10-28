@@ -38,6 +38,7 @@ export async function proveAgentExecution(){
   await h.json('/agent/send',{recipient:'synthetic-satchel-7'},'',403,auth);await h.json('/agent/transfer',{cents:100},'',403,auth);
   await h.json('/agent/prepare-deadline',{...payload,authority:'owner'},'',403,auth);await h.json('/agent/prepare-deadline',{...payload,matterId:other.id},'',403,auth);
   const p=await h.json('/agent/prepare-deadline',payload,'',200,auth);assert.equal(p.status,'pending');
+  assert.equal(p.payload.version,1);await h.json('/agent/prepare-deadline',{...payload,version:2},'',403,auth);
   const dueAt=new Date(Date.now()-60000).toISOString(),futureAt=new Date(Date.now()+600000).toISOString(),jobBody={action:'prepare-deadline',requestKey:'synthetic-satchel-8',payload:{...payload,title:'Durable source preparation'},dueAt};
   const job=await h.json('/agent/jobs',jobBody,'',200,auth),cancelled=await h.json('/agent/jobs',{...jobBody,requestKey:'synthetic-satchel-9',dueAt:futureAt,payload:{...payload,title:'Must never execute'}},'',200,auth);
   assert.equal((await h.json('/agent/jobs',jobBody,'',200,auth)).id,job.id);
@@ -55,6 +56,8 @@ export async function proveAgentExecution(){
   assert.equal(JSON.stringify({deadlines:await h.json(base+'/deadlines',undefined,h.owner),trust:await h.json('/trust',undefined,h.owner),billing:await h.json(base+'/billing',undefined,h.owner)}),effects);assert.equal(h.mails.length,mailCount,'Untrusted instructions, preparations and stops cause no external contact');
   const audit=await h.json('/audit?limit=200',undefined,h.owner),approved=audit.records.find(r=>r.action==='agent.delegation_approved'&&r.objectId===delegation.id);
   assert.ok(approved,'Delegation approval is inspectable in the action audit');
+  assert.equal(approved.actor.email,principal);assert.equal(approved.actor.channel,'person');assert.equal(approved.evidence.record.agreement_id,agreement.id);assert.equal(approved.evidence.record.max_jobs,3);
+  assert.deepEqual(approved.evidence.record.sources.map(s=>s.documentId).sort(),[record.id,research.id].sort());
   assert.ok(audit.records.some(r=>r.action==='agent.preparation_refused'));
   // A fresh delegation cannot keep queued work alive after agreement withdrawal,
   // erased source bytes, credential revocation, expiry or sponsor removal.
@@ -71,7 +74,7 @@ export async function proveAgentExecution(){
   await h.json('/documents/'+record.id+'/erase',{confirm:record.title,reason:'Remove source bytes'},h.owner);await h.scheduled(Date.now());assert.equal((await h.json('/agent-controls',undefined,h.owner)).jobs.find(j=>j.id===ej.id).status,'refused');await h.json('/agent/matters/'+m.id,undefined,'',403,erased.auth);
   const revoked=await make('Revoked key'),rj=await queue(revoked,'synthetic-satchel-13');await h.json('/keys/'+revoked.k.id+'/revoke',{},h.owner);await h.scheduled(Date.now());await h.json('/agent/context',undefined,'',401,revoked.auth);assert.equal((await h.json('/agent-controls',undefined,h.owner)).jobs.find(j=>j.id===rj.id).outcome,'key_revoked');
   const expired=await make('Expiry fence'),xj=await queue(expired,'synthetic-satchel-14');await h.scheduled('2100-01-01T00:00:00.000Z');assert.equal((await h.json('/agent-controls',undefined,h.owner)).jobs.find(j=>j.id===xj.id).status,'refused');
-  const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),target=await harness();try{await target.json('/restore',{archive,confirm:'RESTORE'},target.owner);await target.scheduled(Date.now());await target.json('/agent/context',undefined,'',401,auth);assert.deepEqual((await target.json('/state',undefined,target.owner)).proposals.map(v=>v.id).sort(),history.map(v=>v.id).sort());}finally{await target.close();}
+  const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),target=await harness();try{await target.json('/restore',{archive,confirm:'RESTORE'},target.owner);await target.scheduled(Date.now());await target.json('/agent/context',undefined,'',401,auth);assert.deepEqual((await target.json('/state',undefined,target.owner)).proposals.map(v=>v.id).sort(),history.map(v=>v.id).sort());const restored=await target.json('/agent-controls',undefined,target.owner);assert.equal(restored.jobs.find(j=>j.id===cancelled.id).outcome,'delegation_revoked');assert.ok(restored.agreements.some(a=>a.id===agreement.id));const fresh=await target.json('/keys',{label:'Fresh restore credential'},target.owner);await target.json('/agent/matters/'+m.id,undefined,'',404,{authorization:'Bearer '+fresh.key,'x-satchel-delegation':delegation.id});}finally{await target.close();}
   assert.equal(nextVersion.currentVersion,2);
  }finally{await h.close();}
 }
