@@ -3100,7 +3100,7 @@
       "executable": false
     },
     "src/satchel/agent-context.ts": {
-      "sha256": "b026748eee1837d03afe346dbadb9fb2bd86a19b7a1dc4292b29a760c20f9b2a",
+      "sha256": "ce956b5ece789528fe8cc88f066bedb060fabf60e165356b2753f9e49764b975",
       "executable": false
     },
     "src/satchel/agent-jobs.ts": {
@@ -4452,7 +4452,7 @@
       "executable": false
     },
     "tests/satchel/agent-execution-flow.mjs": {
-      "sha256": "3af54fbe0f0e778ec5d79f0cb9afb9a2e78ccb64967fa5ecdb99384fc3b10fdd",
+      "sha256": "d8ca96f294b6355cdac77a49496a7bd89ed82eb134bda0386840259414cfad2d",
       "executable": false
     },
     "tests/satchel/agent-fixture.mjs": {
@@ -4540,7 +4540,7 @@
       "executable": false
     },
     "tests/satchel/contacts.test.mjs": {
-      "sha256": "8277a6f105299c501c75007a107a3cd958c01301d44a82af1085f1815e08ebe5",
+      "sha256": "b75101ef63dcc7c159064e91aafcb62e5bc3758d4d2bf82fc04381f469e0063f",
       "executable": false
     },
     "tests/satchel/custom-roles.test.mjs": {
@@ -4580,7 +4580,7 @@
       "executable": false
     },
     "tests/satchel/flows.test.mjs": {
-      "sha256": "c4a4528698805ea2bd55cfb4b9561fd42255c1834d8d8d02116ceedfa03cefda",
+      "sha256": "ab943f9b8ef6c69d43aa7be0af9c11071e459e2eb1e3bf2b5406d582e21258a3",
       "executable": false
     },
     "tests/satchel/followups.test.mjs": {

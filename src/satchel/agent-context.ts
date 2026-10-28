@@ -31,7 +31,7 @@ export async function agentMatterContext(db:D1Database,actor:Actor,matterId:stri
 }
 
 export async function previewAgentContext(db:D1Database,actor:Actor,delegationId:string){
- human(actor);const d=await stmt(db,'SELECT * FROM s_agent_delegations WHERE id=? AND sponsor_id=?',delegationId,actor.id).first<Data>();insist(d,'Delegation not found',404);await matter(db,actor,d.matter_id);
+ human(actor);const d=await stmt(db,"SELECT * FROM s_agent_delegations WHERE id=? AND (sponsor_id=? OR ?='owner')",delegationId,actor.id,actor.role).first<Data>();insist(d,'Delegation not found',404);await matter(db,actor,d.matter_id);
  const agent=await agentForKey(db,d.key_id),path='/api/satchel/agent/matters/'+d.matter_id;gateGrants(agent,'GET',path);
  return redact(db,agent,path,await agentMatterContext(db,agent,d.matter_id,d.id));
 }

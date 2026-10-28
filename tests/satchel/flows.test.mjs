@@ -223,6 +223,8 @@ test('ethical walls exclude a principal from current doors and require expiring 
   const ownerTask=await w.json('/matters/'+hidden.id+'/tasks',{title:'Review sealed strategy',ownerEmail:'owner@example.test'},custodian);assert.ok((await w.json('/notifications',undefined,w.owner)).some(n=>n.taskId===ownerTask.id));
   const feed=await w.json('/integrations',{label:'Sealed repository feed',matterIds:[hidden.id],scopes:['matters:read','documents:read','tasks:read','proposals:prepare']},w.owner),feedAuth={authorization:'Bearer '+feed.key};
   const key=await w.json('/keys',{label:'Principal assistant'},w.owner),auth={authorization:'Bearer '+key.key};
+  await authorizeAgent(w,key,hidden.id,{delegation:{sources:[{documentId:doc.id,version:1,kind:'matter'}]}});
+  assert.deepEqual((await w.json('/agent/context',undefined,'',200,auth)).matters.map(m=>m.id),[hidden.id]);
   const old=await w.json('/conflicts',{client:'Juniper',adverse:'Other'},w.owner);
   const wall=await w.json('/matters/'+hidden.id+'/wall',{custodianEmail:'custodian@example.test',members:[],reason:'Adverse representation ethical screen',revision:null},w.owner);
   // Outside principals cannot add themselves, change members/custodian, or dissolve.
