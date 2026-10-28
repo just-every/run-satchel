@@ -1,4 +1,4 @@
-import {id,insist,now,rows,stmt,type Data} from './model';
+import {audit,id,insist,now,rows,stmt,type Data} from './model';
 import {stripeApi,type StripeEnv} from './stripe-api';
 import {guard} from './trust-guards';
 
@@ -22,18 +22,22 @@ export async function readSettlement(env:StripeEnv,config:Data,payoutId:string){
 export function settlementWrites(env:StripeEnv,config:Data,snapshot:Data,observationId:string){
  const at=now();return [stmt(env.DB,'INSERT INTO s_stripe_settlement_observations SELECT ?,COALESCE(MAX(sequence),0)+1,?,?,?,? FROM s_stripe_settlement_observations',observationId,snapshot.payoutId,config.id,JSON.stringify(snapshot),at),
  ...snapshot.transactions.flatMap((t:Data)=>[
-  guard(env.DB,'NOT EXISTS(SELECT 1 FROM s_stripe_processor_postings WHERE id=? AND (config_id<>? OR gross_cents<>? OR fee_cents<>? OR net_cents<>?))',t.id,config.id,t.grossCents,t.feeCents,t.netCents),
+  guard(env.DB,'NOT EXISTS(SELECT 1 FROM s_stripe_processor_postings p JOIN s_stripe_config c ON c.id=p.config_id WHERE p.id=? AND (c.account_id<>? OR c.mode<>? OR p.payout_id<>? OR p.gross_cents<>? OR p.fee_cents<>? OR p.net_cents<>?))',t.id,config.account_id,config.mode,snapshot.payoutId,t.grossCents,t.feeCents,t.netCents),
   stmt(env.DB,'INSERT INTO s_stripe_processor_postings SELECT ?,?,?,?,?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM s_stripe_processor_postings WHERE id=?)',t.id,config.id,snapshot.payoutId,t.paymentIntentId,t.grossCents,t.feeCents,t.netCents,t.type,at,t.id)
  ])];
 }
 export async function ingestPayout(env:StripeEnv,event:Data){
  if(await stmt(env.DB,'SELECT 1 FROM s_stripe_payout_events WHERE id=?',event.id).first())return {received:true};
- const account=await stripeApi(env,'/account'),config=await stmt(env.DB,"SELECT * FROM s_stripe_config WHERE kind='operating' AND account_id=? AND mode=? ORDER BY approved_at DESC,id DESC LIMIT 1",account.id,env.STRIPE_MODE==='live'?'live':'test').first<Data>();
- if(!config)return {received:true};
- const snapshot=await readSettlement(env,config,event.data.object.id),observationId=id();
- const intents=await rows(env.DB,"SELECT payment_intent_id FROM s_stripe_checkouts WHERE config_id=? AND purpose='operating'",config.id);
- if(!snapshot.transactions.some(t=>intents.some(a=>a.payment_intent_id&&a.payment_intent_id===t.paymentIntentId)))return {received:true};
- try{await env.DB.batch([guard(env.DB,'NOT EXISTS(SELECT 1 FROM s_stripe_payout_events WHERE id=?)',event.id),...settlementWrites(env,config,snapshot,observationId),stmt(env.DB,'INSERT INTO s_stripe_payout_events VALUES(?,?,?)',event.id,observationId,now())]);}
+ const account=await stripeApi(env,'/account'),configs=await rows(env.DB,"SELECT * FROM s_stripe_config WHERE kind='operating' AND account_id=? AND mode=? ORDER BY approved_at DESC,id DESC",account.id,env.STRIPE_MODE==='live'?'live':'test');
+ if(!configs.length)return {received:true};
+ const snapshot=await readSettlement(env,configs[0],event.data.object.id),observationId=id();
+ const intents=await rows(env.DB,"SELECT c.payment_intent_id,c.config_id,c.bill_id,b.matter_id,b.revision FROM s_stripe_checkouts c JOIN s_bills b ON b.id=c.bill_id WHERE c.config_id IN(SELECT value FROM json_each(?)) AND c.purpose='operating'",JSON.stringify(configs.map(c=>c.id)));
+ const included=intents.filter(a=>a.payment_intent_id&&snapshot.transactions.some(t=>t.paymentIntentId===a.payment_intent_id));
+ if(!included.length)return {received:true};
+ const config=configs.find(c=>c.id===included[0].config_id)!;
+ const provider={id:'stripe',email:['processor','stripe.invalid'].join('@'),role:'provider',channel:'provider'};
+ const trail=included.map(a=>audit(env.DB,provider,'stripe.payout_observed',observationId,JSON.stringify({eventId:event.id,payoutId:snapshot.payoutId,status:snapshot.status,transactions:snapshot.transactions.filter(t=>t.paymentIntentId===a.payment_intent_id)}),{matterId:a.matter_id,billId:a.bill_id,reviewedRevision:a.revision}));
+ try{await env.DB.batch([guard(env.DB,'NOT EXISTS(SELECT 1 FROM s_stripe_payout_events WHERE id=?)',event.id),...settlementWrites(env,config,snapshot,observationId),stmt(env.DB,'INSERT INTO s_stripe_payout_events VALUES(?,?,?)',event.id,observationId,now()),...trail]);}
  catch(error){if(!await stmt(env.DB,'SELECT 1 FROM s_stripe_payout_events WHERE id=?',event.id).first())throw error;}
  return {received:true};
 }

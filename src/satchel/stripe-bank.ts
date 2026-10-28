@@ -19,7 +19,7 @@ export async function matchSettlement(env:StripeEnv,actor:Actor,attemptId:string
  const accountId=text(b.operatingAccountId,'Operating deposit account',100),day=date(b.depositDate);await bankAccess(env,actor,accountId);
  insist(b.confirmed===true&&s.status==='paid'&&s.reconciliationStatus==='completed'&&s.netCents===s.amountCents&&s.amountCents===cents&&s.transactions.every((t:Data)=>t.status==='available'),'Only a fully reconciled paid payout can match an exact bank deposit',409);
  const current=await stripeApi(env,'/payouts/'+encodeURIComponent(s.payoutId));
- insist(current.status==='paid'&&current.amount===cents&&current.currency==='usd','Payout changed; inspect it again',409);
+ insist(current.status==='paid'&&current.reconciliation_status==='completed'&&current.amount===cents&&current.currency==='usd','Payout changed; inspect it again',409);
  const attempts=await rows(env.DB,"SELECT payment_intent_id FROM s_stripe_checkouts WHERE bill_id=? AND purpose='operating'",bill.id);
  insist(s.transactions.some((t:Data)=>attempts.some(a=>a.payment_intent_id===t.paymentIntentId)),'Settlement is not allocated to this invoice',409);
  const batchGuards=await settlementAccess(env,actor,s.transactions),matches=await bankMatches(env),prior=matches.find(m=>m.payout_id===s.payoutId&&!m.reversal);

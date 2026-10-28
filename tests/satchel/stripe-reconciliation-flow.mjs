@@ -33,8 +33,10 @@ export async function reconciliationFlow(){
   assert.equal(state.attempts[0].receipt.cents,37500);assert.equal(state.attempts[0].receipt.charge_id,session.payment_intent.latest_charge.id);
   let bank=(await h.json('/trust',undefined,h.owner));assert.equal(bank.accounts.find(a=>a.id===bankAccount.id).balance_cents,31183);assert.equal(bank.entries.filter(e=>e.kind==='stripe_payout').length,1);
   const payoutEvent={id:'synthetic-satchel-payout-event',livemode:false,type:'payout.paid',data:{object:{object:'payout',id:payout}}};edge.events.set(payoutEvent.id,payoutEvent);
+  await h.json('/stripe/settings',{kind:'operating',confirmed:true},h.owner);
   for(let i=0;i<2;i++)assert.equal((await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify({id:payoutEvent.id})})).status,200);
   state=await h.json('/bills/'+s.card.id+'/reconciliation',undefined,h.owner);assert.equal(state.settlements.length,3,'One verified payout event appends one observation despite replay');assert.equal(state.processorPostings.length,2);assert.equal(state.processorPostings.reduce((n,t)=>n+t.net_cents,0),31183);
+  assert.equal((await h.json('/audit?matterId='+s.m.id+'&action=stripe.payout_observed',undefined,h.owner)).records.length,1,'Reapproval preserves the old collection and its once-only payout audit');
   const reversal={matchId:state.settlements.at(-1).bank.id,revision:s.card.revision,reason:'Finance corrects an incorrectly matched statement line',requestKey:'synthetic-satchel-bank-reversal',depositDate:'2026-11-02',confirmed:true};
   await h.json(path+'/bank-reversal',reversal,billing,403);await h.json(path+'/bank-reversal',{...reversal,revision:'stale'},h.owner,409);
   state=await h.json(path+'/bank-reversal',reversal,h.owner);assert.equal(state.bankStatus,'unconfirmed');await h.json(path+'/bank-reversal',reversal,h.owner);await h.json(path+'/bank-reversal',{...reversal,reason:'Changed decision'},h.owner,409);

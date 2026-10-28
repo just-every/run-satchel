@@ -39,9 +39,10 @@ async function transport(request){
  const bytes=await response.arrayBuffer(),headers=new Headers(response.headers);
  headers.delete('content-encoding');headers.delete('content-length');
  if(response.ok&&request.method==='POST'){
-  const object=JSON.parse(Buffer.from(bytes).toString());assert.equal(object.livemode,false);
+  const object=JSON.parse(Buffer.from(bytes).toString());
+  assert.equal(object.object,path==='/v1/refunds'?'refund':'checkout.session');
   if(path==='/v1/checkout/sessions'){
-   sessions.push(object);
+   assert.equal(object.livemode,false);sessions.push(object);
    if(loseAcknowledgment){loseAcknowledgment=false;throw new Error('Real checkout response deliberately lost');}
   }
   if(path==='/v1/refunds')refunds.push(object);
@@ -137,6 +138,7 @@ async function captureRefund(s){
    await payment.getByRole('heading',{name:'Invoice '+s.card.number,exact:true}).waitFor();
    assert.deepEqual(await payment.locator('dl dd').allTextContents(),['$375.00','$325.00','$50.00']);
    await ownerPage.setViewportSize(viewport);await ownerPage.goto(h.origin+'/app');
+   if(new URL(ownerPage.url()).pathname==='/setup'){await ownerPage.getByLabel('Your name').fill('Synthetic principal');await ownerPage.getByRole('checkbox').check();await ownerPage.getByRole('button',{name:'Finish setup',exact:true}).click();await ownerPage.waitForURL(/\/app/);}
    await ownerPage.getByRole('button',{name:'Time & bills',exact:true}).click();
    await ownerPage.getByLabel('Current matter',{exact:true}).selectOption(s.m.id);
    const bill=ownerPage.locator('.bill-packages > article').filter({hasText:s.card.snapshot.title});
@@ -159,6 +161,7 @@ try{
  h=await harness({bindings:{STRIPE_SECRET_KEY:key,STRIPE_MODE:'test'},stripeResponse:transport});
  const s=await paymentFixture(h),base='/portal/invoices/'+s.card.id,principal=(await h.json('/state',undefined,h.owner)).actor;
  assert.equal(principal.role,'owner');
+ await h.json(base+'/checkout',{purpose:'trust',cents:totalCents,ledgerId:'synthetic-satchel-unprotected-trust',requestKey:'synthetic-satchel-trust-refused'},h.owner,409);assert.equal(checkoutPosts,0);
  stage='lostAcknowledgment';
  await h.json(base+'/checkout',{requestKey:'synthetic-satchel-reconciliation-lost'},s.client,502);
  assert.equal(sessions.length,1);assert.equal(checkoutPosts,1);assert.equal(sessions[0].status,'open');
@@ -267,6 +270,7 @@ try{
  stage='refundScreenshots';await captureRefund(s);
  console.log(JSON.stringify({...proof,checkoutPosts,refundPosts,journeyPassed:true}));
 }catch(error){
+ console.error(JSON.stringify({stage,error:String(error.message).replace(/https?:\/\/\S+/g,'[redacted address]').replace(/(?:sk|rk)_(?:test|live)_\w+/g,'[redacted]').slice(0,800),location:error.stack?.split('\n').find(line=>line.includes('stripe-reconciliation-sandbox.mjs:'))}));
  if(page&&directory){await mkdir(directory,{recursive:true});await page.screenshot({path:directory+'/reconciliation-failed.png',fullPage:true}).catch(()=>{});}
  console.log(JSON.stringify({...proof,checkoutPosts,refundPosts,assertionFailed:error?.code==='ERR_ASSERTION',
   ...Object.fromEntries(['setup','lostAcknowledgment','financeRecovery','hostedCheckout','verifiedCallback','principalRefund','refundReadback','automaticPayoutReadback','restartReplay','refundScreenshots'].map(name=>['failedAt'+name[0].toUpperCase()+name.slice(1),stage===name])),journeyPassed:false}));

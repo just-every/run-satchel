@@ -3728,7 +3728,7 @@
       "executable": false
     },
     "src/satchel/role-areas.ts": {
-      "sha256": "c16506547bb99f501770c5418e86a1df83b5cbe64fa9ac785230ef7c61d2cc80",
+      "sha256": "e2ae8d277034f45457790bbd02351974f0671271e2c09abf603bc7badf3d8441",
       "executable": false
     },
     "src/satchel/role-doors.ts": {
@@ -3792,7 +3792,7 @@
       "executable": false
     },
     "src/satchel/stripe-bank.ts": {
-      "sha256": "9e54e6754f4296ba8b97628312afb69eecf57e63ea210e07011e4ef6e2de8fc9",
+      "sha256": "7594f115518404655366594d8b281ebbb6d7bf2ab7720cc2d43aa0d7be4717dc",
       "executable": false
     },
     "src/satchel/stripe-config.ts": {
@@ -3812,7 +3812,7 @@
       "executable": false
     },
     "src/satchel/stripe-settlements.ts": {
-      "sha256": "24ad6bae0cc880e9b2403ff6777388fcb10569435976d6be6b7abbba1e7426c8",
+      "sha256": "d50b0f3485d93ac7e39e8bd046abd4edac2d6a6dc21f635313ea9d43070bc01f",
       "executable": false
     },
     "src/satchel/tasks.ts": {
@@ -4848,7 +4848,7 @@
       "executable": false
     },
     "tests/satchel/payment-money-browser.mjs": {
-      "sha256": "5d1d4f6d53f02868fce1a9d90f7b45ec3766bce6a673934b97445ef7e124c7e4",
+      "sha256": "ca0eae18a851d77dc1569bfe981f8ff1f944d19f6cd9eb239306737313f8e046",
       "executable": false
     },
     "tests/satchel/payment-plan-edge.mjs": {
@@ -4988,11 +4988,11 @@
       "executable": false
     },
     "tests/satchel/stripe-reconciliation-flow.mjs": {
-      "sha256": "cb715aa960ded58e287e2a1e049a8e8635c3928e940a3d40669d07d40dc01d14",
+      "sha256": "3ee654a87e174639a8e9d6c6f49453cb5e46e26c46c8e05ecd86c7d3b333663f",
       "executable": false
     },
     "tests/satchel/stripe-reconciliation-sandbox.mjs": {
-      "sha256": "ac9f693b856fec1b0f0743106811a1fc22505e783f75c1f81019e3937790ffd3",
+      "sha256": "e4917a1b279a10f1210e0b4d6ccb7eaae144b10aa8342be5d90e173cf49c33b3",
       "executable": false
     },
     "tests/satchel/stripe-sandbox.mjs": {
