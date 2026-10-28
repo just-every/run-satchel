@@ -23,6 +23,14 @@ export async function paymentMoneyBrowser({page,browser,h,edge,s,width}){
  await reconciliation.getByText('Correct bank match',{exact:true}).click();await reconciliation.getByLabel('Bank correction date').fill('2026-11-02');await reconciliation.getByLabel('Bank correction reason').fill('Finance corrects the selected bank statement line');await reconciliation.getByRole('button',{name:'Approve bank match reversal',exact:true}).click();await reopen();
  await reconciliation.getByText('Bank settlement: Unconfirmed',{exact:true}).waitFor();await reconciliation.getByText(/Reversed bank match: synthetic-satchel-statement-42/).waitFor();await shot(reconciliation,'reconciliation-reversed');
  assert.equal((await h.json('/trust',undefined,h.owner)).accounts.find(a=>a.id===account.id).balance_cents,0);
+ await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Trust',exact:true}).click();
+ const journal=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'Journal corrections',exact:true})});
+ await journal.getByRole('button',{name:'Request journal reversal',exact:true}).waitFor();
+ const stripeEntries=(await h.json('/trust',undefined,h.owner)).entries.filter(e=>['stripe_payout','stripe_payout_reversal'].includes(e.kind));assert.equal(stripeEntries.length,2);
+ const options=await journal.getByLabel('Original posted entry').locator('option').evaluateAll(es=>es.map(e=>e.value));
+ for(const entry of stripeEntries)assert.ok(!options.includes(entry.id),'Stripe bank corrections are excluded from the generic journal selector');
+ await shot(journal,'journal-stripe-correction-excluded');
+ await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Time & bills',exact:true}).click();await page.getByLabel('Current matter').selectOption(s.m.id);await bill.getByText('Payment reconciliation',{exact:true}).click();
  await reconciliation.getByText('Write-off corrections',{exact:true}).click();const corrections=reconciliation.getByRole('region',{name:'Write-off corrections'});
  await corrections.getByLabel('Write-off (USD cents)').fill('5000');await corrections.getByLabel('Write-off approval reason').fill('Principal approves a concession for the remaining reviewed services');await corrections.getByRole('button',{name:'Approve exact write-off',exact:true}).click();await reopenCorrections();
  await corrections.getByText('Remaining write-off: $50.00',{exact:true}).waitFor();await shot(corrections,'writeoff-approved');

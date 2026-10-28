@@ -3860,7 +3860,7 @@
       "executable": false
     },
     "src/satchel/trust-journal.ts": {
-      "sha256": "98a5c492fc3ed838f67a84538759e72ab1424003cb09610c1084f4a189a5df6b",
+      "sha256": "9404b1ae355a0f6cd8aaed666a515d6625ef8dac604315d7679579da2439d4d3",
       "executable": false
     },
     "src/satchel/trust-matter-transfer-bank.ts": {
@@ -4472,7 +4472,7 @@
       "executable": false
     },
     "src/ui/trust-journal.tsx": {
-      "sha256": "8a39acfd845b3c074aa5f7453705991af781b7e2ff8ecf3218f4890c87d977eb",
+      "sha256": "87c3bdc366c4d32bbe9deb73e3c3fe804f006ed7a971a1f115fe6835786ad5c2",
       "executable": false
     },
     "src/ui/trust-matter-transfer-bank.tsx": {
@@ -4848,7 +4848,7 @@
       "executable": false
     },
     "tests/satchel/payment-money-browser.mjs": {
-      "sha256": "ca0eae18a851d77dc1569bfe981f8ff1f944d19f6cd9eb239306737313f8e046",
+      "sha256": "2bfafd5d47e1d2c0354c356a270cb48262c70fffb18cf96138cd6085e4e4c47a",
       "executable": false
     },
     "tests/satchel/payment-plan-edge.mjs": {
@@ -4992,7 +4992,7 @@
       "executable": false
     },
     "tests/satchel/stripe-reconciliation-flow.mjs": {
-      "sha256": "3ee654a87e174639a8e9d6c6f49453cb5e46e26c46c8e05ecd86c7d3b333663f",
+      "sha256": "de039d2b64578f467a76eda16a14f8bf0cce345dc355981ad2911a883fb40801",
       "executable": false
     },
     "tests/satchel/stripe-reconciliation-sandbox.mjs": {
