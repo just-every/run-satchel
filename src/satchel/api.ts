@@ -430,7 +430,7 @@ api.get('/api/satchel/matters/:id/documents',as((a,c)=>listDocuments(db(c),a,par
 api.get('/api/satchel/matters/:id/document-sets',as((a,c)=>documentSetState(db(c),a,param(c))));
 api.post('/api/satchel/matters/:id/document-sets/:op',as(async(a,c)=>documentSetAction(db(c),a,param(c),param(c,'op'),await body(c))));
 api.post('/api/satchel/matters/:id/documents',as(async(a,c)=>saveDocument(db(c),a,param(c),await body(c))));
-api.get('/api/satchel/documents/:id/text',as((a,c)=>documentTextCitation(db(c),a,param(c),Number(c.req.query('version')),c.req.query('sha256')??'',Number(c.req.query('page')))));
+api.get('/api/satchel/documents/:id/text',as((a,c)=>documentTextCitation(db(c),a,param(c),Number(c.req.query('version')),c.req.query('sha256')??'',Number(c.req.query('page')),c.req.query('format')==='json')));
 api.get('/api/satchel/documents/:id/file',as((a,c)=>documentFile(db(c),a,param(c),c.req.query('version')?Number(c.req.query('version')):undefined,c.req.query('sha256'))));
 api.get('/api/satchel/documents/:id/review',as((a,c)=>documentReview(db(c),a,param(c))));
 api.post('/api/satchel/documents/:id/annotations',as(async(a,c)=>annotateDocument(db(c),a,param(c),await body(c))));

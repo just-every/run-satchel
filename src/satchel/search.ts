@@ -1,3 +1,4 @@
+import {correspondenceState} from './correspondence';
 import {date,Fault,insist,rows,text,type Actor,type Data} from './model';
 import {documentText,normalizeText} from './document-text-index';
 import {matterScope} from './matter-scope';
@@ -58,10 +59,18 @@ export async function searchFirm(db:D1Database,actor:Actor,query:string,filters:
    if(matches(context,d.title,d.documentType,d.tags.join(' ')))add(email?'Email':'Documents',d.id,d.title,context+' · version '+d.currentVersion,'/documents/'+d.id+'/file?version='+d.currentVersion,m.id,'Documents',{freshness:extracted?.index});
    if(extracted)for(const p of extracted.pages)if(matches(p.body)){
     const offset=Math.max(0,normalize(p.body).indexOf(tokens[0])-60),snippet=p.body.slice(offset,offset+300);
-    const citation={documentId:d.id,version:extracted.index.version,sha256:extracted.index.sha256,page:p.page};
+    const citation={documentId:d.id,version:extracted.index.version,sha256:extracted.index.sha256,page:p.page,unit:extracted.index.unit};
     add(email?'Email':'Documents',d.id+':page:'+p.page,d.title,snippet,'/documents/'+d.id+'/text?version='+citation.version+'&sha256='+citation.sha256+'&page='+p.page,m.id,'Documents',{citation,freshness:extracted.index});
    }
    if(!documentsOnly&&permitted(actor,'/documents/'+d.id+'/review'))for(const n of (await documentReview(db,actor,d.id)).annotations)if(n.note&&matches(context,d.title,n.note))add('Notes',n.id,d.title+' · note',n.note,'/documents/'+d.id+'/review',m.id,'Documents');
+  }
+  if(actor.channel==='person'&&['owner','lawyer'].includes(actor.role)&&permitted(actor,base+'/correspondence')&&(!documentType||documentType==='Email')){
+   for(const mail of (await correspondenceState(db,actor,m.id)).messages){
+    const day=mail.reviewed_at.slice(0,10);if((from&&day<from)||(to&&day>to))continue;
+    const index={version:mail.id,sha256:mail.searchDigest,status:'ready',indexedAt:mail.reviewed_at,detail:'Current immutable reviewed email; read directly without a separate text cache.'};
+    freshness.push({documentId:mail.id,title:mail.subject,...index});
+    if(matches(context,mail.subject,mail.recipient,mail.body))add('Email',mail.id,mail.subject,mail.body,base+'/correspondence',m.id,'Matters',{recordAnchor:mail.id,sourceCitation:{revision:mail.id,sha256:mail.searchDigest},freshness:index});
+   }
   }
   if(!documentsOnly&&permitted(actor,base+'/billing')){
    for(const b of (await listBilling(db,actor,m.id)).bills)if(matches(context,b.snapshot.title,b.issue?.number))add('Invoices',b.id,b.issue?.number??b.snapshot.title,context+' · '+b.snapshot.title+' · '+b.status,base+'/billing',m.id,'Time & bills');
