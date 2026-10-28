@@ -21,7 +21,7 @@ Judged from the code and tests at commit `05959af48f66c8f4e5b6a4815707e39336a9fe
 
 #### SAT-006 — Correct by reviewed additions
 
-Core · published · **partial**
+Core · published · **partial** · Cites BASE-INPUT-001, BASE-ROLE-001
 
 **Requirement.** A correction is a separately reviewed delta referencing the original bill and source amounts. The original exported artifact, review identity and history remain intact. A delta adjusts an amount without releasing entries; when the entries themselves are wrong (matter, rate, narrative or template), BILL-016 voids the invoice and rebills them.
 
@@ -141,7 +141,7 @@ Core · target · **partial** · From FIRM-006, SAT-012 · Cites BASE-ROLE-001, 
 
 #### FIRM-007 — Operate and recover the owned system
 
-Core · target · **partial** · Cites BASE-DATA-001
+Core · target · **partial** · Cites BASE-DATA-001, BASE-BACKUP-001, BASE-INSTALL-001, BASE-SECRET-001
 
 **Requirement.** The principal owns deployment and provider accounts, sees storage/connector costs and health diagnostics that name each connector’s authorization and token expiry, last successful sync, queued and failed jobs, scheduled-job lag, storage use against quota, last verified backup and restore test, bank-feed staleness and unreconciled trust periods, each with its next action. The principal exports full archives with large attachments and reconciled trust history. Restore validates counts and hashes, keeps secrets local and leaves external sending and charging paused until reauthorized.
 
@@ -166,7 +166,7 @@ Core · target · **partial** · Cites BASE-ROLE-001, BASE-AUDIT-001
 
 #### BASE-001 — Preserve Base guarantees through replacements
 
-Core · target · **partial** · From BASE-001, SAT-011 · Cites BASE-ROLE-001, BASE-DATA-001, BASE-DATA-006
+Core · target · **partial** · From BASE-001, SAT-011 · Cites BASE-ROLE-001, BASE-DATA-001, BASE-DATA-006, BASE-ACCESS-001, BASE-ACCESS-002, BASE-DATA-003
 
 **Requirement.** Satchel retains native Base identity, imports, portability and erasure guarantees. Its custom archive/erase doors replace generic product export/erasure for matter records, including originals, review history, import journals and erasure fences; this replacement must grow with every new product record. Product records, review history and import provenance round-trip; identity, sessions, local configuration and agent keys remain excluded.
 
@@ -181,7 +181,7 @@ Core · target · **partial** · From BASE-001, SAT-011 · Cites BASE-ROLE-001, 
 
 #### INTAKE-001 — Publish conditional intake forms
 
-Core · target · **done** · Cites BASE-ROLE-001, BASE-DATA-001, BASE-DATA-006, BASE-MAIL-001
+Core · target · **done** · Cites BASE-ROLE-001, BASE-DATA-001, BASE-DATA-006, BASE-MAIL-001, BASE-INPUT-001, BASE-INPUT-003, BASE-PUBLIC-001
 
 **Requirement.** Staff publish branded accessible forms with conditional questions, consent, secure attachments, spam controls and practice-specific fields. Every submission becomes a permissioned lead with source and receipt; sensitive replies never appear in public URLs or notification subjects. The principal and lawyers publish immutable numbered form versions with the firm name, optional PNG/JPEG logo, practice label, plain-text review consent and typed text, choice, date or yes/no questions. A conditional question depends on one earlier choice or yes/no answer; the server refuses hidden answers and validates required visible answers. Publication names an active principal, lawyer or assistant as the lead assignee. A submission requires explicit consent for receipt and review of that inquiry only: it never matches a contact identity, changes channel consent or authorizes sending. The public page uses strict-origin referrers and exact-origin submissions; a random, hashed 20-minute token binds the published revision, a honeypot and at most ten accepted submissions per form/network/UTC hour limit spam. Only an hourly HMAC network digest is retained, for at most two hours; scheduled cleanup removes expired security data. One accepted submission atomically records one native lead, source form/version, immutable answers and consent evidence, original-file references and an opaque receipt; replay returns the same receipt, never a second lead. The receipt is displayed after POST, with no anonymous read-back page, email or notification. At most three PDF, PNG or JPEG originals of up to 10 MiB each (10,485,760 bytes) are stored in R2 after byte-signature/type checks; they are labeled not malware-scanned, never rendered inline, and authenticated attachment downloads verify their hashes. Each private read and download applies INTAKE-002 visibility to both the original lead and every survivor after a merge; merging never grants the survivor assignee access to an invisible source original. R2 originals and immutable provenance round-trip in streamed native archives; credentials, spent tokens, network digests and temporary upload reservations do not. Interrupted upload reservations expire after twenty minutes for cleanup; current uploads ask an archive request to wait rather than exporting incomplete originals. INTAKE-007 inherits complete inquiry provenance and the prohibition on sensitive URL/notification-subject content; DOC-001 carries larger/resumable uploads and quarantine, while FIRM-006 must add lead-original retention, holds, disposal and restore fencing before its lead-retention door ships.
 
@@ -422,7 +422,7 @@ Core · target · **partial** · Cites BASE-ROLE-001, BASE-MAIL-001
 
 #### DOC-001 — Store real working files
 
-Core · target · **partial** · From DOC-001, SAT-007 · Cites BASE-ROLE-001
+Core · target · **partial** · From DOC-001, SAT-007 · Cites BASE-ROLE-001, BASE-INPUT-003
 
 **Requirement.** Upload resumable large PDFs, DOCX, images, audio/video and bulk folders with per-file limits shown before transfer, quotas, malware quarantine and hash-verified originals. A 500 MiB scanned record and a multi-gigabyte matter set are ordinary supported work, not export-only attachments. Matter documents retain original bytes, hashes, version metadata and creator history. Matter visibility follows access; private visibility is uploader/principal only. Downloads validate integrity and use safe attachment headers. DOC-001 governs the working-file size target. INTAKE-001’s R2 inquiry originals inherit DOC-001’s future resumable-upload and quarantine obligations at those doors.
 
@@ -435,7 +435,7 @@ Core · target · **partial** · From DOC-001, SAT-007 · Cites BASE-ROLE-001
 
 #### DOC-002 — Preview and compare versions
 
-Core · target · **partial** · Cites BASE-ROLE-001, BASE-DATA-001, BASE-DATA-006
+Core · target · **partial** · Cites BASE-ROLE-001, BASE-DATA-001, BASE-DATA-006, BASE-INPUT-003
 
 **Requirement.** Staff preview PDFs, images and office documents, annotate separately from originals and compare versions with author/time provenance. Concurrent saves create explicit conflicts; source citations continue to identify the reviewed version. DOC-005 and DOC-014 inherit these version, conflict and citation obligations before adding their save doors.
 
@@ -453,7 +453,7 @@ Core · target · **partial** · Cites BASE-ROLE-001, BASE-DATA-001, BASE-DATA-0
 
 #### DOC-003 — Search OCR and full text
 
-Core · target · **missing** · Cites BASE-ROLE-001, BASE-DATA-006, BASE-MAIL-001
+Core · target · **missing** · Cites BASE-ROLE-001, BASE-DATA-006, BASE-MAIL-001, BASE-INPUT-002
 
 **Requirement.** OCR scanned records and index permitted document text, metadata and email with matter/date/type filters, exact page snippets and index freshness. Search applies matter walls before snippets and includes deletion of all derivatives on disposal.
 
@@ -465,7 +465,7 @@ Core · target · **missing** · Cites BASE-ROLE-001, BASE-DATA-006, BASE-MAIL-0
 
 #### DOC-004 — Organize and act on document sets
 
-Core · target · **done** · Cites BASE-ROLE-001
+Core · target · **done** · Cites BASE-ROLE-001, BASE-INPUT-003
 
 **Requirement.** Folders, tags, document types, saved views, bulk filing and duplicate detection support everyday matter navigation. Bulk operations preview their destinations and permissions and retain original identity and version history. Saved filters belong to the person within the matter, grant no sharing access and recheck current document access on every use. Metadata filing uses the existing uploader-or-principal edit authority and never changes readers. Folder, facet, saved-view and duplicate counts are computed only from accessible originals; duplicates are SHA-256 matches across retained versions of distinct documents, each original retained separately. Applying a recorded preview requires the same person and role, current matter/document access and unchanged document revisions; a preview applies once.
 
@@ -490,7 +490,7 @@ Core · target · **missing** · Cites BASE-ROLE-001
 
 #### DOC-006 — Assemble legal documents and forms
 
-Core · target · **done** · Cites BASE-DATA-001, BASE-DATA-006
+Core · target · **done** · Cites BASE-DATA-001, BASE-DATA-006, BASE-INPUT-001
 
 **Requirement.** Versioned Word/PDF templates merge typed matter fields, conditional clauses and repeating parties from approved questionnaires. Staff preview unresolved fields, maintain court-form versions and approve the generated DOCX/PDF before sending. Staff maintain immutable numbered templates with jurisdiction and court-form version labels, typed questionnaire fields (text, number, date, exact USD money, choice and yes/no), ordered paragraphs, answer-conditioned paragraphs and repeating matter parties. Merge fields use the matter’s adopted MATTER-001 version and canonical values, never the newest unadopted type; money renders in dollars with two decimals. Every saved questionnaire revision freezes its template version, answers, matter fields and party list and shows missing required or referenced values. Counsel approval covers that exact questionnaire and the generated DOCX/PDF whose hashes match the staff review downloads; incomplete, stale or unapproved final delivery is refused. Changed answers create a new comparable revision without rewriting earlier approvals or files. Approved files enter DOC-001 originals and inherit FIRM-006 retention/holds/erasure and BASE-001 archive recovery. Downloads are files for staff delivery, never a claim that Satchel sent them; CLIENT-006 and DOC-007 inherit exact-version approval before any sending or signing door ships. Jurisdiction and court-form version labels are firm-maintained, never a claim of court certification.
 
@@ -564,7 +564,7 @@ Core · target · **missing** · Cites BASE-ROLE-001
 
 #### DOC-012 — Build medical and bill chronologies
 
-Core · target · **done** · Cites BASE-ROLE-001
+Core · target · **done** · Cites BASE-ROLE-001, BASE-INPUT-003
 
 **Requirement.** Authorized teams organize received medical records and bills by provider, date, treatment, charge and source page, identify gaps and duplicates, and reconcile totals without silently deciding causation or altering source evidence. Health-data access, agreements and processor configuration are explicit setup work.
 
@@ -576,7 +576,7 @@ Core · target · **done** · Cites BASE-ROLE-001
 
 #### DOC-013 — Prepare controlled evidence productions
 
-Core · target · **partial**
+Core · target · **partial** · Cites BASE-INPUT-003
 
 **Requirement.** Counsel selects matter documents, privilege labels, redactions and Bates numbering; productions retain a manifest, privilege log, recipient and delivery proof while preserving unredacted originals and permitting recall of still-unopened shares.
 
@@ -871,7 +871,7 @@ Core · target · **partial** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-MAIL-
 
 #### TIME-001 — Run timers and timesheets
 
-Core · target · **done** · From TIME-001, SAT-004
+Core · target · **done** · From TIME-001, SAT-004 · Cites BASE-INPUT-001
 
 **Requirement.** Timekeepers start, pause, resume and switch matter timers, enter work on weekly timesheets, distinguish billable/nonbillable activity and submit reviewed time without overlapping unnoticed timers. A timekeeper also reviews and posts a complete drafted day with editable durations and UTBMS codes; posting is idempotent and shows exact daily hours and USD totals. Every staff member keeps only their own timers and timesheet, on matters they see. Timers live on the server, so one started on a phone resumes on a desktop. A person has at most one running timer: starting or resuming another pauses the running one in the same step and says so, so timers never overlap unnoticed. Each closed timer interval (pause, stop or switch) drafts exactly one entry attributed to its timekeeper: elapsed time rounded up to a whole minute (at most 1,440, longer intervals labeled for review), dated by the interval start in the firm timezone (UTC before firm setup), at the rate TIME-003 resolves for its work date (the firm default rate and increment when no agreement rule matches). The weekly timesheet runs Monday to Sunday; timekeepers add drafts and edit duration (1–1,440 minutes), billability and UTBMS task (letter plus three digits, e.g. L110) and activity (A plus three digits) codes, checked for format only until TIME-007 supplies firm code sets, or reject a draft. Post day or Submit week turns each remaining draft into one immutable entry, refused while the timekeeper has a running timer; rejected drafts are excluded, posted drafts are final and a repeated post records nothing. Daily and weekly totals show exact hours and minutes of non-rejected drafts and billable USD at TIME-003’s price (billed minutes, rounded up to the agreed increment, × hourly cents / 60, less any agreed discount, half-up to whole cents). Nonbillable entries are recorded but refused on bills. TIME-002 suggestions, TIME-003 rate schedules and TIME-007 code sets inherit these drafts and the posting rule at their doors. Authorized staff record dated matter time in whole minutes and hourly USD cents, or disbursements in USD cents. Charges use exact integer arithmetic with declared half-up rounding to cents; invalid dates and unsafe amounts are refused.
 
@@ -1036,7 +1036,7 @@ Core · target · **missing**
 
 #### BILL-004 — Calculate US billing tax explicitly
 
-Core · target · **done** · Cites BASE-DATA-001
+Core · target · **done** · Cites BASE-DATA-001, BASE-INPUT-001
 
 **Requirement.** The firm configures counsel/accountant-reviewed service and expense tax treatment by US jurisdiction, exemptions and rounding, optionally using Avalara for supported calculation. Tax lines preserve calculation inputs and provider result; unknown treatment blocks issuance for review. Native tax-reviewed additive corrections retain the original immutable reviewed rule, including exemptions, rates and per-line rounding. Each correction records the prior and corrected nonnegative source bases and their separately rounded tax; its signed tax delta is corrected tax minus prior tax, never a rounded percentage of the delta. A later rule cannot rewrite an earlier invoice or correction. Exact-revision calculation and counsel approval precede issue/export; original CSV/PDF bytes remain unchanged. A legacy correction without a reviewed original tax basis cannot invent one. Every draft approval, including an unconfigured legacy draft or an exemption, requires its exact-revision reviewed calculation. Trust requests require retained counsel-reviewed permitted tax draw-down and an explicit reference and nonnegative integer USD-cent allocations to earned base and tax; unknown or prohibited eligibility refuses. Each component is bounded separately after pending reservations, cleared payments and exact full reversals, while the total also respects cleared same-matter funds. Approval, bank submission and clearance recheck the retained eligibility and allocation; a pending legacy request cannot bypass them. Tax contributes to invoice due, never earned service revenue, and the existing officer, bank-evidence and reversal doors still apply. A client-reviewed immutable mapping must match the bill's recorded client and LEDES client ID and name the 1998B tax expense code, XML tax identity/type and review reference; missing, mismatched, invalid or retired mapping refuses approval. LEDES 1998B retains net source rows and appends mapped expense rows for nonzero per-source tax, with tax included in invoice totals. XML 2.1.3 uses standard fee/expense tax summaries and tax definitions, fractional rates, and a reviewed_tax extension carrying each exact source base and tax. Replacement LEDES exports contain the complete corrected invoice and the actual issued parent number; native CSV/PDF corrections retain only the signed additive difference. Original CSV/PDF/LEDES files and allocations survive restart and archive restore unchanged. No Avalara calculation or client/vendor verification is claimed. Detailed rules are in [the capability reference](docs/contract-mechanisms.md#bill-004).
 
