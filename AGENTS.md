@@ -31,9 +31,8 @@ This is a runnable package-mode seed. The checkout pins RER in package.json.
 README.md covers a real owner installation, development, backup and deployment.
 Run `rer dev --stop` before builds or verification. `rer reset --yes` is destructive.
 
-Keep product scope in ACCEPTANCE.md. Private handlers must check the native
-session, firm role and matter access themselves. Agents prepare only; people
-approve. USD cents are integers. Trust accounting and fund movement stay external.
+Keep product scope in CONTRACT.md; ACCEPTANCE.md and docs/CLAIMS.md are generated. Private handlers must check the native
+session, firm role and matter access themselves. Agent calls carry risk classes; the company’s policy decides each call. USD cents are integers. Trust accounting and fund movement stay external.
 Preserve immutable original files, reviewed bill artifacts, revision guards,
 import provenance and erasure fences. New schema changes use new migrations.
 
@@ -43,3 +42,14 @@ tests. CI is the full wall. Never change package, project, Worker or D1 IDs.
 Do not commit private settings, local state, credentials, research or screenshots.
 Before public pushes, use Base's publication scan on the exact tree with zero
 findings and no added exclusions. Do not alter sibling repositories.
+
+## Contract projections and source lock
+
+After changing CONTRACT.md, regenerate the acceptance document, claims and counts
+with `node src/base/contract-docs.mjs write`, then run its `check` command.
+The compatibility script accepts the older --clauses argument; generation always
+uses the whole contract as its source. Stage new files before locking, then run
+`node scripts/edition-authoring/cli.mjs check` to verify the final source lock.
+
+Lander-Regenerate: node src/base/contract-docs.mjs write
+Lander-Regenerate: node scripts/edition-authoring/cli.mjs lock

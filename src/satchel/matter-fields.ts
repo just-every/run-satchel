@@ -10,7 +10,7 @@ type Profile={typeId:string|null;typeVersion:number|null;caseNumber:string|null;
 function profileJson(p:Data|null):Profile {
  return {typeId:p?.type_id??null,typeVersion:p?.type_version??null,caseNumber:p?.case_number??null,court:p?.court??null,insuranceLimitCents:p?.insurance_limit_cents??null,feeArrangement:p?.fee_arrangement??null,feeTerms:p?.fee_terms??null,custom:JSON.parse(p?.custom??'{}'),revision:p?.revision??null};
 }
-const readProfile=async(db:D1Database,matterId:string)=>profileJson(await stmt(db,'SELECT * FROM s_matter_fields WHERE matter_id=?',matterId).first<Data>());
+export const readProfile=async(db:D1Database,matterId:string)=>profileJson(await stmt(db,'SELECT * FROM s_matter_fields WHERE matter_id=?',matterId).first<Data>());
 export const caseNumber=(value:unknown)=>plain(value,'Case number',100);
 
 const builtinValue:Record<Builtin,(p:Profile)=>unknown>={caseNumber:p=>p.caseNumber,court:p=>p.court,insuranceLimit:p=>p.insuranceLimitCents,feeArrangement:p=>p.feeArrangement};
@@ -98,4 +98,24 @@ export async function saveMatterFields(db:D1Database,actor:Actor,matterId:string
 export function importedCaseNumber(db:D1Database,actor:Actor,matterId:string,value:string,source:Data) {
  const revision=id(),at=now(),p:Profile={...profileJson(null),caseNumber:value,revision};
  return [write(db,actor,matterId,p,revision,at),...event(db,actor,matterId,'imported',{previous:null,profile:p,source},at)];
+}
+
+// A reviewed migration adopts an explicitly mapped native type version. Source
+// values pass the same required and typed-value checks as an ordinary save.
+export async function mappedMatterProfile(db:D1Database,practice:string,input:Data){
+ const p:Profile={...profileJson(null),caseNumber:blank(input.caseNumber)?null:caseNumber(input.caseNumber),court:blank(input.court)?null:plain(input.court,'Court',200),insuranceLimitCents:blank(input.insuranceLimit)?null:cents(input.insuranceLimit,'Insurance limit'),feeArrangement:blank(input.feeArrangement)?null:input.feeArrangement,feeTerms:blank(input.feeTerms)?null:plain(input.feeTerms,'Fee terms',2000),custom:{}};
+ insist(!p.feeArrangement||feeArrangements.includes(p.feeArrangement),'Choose a supported fee arrangement');
+ let def:TypeDefinition|null=null;
+ if(input.typeId){
+  const version=integer(input.typeVersion,'Mapped matter type version',1),t=await typeVersion(db,text(input.typeId,'Mapped matter type',100),version);
+  insist(t&&(!practice||t.practiceCode===practice),'Map a matter type in the same practice area');
+  p.typeId=input.typeId;p.typeVersion=version;def=t.definition;
+ }
+ const submitted=input.custom??{};insist(submitted&&typeof submitted==='object'&&!Array.isArray(submitted),'Supply mapped custom values');
+ insist(Object.keys(submitted).every(k=>def?.fields.some(f=>f.key===k)),'Map every custom field to the adopted matter type');
+ p.custom=validate(p,submitted,def,'the mapped source matter').custom;
+ return p;
+}
+export async function importedMatterProfile(db:D1Database,actor:Actor,matterId:string,practice:string,input:Data,source:Data){
+ const p=await mappedMatterProfile(db,practice,input),revision=id(),at=now();return [write(db,actor,matterId,p,revision,at),...event(db,actor,matterId,'imported',{previous:null,profile:p,source},at)];
 }

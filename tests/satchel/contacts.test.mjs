@@ -1,3 +1,4 @@
+import {authorizeAgent} from './agent-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {harness,open} from './harness.mjs';
@@ -228,6 +229,8 @@ test('whole-firm conflict labels, opaque principal and wall routes, closed dispo
   await h.json('/conflicts/'+mixedSearch.id+'/disposition',{decision:'no_conflict',note:'Review every opaque custodian outcome',restrictions:[]},h.owner);
   const privateMarkers=['synthetic-satchel-10','synthetic-satchel-11',hidden.title,secondHidden.title];
   const probeKey=await h.json('/keys',{label:'Privacy probe'},h.owner),probeAuth={authorization:'Bearer '+probeKey.key};
+  await authorizeAgent(h,probeKey,publicRole.id);
+  assert.deepEqual((await h.json('/agent/context',undefined,'',200,probeAuth)).matters.map(m=>m.id),[publicRole.id]);
   for(const path of ['/conflicts/'+mixedSearch.id+'/review','/conflict-referrals','/state','/contacts','/notifications','/reports','/audit?limit=200']){const body=JSON.stringify(await h.json(path,undefined,h.owner));for(const marker of privateMarkers)assert.ok(!body.includes(marker),path+' excludes '+marker);}
   for(const path of ['/api/satchel/audit/export','/api/satchel/reports/export?dashboard=status']){const response=await h.request(path,undefined,h.owner);assert.equal(response.status,200);const body=await response.text();for(const marker of privateMarkers)assert.ok(!body.includes(marker),path+' excludes '+marker);}
   const context=JSON.stringify(await h.json('/agent/context',undefined,'',200,probeAuth));for(const marker of privateMarkers)assert.ok(!context.includes(marker));

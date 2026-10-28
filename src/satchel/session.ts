@@ -19,9 +19,13 @@ export async function person(request: Request, original: Bindings): Promise<Acto
 export async function agent(request: Request, env: Bindings): Promise<Actor & {label:string}> {
  const raw = request.headers.get('authorization')?.match(/^Bearer (.+)$/)?.[1];
  insist(raw, 'An agent key is required', 401);
- const record = await stmt(env.DB, `SELECT k.label,o.id,o.email,o.display_name,o.role,m.role member_role,r.permissions grants FROM s_agent_keys k JOIN oa_operators o ON o.id=k.owner_id LEFT JOIN s_members m ON m.email=o.email AND m.active=1 LEFT JOIN s_custom_roles r ON r.id=m.custom_role_id WHERE k.digest=? AND k.revoked=0 AND o.status='active'`, await digest(raw)).first<any>();
+ const key=await stmt(env.DB,'SELECT id FROM s_agent_keys WHERE digest=? AND revoked=0',await digest(raw)).first<{id:string}>();
+ insist(key,'Invalid or revoked agent key',401);return agentForKey(env.DB,key.id);
+}
+export async function agentForKey(db:D1Database,keyId:string):Promise<Actor & {label:string}>{
+ const record = await stmt(db, `SELECT k.id key_id,k.label,o.id,o.email,o.display_name,o.role,m.role member_role,r.permissions grants FROM s_agent_keys k JOIN oa_operators o ON o.id=k.owner_id LEFT JOIN s_members m ON m.email=o.email AND m.active=1 LEFT JOIN s_custom_roles r ON r.id=m.custom_role_id WHERE k.id=? AND k.revoked=0 AND o.status='active'`, keyId).first<any>();
  insist(record, 'Invalid or revoked agent key', 401);
  const role = record.role === 'owner' ? 'owner' : record.member_role;
  insist(role, 'This agent no longer has firm access', 403);agentSponsor(role);
- return {id:record.id,email:record.email,name:record.display_name,role,channel:'agent',label:record.label,...(record.role!=='owner'&&record.grants?{grants:parseGrants(record.grants)}:{})};
+ return {id:record.id,email:record.email,name:record.display_name,role,channel:'agent',label:record.label,agentKeyId:record.key_id,...(record.role!=='owner'&&record.grants?{grants:parseGrants(record.grants)}:{})};
 }

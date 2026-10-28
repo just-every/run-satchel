@@ -30,21 +30,21 @@ export async function conflictSearch(db: D1Database, actor: Actor, body: Data) {
  await atomic(db,actor,[stmt(db,'INSERT INTO s_conflicts(id,client,adverse,queries,matches,party_revision,actor,at,search_summary) VALUES(?,?,?,?,?,?,?,?,?)',conflict.id,client,adverse,JSON.stringify(queries),JSON.stringify(matches),conflict.partyRevision,actor.email,conflict.at,JSON.stringify(summary)),...routeSources,...matchMatters.map(m=>stmt(db,'INSERT INTO s_conflict_retention_scopes VALUES(?,?)',conflict.id,m)),audit(db,actor,'conflict.searched',conflict.id)]);
  return conflict;
 }
-export async function openMatter(db: D1Database, actor: Actor, body: Data, fixedId?: string, imported?: {number:string;statements:D1PreparedStatement[]}) {
+export async function openMatter(db: D1Database, actor: Actor, body: Data, fixedId?: string, imported?: {number:string;statements:D1PreparedStatement[];openedAt?:string;clientPartyId?:string}) {
  human(actor); need(actor,'owner','lawyer');
  const title=text(body.title,'Matter title',200), note=text(body.reviewNote,'Conflict review conclusion',2000);
  insist(body.confirmed===true,'Confirm that you reviewed the search and are authorized to open this matter');
  const conflict=await stmt(db,'SELECT * FROM s_conflicts WHERE id=? AND actor=?',text(body.conflictId,'Conflict search'),actor.email).first<Data>();
  insist(conflict,'Run and review a conflict search first',404);
  const clearance=await gateEngagement(db,actor,conflict);insist(!clearance.restrictions.length||body.restrictionsAcknowledged===true,'Acknowledge the recorded engagement restrictions before opening',409);
- const matterId=fixedId??actor.approval?.resultId??id(), time=now();
+ const matterId=fixedId??actor.approval?.resultId??id(), time=imported?.openedAt??now();
  const identity=await matterIdentity(db,body,conflict.client,!!imported);const dispositionId=clearance.reviewId??id();
  const statements=[...clearance.guards,stmt(db,'INSERT INTO s_guard VALUES(?,CASE WHEN (SELECT id FROM s_conflict_reviews WHERE search_id=? ORDER BY sequence DESC LIMIT 1) IS ? THEN 1 ELSE 0 END)','conflict-review:'+matterId,conflict.id,clearance.reviewId),stmt(db,'DELETE FROM s_guard WHERE id=?','conflict-review:'+matterId),...(!clearance.reviewId?[stmt(db,'INSERT INTO s_conflict_reviews(id,search_id,actor,decision,note,restrictions,waiver_id,created_at,sequence) VALUES(?,?,?,?,?,?,?,?,1)',dispositionId,conflict.id,actor.email,'cleared',note,'[]',null,time),audit(db,actor,'conflict.disposition_recorded',dispositionId,JSON.stringify({searchId:conflict.id,decision:'cleared',note,restrictions:[]}))]:[]),stmt(db,'INSERT INTO s_guard VALUES(?,CASE WHEN EXISTS(SELECT 1 FROM s_number_settings WHERE id=1 AND revision=?) THEN 1 ELSE 0 END)', 'number:'+matterId,identity.settingsRevision),stmt(db,'DELETE FROM s_guard WHERE id=?','number:'+matterId),stmt(db,'INSERT OR IGNORE INTO s_number_clients(client_key,number) VALUES(?,?)',identity.clientKey,identity.clientNumber),stmt(db,"UPDATE s_number_clients SET number=printf('%04d',id) WHERE client_key=? AND number IS NULL",identity.clientKey),
  stmt(db,'INSERT INTO s_guard VALUES(?,CASE WHEN ? IS NULL OR EXISTS(SELECT 1 FROM s_number_clients WHERE client_key=? AND number=?) THEN 1 ELSE 0 END)',matterId,identity.clientNumber,identity.clientKey,identity.clientNumber),
  stmt(db,'INSERT INTO s_matters(id,title,client,adverse,conflict_id,review_note,opened_by,opened_at,matter_number,client_number,practice_code) VALUES(?,?,?,?,?,?,?,?,?,(SELECT number FROM s_number_clients WHERE client_key=?),?)',matterId,title,conflict.client,conflict.adverse,conflict.id,note,actor.email,time,imported?.number??null,identity.clientKey,identity.practice),stmt(db,'DELETE FROM s_guard WHERE id=?',matterId),stmt(db,'INSERT INTO s_matter_access VALUES(?,?)',matterId,actor.email),...(imported?.statements??[])];
  // Existing exact identities are reused so imported-party undo sees native use.
  for(const [name,relation] of [[conflict.client,'client'],[conflict.adverse,'adverse']]) {
-  const old=await stmt(db,'SELECT id FROM s_parties WHERE lower(name)=lower(?) ORDER BY id LIMIT 1',name).first<{id:string}>(), partyId=old?.id??id();
+  const old=imported?.clientPartyId&&relation==='client'?await stmt(db,'SELECT id FROM s_parties WHERE id=? AND name=?',imported.clientPartyId,name).first<{id:string}>():await stmt(db,'SELECT id FROM s_parties WHERE lower(name)=lower(?) ORDER BY id LIMIT 1',name).first<{id:string}>(), partyId=old?.id??id();
   if(!old) statements.push(stmt(db,"INSERT INTO s_parties VALUES(?,?,?,'','native',?)",partyId,name,'',id()));
   statements.push(stmt(db,'INSERT OR IGNORE INTO s_matter_parties VALUES(?,?,?)',matterId,partyId,relation));
  }

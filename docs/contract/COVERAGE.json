@@ -2,10 +2,11 @@
   "schema": 1,
   "seed": "satchel-product",
   "old": {
-    "commit": "3e36afd5899c18d046f93cd841b7f6f253edaf84",
+    "commit": "a752361bcb3d53127c4a1365e0f7bed05ef89e38",
     "files": [
       "CONTRACT.md",
-      "ACCEPTANCE.md"
+      "ACCEPTANCE.md",
+      "docs/CLAIMS.md"
     ]
   },
   "fragments": [
@@ -1265,6 +1266,15 @@
     {
       "file": "CONTRACT.md",
       "line": 317,
+      "text": "*Cites:* MATTER-001; BILL-015.",
+      "to": "clause",
+      "ids": [
+        "MOVE-002"
+      ]
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 319,
       "text": "**MOVE-003 — Migrate 8am MyCase completely.** Read MyCase Full Backup ZIP/CSV datasets for cases, contacts, tasks, calendars, time, fees, expenses, financial activity and portal/email/SMS history; match separately downloaded documents and invoice PDFs to their index. Include archived cases and use authorized supplemental extraction for omitted originals. **Acceptance evidence:** Import a full backup plus binary archive, resolve document-index gaps and compare active/archived case counts, messages, invoice PDFs, AR and trust activity before cutover. BILL-015 cutover is the principal’s first saved scheme. Every pre-cutover number and approved/exported file stays byte-identical; a legacy draft with a reservation issues under that same number. Later drafts have only their ID and a non-invoice label. Number assignment, exact approved-revision and tax gates, PDF and LEDES rendering, permanent firm-wide registration and counter advance form one atomic issue operation; a failed batch consumes none, collisions are refused rather than skipped, and no gap-free claim is made. Scheme versions apply only to later issues; year is from issue time in the firm IANA timezone and a counter reset requires an explicit noncolliding next number. Corrections retain <original>-R<k> without advancing the counter. Imports preserve source numbers and provenance with the next counter above every source ordinal; restore retains the register, counter and files.",
       "to": "clause",
       "ids": [
@@ -1273,7 +1283,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 319,
+      "line": 321,
       "text": "**MOVE-004 — Migrate Smokeball completely.** Read Smokeball Data Import/Export ZIP/CSV for staff, contacts, matters, unbilled work, invoices, memos and tasks; obtain document/email files and remaining calendar/trust history through authorized vendor exports or assisted extraction. Map practice-specific fields and AutoTime-derived work without treating export omissions as completed migration. **Acceptance evidence:** Import a matter with paid/unpaid invoices and unbilled work, link its separately supplied Word/email originals and calendar/trust package and reconcile source totals and unresolved gaps. BILL-015 cutover is the principal’s first saved scheme. Every pre-cutover number and approved/exported file stays byte-identical; a legacy draft with a reservation issues under that same number. Later drafts have only their ID and a non-invoice label. Number assignment, exact approved-revision and tax gates, PDF and LEDES rendering, permanent firm-wide registration and counter advance form one atomic issue operation; a failed batch consumes none, collisions are refused rather than skipped, and no gap-free claim is made. Scheme versions apply only to later issues; year is from issue time in the firm IANA timezone and a counter reset requires an explicit noncolliding next number. Corrections retain <original>-R<k> without advancing the counter. Imports preserve source numbers and provenance with the next counter above every source ordinal; restore retains the register, counter and files.",
       "to": "clause",
       "ids": [
@@ -1282,7 +1292,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 321,
+      "line": 323,
       "text": "**MOVE-005 — Migrate PracticePanther completely.** Read PracticePanther Excel/XLSX or CSV exports for contacts/custom fields, matters, tasks, time, payments and messages; archive PDF reports as evidence and map document-store originals and additional financial/calendar exports. Guided vendor-assisted extraction closes missing entity coverage before switching off the source. **Acceptance evidence:** Move a custom-field matter, recurring task, time and payment records from native spreadsheets, match documents and trust/AR reports and compare each source relationship and balance. BILL-015 cutover is the principal’s first saved scheme. Every pre-cutover number and approved/exported file stays byte-identical; a legacy draft with a reservation issues under that same number. Later drafts have only their ID and a non-invoice label. Number assignment, exact approved-revision and tax gates, PDF and LEDES rendering, permanent firm-wide registration and counter advance form one atomic issue operation; a failed batch consumes none, collisions are refused rather than skipped, and no gap-free claim is made. Scheme versions apply only to later issues; year is from issue time in the firm IANA timezone and a counter reset requires an explicit noncolliding next number. Corrections retain <original>-R<k> without advancing the counter. Imports preserve source numbers and provenance with the next counter above every source ordinal; restore retains the register, counter and files.",
       "to": "clause",
       "ids": [
@@ -1291,7 +1301,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 323,
+      "line": 325,
       "text": "**MOVE-006 — Migrate Filevine completely.** Map Filevine projects, project types, custom sections/collections, contacts, roles, activity, calendar and finance from Data Connector report CSVs or authorized DataBridge/Snowflake extracts, plus separately downloaded Doc Zipping archives. Retain source metadata and identify uncovered fields; buyer-provided access or vendor-assisted extraction fills them. **Acceptance evidence:** Import two project types and a document ZIP, preserve custom section repetitions and access mapping, and reconcile files, tasks, billing and source totals with no source credentials carried over. BILL-015 cutover is the principal’s first saved scheme. Every pre-cutover number and approved/exported file stays byte-identical; a legacy draft with a reservation issues under that same number. Later drafts have only their ID and a non-invoice label. Number assignment, exact approved-revision and tax gates, PDF and LEDES rendering, permanent firm-wide registration and counter advance form one atomic issue operation; a failed batch consumes none, collisions are refused rather than skipped, and no gap-free claim is made. Scheme versions apply only to later issues; year is from issue time in the firm IANA timezone and a counter reset requires an explicit noncolliding next number. Corrections retain <original>-R<k> without advancing the counter. Imports preserve source numbers and provenance with the next counter above every source ordinal; restore retains the register, counter and files.",
       "to": "clause",
       "ids": [
@@ -1300,7 +1310,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 325,
+      "line": 327,
       "text": "**MOVE-007 — Migrate Eve work and source references.** Bring Eve Word exports with citations, medical overviews and PDF/separate-file demand packages into the correct matters, retaining source references and review state. Obtain available structured history through approved vendor export/API or assisted retrieval, alongside the underlying practice-system move; track unresolved evidence links before cutover. **Acceptance evidence:** Import a cited Word overview and demand package, resolve their references to originals, map a vendor-approved structured package where supplied and flag every unavailable history item for retrieval and explicit resolution. BILL-015 cutover is the principal’s first saved scheme. Every pre-cutover number and approved/exported file stays byte-identical; a legacy draft with a reservation issues under that same number. Later drafts have only their ID and a non-invoice label. Number assignment, exact approved-revision and tax gates, PDF and LEDES rendering, permanent firm-wide registration and counter advance form one atomic issue operation; a failed batch consumes none, collisions are refused rather than skipped, and no gap-free claim is made. Scheme versions apply only to later issues; year is from issue time in the firm IANA timezone and a counter reset requires an explicit noncolliding next number. Corrections retain <original>-R<k> without advancing the counter. Imports preserve source numbers and provenance with the next counter above every source ordinal; restore retains the register, counter and files.",
       "to": "clause",
       "ids": [
@@ -1309,7 +1319,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 327,
+      "line": 329,
       "text": "**MOVE-008 — Prove finance and authority at cutover.** For every source distinguish dated opening balances from full historical transactions, reconcile WIP, AR, credits and trust per client/matter/bank, and preserve supporting statements. Reauthorize mail, calendars, processors, accounting, portal users and signature providers; do not import passwords, payment tokens or live sends as authority. Because payment tokens never move, cutover runs a guided re-consent campaign: Satchel lists every client with an active source payment plan or saved-card autopay (including Clio Payments plans) with its next installment date, sends each an authorized re-authorization link under LawPay or Stripe through CLIENT-006 or CLIENT-005, keeps each imported BILL-008 plan paused with an owner task due before its next installment, and resumes the plan only on the client’s recorded consent. **Acceptance evidence:** Shadow a billing/trust period against source reports, find a missing payment, repair it and approve cutover; restored queues remain paused and connector work needs new authorization. Import two Clio Payments plans, send both re-authorization links, record one client’s consent and see that plan charge its next installment once; the other plan stays paused and its owner task becomes overdue before its installment date. Introduce a $12.50 client trust mismatch and refuse cutover approval; show the exact source and destination ledger difference, repair it with provenance, and permit switching only when every client/matter/bank trust total agrees to the cent.",
       "to": "clause",
       "ids": [
@@ -1318,7 +1328,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 331,
+      "line": 333,
       "text": "**AGENT-001 — Build evidence-closed matter plans.** The matter agent reads permitted engagement terms, orders, correspondence, records and workflow dependencies to maintain an editable obligations map with milestone, evidence needed, owner, next due action and completion criteria. Counsel approves legal interpretation; no milestone closes because a job merely ran. **Acceptance evidence:** Give an active matter a missing witness statement, review the proposed plan, upload an unrelated file and keep the milestone open; accept the right evidence and inspect its source-linked completion. Give the agent an approved claim with required elements, inspect its file-to-claim evidence map and cited source pages, and identify the missing bank record explicitly; an unrelated upload cannot satisfy that claim element.",
       "to": "clause",
       "ids": [
@@ -1327,7 +1337,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 333,
+      "line": 335,
       "text": "**AGENT-002 — Chase authorized evidence to acceptance.** Within a delegated recipient/channel/time/contact budget, the agent requests missing client/provider records, handles replies and routine calls through contracted Twilio/voice services, files returned originals and asks staff to accept sufficiency. Expired authority, failed contact, legal uncertainty or a limit stops and escalates. **Acceptance evidence:** Authorize one provider request and a bounded chase, return a partial record, reach the contact limit and inspect escalation; accept the final record and verify all future chases stop. Request a missing client bank statement through CLIENT-003 in the authenticated portal and an authorized bank/provider request within the delegation; track each recipient, reply, deficiency and accepted original separately and stop both chases once their evidence is accepted.",
       "to": "clause",
       "ids": [
@@ -1336,7 +1346,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 335,
+      "line": 337,
       "text": "**AGENT-003 — Explain deadline changes before propagation.** The agent compares source passages in incoming orders and rule-provider changes, proposes dependent dates/tasks and staffing, and awaits attorney confirmation of every legal change before reconciling calendar delivery and acknowledgments. It exposes uncertainty and superseded sources. **Acceptance evidence:** Receive an amended order, inspect cited old/new passages, reject one inferred deadline, approve another and verify only the approved change reaches each calendar with acknowledgment status.",
       "to": "clause",
       "ids": [
@@ -1345,7 +1355,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 337,
+      "line": 339,
       "text": "**AGENT-004 — Draft substantive work with verified sources.** Using authorized matter evidence, approved templates and licensed research access such as Westlaw, LexisNexis or vLex, the agent drafts demands, complaints, discovery, deposition outlines and responses. Each factual/legal proposition links to source version/page or licensed authority; unsupported assertions remain flagged and lawyers approve all external work. **Acceptance evidence:** Draft a demand and discovery response from mixed records, open factual citations, flag an unsupported allegation and unavailable authority, revise with counsel and prove nothing sends or files before approval.",
       "to": "clause",
       "ids": [
@@ -1354,7 +1364,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 339,
+      "line": 341,
       "text": "**AGENT-005 — Review active matters every night.** A scheduled agent checks permitted active matters for missing evidence, treatment/billing gaps, approaching limitations, stalled work and inconsistent facts, producing ranked next actions with exact sources and a responsible person. Counsel tunes practice-specific policy, suppresses false positives and chooses execution scope. **Acceptance evidence:** Run overnight on three matters including a treatment gap and completed request; inspect source-linked proposed actions, suppress one and verify the next run preserves the decision without duplicate tasks.",
       "to": "clause",
       "ids": [
@@ -1363,7 +1373,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 341,
+      "line": 343,
       "text": "**AGENT-006 — Reconcile matter work to collected cash.** The agent joins permitted document/email activity, confirmed time, fee agreements, costs, bills, settlements and books to find unbilled work or payment mismatches. Timekeepers confirm billability, counsel reviews bills and finance alone authorizes transfers, refunds and write-offs; the agent pursues only approved collection actions. **Acceptance evidence:** Detect worked-but-unbilled email and an unmatched settlement, review each recommendation and reconcile the final invoice/payment; refuse an agent attempt to approve or transfer trust funds.",
       "to": "clause",
       "ids": [
@@ -1372,7 +1382,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 343,
+      "line": 345,
       "text": "**AGENT-007 — Keep client promises through delivery.** From approved updates the agent extracts a reviewed promise and date, tracks underlying tasks and evidence, prompts the owner before a miss and prepares the next source-cited update. Counsel approves wording, privilege and recipients; delivery and replies are reconciled before the promise closes. Before shipping, its reviewed promises participate in MATTER-007’s live closure inventory, remaining unresolved until evidenced fulfillment or an individual counsel carry decision; reopening restores only explicitly approved workflows and existing access. **Acceptance evidence:** Approve a promise to deliver a draft Friday, delay its dependency, inspect an owner escalation and approve a revised update; verify receipt and retain the original promise history.",
       "to": "clause",
       "ids": [
@@ -1381,7 +1391,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 345,
+      "line": 347,
       "text": "**AGENT-008 — Coordinate milestones with billing and collection.** The agent coordinates editable practice workflows across accepted evidence, confirmed deadlines, reviewable deliverables, earned billing and authorized collection until each milestone’s legal and financial conditions are satisfied. It keeps separate owners and approvals, durable attempts and stop controls; a payment never substitutes for unfinished legal work. **Acceptance evidence:** Run a demand milestone from missing records through attorney-approved draft and earned invoice, return the payment and confirm the legal work stays complete while the collection obligation reopens.",
       "to": "clause",
       "ids": [
@@ -1390,7 +1400,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 347,
+      "line": 349,
       "text": "**AGENT-009 — Measure recovered work and agent decisions.** Principals inspect completed milestones, recovered billable work, time saved using a disclosed baseline, overdue reductions, source accuracy and human overrides. Every recommendation shows data used, policy/model revision and decision; metrics never reward false completion or expose walled matters. **Acceptance evidence:** Compare an agent-assisted cohort against the chosen baseline, drill a recovered-time metric to confirmed work and inspect rejected recommendations and excluded restricted matters.",
       "to": "clause",
       "ids": [
@@ -1399,7 +1409,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 349,
+      "line": 351,
       "text": "**AGENT-010 — Constrain agent data and execution.** Agents use only authorized matter and licensed research context under firm-approved retention/training and health-data agreements; untrusted documents and messages cannot grant authority. Delegations specify permitted actions, recipients, spend, expiry and stop/escalation rules; revocation cancels queued authority while retaining outcome history. **Acceptance evidence:** Embed a send-and-transfer instruction in an uploaded record, revoke the delegation before scheduled work and inspect refusal, redacted context and preserved proposal history without an external effect.",
       "to": "clause",
       "ids": [
@@ -1408,607 +1418,607 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 353,
+      "line": 355,
       "text": "Satchel is US-first and uses USD by default. Licensed lawyers decide legal interpretation, conflicts, advice, filings and jurisdiction-specific professional duties. The software supports evidence, review and execution controls; it does not act as counsel or guarantee conflict clearance. Licensed Westlaw/LexisNexis/vLex access supplies external legal authority; restricted licensed content is not silently copied or redistributed.",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 355,
+      "line": 357,
       "text": "A regulated US bank owns each IOLTA/operating account. LawPay or a firm-verified Stripe arrangement processes payments; provider onboarding, trust protections, ACH authorization and bank agreements are required engineering and setup, not excluded scope. Satchel still owns the complete legal ledger, approval workflow, three-way reconciliation and discrepancy resolution. It neither takes custody of client money nor claims that a payment request is settlement.",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 357,
+      "line": 359,
       "text": "LawToolBox/CalendarRules provide contracted court-rule content; counsel confirms results and resolves uncovered courts through source-cited manual review. InfoTrack and authorized courts provide filing/service networks and stamped results. Satchel owns orchestration, returned evidence and follow-up; provider outages or rejected filings remain open work. Health records and agent processing require the firm’s applicable data/health agreements, subprocessors and access policy before processing; implementing those agreements is part of delivery.",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 359,
+      "line": 361,
       "text": "Microsoft 365/Word and Google Workspace remain editing and mail platforms; Box/Dropbox remain repositories. Satchel supplies integrated matter filing, versions, search and permissions, rather than rebuilding desktop Word or a general enterprise e-discovery hosting network. Matter evidence productions and source-cited drafts stay in scope. US tax and trust treatment is configured and reviewed by the firm’s lawyer/accountant; Satchel records calculation provenance and does not guarantee professional compliance by installation alone.",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 363,
+      "line": 365,
       "text": "| Approved input | Named clauses |",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 365,
+      "line": 367,
       "text": "| Legal practice management; Clio Manage replacement spanning intake to collection | INTAKE-001–010, MATTER-001–009, DOC-001–014, CAL-001–011, CLIENT-001–009, TIME-001–008, BILL-001–016, TRUST-001–010 |",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 366,
+      "line": 368,
       "text": "| IOLTA and three-way reconciliation; delivered invoices, LawPay/Stripe, plans and collections | TRUST-001–010, BILL-002, BILL-005–016 |",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 367,
+      "line": 369,
       "text": "| Large files, OCR/search, assembly, signatures, Microsoft 365/Gmail/file filing | DOC-001–014, INTAKE-006 |",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 368,
+      "line": 370,
       "text": "| Two-way Google/Outlook calendars, CalendarRules/LawToolBox and reminders | CAL-001–008, CAL-011 |",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 369,
+      "line": 371,
       "text": "| Intake forms, secure portal, requests and texting | INTAKE-001–010, CLIENT-001–009 |",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 370,
+      "line": 372,
       "text": "| Automatic time capture, flat/contingency and LEDES/UTBMS | TIME-001–008, BILL-001 |",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 371,
+      "line": 373,
       "text": "| QuickBooks Online operating sync and full Clio migration | BOOKS-001, MOVE-001–002, MOVE-008 |",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 372,
+      "line": 374,
       "text": "| Every named incumbent and up-and-comer move-in | MOVE-002–007 |",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 373,
+      "line": 375,
       "text": "| Inventory integrations and follow-up behavior | INTAKE-009, DOC-005–011, CAL-002–010, CLIENT-003, CLIENT-005–008, BILL-005–009, BOOKS-001–002, CONNECT-001–003, MATTER-004 |",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 374,
+      "line": 376,
       "text": "| Matter agent completes evidence, authorized chases, cited drafts, deadlines and cash milestones | AGENT-001–010 |",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 375,
+      "line": 377,
       "text": "| Reporting, role rights, mobile and preservation of Base guarantees | FIRM-001–008, BASE-001, MATTER-008–009, REPORT-001–003, MOBILE-001–002, SAT-001–013 |",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 379,
+      "line": 381,
       "text": "These official source documents inform adapter inputs; they are not evidence that Satchel already implements them. Target move-in covers the full practice through native exports, authorized APIs or vendor-assisted extraction, with missing data made explicit and resolved before cutover. A balance-only export never proves historic trust reconciliation.",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 381,
+      "line": 383,
       "text": "[Clio migration formats](https://help.clio.com/hc/en-us/articles/10263045235867-Migrating-Data-From-Your-Current-Software-C-F) and [calendar exports](https://help.clio.com/hc/en-150/articles/9289958655515-Import-Filter-and-Export-Calendars).",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 382,
+      "line": 384,
       "text": "[MyCase full backup and separate documents](https://supportcenter.mycase.com/en/articles/9370346-how-do-i-get-my-data-out-of-mycase).",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 383,
+      "line": 385,
       "text": "[Smokeball ZIP/CSV export](https://support.smokeball.com/hc/en-us/articles/38032621456279-Exporting-Data-from-Smokeball-Using-the-Data-Import-Export-Tool) and [file backup boundaries](https://support.smokeball.com/hc/en-us/articles/5855417161751-Access-Smokeball-Settings).",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 384,
+      "line": 386,
       "text": "[PracticePanther contacts](https://support.practicepanther.com/en/articles/479930-exporting-contacts), [matters](https://support.practicepanther.com/en/articles/480001-exporting-your-matters) and [time exports](https://support.practicepanther.com/en/articles/479866-how-do-i-export-my-time-entries).",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 385,
+      "line": 387,
       "text": "[Filevine export options](https://support.filevine.com/hc/en-us/articles/46857222439323-Data-Export-Options), [DataBridge](https://support.filevine.com/hc/en-us/articles/41499337170587-DataBridge) and [document ZIPs](https://support.filevine.com/hc/en-us/articles/4404167318029-Doc-Zipping).",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 386,
+      "line": 388,
       "text": "[Eve Word/citation exports](https://www.eve.legal/tort-report/october-2025-updates) and [demand packages](https://www.eve.legal/use-cases/demand-letters). No public bulk structured Eve schema is assumed; vendor-approved retrieval is MOVE-007 work.",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 390,
+      "line": 392,
       "text": "Every capability claim in br’s approved homepage register (17 October 2026, 60 claims) maps to a named clause below. Status is derived from those clauses: all done means `done`, all missing means `missing`, and any other combination means `partial`. It describes the implementation, not whether the target claim may appear on the homepage. OSS-001 covers both free/open-source claims and distinguishes free Satchel software from providers that bill the firm directly.",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 392,
+      "line": 394,
       "text": "| # | Claim | Clause(s) | Status |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 394,
+      "line": 396,
       "text": "| 1 | \"runs your firm’s intake\" | `INTAKE-001`, `INTAKE-002`, `SAT-002` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 395,
+      "line": 397,
       "text": "| 2 | \"matters\" | `SAT-002`, `SAT-003` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 396,
+      "line": 398,
       "text": "| 3 | \"deadlines\" | `SAT-008` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 397,
+      "line": 399,
       "text": "| 4 | \"documents\" | `SAT-007`, `DOC-001` | partial |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 398,
+      "line": 400,
       "text": "| 5 | \"tracks your time\" | `SAT-004`, `TIME-001` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 399,
+      "line": 401,
       "text": "| 6 | \"keeps billing … in order\" | `SAT-005`, `SAT-006`, `BILL-001` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 400,
+      "line": 402,
       "text": "| 7 | \"… and trust accounts in order\" | `TRUST-001`, `TRUST-005` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 401,
+      "line": 403,
       "text": "| 8 | \"100% free, open source\" | `OSS-001` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 402,
+      "line": 404,
       "text": "| 9 | \"alternative to Clio, MyCase and Smokeball\" | `MOVE-002`, `MOVE-003`, `MOVE-004` | partial |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 403,
+      "line": 405,
       "text": "| 10 | \"Intake · Martinez v. Reed · conflict check clear ✓\" | `SAT-002`, `INTAKE-001` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 404,
+      "line": 406,
       "text": "| 11 | \"Discovery due Nov 14\" | `SAT-008` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 405,
+      "line": 407,
       "text": "| 12 | \"Court date moved → deadlines recalculated · client notified\" | `CAL-006`, `CAL-004`, `CLIENT-008` | partial |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 406,
+      "line": 408,
       "text": "| 13 | \"Invoice #2041 · paid online $3,250\" | `BILL-005`, `BILL-006` | partial |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 407,
+      "line": 409,
       "text": "| 14 | \"Intake form\" (heading, paragraph and card) | `INTAKE-001` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 408,
+      "line": 410,
       "text": "| 15 | \"conflict check across every contact\" (1,912 contacts searched, match, partner clears it) | `SAT-002`, `INTAKE-005` | partial |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 409,
+      "line": 411,
       "text": "| 16 | \"former client, closed 2023\" on the match | `INTAKE-005`, `MATTER-007` | partial |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 410,
+      "line": 412,
       "text": "| 17 | \"engagement letter signed\" (Signed 2 of 2, hourly rates) | `INTAKE-006`, `TIME-003` | partial |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 411,
+      "line": 413,
       "text": "| 18 | \"the retainer in trust\" (Trust · IOLTA, retainer deposited) | `TRUST-002` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 412,
+      "line": 414,
       "text": "| 19 | \"Matter opened · Martinez v. Reed · 2026-0147\" | `SAT-002`, `MATTER-008` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 413,
+      "line": 415,
       "text": "| 20 | \"Enter the new trial date once. Satchel recalculates every deadline\" | `CAL-004`, `CAL-005`, `CAL-006` | partial |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 414,
+      "line": 416,
       "text": "| 21 | \"syncs every calendar\" (Google Calendar, Outlook chips) | `CAL-002`, `CAL-003` | missing |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 415,
+      "line": 417,
       "text": "| 22 | \"tells the client\" (Client notified in portal) | `CLIENT-008`, `CLIENT-001` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 416,
+      "line": 418,
       "text": "| 23 | Docket card: court, deadlines with the scheduling-order paragraph they come from | `SAT-008`, `MATTER-001` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 417,
+      "line": 419,
       "text": "| 24 | \"reminder to Marcus Lee 7 days before\" | `CAL-007`, `CAL-011` | partial |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 418,
+      "line": 420,
       "text": "| 25 | \"The matter agent checks the file against the claim\" | `AGENT-001` | missing |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 419,
+      "line": 421,
       "text": "| 26 | \"asks the client for what is missing\" (portal request, bank request) | `AGENT-002`, `CLIENT-003` | partial |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 420,
+      "line": 422,
       "text": "| 27 | \"drafts with every source cited\" (demand draft with [1]–[3]) | `AGENT-004` | missing |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 421,
+      "line": 423,
       "text": "| 28 | \"Prepared by the matter agent\" / \"Approve and send\" by a lawyer | `SAT-009`, `AGENT-010` | partial |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 422,
+      "line": 424,
       "text": "| 29 | \"5 of 5 deadlines met · 14 exhibits filed\" | `SAT-008`, `CAL-009`, `DOC-013` | partial |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 423,
+      "line": 425,
       "text": "| 30 | \"Email files itself to the matter from Outlook or Gmail\" | `DOC-008`, `DOC-009` | missing |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 424,
+      "line": 426,
       "text": "| 31 | \"Every scan is searchable\" (search hit in the deposition transcript) | `DOC-003` | missing |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 425,
+      "line": 427,
       "text": "| 32 | \"templates fill from the matter\" (notice of deposition) | `DOC-006` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 426,
+      "line": 428,
       "text": "| 33 | \"clients sign online\" (bank records authorization) | `DOC-007` | missing |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 427,
+      "line": 429,
       "text": "| 34 | Matter documents card: folders and counts | `SAT-007`, `DOC-004` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 428,
+      "line": 430,
       "text": "| 35 | \"Satchel drafts time entries from your email, calendar and documents\" | `TIME-002` | missing |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 429,
+      "line": 431,
       "text": "| 36 | \"Review the day and post it\" (UTBMS codes, Post day) | `TIME-001`, `TIME-007` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 430,
+      "line": 432,
       "text": "| 37 | Day total \"6.4 h · $1,920.00\" in exact USD | `SAT-004` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 431,
+      "line": 433,
       "text": "| 38 | \"Hourly\" | `SAT-004` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 432,
+      "line": 434,
       "text": "| 39 | \"flat fee or contingency\" | `TIME-004`, `TIME-005` | partial |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 433,
+      "line": 435,
       "text": "| 40 | \"with LEDES for insurers\" | `TIME-007` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 434,
+      "line": 436,
       "text": "| 41 | \"Clients pay by card or bank transfer from the invoice\" (Paid online by card) | `BILL-005`, `BILL-006` | partial |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 435,
+      "line": 437,
       "text": "| 42 | Invoice #2041 lines and total | `SAT-005`, `BILL-001` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 436,
+      "line": 438,
       "text": "| 43 | Invoice #2033: overdue reminder and payment plan | `BILL-009`, `BILL-008` | missing |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 437,
+      "line": 439,
       "text": "| 44 | \"Trust that reconciles to the cent\" (three-way reconciliation each month) | `TRUST-005` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 438,
+      "line": 440,
       "text": "| 45 | \"When they disagree, Satchel shows you why\" (outstanding check) | `TRUST-005` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 439,
+      "line": 441,
       "text": "| 46 | Martinez client trust ledger | `TRUST-001`, `TRUST-002` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 440,
+      "line": 442,
       "text": "| 47 | \"Operating books · QuickBooks Online · synced\" | `BOOKS-001` | missing |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 441,
+      "line": 443,
       "text": "| 48 | \"A secure portal for documents and messages\" | `CLIENT-001`, `CLIENT-002` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 442,
+      "line": 444,
       "text": "| 49 | \"plus text\" (mediation reminder, Reply C to confirm) | `CLIENT-005` | missing |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 443,
+      "line": 445,
       "text": "| 50 | \"and email\" (\"Your trial date has moved\") | `CLIENT-006`, `CLIENT-008` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 444,
+      "line": 446,
       "text": "| 51 | \"Bring every matter over from Clio\" | `MOVE-002` | partial |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 445,
+      "line": 447,
       "text": "| 52 | \"Matters, contacts, documents, time and trust balances come across\" (import counts) | `MOVE-002`, `MOVE-008` | partial |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 446,
+      "line": 448,
       "text": "| 53 | \"Trust must match to the cent before you switch\" ($12.50 difference fixed) | `MOVE-001`, `MOVE-008` | partial |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 447,
+      "line": 449,
       "text": "| 54 | Terminal: `npx -y @runeditrun/rer dev just-every/run-satchel`, \"Run it on your own computer or server.\" | `BASE-001`, `FIRM-007` | partial |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 448,
+      "line": 450,
       "text": "| 55 | \"Court e-filing goes through InfoTrack\" | `CAL-009` | missing |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 449,
+      "line": 451,
       "text": "| 56 | \"court-rule deadlines come from LawToolBox or CalendarRules\" | `CAL-004`, `CAL-005` | missing |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 450,
+      "line": 452,
       "text": "| 57 | \"Word and Gmail stay your editors\" | `DOC-005`, `DOC-009` | missing |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 451,
+      "line": 453,
       "text": "| 58 | \"lawyers make every legal call\" | `SAT-002`, `SAT-005`, `SAT-008`, `SAT-009` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 452,
+      "line": 454,
       "text": "| 59 | \"Oct 15 · 6.4 h posted · 0 deadlines open tonight\" | `SAT-004`, `SAT-008`, `TIME-001` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 453,
+      "line": 455,
       "text": "| 60 | \"Free and open source, MIT licensed.\" | `OSS-001` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 454,
+      "line": 456,
       "text": "| 61 | Automated client reminders: per-matter opt-in by the responsible counsel, template approved once by counsel, scheduled invoice and appointment reminders under a rate cap, withdrawal of consent stops the next send, each send audited with the template version. | `CLIENT-010` | done |",
       "to": "section",
       "section": "Homepage claims"
     },
     {
       "file": "CONTRACT.md",
-      "line": 458,
-      "text": "Judged from the code and tests at commit `7ff9b1c1905611d102131b5ec7681fee2b4cf3cb` (27 October 2026).",
-      "to": "section",
-      "section": "Status"
-    },
-    {
-      "file": "CONTRACT.md",
       "line": 460,
-      "text": "That commit is the current tested implementation and assertion baseline, including all three formerly surviving mutations. The candidate changes only documentation and generated lock data from that baseline; no production or test byte differs. Its exact full SHA and landing runs are supplied inline in the fresh ct judgment request. This is implementation provenance, not a fresh ct completion judgment. TIME-005 remains PARTIAL pending that judgment, with the original acceptance and recorded policy ruling preserved.",
+      "text": "Judged from the code and tests at commit `05959af48f66c8f4e5b6a4815707e39336a9fe6f` (28 October 2026).",
       "to": "section",
       "section": "Status"
     },
     {
       "file": "CONTRACT.md",
       "line": 462,
-      "text": "INTAKE-003, REPORT-003, CLIENT-003, CAL-008, TIME-003, FIRM-005, INTAKE-005 and INTAKE-010, BILL-016, TIME-006, BILL-015, DOC-002, BILL-004, TIME-004, INTAKE-001, DOC-012 and DOC-013, BILL-013, BILL-011 and REPORT-002, BILL-012 and TIME-008, CLIENT-008, BILL-007 and BILL-008 and their inherited obligations retain their recorded statuses. The TIME-005 Evidence cell identifies this fix round’s current public-door assertions; no other clause is reassessed here.",
+      "text": "That commit records the tested migration implementation. This candidate also preserves the newer main changes through `83a3e429a678d77a94e4df8231adf7e948a63721`, adds the final source-validation and staff-mapping assertions, and synchronizes these Status projections. Exact candidate verification and browser receipts are supplied with the lane handoff; this is implementation provenance rather than an independent ct judgment.",
       "to": "section",
       "section": "Status"
     },
     {
       "file": "CONTRACT.md",
-      "line": 487,
+      "line": 464,
+      "text": "Only MOVE-001 and MOVE-002 are assessed here. Every other clause retains its recorded status and obligations, including the newer bounded-agent evidence and its unchanged policy boundary.",
+      "to": "section",
+      "section": "Status"
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 489,
       "cell": "gap",
       "text": "Portal content, previews, messaging and richer client identities belong to CLIENT-001 to CLIENT-009; they inherit the approved sharing and withdrawal rules.",
       "to": "gap",
@@ -2018,7 +2028,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 489,
+      "line": 491,
       "cell": "gap",
       "text": "Native passphrase and authenticator MFA, device revocation and the Microsoft directory connector are proved by the focused public-door flows. Live least-privilege sandbox proof remains missing: the held shared application has broader directory grants, so a dedicated User.Read.All application is required. Resolved-address and pinned egress remain inherited from the CONNECT-001 Base egress door. Conservative principal-only directory consent and MFA enrollment semantics await ct approval; no interactive Microsoft SSO or licensed mailbox and site content is claimed.",
       "to": "gap",
@@ -2028,7 +2038,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 490,
+      "line": 492,
       "cell": "gap",
       "text": "None.",
       "to": "gap",
@@ -2038,7 +2048,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 492,
+      "line": 494,
       "cell": "gap",
       "text": "Small-file archives and native trust applications/reversals restore; large attachments, paused provider jobs and the named health diagnostics remain missing.",
       "to": "gap",
@@ -2048,7 +2058,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 497,
+      "line": 499,
       "cell": "gap",
       "text": "None.",
       "to": "gap",
@@ -2058,7 +2068,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 501,
+      "line": 503,
       "cell": "gap",
       "text": "Counsel selects a versioned fee agreement, reviews client and payer details, requests electronic signatures through DocuSign or Inkwell, tracks signer identity, decline/expiry and completion, and files the signed document and certificate with the matter.",
       "to": "gap",
@@ -2068,7 +2078,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 502,
+      "line": 504,
       "cell": "gap",
       "text": "Linking an existing conflict-reviewed matter retains the lead and its history with one lead per matter. Counsel-only engagement conversion, automatic carry-over of parties, signed terms, inquiry originals, consultation notes, staff and retainer requests remain missing.",
       "to": "gap",
@@ -2078,7 +2088,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 503,
+      "line": 505,
       "cell": "gap",
       "text": "Gap: ct ASK pending. Default ADOPTED (conservative): email only, because it is the only channel with a recorded sending authority (the principal’s mail provider review); consent is recorded on the exact lead by staff or the booking form and is never inherited through a contact merge; a reply is recorded by staff (Satchel reads no inbound mail); the contact limit counts sends to one lead across all kinds in the trailing seven days; a reply, conflict stop (principal or lawyer), decline, conversion or opt-out stops every active sequence for the lead; no automatic start: staff start unanswered-inquiry and engagement sequences. SMS and inbound reply capture await a recorded SMS sending authority.",
       "to": "gap",
@@ -2088,7 +2098,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 504,
+      "line": 506,
       "cell": "gap",
       "text": "Each staff member may connect Google Contacts or Microsoft 365/Outlook contacts for two-way sync of the INTAKE-004 contacts they choose by matter role, tag or practice group, with stable remote IDs, mapping of names, organizations, emails, phones and addresses, loop prevention and a visible conflict queue. Walled, restricted and prospective-client contacts never leave Satchel unless firm policy allows; a remote edit is a proposed change, a remote delete never deletes a Satchel contact or its conflict history, and disconnecting stops sync with visible state.",
       "to": "gap",
@@ -2098,7 +2108,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 506,
+      "line": 508,
       "cell": "gap",
       "text": "Ct-approved stages, visible-only list/kanban filters, exact evidence gates, immutable transitions/refusals, blocked/overdue work and archive restoration.",
       "to": "gap",
@@ -2108,7 +2118,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 509,
+      "line": 511,
       "cell": "gap",
       "text": "None.",
       "to": "gap",
@@ -2118,7 +2128,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 511,
+      "line": 513,
       "cell": "gap",
       "text": "Live exact per-person closure previews, individual carry decisions, unchanged work/access/finance, explicit reasoned reopen, private-source redaction, immutable audit and archive recovery.",
       "to": "gap",
@@ -2128,7 +2138,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 512,
+      "line": 514,
       "cell": "gap",
       "text": "Principal patterns, atomic firm/client sequences, source-number preservation and collision avoidance; fixed numbers on search, bills, documents and deadlines, exercised at 1440 and 390 pixels.",
       "to": "gap",
@@ -2138,7 +2148,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 514,
+      "line": 516,
       "cell": "gap",
       "text": "Matter-document originals remain limited to 1 MiB; intake-only R2 originals now support 10 MiB each. Resumable matter-file storage and quarantine remain missing.",
       "to": "gap",
@@ -2148,7 +2158,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 516,
+      "line": 518,
       "cell": "gap",
       "text": "OCR scanned records and index permitted document text, metadata and email with matter/date/type filters, exact page snippets and index freshness. Search applies matter walls before snippets and includes deletion of all derivatives on disposal.",
       "to": "gap",
@@ -2158,7 +2168,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 518,
+      "line": 520,
       "cell": "gap",
       "text": "Open matter DOCX files in Word through Microsoft 365, preserve tracked changes, comments and original versions, and save a new version back to the correct matter with conflict detection and access revocation.",
       "to": "gap",
@@ -2168,7 +2178,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 520,
+      "line": 522,
       "cell": "gap",
       "text": "DocuSign and Inkwell connectors request ordered or parallel signatures on an approved exact version, remind permitted recipients and retain signed bytes, certificate, provider ID and failure/decline history. Revoking a request never overwrites a signed original.",
       "to": "gap",
@@ -2178,7 +2188,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 521,
+      "line": 523,
       "cell": "gap",
       "text": "Microsoft 365/Outlook users file individual messages or approved threads and attachments to matters, retain sender/recipient headers and original .eml, associate sent replies and prevent duplicate filing across staff. Filing never grants a new matter reader.",
       "to": "gap",
@@ -2188,7 +2198,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 522,
+      "line": 524,
       "cell": "gap",
       "text": "Google Workspace/Gmail users select matter labels or messages for filing, preserve original headers, threads and attachments, associate outbound replies and handle deleted or revoked mail access without losing filed evidence.",
       "to": "gap",
@@ -2198,7 +2208,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 523,
+      "line": 525,
       "cell": "gap",
       "text": "Microsoft SharePoint/OneDrive and Google Drive connectors map selected folders and file versions to matters, track remote IDs and permission drift and offer controlled copy or linked-file custody. A revoked remote link is reported, never presented as a retained original.",
       "to": "gap",
@@ -2208,7 +2218,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 524,
+      "line": 526,
       "cell": "gap",
       "text": "Firms map existing Box and Dropbox folders to matters with least-privilege grants, version references, sync diagnostics and permission reconciliation; neither service becomes an alternative firm access boundary.",
       "to": "gap",
@@ -2218,7 +2228,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 527,
+      "line": 529,
       "cell": "gap",
       "text": "Staff install Satchel’s desktop drive for macOS and Windows, which shows only the matters they may access as folders in Finder or File Explorer, streams files on demand with optional per-matter offline pinning and opens them in any desktop application. Saving a file back records a new SAT-007 version with the saver’s identity and conflict detection, a file added to a matter folder is filed to that matter, and nothing is overwritten or deleted outside the matter’s retention and hold rules (FIRM-006). Ethical walls (FIRM-003), access removal and member deactivation take effect at the next sync and remove cached copies from the device; every open, save and offline pin is audited under FIRM-005.",
       "to": "gap",
@@ -2228,7 +2238,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 529,
+      "line": 531,
       "cell": "gap",
       "text": "Selected Google calendars exchange event creation, edits, cancellations, attendees and recurrence with stable IDs, loop prevention, conflict resolution and visible token/failure state; matter confidentiality controls event detail.",
       "to": "gap",
@@ -2238,7 +2248,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 530,
+      "line": 532,
       "cell": "gap",
       "text": "Microsoft 365/Outlook calendars support the same two-way lifecycle, delegated calendars and attendee changes, with subscription renewal, missed-change recovery and explicit choice of which details leave the matter.",
       "to": "gap",
@@ -2248,7 +2258,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 531,
+      "line": 533,
       "cell": "gap",
       "text": "Through a contracted LawToolBox integration, counsel chooses court, jurisdiction, trigger and service method, reviews computed dates and rule citations, and confirms publication to dependent tasks and calendars. Coverage and provider rule versions are visible.",
       "to": "gap",
@@ -2258,7 +2268,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 532,
+      "line": 534,
       "cell": "gap",
       "text": "CalendarRules is a supported alternative rules connector with court coverage, trigger/service inputs, rule versions, calculation provenance and attorney confirmation. Switching providers compares proposed dates rather than silently replacing confirmed deadlines.",
       "to": "gap",
@@ -2268,7 +2278,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 533,
+      "line": 535,
       "cell": "gap",
       "text": "Exact-version supersession exists; provider comparison, dependent work and calendar acknowledgment do not.",
       "to": "gap",
@@ -2278,7 +2288,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 534,
+      "line": 536,
       "cell": "gap",
       "text": "Scheduled Worker dispatches reviewed advance email/workspace reminders with local quiet hours, current recipients, durable outcomes, acknowledgment, evidence-based resolution and one backup escalation; only completion evidence closes the deadline. Exercised at 1440 and 390 pixels.",
       "to": "gap",
@@ -2288,7 +2298,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 535,
+      "line": 537,
       "cell": "gap",
       "text": "None.",
       "to": "gap",
@@ -2298,7 +2308,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 536,
+      "line": 538,
       "cell": "gap",
       "text": "An authorized lawyer approves exact filing documents, court, service recipients and fees; InfoTrack submits through covered networks and returns acceptance/rejection, stamped copies, service proof and costs to the matter. Submission alone is never filing completion.",
       "to": "gap",
@@ -2308,7 +2318,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 537,
+      "line": 539,
       "cell": "gap",
       "text": "Connect PACER through an authorized docket provider such as CourtListener RECAP where available and court/provider accounts for coverage, attach returned docket entries and orders, and propose related work with a lawyer reviewing legal effects and provider fees.",
       "to": "gap",
@@ -2318,7 +2328,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 538,
+      "line": 540,
       "cell": "gap",
       "text": "Each staff member receives in-app and email reminders, and push reminders under MOBILE-002, for their appointments and tasks at firm-default or per-item offsets, with snooze and dismiss. Reminders follow reassignment, cancellation and rescheduling, fire once across restarts and carry no confidential detail outside the authenticated app. A person who relies on Google or Outlook reminders for synced events can choose calendar-only reminders, so the same event never reminds twice.",
       "to": "gap",
@@ -2328,7 +2338,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 539,
+      "line": 541,
       "cell": "gap",
       "text": "None.",
       "to": "gap",
@@ -2338,7 +2348,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 540,
+      "line": 542,
       "cell": "gap",
       "text": "None.",
       "to": "gap",
@@ -2348,7 +2358,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 541,
+      "line": 543,
       "cell": "gap",
       "text": "None.",
       "to": "gap",
@@ -2358,7 +2368,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 542,
+      "line": 544,
       "cell": "gap",
       "text": "None.",
       "to": "gap",
@@ -2368,7 +2378,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 543,
+      "line": 545,
       "cell": "gap",
       "text": "Two-way SMS/MMS through the firm’s registered Twilio number retains conversations on the correct lead/matter, consent, delivery/failure and opt-outs. A guided setup walks the principal through connecting or creating the Twilio account, buying or porting a number, US A2P 10DLC brand and campaign registration prefilled from firm settings, approval tracking and a test message; texting stays disabled with a visible reason until registration is approved. Quiet hours and recipient confirmation are part of setup; sensitive content uses portal links.",
       "to": "gap",
@@ -2378,7 +2388,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 544,
+      "line": 546,
       "cell": "gap",
       "text": "NAMED Gap — Automated client reminders: CLIENT-010 preserves the wider product obligation; counsel-only sending is the approved slice default. NAMED Gap — Live-provider operational proof: the dedicated cloud mail key is not provisioned; this is outside the provider-edge acceptance of this slice. Outcome reconciliation currently supports Resend; Microsoft, Gmail and other transactional-provider outcome adapters, existing thread and reminder outcome-journal integration, and exact-version assembled-document delivery remain future integrations.",
       "to": "gap",
@@ -2388,7 +2398,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 545,
+      "line": 547,
       "cell": "gap",
       "text": "Staff log calls, participants, advice notes and follow-ups and link recordings/transcripts obtained through a consented phone provider. Recording permission and US state consent policy are checked before recording; staff approve transcript-derived work.",
       "to": "gap",
@@ -2398,7 +2408,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 547,
+      "line": 549,
       "cell": "gap",
       "text": "Verified legal-representative replacement and recipient verification across every communication door, and complete outstanding-link invalidation after consent or authority changes, remain unproved. The representative and SMS mid-sequence acceptance journey is not complete. Existing portal grants and scheduled email stops do not establish those wider obligations.",
       "to": "gap",
@@ -2408,7 +2418,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 548,
+      "line": 550,
       "cell": "gap",
       "text": "NAMED Gap — Live-provider operational proof: the dedicated live-mail key is not provisioned. This is outside the approved native and provider-edge acceptance; no live-provider or mailbox-delivery proof is claimed.",
       "to": "gap",
@@ -2418,7 +2428,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 550,
+      "line": 552,
       "cell": "gap",
       "text": "With explicit staff permission, Microsoft Word/Outlook and Google email/calendar/document activity becomes private time suggestions linked to matter sources. Staff review duration and billability, merge overlaps and exclude personal content before anything is billed.",
       "to": "gap",
@@ -2428,7 +2438,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 551,
+      "line": 553,
       "cell": "gap",
       "text": "None.",
       "to": "gap",
@@ -2438,7 +2448,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 553,
+      "line": 555,
       "cell": "gap",
       "text": "TRUST-004.",
       "to": "gap",
@@ -2448,7 +2458,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 554,
+      "line": 556,
       "cell": "gap",
       "text": "Native detailed expense provenance, exact receipt links, nonbillable overhead, source-reference reconciliation and reviewed CSV are asserted. InfoTrack charge/receipt ingestion and provider reconciliation, approved markup and external accounting synchronization remain missing.",
       "to": "gap",
@@ -2458,7 +2468,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 559,
+      "line": 561,
       "cell": "gap",
       "text": "Fee agreements allocate fixed or percentage responsibility across clients, insurers and third parties with separate privacy and payment status. USD is the US default; explicitly configured foreign-currency invoices preserve original currency, approved FX rate and USD accounting differences.",
       "to": "gap",
@@ -2468,7 +2478,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 560,
+      "line": 562,
       "cell": "gap",
       "text": "Every draft requires exact reviewed tax; explicit retained trust eligibility and allocations reconcile tax separately from earnings; client-reviewed 1998B/XML mappings preserve tax through atomic issuance and additive corrections. Named public-door journeys assert taxable/exempt two-jurisdiction provenance, legacy/unknown/stale/mapping/retired-code refusals, concurrency, payment/reversal replay, issued PDFs, XSD-valid exports, immutable restart/restore and 1440/390 screens. No Avalara calculation or provider verification is claimed.",
       "to": "gap",
@@ -2478,7 +2488,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 561,
+      "line": 563,
       "cell": "gap",
       "text": "Connect the firm’s contracted LawPay account for hosted card/eCheck payments, trust or operating destination, saved authorization, payment links, text-to-pay links sent through CLIENT-005 and QR payment links on invoices. Billing staff also take a card or eCheck payment a client authorizes by phone by keying it into LawPay’s hosted virtual-terminal fields inside Satchel, recording the client’s authorization and allocating it to the chosen invoice or trust request in the same step; card and account numbers never reach Satchel’s servers, logs or archives. Optional card surcharging applies only to operating payments by credit card, in US states the firm has enabled it for and within card-network caps, is disclosed before payment and is never added to debit cards or trust deposits. Show pending, cleared, failed and returned states; fees and chargebacks must not invade client trust principal.",
       "to": "gap",
@@ -2488,7 +2498,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 563,
+      "line": 565,
       "cell": "gap",
       "text": "Live Stripe operating sandbox proof is pending: the admitted credential shim reports that this run’s private secret file is unavailable. Automatic payout-event ingestion, separate receipt and bank-ledger posting, finance reversal of an incorrect bank match, and complete finance-approved write-off correction proof remain unproved. Default ADOPTED pending ct approval: only the active principal approves an exact invoice revision, positive USD-cent amount and reason for a refund; approval is append-only, an uncertain provider response is never retried automatically, and a later authenticated charge readback appends the correction. Bank settlement remains unconfirmed without an exact completed payout and principal-recorded statement match; later failed payout readback removes confirmed status.",
       "to": "gap",
@@ -2498,7 +2508,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 564,
+      "line": 566,
       "cell": "gap",
       "text": "Live Stripe operating sandbox proof is pending: the admitted credential shim reports that this run’s private secret file is unavailable. A full MOVE-008 source-export campaign and LawPay remain unproved; this native slice supports Stripe test mode only. Default ADOPTED pending ct approval: the active principal approves the exact operating-invoice schedule and hardship revision; the currently authorized client explicitly agrees in their own session and completes a new hosted Stripe mandate for that exact revision. Imported schedules contain no source credentials, start paused and create an owner task before their first installment. A changed schedule requires fresh client consent; failed, disputed, revoked or uncertain collections stop with a human task and never automatically retry.",
       "to": "gap",
@@ -2508,7 +2518,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 565,
+      "line": 567,
       "cell": "gap",
       "text": "Aging queues, retainer replenishment and overdue invoices drive firm-approved reminder sequences with owner, next due date, attempt/reply states and contact limits. Disputes, promises to pay, hardship and representation changes route to people; confirmed payment, including an offline payment recorded through BILL-012 or a trust application approved through TRUST-004, stops future contact, a partial payment continues the sequence for the remainder only, and reversing that payment reopens the sequence. Voiding an invoice under BILL-016 ends its sequence, and its replacement invoice starts its own without repeating reminders already sent.",
       "to": "gap",
@@ -2518,7 +2528,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 566,
+      "line": 568,
       "cell": "gap",
       "text": "Native billing shows unbilled work and invoice trust-payment, remaining-due and credit amounts; applications, reversals and supported voids reconcile balances. Complete as-of client statements, offline/provider payments, unapplied credit, disputes, interest/late fees and payer/matter/lawyer aging exports remain missing.",
       "to": "gap",
@@ -2528,7 +2538,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 567,
+      "line": 569,
       "cell": "gap",
       "text": "None.",
       "to": "gap",
@@ -2538,7 +2548,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 568,
+      "line": 570,
       "cell": "gap",
       "text": "Native operating receipt and credit commands exist; receipt-entry and credit-management screens, full aging and BILL-009 collection transitions, historical BILL-010 client statements and BOOKS-001 once-only QuickBooks Online synchronization remain unproved. Refunds require the unbuilt BILL-007 approval path and are refused here. Default ADOPTED pending ct approval: only the active principal explicitly approves an exact current invoice revision, amount and reason for a write-off; billing staff cannot approve it. A write-off remains independent of a later check return, and a written-off invoice cannot be voided until an approved reversal path exists. Payer identity uses the exact recorded client name; oldest first uses invoice work date then creation time and stable ID. No trust allocation is inferred from an unsplit operating receipt.",
       "to": "gap",
@@ -2548,7 +2558,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 570,
+      "line": 572,
       "cell": "gap",
       "text": "Firms configure per-client or per-matter payment profiles with terms, grace period, simple interest rate or flat late fee. Satchel refuses a charge the signed engagement terms do not authorize. Due charges are calculated in exact cents from the as-of unpaid balance and appear as draft lines for billing review before posting; they never accrue on trust balances, disputed amounts or installments current under a BILL-008 payment plan. Waivers carry a reason and finance approval.",
       "to": "gap",
@@ -2558,7 +2568,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 571,
+      "line": 573,
       "cell": "gap",
       "text": "Versioned prospective schemes, permanent legacy/import register, exact-tax-reviewed PDF/LEDES/XML issue, all-or-none batches, collision refusal, independent concurrent issue reconciliation, unchanged replay, legacy reserved-draft issue, additive -R1/-R2 corrections without counter advance, issue-versus-discard exclusion and byte-identical restart/restore are asserted by BILL-015 public-door tests and 1440/390 journeys. Gap: BILL-016 issued void/rebill, actual Clio invoice ingestion (MOVE-002–007), BILL-010 ledger and BOOKS-001 QuickBooks number preservation remain unbuilt; imported-number registration is provenance only.",
       "to": "gap",
@@ -2568,7 +2578,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 572,
+      "line": 574,
       "cell": "gap",
       "text": "Native counsel voids original time/expense approved or issued invoices, including reviewed capped and blended work, through an append-only exact-revision journal; concurrent/repeated identical requests reconcile once, live payments and unresolved trust actions refuse, source reservations release; counsel edits narratives, explicit rates and UTBMS codes or moves work between accessible same-client matters with append-only field history; both matters rebill their stable source IDs once under a new number, and unchanged original CSV/PDF/LEDES/XML, number, approval and void evidence survive restart/restore. Capped/blended rebills reapply their reviewed terms, retain the cap consumed by other live bills, require fresh earning and tax reviews, and preserve original earning evidence; focused public-door tests and 1440/390 journeys assert the supported fee-source path. Offline payment refusal, explicit release to unapplied credit before counsel void, retained original CSV, bounce and credit replay are additionally proved by `tests/satchel/trust-transfer.test.mjs` — “Offline operating receipts allocate once, preserve credit, refuse unauthorized write-offs and release payments before an immutable void”. Gap: correction branches and scheduled nonhourly fee-source voids; billing/finance roles and agent void proposals; provider payment reversals and complete credit management; templates; collection/ledger/portal/payment-link/interest/report and QBO effects.",
       "to": "gap",
@@ -2578,7 +2588,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 573,
+      "line": 575,
       "cell": "gap",
       "text": "Separate exact-cent bank, client/matter and operating records; source-version opening review, idempotent posting and archive restore; desktop and phone journeys.",
       "to": "gap",
@@ -2588,7 +2598,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 574,
+      "line": 576,
       "cell": "gap",
       "text": "Source-backed retainer, receipt, check, wire and authorized disbursement records; suspense remains separate, append-only bank clearance, exact review and replay protection.",
       "to": "gap",
@@ -2598,7 +2608,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 575,
+      "line": 577,
       "cell": "gap",
       "text": "Cleared client/matter availability deducts pending and posted debits atomically; cross-client borrowing, negative amounts, bank-fee kinds and unsupported posting dates are refused with persistent attempted-action audit.",
       "to": "gap",
@@ -2608,7 +2618,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 576,
+      "line": 578,
       "cell": "gap",
       "text": "Native exact reviewed applications, dual officers, reservations, manual bank uncertainty and clearance, paired operating payments and reviewed append-only reversals exist. BILL-001 batch requests and trust-paid issue are now proved by the prebill invoice journey. BILL-009 collection, BILL-010 full client statements and BOOKS-001 accounting sync remain missing; each inherits once-only application and reversal obligations before shipping.",
       "to": "gap",
@@ -2618,7 +2628,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 577,
+      "line": 579,
       "cell": "gap",
       "text": "Original statement import, exact three-way cutoff totals, outstanding check/source drill-down, $12.50 suspense correction, consecutive periods, signed immutable packets, restore and once-only application/reversal inclusion.",
       "to": "gap",
@@ -2628,7 +2638,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 578,
+      "line": 580,
       "cell": "gap",
       "text": "Exact append-only receipt/disbursement reversals with original/reason/person/time/source; closed-cutoff database locks, authorized source-backed reopen after later postings, immutable original/corrected signed packets and prior-cutoff client statements, restart and desktop/phone journeys.",
       "to": "gap",
@@ -2638,7 +2648,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 579,
+      "line": 581,
       "cell": "gap",
       "text": "Import OFX/QFX or bank CSV statements and connect authorized US bank feeds such as Plaid, matching LawPay/Stripe settlement references without duplicating receipts. Trust and operating feeds remain separate, with unresolved matches and stale-feed status visible.",
       "to": "gap",
@@ -2648,7 +2658,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 580,
+      "line": 582,
       "cell": "gap",
       "text": "Client workspace release, statement, balance-alert and replenishment controls with populated 1440 and 390 proof remain missing. Authorized-client balance-alert and state-report delivery, and reviewed field configuration for other states, remain missing. California previews still lack complete CTAPP annual account-registration fields and recorded firm review. New York previews still lack the complete required original-record set, firm review and seven-year preservation proof. Conservative release and replenishment authority, authenticated portal-only delivery, installation-local release authority and applicable retention and disposal semantics await ct approval; TRUST-008 remains partial.",
       "to": "gap",
@@ -2658,7 +2668,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 583,
+      "line": 585,
       "cell": "gap",
       "text": "Map clients, matters/classes, operating invoices, payments (processor payments, offline BILL-012 payments and TRUST-004 trust applications, each as one operating payment with its invoice allocations), credits and credit applications, write-offs, reversals, expenses, fees and tax to QuickBooks Online with stable external IDs, direction/ownership settings and conflict queues. Trust liability summaries are explicitly mapped and never mistaken for operating revenue; a trust application never posts as a second deposit or leaves its receivable open. A BILL-016 void voids the matching QuickBooks Online invoice exactly once and each rebill syncs as a new invoice under its new number.",
       "to": "gap",
@@ -2668,7 +2678,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 584,
+      "line": 586,
       "cell": "gap",
       "text": "Xero is a supported alternative for contacts, operating invoices, payments, credit notes, expenses and account mappings with idempotent references and reconciliation. A firm chooses one accounting source per entity; trust subsidiary ledgers remain in Satchel.",
       "to": "gap",
@@ -2678,7 +2688,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 585,
+      "line": 587,
       "cell": "gap",
       "text": "Scoped versioned matter/task/document/deadline/finance reads, atomic proposal idempotency, signing, durable delivery journal, rotation and failure pause exist. Resolved-address/pinned egress (Base egress door). Principal-entered destinations currently use the declared HTTPS literal/name public-host rule with Workers fetch and redirects refused; no DNS preflight or application address pin is claimed.",
       "to": "gap",
@@ -2688,7 +2698,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 586,
+      "line": 588,
       "cell": "gap",
       "text": "Zapier triggers/actions and an authorized Clio API connector route external intake and approved case updates through the same validation, conflict and permission doors. Connector status, duplicates, rate limits and revocation are visible without silently dropping work.",
       "to": "gap",
@@ -2698,7 +2708,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 589,
+      "line": 591,
       "cell": "gap",
       "text": "**Gap — complete economics and policy proof:** Workspace economics and cost-approval screens with populated 1440 and 390 evidence; populated aging bucket and processor-pending assertions; additive correction-branch reconciliation; complete historical as-of reconstruction; and public-door proof of the CT principal lifecycle, effective approved cost versions, unknown and aggregate coverage, export marking and custody, outbound exclusion, wall filtering, audit, restore, holds, disposal and erasure-fence riders remain unproved by this ruling. Retain the complete utilization, realization, collection rate, effective rate, billed and unbilled work, WIP, aging, profitability, formulas, approved costs, as-of dates and source-reconciled export target. Broader manager report grants remain under FIRM-008 within its existing non-elevating authority model; this ruling neither implements nor removes them. BILL-010 retains complete historical client statements. Existing evidence references remain claims at the pin, not fresh verification.",
       "to": "gap",
@@ -2708,7 +2718,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 590,
+      "line": 592,
       "cell": "gap",
       "text": "None.",
       "to": "gap",
@@ -2718,7 +2728,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 591,
+      "line": 593,
       "cell": "gap",
       "text": "Responsive web tabs exist; native apps, complete mobile practice flows and WCAG 2.2 AA keyboard, screen-reader and axe checks are absent.",
       "to": "gap",
@@ -2728,7 +2738,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 592,
+      "line": 594,
       "cell": "gap",
       "text": "Explicitly enabled encrypted device caches show freshness and restrict confidential previews; offline time/notes queue visibly and resolve conflicts on reconnect. Push alerts honor confidentiality and device revocation, which removes local authority and cached data when the device reconnects.",
       "to": "gap",
@@ -2738,27 +2748,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 593,
-      "cell": "gap",
-      "text": "Reviewed resumable Clio contacts import exists; multi-entity reconciliation, delta and whole-firm cutover are missing.",
-      "to": "gap",
-      "ids": [
-        "MOVE-001"
-      ]
-    },
-    {
-      "file": "CONTRACT.md",
-      "line": 594,
-      "cell": "gap",
-      "text": "Reviewed contacts and a prepared matters CSV subset retain source identities, numbers and original CSV provenance, with resume and replay. Remaining matter fields, Grow, historic invoice PDFs, originals and balances are missing.",
-      "to": "gap",
-      "ids": [
-        "MOVE-002"
-      ]
-    },
-    {
-      "file": "CONTRACT.md",
-      "line": 595,
+      "line": 597,
       "cell": "gap",
       "text": "Read MyCase Full Backup ZIP/CSV datasets for cases, contacts, tasks, calendars, time, fees, expenses, financial activity and portal/email/SMS history; match separately downloaded documents and invoice PDFs to their index. Include archived cases and use authorized supplemental extraction for omitted originals.",
       "to": "gap",
@@ -2768,7 +2758,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 596,
+      "line": 598,
       "cell": "gap",
       "text": "Read Smokeball Data Import/Export ZIP/CSV for staff, contacts, matters, unbilled work, invoices, memos and tasks; obtain document/email files and remaining calendar/trust history through authorized vendor exports or assisted extraction. Map practice-specific fields and AutoTime-derived work without treating export omissions as completed migration.",
       "to": "gap",
@@ -2778,7 +2768,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 597,
+      "line": 599,
       "cell": "gap",
       "text": "Read PracticePanther Excel/XLSX or CSV exports for contacts/custom fields, matters, tasks, time, payments and messages; archive PDF reports as evidence and map document-store originals and additional financial/calendar exports. Guided vendor-assisted extraction closes missing entity coverage before switching off the source.",
       "to": "gap",
@@ -2788,7 +2778,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 598,
+      "line": 600,
       "cell": "gap",
       "text": "Map Filevine projects, project types, custom sections/collections, contacts, roles, activity, calendar and finance from Data Connector report CSVs or authorized DataBridge/Snowflake extracts, plus separately downloaded Doc Zipping archives. Retain source metadata and identify uncovered fields; buyer-provided access or vendor-assisted extraction fills them.",
       "to": "gap",
@@ -2798,7 +2788,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 599,
+      "line": 601,
       "cell": "gap",
       "text": "Bring Eve Word exports with citations, medical overviews and PDF/separate-file demand packages into the correct matters, retaining source references and review state. Obtain available structured history through approved vendor export/API or assisted retrieval, alongside the underlying practice-system move; track unresolved evidence links before cutover.",
       "to": "gap",
@@ -2808,7 +2798,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 600,
+      "line": 602,
       "cell": "gap",
       "text": "For every source distinguish dated opening balances from full historical transactions, reconcile WIP, AR, credits and trust per client/matter/bank, and preserve supporting statements. Reauthorize mail, calendars, processors, accounting, portal users and signature providers; do not import passwords, payment tokens or live sends as authority. Because payment tokens never move, cutover runs a guided re-consent campaign: Satchel lists every client with an active source payment plan or saved-card autopay (including Clio Payments plans) with its next installment date, sends each an authorized re-authorization link under LawPay or Stripe through CLIENT-006 or CLIENT-005, keeps each imported BILL-008 plan paused with an owner task due before its next installment, and resumes the plan only on the client’s recorded consent.",
       "to": "gap",
@@ -2818,7 +2808,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 601,
+      "line": 603,
       "cell": "gap",
       "text": "The matter agent reads permitted engagement terms, orders, correspondence, records and workflow dependencies to maintain an editable obligations map with milestone, evidence needed, owner, next due action and completion criteria. Counsel approves legal interpretation; no milestone closes because a job merely ran.",
       "to": "gap",
@@ -2828,7 +2818,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 602,
+      "line": 604,
       "cell": "gap",
       "text": "Within a delegated recipient/channel/time/contact budget, the agent requests missing client/provider records, handles replies and routine calls through contracted Twilio/voice services, files returned originals and asks staff to accept sufficiency. Expired authority, failed contact, legal uncertainty or a limit stops and escalates.",
       "to": "gap",
@@ -2838,7 +2828,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 603,
+      "line": 605,
       "cell": "gap",
       "text": "Source-linked proposals and supersession exist; extraction, provider comparison, dependent scheduling and acknowledgment are missing.",
       "to": "gap",
@@ -2848,7 +2838,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 604,
+      "line": 606,
       "cell": "gap",
       "text": "Using authorized matter evidence, approved templates and licensed research access such as Westlaw, LexisNexis or vLex, the agent drafts demands, complaints, discovery, deposition outlines and responses. Each factual/legal proposition links to source version/page or licensed authority; unsupported assertions remain flagged and lawyers approve all external work.",
       "to": "gap",
@@ -2858,7 +2848,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 605,
+      "line": 607,
       "cell": "gap",
       "text": "A scheduled agent checks permitted active matters for missing evidence, treatment/billing gaps, approaching limitations, stalled work and inconsistent facts, producing ranked next actions with exact sources and a responsible person. Counsel tunes practice-specific policy, suppresses false positives and chooses execution scope.",
       "to": "gap",
@@ -2868,7 +2858,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 606,
+      "line": 608,
       "cell": "gap",
       "text": "The agent joins permitted document/email activity, confirmed time, fee agreements, costs, bills, settlements and books to find unbilled work or payment mismatches. Timekeepers confirm billability, counsel reviews bills and finance alone authorizes transfers, refunds and write-offs; the agent pursues only approved collection actions.",
       "to": "gap",
@@ -2878,7 +2868,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 607,
+      "line": 609,
       "cell": "gap",
       "text": "From approved updates the agent extracts a reviewed promise and date, tracks underlying tasks and evidence, prompts the owner before a miss and prepares the next source-cited update. Counsel approves wording, privilege and recipients; delivery and replies are reconciled before the promise closes.",
       "to": "gap",
@@ -2888,7 +2878,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 608,
+      "line": 610,
       "cell": "gap",
       "text": "The agent coordinates editable practice workflows across accepted evidence, confirmed deadlines, reviewable deliverables, earned billing and authorized collection until each milestone’s legal and financial conditions are satisfied. It keeps separate owners and approvals, durable attempts and stop controls; a payment never substitutes for unfinished legal work.",
       "to": "gap",
@@ -2898,7 +2888,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 609,
+      "line": 611,
       "cell": "gap",
       "text": "Principals inspect completed milestones, recovered billable work, time saved using a disclosed baseline, overdue reductions, source accuracy and human overrides. Every recommendation shows data used, policy/model revision and decision; metrics never reward false completion or expose walled matters.",
       "to": "gap",
@@ -2908,9 +2898,9 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 610,
+      "line": 612,
       "cell": "gap",
-      "text": "Sponsor access, human approval and key revocation exist; model/data agreements, explicit execution budgets and durable delegated jobs are missing.",
+      "text": "Native agreement state, reviewed source entitlements, bounded zero-spend preparations, durable jobs, revocation, redacted context and retained history are proved. Standing row-10 interim floor: principal-approved native preparation, sponsor recipient, no training and no outbound execution. Full scoped delegation and provider boundaries await ct approval; canonical generated contract documents await ct cleanup.",
       "to": "gap",
       "ids": [
         "AGENT-010"
@@ -3852,7 +3842,7 @@
       "line": 294,
       "text": "**Gap — complete economics and policy proof:** Workspace economics and cost-approval screens with populated 1440 and 390 evidence; populated aging bucket and processor-pending assertions; additive correction-branch reconciliation; complete historical as-of reconstruction; and public-door proof of the CT principal lifecycle, effective approved cost versions, unknown and aggregate coverage, export marking and custody, outbound exclusion, wall filtering, audit, restore, holds, disposal and erasure-fence riders remain unproved by this ruling. Retain the complete utilization, realization, collection rate, effective rate, billed and unbilled work, WIP, aging, profitability, formulas, approved costs, as-of dates and source-reconciled export target. Broader manager report grants remain under FIRM-008 within its existing non-elevating authority model; this ruling neither implements nor removes them. BILL-010 retains complete historical client statements. Existing evidence references remain claims at the pin, not fresh verification.",
       "to": "copy",
-      "of": 589
+      "of": 591
     },
     {
       "file": "ACCEPTANCE.md",
@@ -3885,14 +3875,14 @@
     {
       "file": "ACCEPTANCE.md",
       "line": 306,
-      "text": "**MOVE-001 — Preview and reconcile a whole firm move.** **Status: partial.** Preview a multi-matter export, repair an unmatched client and missing file, apply twice with interruption and undo safe rows; sign cutover only after source counts and balances reconcile. Current evidence: `src/satchel/imports.ts`; `src/modules/import-kit/src/index.ts`; `tests/satchel/flows.test.mjs`. Gap: Reviewed resumable Clio contacts import exists; multi-entity reconciliation, delta and whole-firm cutover are missing.",
+      "text": "**MOVE-001 — Preview and reconcile a whole firm move.** **Status: done.** Preview a multi-matter export, repair an unmatched client and missing file, apply twice with interruption and undo safe rows; sign cutover only after source counts and balances reconcile. Current evidence: `tests/satchel/matter-import.test.mjs` — “MATTER-008 / MOVE-002 matter subset previews without writes, preserves source numbers and bytes, resumes after restore and replays without duplicates”, invoking proveWholeFirmMove in `tests/satchel/migration-flow.mjs`: A1 schema, mapping, counts, source and original hashes, relationships, errors and coverage; A2 unmatched-client repair; A3 missing-original repair; A4 interrupted restore and exact repeated apply; A6 separate count, balance and coverage refusals, final delta and signed cutover. “matter import requires principal authority and exact fresh human clearance, and refuses duplicate source rows and native number collisions” invokes proveMoveRefusals: A5 unchanged safe rows removed while used and edited contacts remain, current authority, private authors and erased-original replay fences. `tests/satchel/numbering-journey.test.mjs` invokes `tests/satchel/migration-journey.mjs` at 1440px for package repair, reviewed apply and signed reconciliation..",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
       "line": 308,
-      "text": "**MOVE-002 — Migrate Clio Manage and Grow completely.** **Status: partial.** Move two active and one closed Clio matters plus a Grow lead, compare files and dates, reconcile billed/unbilled and client trust totals, open a historic Clio invoice’s original PDF from its matter and re-send it through the portal with byte-identical content, and prove repeat import creates no duplicates. Current evidence: `src/satchel/imports/clio.ts`; `fixtures/clio-contacts.csv`; `tests/satchel/flows.test.mjs`. Gap: Reviewed contacts and a prepared matters CSV subset retain source identities, numbers and original CSV provenance, with resume and replay. Remaining matter fields, Grow, historic invoice PDFs, originals and balances are missing. BILL-015 cutover is the principal’s first saved scheme. Every pre-cutover number and approved/exported file stays byte-identical; a legacy draft with a reservation issues under that same number. Later drafts have only their ID and a non-invoice label. Number assignment, exact approved-revision and tax gates, PDF and LEDES rendering, permanent firm-wide registration and counter advance form one atomic issue operation; a failed batch consumes none, collisions are refused rather than skipped, and no gap-free claim is made. Scheme versions apply only to later issues; year is from issue time in the firm IANA timezone and a counter reset requires an explicit noncolliding next number. Corrections retain <original>-R<k> without advancing the counter. Imports preserve source numbers and provenance with the next counter above every source ordinal; restore retains the register, counter and files.",
+      "text": "**MOVE-002 — Migrate Clio Manage and Grow completely.** **Status: done.** Move two active and one closed Clio matters plus a Grow lead, compare files and dates, reconcile billed/unbilled and client trust totals, open a historic Clio invoice’s original PDF from its matter and re-send it through the portal with byte-identical content, and prove repeat import creates no duplicates. BILL-015 cutover is the principal’s first saved scheme. Every pre-cutover number and approved/exported file stays byte-identical; a legacy draft with a reservation issues under that same number. Later drafts have only their ID and a non-invoice label. Number assignment, exact approved-revision and tax gates, PDF and LEDES rendering, permanent firm-wide registration and counter advance form one atomic issue operation; a failed batch consumes none, collisions are refused rather than skipped, and no gap-free claim is made. Scheme versions apply only to later issues; year is from issue time in the firm IANA timezone and a counter reset requires an explicit noncolliding next number. Corrections retain <original>-R<k> without advancing the counter. Imports preserve source numbers and provenance with the next counter above every source ordinal; restore retains the register, counter and files. Current evidence: `tests/satchel/matter-import.test.mjs` — “MATTER-008 / MOVE-002 matter subset previews without writes, preserves source numbers and bytes, resumes after restore and replays without duplicates” invokes proveWholeFirmMove in `tests/satchel/migration-flow.mjs`: A1 two active and one closed matter, typed fields, source identities and native history; A2 Grow lead and staff mappings; A3 originals and dates, CSV and ICS calendar values and native relationships; A4 exact billed, unbilled, AR and two-client trust totals with separate reconciliation refusals; A5 historic original PDF and byte-identical portal re-send; A6 exact repeated import and restored checkpoints without duplicates; A7 source invoice number and ordinal, the next native issue, prospective prefix change and byte-identical source number and file through restore. “matter import requires principal authority and exact fresh human clearance, and refuses duplicate source rows and native number collisions” additionally asserts a non-principal mapped timekeeper, Grow assignee and private author, wrong-client and wrong-invoice refusals and erasure. `tests/satchel/numbering-journey.test.mjs` invokes `tests/satchel/migration-journey.mjs` for opening the source PDF from its matter and delivering identical bytes. `tests/satchel/invoice-numbering.test.mjs` retains inherited BILL-015 atomic issue, tax, legacy reservation, correction and replay assertions..",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
@@ -4007,6 +3997,852 @@
       "text": "**AGENT-010 — Constrain agent data and execution.** **Status: partial.** Embed a send-and-transfer instruction in an uploaded record, revoke the delegation before scheduled work and inspect refusal, redacted context and preserved proposal history without an external effect. Current evidence: `src/satchel/session.ts`; `src/satchel/proposals.ts`; `src/satchel/team.ts`. Gap: Sponsor access, human approval and key revocation exist; model/data agreements, explicit execution budgets and durable delegated jobs are missing.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 3,
+      "text": "Generated from CONTRACT.md; regenerate with the documented contract-docs command. Acceptance requirements and status remain in that source.",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 5,
+      "text": "| Clause | Title | Status |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 7,
+      "text": "| SAT-001 | Invite a firm team | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 8,
+      "text": "| SAT-002 | Review fresh conflicts before opening | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 9,
+      "text": "| SAT-003 | Grant matter access | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 10,
+      "text": "| SAT-004 | Record exact USD work | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 11,
+      "text": "| SAT-005 | Review immutable bill exports | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 12,
+      "text": "| SAT-006 | Correct by reviewed additions | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 13,
+      "text": "| SAT-007 | Keep private original versions | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 14,
+      "text": "| SAT-008 | Confirm source-linked deadlines | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 15,
+      "text": "| SAT-009 | Let agents prepare for people | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 16,
+      "text": "| SAT-010 | Preview Clio contact move-in | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 17,
+      "text": "| SAT-011 | Restore a private firm archive | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 18,
+      "text": "| SAT-012 | Erase originals with a restore fence | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 19,
+      "text": "| SAT-013 | Keep the chosen product surfaces | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 20,
+      "text": "| OSS-001 | Free and open source, MIT licensed | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 21,
+      "text": "| FIRM-001 | Set up an empty US firm | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 22,
+      "text": "| FIRM-002 | Separate finance and legal rights | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 23,
+      "text": "| FIRM-003 | Enforce ethical walls | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 24,
+      "text": "| FIRM-004 | Secure sessions and connected secrets | partial |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 25,
+      "text": "| FIRM-005 | Export a complete action audit | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 26,
+      "text": "| FIRM-006 | Apply retention and legal holds | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 27,
+      "text": "| FIRM-007 | Operate and recover the owned system | partial |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 28,
+      "text": "| FIRM-008 | Define custom roles and rate visibility | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 29,
+      "text": "| BASE-001 | Preserve Base guarantees through replacements | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 30,
+      "text": "| INTAKE-001 | Publish conditional intake forms | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 31,
+      "text": "| INTAKE-002 | Manage a lead pipeline | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 32,
+      "text": "| INTAKE-003 | Book consultations | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 33,
+      "text": "| INTAKE-004 | Maintain a legal contact graph | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 34,
+      "text": "| INTAKE-005 | Review conflicts across the whole firm | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 35,
+      "text": "| INTAKE-010 | Route walled conflict matches to wall custodians | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 36,
+      "text": "| INTAKE-006 | Execute engagement agreements | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 37,
+      "text": "| INTAKE-007 | Convert a lead without losing history | partial |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 38,
+      "text": "| INTAKE-008 | Follow up prospects under consent | partial |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 39,
+      "text": "| INTAKE-009 | Synchronize Google and Microsoft 365 contacts | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 40,
+      "text": "| MATTER-001 | Model practice-specific matters | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 41,
+      "text": "| MATTER-002 | Track stages and milestones | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 42,
+      "text": "| MATTER-003 | Assign dependent work | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 43,
+      "text": "| MATTER-004 | Run editable matter workflows | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 44,
+      "text": "| MATTER-005 | Keep a complete matter timeline | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 45,
+      "text": "| MATTER-006 | Manage staff capacity and handoff | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 46,
+      "text": "| MATTER-007 | Close and reopen matters deliberately | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 47,
+      "text": "| MATTER-008 | Number matters by firm scheme | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 48,
+      "text": "| MATTER-009 | Search the whole firm from one box | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 49,
+      "text": "| DOC-001 | Store real working files | partial |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 50,
+      "text": "| DOC-002 | Preview and compare versions | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 51,
+      "text": "| DOC-003 | Search OCR and full text | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 52,
+      "text": "| DOC-004 | Organize and act on document sets | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 53,
+      "text": "| DOC-005 | Work in Microsoft Word | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 54,
+      "text": "| DOC-006 | Assemble legal documents and forms | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 55,
+      "text": "| DOC-007 | Sign and file matter documents | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 56,
+      "text": "| DOC-008 | File Outlook email and attachments | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 57,
+      "text": "| DOC-009 | File Gmail email and attachments | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 58,
+      "text": "| DOC-010 | Connect SharePoint OneDrive and Drive | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 59,
+      "text": "| DOC-011 | Connect Box and Dropbox | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 60,
+      "text": "| DOC-012 | Build medical and bill chronologies | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 61,
+      "text": "| DOC-013 | Prepare controlled evidence productions | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 62,
+      "text": "| DOC-014 | Open matter folders on the desktop | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 63,
+      "text": "| CAL-001 | Schedule matter appointments | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 64,
+      "text": "| CAL-002 | Synchronize Google Calendar both ways | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 65,
+      "text": "| CAL-003 | Synchronize Outlook calendars both ways | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 66,
+      "text": "| CAL-004 | Calculate LawToolBox deadlines | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 67,
+      "text": "| CAL-005 | Calculate CalendarRules deadlines | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 68,
+      "text": "| CAL-006 | Propagate reviewed source changes | partial |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 69,
+      "text": "| CAL-007 | Remind and escalate deadlines | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 70,
+      "text": "| CAL-008 | Show firm deadline coverage | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 71,
+      "text": "| CAL-009 | File and serve through InfoTrack | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 72,
+      "text": "| CAL-010 | Track court docket changes | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 73,
+      "text": "| CAL-011 | Remind staff of appointments and tasks | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 74,
+      "text": "| CLIENT-001 | Invite a secure client portal | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 75,
+      "text": "| CLIENT-002 | Retain secure two-way messages | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 76,
+      "text": "| CLIENT-003 | Chase document requests to receipt | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 77,
+      "text": "| CLIENT-004 | Give clients tasks and events | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 78,
+      "text": "| CLIENT-005 | Text clients and leads with Twilio | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 79,
+      "text": "| CLIENT-006 | Deliver and reconcile email | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 80,
+      "text": "| CLIENT-007 | Keep call records and authorized recordings | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 81,
+      "text": "| CLIENT-008 | Send reviewed matter updates | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 82,
+      "text": "| CLIENT-009 | Control sharing and communication preferences | partial |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 83,
+      "text": "| CLIENT-010 | Automated client reminders | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 84,
+      "text": "| TIME-001 | Run timers and timesheets | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 85,
+      "text": "| TIME-002 | Capture email calendar and document activity | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 86,
+      "text": "| TIME-003 | Apply versioned rates and budgets | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 87,
+      "text": "| TIME-004 | Bill flat and recurring fees | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 88,
+      "text": "| TIME-005 | Manage contingency and settlements | partial |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 89,
+      "text": "| TIME-006 | Capture reimbursable expenses | partial |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 90,
+      "text": "| TIME-007 | Code LEDES and UTBMS work | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 91,
+      "text": "| TIME-008 | Submit bulk work and allocate revenue | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 92,
+      "text": "| BILL-001 | Run prebill review and batch invoices | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 93,
+      "text": "| BILL-002 | Deliver invoices and payer statements | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 94,
+      "text": "| BILL-003 | Split payers and handle foreign invoices | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 95,
+      "text": "| BILL-004 | Calculate US billing tax explicitly | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 96,
+      "text": "| BILL-005 | Collect through 8am LawPay | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 97,
+      "text": "| BILL-006 | Collect through Stripe legal configurations | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 98,
+      "text": "| BILL-007 | Reconcile payments refunds and disputes | partial |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 99,
+      "text": "| BILL-008 | Run consented payment plans | partial |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 100,
+      "text": "| BILL-009 | Pursue collections until resolved | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 101,
+      "text": "| BILL-010 | Show client ledgers and receivables | partial |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 102,
+      "text": "| BILL-011 | Consolidate multi-matter billing | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 103,
+      "text": "| BILL-012 | Record offline payments against invoices | partial |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 104,
+      "text": "| BILL-013 | Brand versioned invoice templates | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 105,
+      "text": "| BILL-014 | Charge interest and late fees by agreement | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 106,
+      "text": "| BILL-015 | Number invoices by firm scheme | partial |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 107,
+      "text": "| BILL-016 | Void issued invoices and rebill their entries | partial |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 108,
+      "text": "| TRUST-001 | Keep built-in IOLTA client ledgers | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 109,
+      "text": "| TRUST-002 | Record deposits and disbursements | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 110,
+      "text": "| TRUST-003 | Prevent overdrafts and commingling | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 111,
+      "text": "| TRUST-004 | Authorize earned-fee trust transfers | partial |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 112,
+      "text": "| TRUST-005 | Reconcile all three trust views | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 113,
+      "text": "| TRUST-006 | Correct and lock trust history | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 114,
+      "text": "| TRUST-007 | Match banks and legal processor settlements | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 115,
+      "text": "| TRUST-008 | Report trust and replenish retainers | partial |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 116,
+      "text": "| TRUST-009 | Produce checks and deposit records | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 117,
+      "text": "| TRUST-010 | Transfer trust between one client’s matters | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 118,
+      "text": "| BOOKS-001 | Synchronize QuickBooks Online operations | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 119,
+      "text": "| BOOKS-002 | Synchronize Xero operations | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 120,
+      "text": "| CONNECT-001 | Expose scoped APIs and webhooks | partial |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 121,
+      "text": "| CONNECT-002 | Connect Zapier and Clio APIs | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 122,
+      "text": "| CONNECT-003 | Reconcile connector work durably | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 123,
+      "text": "| REPORT-001 | Report case status and outcomes | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 124,
+      "text": "| REPORT-002 | Report firm economics | partial |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 125,
+      "text": "| REPORT-003 | Schedule actionable reports | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 126,
+      "text": "| MOBILE-001 | Complete practice work on phones | partial |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 127,
+      "text": "| MOBILE-002 | Protect offline work and push alerts | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 128,
+      "text": "| MOVE-001 | Preview and reconcile a whole firm move | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 129,
+      "text": "| MOVE-002 | Migrate Clio Manage and Grow completely | done |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 130,
+      "text": "| MOVE-003 | Migrate 8am MyCase completely | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 131,
+      "text": "| MOVE-004 | Migrate Smokeball completely | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 132,
+      "text": "| MOVE-005 | Migrate PracticePanther completely | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 133,
+      "text": "| MOVE-006 | Migrate Filevine completely | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 134,
+      "text": "| MOVE-007 | Migrate Eve work and source references | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 135,
+      "text": "| MOVE-008 | Prove finance and authority at cutover | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 136,
+      "text": "| AGENT-001 | Build evidence-closed matter plans | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 137,
+      "text": "| AGENT-002 | Chase authorized evidence to acceptance | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 138,
+      "text": "| AGENT-003 | Explain deadline changes before propagation | partial |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 139,
+      "text": "| AGENT-004 | Draft substantive work with verified sources | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 140,
+      "text": "| AGENT-005 | Review active matters every night | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 141,
+      "text": "| AGENT-006 | Reconcile matter work to collected cash | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 142,
+      "text": "| AGENT-007 | Keep client promises through delivery | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 143,
+      "text": "| AGENT-008 | Coordinate milestones with billing and collection | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 144,
+      "text": "| AGENT-009 | Measure recovered work and agent decisions | missing |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 145,
+      "text": "| AGENT-010 | Constrain agent data and execution | partial |",
+      "to": "changelog"
     }
   ]
 }

@@ -14,7 +14,7 @@ A claim is done when every clause behind it is done, missing when every one is m
 | 6 | "keeps billing … in order" | `SAT-005` done; `SAT-006` done; `BILL-001` done | done |
 | 7 | "… and trust accounts in order" | `TRUST-001` done; `TRUST-005` done | done |
 | 8 | "100% free, open source" | `OSS-001` done | done |
-| 9 | "alternative to Clio, MyCase and Smokeball" | `MOVE-002` partial; `MOVE-003` missing; `MOVE-004` missing | partial |
+| 9 | "alternative to Clio, MyCase and Smokeball" | `MOVE-002` done; `MOVE-003` missing; `MOVE-004` missing | partial |
 | 10 | "Intake · Martinez v. Reed · conflict check clear ✓" | `SAT-002` done; `INTAKE-001` done | done |
 | 11 | "Discovery due Nov 14" | `SAT-008` done | done |
 | 12 | "Court date moved → deadlines recalculated · client notified" | `CAL-006` partial; `CAL-004` missing; `CLIENT-008` done | partial |
@@ -56,9 +56,9 @@ A claim is done when every clause behind it is done, missing when every one is m
 | 48 | "A secure portal for documents and messages" | `CLIENT-001` done; `CLIENT-002` done | done |
 | 49 | "plus text" (mediation reminder, Reply C to confirm) | `CLIENT-005` missing | missing |
 | 50 | "and email" ("Your trial date has moved") | `CLIENT-006` done; `CLIENT-008` done | done |
-| 51 | "Bring every matter over from Clio" | `MOVE-002` partial | partial |
-| 52 | "Matters, contacts, documents, time and trust balances come across" (import counts) | `MOVE-002` partial; `MOVE-008` missing | partial |
-| 53 | "Trust must match to the cent before you switch" ($12.50 difference fixed) | `MOVE-001` partial; `MOVE-008` missing | partial |
+| 51 | "Bring every matter over from Clio" | `MOVE-002` done | done |
+| 52 | "Matters, contacts, documents, time and trust balances come across" (import counts) | `MOVE-002` done; `MOVE-008` missing | partial |
+| 53 | "Trust must match to the cent before you switch" ($12.50 difference fixed) | `MOVE-001` done; `MOVE-008` missing | partial |
 | 54 | Terminal: `npx -y @runeditrun/rer dev just-every/run-satchel`, "Run it on your own computer or server." | `BASE-001` done; `FIRM-007` partial | partial |
 | 55 | "Court e-filing goes through InfoTrack" | `CAL-009` missing | missing |
 | 56 | "court-rule deadlines come from LawToolBox or CalendarRules" | `CAL-004` missing; `CAL-005` missing | missing |
@@ -68,4 +68,4 @@ A claim is done when every clause behind it is done, missing when every one is m
 | 60 | "Free and open source, MIT licensed." | `OSS-001` done | done |
 | 61 | Automated client reminders: per-matter opt-in by the responsible counsel, template approved once by counsel, scheduled invoice and appointment reminders under a rate cap, withdrawal of consent stops the next send, each send audited with the template version. | `CLIENT-010` done | done |
 
-Claims: 61; 32 done, 17 partial, 12 missing.
+Claims: 61; 33 done, 16 partial, 12 missing.

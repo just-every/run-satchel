@@ -8,12 +8,12 @@ The primary journey: Exercise the capabilities and acceptance journeys below.
 
 | Tier | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
-| Core | 72 | 24 | 43 | 139 |
+| Core | 74 | 22 | 43 | 139 |
 | Agent surface | 0 | 0 | 0 | 0 |
 | Later | 0 | 0 | 0 | 0 |
-| Full target | 72 | 24 | 43 | 139 |
+| Full target | 74 | 22 | 43 | 139 |
 
-Judged from the code and tests at commit `7ff9b1c1905611d102131b5ec7681fee2b4cf3cb` (27 October 2026). Field proof register: 0 rows; 0 passed, 0 failed, 0 not run.
+Judged from the code and tests at commit `05959af48f66c8f4e5b6a4815707e39336a9fe6f` (28 October 2026). Field proof register: 0 rows; 0 passed, 0 failed, 0 not run.
 
 ## Core
 
@@ -1644,19 +1644,19 @@ Core · target · **missing**
 
 #### MOVE-001 — Preview and reconcile a whole firm move
 
-Core · target · **partial**
+Core · target · **done**
 
 **Requirement.** The principal previews source-specific packages with schema/version, mapping, record counts, files/hashes, relationships, rejections and coverage gaps before any write. Apply is resumable and idempotent; undo preserves records changed or used natively. Cutover requires signed reconciliation and a final delta.
 
 **Acceptance.**
 1. Preview a multi-matter export, repair an unmatched client and missing file, apply twice with interruption and undo safe rows; sign cutover only after source counts and balances reconcile.
 
-**Evidence.** `src/satchel/imports.ts`; `src/modules/import-kit/src/index.ts`; `tests/satchel/flows.test.mjs`
-**Gap.** Reviewed resumable Clio contacts import exists; multi-entity reconciliation, delta and whole-firm cutover are missing.
+**Evidence.** `tests/satchel/matter-import.test.mjs` — “MATTER-008 / MOVE-002 matter subset previews without writes, preserves source numbers and bytes, resumes after restore and replays without duplicates”, invoking proveWholeFirmMove in `tests/satchel/migration-flow.mjs`: A1 schema, mapping, counts, source and original hashes, relationships, errors and coverage; A2 unmatched-client repair; A3 missing-original repair; A4 interrupted restore and exact repeated apply; A6 separate count, balance and coverage refusals, final delta and signed cutover. “matter import requires principal authority and exact fresh human clearance, and refuses duplicate source rows and native number collisions” invokes proveMoveRefusals: A5 unchanged safe rows removed while used and edited contacts remain, current authority, private authors and erased-original replay fences. `tests/satchel/numbering-journey.test.mjs` invokes `tests/satchel/migration-journey.mjs` at 1440px for package repair, reviewed apply and signed reconciliation.
+**Gap.** None.
 
 #### MOVE-002 — Migrate Clio Manage and Grow completely
 
-Core · target · **partial**
+Core · target · **done**
 
 **Requirement.** Import Clio Manage/Grow contacts, matters, relationships, notes, time/expenses, tasks, email/call records, calendar CSV/ICS, invoices with their numbers and AR/trust balances using native CSV/API and separately exported or escrowed originals, including each historic bill’s original invoice PDF, attached to its matter and invoice record as evidence that staff can open and re-send to the client. Preserve source IDs, custom fields and staff mappings; retrieve missing history through authorized API/vendor-assisted extraction before cutover.
 
@@ -1670,8 +1670,8 @@ Core · target · **partial**
 7. Corrections retain <original>-R<k> without advancing the counter.
 8. Imports preserve source numbers and provenance with the next counter above every source ordinal; restore retains the register, counter and files.
 
-**Evidence.** `src/satchel/imports/clio.ts`; `fixtures/clio-contacts.csv`; `tests/satchel/flows.test.mjs`
-**Gap.** Reviewed contacts and a prepared matters CSV subset retain source identities, numbers and original CSV provenance, with resume and replay. Remaining matter fields, Grow, historic invoice PDFs, originals and balances are missing.
+**Evidence.** `tests/satchel/matter-import.test.mjs` — “MATTER-008 / MOVE-002 matter subset previews without writes, preserves source numbers and bytes, resumes after restore and replays without duplicates” invokes proveWholeFirmMove in `tests/satchel/migration-flow.mjs`: A1 two active and one closed matter, typed fields, source identities and native history; A2 Grow lead and staff mappings; A3 originals and dates, CSV and ICS calendar values and native relationships; A4 exact billed, unbilled, AR and two-client trust totals with separate reconciliation refusals; A5 historic original PDF and byte-identical portal re-send; A6 exact repeated import and restored checkpoints without duplicates; A7 source invoice number and ordinal, the next native issue, prospective prefix change and byte-identical source number and file through restore. “matter import requires principal authority and exact fresh human clearance, and refuses duplicate source rows and native number collisions” additionally asserts a non-principal mapped timekeeper, Grow assignee and private author, wrong-client and wrong-invoice refusals and erasure. `tests/satchel/numbering-journey.test.mjs` invokes `tests/satchel/migration-journey.mjs` for opening the source PDF from its matter and delivering identical bytes. `tests/satchel/invoice-numbering.test.mjs` retains inherited BILL-015 atomic issue, tax, legacy reservation, correction and replay assertions.
+**Gap.** None.
 
 #### MOVE-003 — Migrate 8am MyCase completely
 
@@ -1903,8 +1903,8 @@ Core · push-further · **partial**
 **Acceptance.**
 1. Embed a send-and-transfer instruction in an uploaded record, revoke the delegation before scheduled work and inspect refusal, redacted context and preserved proposal history without an external effect.
 
-**Evidence.** `src/satchel/session.ts`; `src/satchel/proposals.ts`; `src/satchel/team.ts`
-**Gap.** Sponsor access, human approval and key revocation exist; model/data agreements, explicit execution budgets and durable delegated jobs are missing.
+**Evidence.** `tests/satchel/flows.test.mjs` — agent keys only prepare; human decisions are atomic and cannot be replayed (calls `tests/satchel/agent-execution-flow.mjs`: authorized and licensed context, agreement state, injected instruction refusal, limits, durable scheduling, revocation, erasure, replay, audit and archive); `tests/satchel/journey.test.mjs` — SAT-013 sign-in, setup and every workspace tab with real records at 1440px and 390px (calls `tests/satchel/agent-execution-browser.mjs`: agreement and delegation approval, redacted context, refused queue and preserved proposal); `tests/satchel/custom-roles.test.mjs` — FIRM-008 custom roles gate bank, contacts, documents, settings, agent keys and every listed door without conferring authority
+**Gap.** Native agreement state, reviewed source entitlements, bounded zero-spend preparations, durable jobs, revocation, redacted context and retained history are proved. Standing row-10 interim floor: principal-approved native preparation, sponsor recipient, no training and no outbound execution. Full scoped delegation and provider boundaries await ct approval; canonical generated contract documents await ct cleanup.
 
 ## Agent surface
 

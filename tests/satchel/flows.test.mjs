@@ -1,3 +1,5 @@
+import {authorizeAgent} from './agent-fixture.mjs';
+import {proveAgentExecution} from './agent-execution-flow.mjs';
 import {proveMicrosoftSecurity} from './microsoft-security-flow.mjs';
 import {secureSessions} from './security-flow.mjs';
 import {exemptTaxReview} from './tax-fixture.mjs';
@@ -112,7 +114,7 @@ test('private original versions and source-confirmed deadlines keep access and h
  assert.equal((await h.json('/deadlines/'+fresh.id+'/complete',{revision:confirmed.revision,evidence:'Delivery acknowledgement retained'},h.owner)).status,'done');
 });
 test('agent keys only prepare; human decisions are atomic and cannot be replayed',async()=>{
- const key=await h.json('/keys',{label:'Practice assistant'},h.owner),auth={authorization:'Bearer '+key.key};
+ const key=await h.json('/keys',{label:'Practice assistant'},h.owner),{auth}=await authorizeAgent(h,key,m.id);
  const p=await h.json('/agent/prepare-deadline',{matterId:m.id,title:'Client conference',date:'2026-11-21',timezone:'America/New_York',source:'Client request'},'',200,auth);
  assert.equal(p.status,'pending');
  await h.json('/proposals/'+p.id+'/decide',{decision:'approve'},'',401,auth);
@@ -128,6 +130,7 @@ test('agent keys only prepare; human decisions are atomic and cannot be replayed
  const prepared=await h.json('/proposals/'+proposedBill.id+'/decide',{decision:'approve'},h.owner);assert.equal(prepared.status,'draft');
  await h.json('/bills/'+prepared.id+'/export',undefined,h.owner,409);
  await h.json('/keys/'+key.id+'/revoke',{},h.owner);await h.json('/agent/context',undefined,'',401,auth);
+ await proveAgentExecution();
 });
 test('Clio dry-run, exact commit, provenance, replay and undo preserve linked parties',async()=>{
  const csv=await readFile(new URL('../../fixtures/clio-contacts.csv',import.meta.url),'utf8');
@@ -220,6 +223,8 @@ test('ethical walls exclude a principal from current doors and require expiring 
   const ownerTask=await w.json('/matters/'+hidden.id+'/tasks',{title:'Review sealed strategy',ownerEmail:'owner@example.test'},custodian);assert.ok((await w.json('/notifications',undefined,w.owner)).some(n=>n.taskId===ownerTask.id));
   const feed=await w.json('/integrations',{label:'Sealed repository feed',matterIds:[hidden.id],scopes:['matters:read','documents:read','tasks:read','proposals:prepare']},w.owner),feedAuth={authorization:'Bearer '+feed.key};
   const key=await w.json('/keys',{label:'Principal assistant'},w.owner),auth={authorization:'Bearer '+key.key};
+  await authorizeAgent(w,key,hidden.id,{delegation:{sources:[{documentId:doc.id,version:1,kind:'matter'}]}});
+  assert.deepEqual((await w.json('/agent/context',undefined,'',200,auth)).matters.map(m=>m.id),[hidden.id]);
   const old=await w.json('/conflicts',{client:'Juniper',adverse:'Other'},w.owner);
   const wall=await w.json('/matters/'+hidden.id+'/wall',{custodianEmail:'custodian@example.test',members:[],reason:'Adverse representation ethical screen',revision:null},w.owner);
   // Outside principals cannot add themselves, change members/custodian, or dissolve.

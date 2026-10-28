@@ -13,4 +13,4 @@ export const stripeApplicationCountSql=(billSql='?')=>`(SELECT COUNT(*) FROM s_s
 export const noStripeInvoiceFundsSql=(billSql='?')=>`NOT EXISTS(SELECT 1 FROM s_stripe_checkouts sc WHERE sc.bill_id=${billSql} AND sc.purpose='operating' AND (sc.status IN(${pendingSql}) OR (sc.status IN('paid','returned') AND (${stripePrincipalSql()})>0)))`;
 
 // Unsplit operating collections cannot supply a reviewed trust tax allocation.
-export const noUnsplitInvoiceFundsSql=(billSql='?')=>`(SELECT ${noStripeInvoiceFundsSql('invoice.id')} AND ${offlinePaidSql('invoice.id')}=0 AND ${writeoffSql('invoice.id')}=0 FROM (SELECT ${billSql} id) invoice)`;
+export const noUnsplitInvoiceFundsSql=(billSql='?')=>`(SELECT ${noStripeInvoiceFundsSql('invoice.id')} AND ${offlinePaidSql('invoice.id')}=0 AND ${writeoffSql('invoice.id')}=0 AND NOT EXISTS(SELECT 1 FROM s_move_invoice_balances WHERE bill_id=invoice.id) FROM (SELECT ${billSql} id) invoice)`;

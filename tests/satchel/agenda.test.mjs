@@ -1,3 +1,4 @@
+import {authorizeAgent} from './agent-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {harness,open} from './harness.mjs';
@@ -51,7 +52,7 @@ test('CAL-008 firm agenda shows overlapping hearings, an unconfirmed limitation 
   assert.ok(csv[3].includes('Scheduling order ¶4')&&csv[3].includes('confirmed by owner@example.test')&&csv[3].includes('lawyer@example.test absent; covered by priya@example.test'));
   assert.ok(csv[4].includes('unconfirmed (proposed; needs lawyer confirmation)')&&!csv[4].includes(',confirmed'));
   assert.ok((await h.json('/audit?action=agenda.exported',undefined,h.owner)).records.some(r=>r.actor.email==='lawyer@example.test'));
-  const key=await h.json('/keys',{label:'Docket reader'},h.owner),auth={authorization:'Bearer '+key.key};
+  const key=await h.json('/keys',{label:'Docket reader'},h.owner),{auth}=await authorizeAgent(h,key,m2.id);
   const prepared=await h.json('/agent/prepare-deadline',{matterId:m2.id,kind:'limitation',title:'Extracted limitation',date:'2027-01-15',timezone:'America/New_York',source:'Lease clause 19 (agent extraction)'},'',200,auth);
   await h.json('/proposals/'+prepared.id+'/decide',{decision:'approve'},h.owner);
   view=await h.json('/agenda?'+range,undefined,lawyer);
