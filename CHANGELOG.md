@@ -532,3 +532,5 @@ before those doors ship
 Every capability that exists today conforms
 
 The recorded native release boundary remains an interim implementation; full authority scope is retained pending the unprovided ct ruling.
+
+The 22 October 2026 ct label belongs to RL-2. Trust state-record downloads were incomplete review previews at the prior judgment; this implementation note is not a target acceptance outcome.
