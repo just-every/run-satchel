@@ -144,7 +144,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "8ae69b436e1c1e7ebc10e25a3269e65b2f10c0fcb5bb8d05c2525b16c96fd13e",
+      "sha256": "980942e54c8a06cc3d08d89607564123970c0d4200543c1d7299135c5a43ac19",
       "executable": false
     },
     "AGENTS.md": {
@@ -168,7 +168,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "c8585be61985d4d20fe2f03b2795f722eb3e42227654af30fc03f676579a5282",
+      "sha256": "56e0c2bddbd78e0955f65781cc473fd5f36a0a141e7349444353fd50883fae3d",
       "executable": false
     },
     "DEMO.md": {
@@ -196,7 +196,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "554d6e205e2d5dfa8757c19e01f7ec8364d7d683ee9000af06bda95a364dd4bd",
+      "sha256": "68e4b6c30ca13c53f2867b8c9c44a9de8914a14b0089d27f81c72b7e6bc20747",
       "executable": false
     },
     "docs/client-portal.md": {
@@ -4828,7 +4828,7 @@
       "executable": false
     },
     "tests/satchel/numbering-journey.test.mjs": {
-      "sha256": "f0cb66820b23912fec492de1796ec0622928e8a9e57760c7c3ee8288998be747",
+      "sha256": "4c664f341afc55a4a6bec2e0120ec642ea833cce3055806626a25495450b229f",
       "executable": false
     },
     "tests/satchel/numbering.test.mjs": {

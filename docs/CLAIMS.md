@@ -130,7 +130,7 @@ Generated from CONTRACT.md; regenerate with the documented contract-docs command
 | MOVE-003 | Migrate 8am MyCase completely | partial |
 | MOVE-004 | Migrate Smokeball completely | missing |
 | MOVE-005 | Migrate PracticePanther completely | missing |
-| MOVE-006 | Migrate Filevine completely | missing |
+| MOVE-006 | Migrate Filevine completely | partial |
 | MOVE-007 | Migrate Eve work and source references | missing |
 | MOVE-008 | Prove finance and authority at cutover | missing |
 | AGENT-001 | Build evidence-closed matter plans | missing |
