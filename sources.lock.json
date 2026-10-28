@@ -5108,7 +5108,7 @@
       "executable": false
     },
     "tests/satchel/writeoff-reversal-flow.mjs": {
-      "sha256": "fa793cc33273194b8843e1f5861f660c126be850e74c0ca31d77ef1c297f8fb4",
+      "sha256": "62b9b817d6464cb347a9e62de8136a03a8b2a12095691569ef55db8207f32a23",
       "executable": false
     },
     "tests/site/navigation.test.mjs": {

@@ -13,6 +13,9 @@ export async function proveWriteoffReversal(){
   const voidDecision={revision:bill.revision,reason:'Principal reviews replacing this invoice'};
   await h.json('/invoices/'+bill.id+'/void',voidDecision,h.owner,409);
   const artifact=await(await h.request('/api/satchel/bills/'+bill.id+'/export',undefined,h.owner)).text();
+  const originalRevision=bill.revision;
+  bill.revision=(await h.json('/matters/'+s.m.id+'/billing',undefined,h.owner)).bills.find(b=>b.id===bill.id).revision;
+  voidDecision.revision=bill.revision;
   await designate(h);const account=await h.json('/trust/accounts',{name:'Operating finance corrections',kind:'operating',bankReference:'synthetic-satchel-writeoff-bank'},h.owner);
   const check=await h.json('/offline-payments',{requestKey:'synthetic-satchel-writeoff-check',payer:s.m.client,method:'check',reference:'synthetic-satchel-writeoff-check',purpose:'operating',receivedDate:'2026-10-01',depositDate:'2026-10-01',operatingAccountId:account.id,cents:30000,allocations:[{billId:bill.id,cents:25500}]},h.owner);
   assert.equal(check.creditCents,4500);assert.equal((await h.json(payment,undefined,s.client)).dueCents,0);
@@ -32,6 +35,7 @@ export async function proveWriteoffReversal(){
   await h.json('/team',{email:clientMember.email,name:clientMember.name,role:'client'},h.owner);
   await h.json(path,{...reversal,approve:false},h.owner,403);
   await h.json(path,{...reversal,revision:'superseded-revision'},h.owner,409);
+  await h.json(path,{...reversal,revision:originalRevision},h.owner,409);
   await h.json(path,{...reversal,cents:amount+1},h.owner,409);
   const first=await h.json(path,reversal,h.owner),replay=await h.json(path,reversal,h.owner);
   assert.equal(replay.reversalId,first.reversalId);assert.equal(replay.reversals.length,1);
