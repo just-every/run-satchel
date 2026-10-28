@@ -3220,7 +3220,7 @@
       "executable": false
     },
     "src/satchel/collection-state.ts": {
-      "sha256": "0b3882cb29458b76cd92faf08a06810e191ddfea707bccf6912fb824f6f54e39",
+      "sha256": "9d9428cea4a3251ae2f4ef199702eb580d1f3fa8c76e0d8b85f7a832cb121f1d",
       "executable": false
     },
     "src/satchel/collections.ts": {

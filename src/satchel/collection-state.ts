@@ -15,7 +15,7 @@ export async function collectionBalance(db:D1Database,s:Data){
   insist(bill,'Collection invoice is unavailable',409);const funds=await invoiceFunds(db,s.bill_id);
   return {dueCents:bill.status==='void'?0:funds.due_cents,void:bill.status==='void',number:bill.number,dueDate:bill.due_date,funds};
  }
- const request=await stmt(db,'SELECT r.*,p.target_cents FROM s_retainer_requests r JOIN s_retainer_policies p ON p.id=r.policy_id JOIN s_portal_grants g ON g.id=r.grant_id AND g.revoked_at IS NULL JOIN oa_operators o ON o.email=r.created_by AND o.role='owner' AND o.status='active' WHERE r.id=? AND r.ledger_id=?',s.replenishment_id,s.ledger_id).first<Data>();
+ const request=await stmt(db,"SELECT r.*,p.target_cents FROM s_retainer_requests r JOIN s_retainer_policies p ON p.id=r.policy_id JOIN s_portal_grants g ON g.id=r.grant_id AND g.revoked_at IS NULL JOIN oa_operators o ON o.email=r.created_by AND o.role='owner' AND o.status='active' WHERE r.id=? AND r.ledger_id=?",s.replenishment_id,s.ledger_id).first<Data>();
  insist(request,'Approved replenishment is unavailable; request fresh review',409);
  const latest=await stmt(db,'SELECT id FROM s_retainer_policies WHERE ledger_id=? ORDER BY rowid DESC LIMIT 1',s.ledger_id).first<Data>();
  insist(latest?.id===request.policy_id,'Retainer policy changed; approve a fresh request',409);
