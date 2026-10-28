@@ -394,3 +394,97 @@ retaining their CSVs is not import or reconciliation. Source shutdown and signed
 cutover remain refused. BILL-015 number-preservation duties and its provider and
 ledger prerequisites remain unchanged. This path grants no quarantine clearance,
 malware verdict, large-file support, source-account authority or other hold release.
+
+## Filevine Data Connector reports
+
+Use `satchel-filevine-v1` for buyer-supplied UTF-8 Data Connector CSV reports.
+This path handles contacts, two or more explicitly mapped project types, single
+custom sections, repeated collection rows and contact relationships. It never
+connects to a Filevine account. DataBridge and Snowflake retrieval and vendor
+assistance require separate buyer authorization; no source account credentials
+or execution settings belong in this package. Reports with credential headers
+are refused before retention.
+
+Prepare a JSON package with `schema`, an opaque source `account`, `phase`
+(`snapshot` or `delta`), `extractedAt`, `mappingRevision`, `csvFiles`, `mappings`,
+`projectTypes`, `sections`, `roleMappings`, and `clientRepairs`. Each CSV file
+has `name`, canonical `contentBase64`, and its exact-byte `sha256`. File names
+are unique, without paths. Limits are 100 reports, 1 MiB each, 6 MiB total and
+1,000 normalized records per package. Original report bytes, headers, unmapped
+columns, mapping revision and raw project rows remain available through
+**Review retained Filevine source** after a commit and after restart or restore.
+
+Every mapping names a source `file` and a `columns` object whose keys below
+are native targets and whose values are exact source headers:
+
+| Dataset | Required targets | Optional targets |
+| --- | --- | --- |
+| `contacts` | `id`, `name` | `aliases`, `email` |
+| `projects` | `id`, `display_number`, `description`, `client_id`, `adverse_party`, `status`, `opened_at`, `project_type` | `case_number`, `court`, `insuranceLimit`, `feeArrangement`, `feeTerms`, `closed_at` |
+| `relationships` | `id`, `matter_id`, `contact_id`, `relation` | None |
+| `roles` | `matter_id`, `source_person`, `source_role` | None |
+
+Contacts and projects are required; the other mappings are optional. Explicit
+`values.status` maps every exported status to `open` or `closed`; closed
+projects require their source closing timestamp. Explicit `values.relation`
+maps contact roles to `client`, `adverse`, `insurer`, `witness`, `expert` or
+`counsel`. These are contact relationships, never staff privileges. Missing
+contacts or projects, duplicate IDs, invalid types and unsupported roles block
+commit. `clientRepairs` explicitly redirects an unmatched source client ID.
+
+`projectTypes` is keyed by the exact exported project type. Each entry names
+an existing native `typeId`, `typeVersion`, `practiceCode` and `custom` object
+mapping native field keys to project-report headers. Configure those types
+using the existing native matter-type controls before preview. Native required
+fields, dates, exact money, choices, numbers and yes-or-no values are validated;
+an import does not create or modify type definitions.
+
+For example, a section mapping has this shape:
+
+```json
+{
+  "key": "treatment",
+  "file": "Treatments.csv",
+  "projectType": "Injury",
+  "projectId": "Project ID",
+  "rowId": "Row ID",
+  "fields": {"provider": "Provider", "cost": "Cost"}
+}
+```
+
+Each `sections` entry identifies one source section and project type. Without
+`rowId`, exactly one section row per project contributes to its native custom
+fields. With `rowId`, each row retains its identity within the project and
+section, source file, line, raw cells and typed native values. Identical cells
+in two distinct source rows remain two rows. A collection uses the mapped
+matter type's field definitions; money is stored in integer USD cents and
+boolean values as booleans. Collection rows pin that type version and appear
+under **Imported collection rows** on the matter. Ordinary later field edits
+or type adoption leave this imported history intact.
+
+`roleMappings` maps exported source role labels to proposed native role labels.
+The preview shows each source person, project, source role and proposed role.
+These proposals never create members, invitations, access grants, agent keys
+or execution authority. Only the current native membership and matter access
+apply. All migration actions require the active human principal and access to
+every ethical wall. Each project passes the ordinary fresh conflict search and
+explicit human clearance before its profile and collection rows are written
+atomically with its durable checkpoint.
+
+Source identity is isolated by Filevine and the opaque account reference;
+matching IDs from Clio, MyCase or another Filevine account are distinct. Exact
+replay resumes the same job without duplication. Changed source content,
+changed mapped values, removed rows and erased rows refuse overwriting or
+resurrection. Re-preview after changing any bytes or mapping, and use the
+returned fingerprint when committing. A final delta names the preceding
+completed fingerprint.
+
+This CSV path always reports incomplete coverage. Doc Zipping originals,
+activity, calendar, finance, tasks, billing, complete file reconciliation and
+source-total reconciliation remain required before source shutdown. Unmapped
+fields and unsupported reports are retained and named in the preview, never
+reported as imported. The reconciliation and cutover doors refuse even a
+completed final delta while these gaps remain. BILL-015's complete cutover,
+source-number preservation and ledger prerequisites remain unchanged. This
+path grants no document quarantine clearance, source access, billing approval
+or release of any existing provider or lane hold.

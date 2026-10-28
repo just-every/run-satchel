@@ -5,6 +5,8 @@ import {contactProfile} from '../contact-data';
 import {openMatter} from '../matters';
 import {importedMatterProfile} from '../matter-fields';
 import {guard} from '../trust-guards';
+import {matterGuard} from '../documents';
+import {matter} from '../model';
 import {type MoveRow,type MovePackage,type MoveFile,money} from './package';
 export const targetId=(account:string,kind:string,sourceId:string)=>'move:'+sha256(canonicalJson([account,kind,sourceId]));
 export const targetTables:Record<string,string>={contacts:'s_parties',matters:'s_matters',relationships:'s_matter_parties',documents:'s_documents',notes:'s_matter_notes',calls:'s_matter_notes',emails:'s_matter_notes',calendar:'s_appointments',tasks:'s_tasks',time:'s_entries',expenses:'s_entries',invoices:'s_bills',trust:'s_move_trust',grow:'s_leads'};
@@ -20,9 +22,10 @@ export async function applyNative(db:D1Database,actor:Actor,job:Data,p:MovePacka
  const mid=v.matter_id?targetId(p.account,'matters',v.matter_id):'',staff=v.staff_id?p.staff[v.staff_id]:actor.email;
  const writes:D1PreparedStatement[]=[];
  if(v.staff_id)writes.push(guard(db,"EXISTS(SELECT 1 FROM s_members WHERE email=? AND active=1 AND role<>'client') OR EXISTS(SELECT 1 FROM oa_operators WHERE email=? AND role='owner' AND status='active')",staff,staff));
- if(r.kind==='contacts')writes.push(stmt(db,'INSERT INTO s_parties(id,name,aliases,email,source,revision) VALUES(?,?,?,?,?,?)',target,v.name,v.aliases??'',v.email??'',p.mycase?'mycase':'clio',id()));
+ if(r.kind==='contacts')writes.push(stmt(db,'INSERT INTO s_parties(id,name,aliases,email,source,revision) VALUES(?,?,?,?,?,?)',target,v.name,v.aliases??'',v.email??'',p.filevine?'filevine':p.mycase?'mycase':'clio',id()));
  if(r.kind==='contacts'&&v.profile){const profile=contactProfile(JSON.parse(v.profile));writes.push(stmt(db,'INSERT INTO s_contact_profiles VALUES(?,?,?,?,?,?,?,?,?,?,?)',target,profile.kind,profile.name,JSON.stringify(profile.aliases),JSON.stringify(profile.formerNames),JSON.stringify(profile.emails),JSON.stringify(profile.phones),JSON.stringify(profile.addresses),id(),actor.email,at));}
  if(r.kind==='relationships'){
+  if(mid){await matter(db,actor,mid);writes.push(...matterGuard(db,actor,mid));}
   if(v.other_contact_id){table='s_contact_relationships';writes.push(stmt(db,'INSERT INTO s_contact_relationships VALUES(?,?,?,?,?,?)',target,targetId(p.account,'contacts',v.contact_id),targetId(p.account,'contacts',v.other_contact_id),v.relation,actor.email,at));}
   else if(['client','adverse'].includes(v.relation))writes.push(stmt(db,'INSERT OR IGNORE INTO s_matter_parties(matter_id,party_id,relation) VALUES(?,?,?)',mid,targetId(p.account,'contacts',v.contact_id),v.relation));
   else {table='s_contact_matter_roles';writes.push(stmt(db,'INSERT INTO s_contact_matter_roles VALUES(?,?,?,?,?,?)',target,targetId(p.account,'contacts',v.contact_id),mid,v.relation,actor.email,at));}

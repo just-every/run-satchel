@@ -5,12 +5,13 @@ import {contactProfile} from '../contact-data';
 import {calendarIcs} from './ics';
 import {parseCsv} from './csv';
 import {prepareMyCase,type MyCaseSource} from './mycase';
+import {prepareFilevine,type FilevineSource} from './filevine';
 
 export const kinds=['contacts','matters','relationships','documents','notes','calls','emails','calendar','tasks','time','expenses','invoices','trust','grow'] as const;
 export type Kind=typeof kinds[number];
 export type MoveRow={kind:Kind;id:string;identity:string;hash:string;value:Data;line:number};
 export type MoveFile={id:string;name:string;sha256:string;contentBase64:string;modifiedAt:string;mime:string;size:number};
-export type MovePackage={schema:string;account:string;phase:string;previousFingerprint?:string;extractedAt:string;datasets:Record<Kind,string>;files:MoveFile[];staff:Record<string,string>;clientRepairs:Record<string,string>;coverage:Record<string,string>;counts:Record<Kind,number>;balances:Data;trustAccountId?:string;calendarMatters?:Record<string,string>;mycase?:MyCaseSource;mycaseReview?:Data};
+export type MovePackage={schema:string;account:string;phase:string;previousFingerprint?:string;extractedAt:string;datasets:Record<Kind,string>;files:MoveFile[];staff:Record<string,string>;clientRepairs:Record<string,string>;coverage:Record<string,string>;counts:Record<Kind,number>;balances:Data;trustAccountId?:string;calendarMatters?:Record<string,string>;mycase?:MyCaseSource;mycaseReview?:Data;filevine?:FilevineSource;filevineReview?:Data};
 const columns:Record<Kind,string[]>={
  contacts:['id','name'],matters:['id','display_number','description','client_id','adverse_party','status','opened_at'],
  relationships:['id','matter_id','contact_id','relation'],documents:['id','matter_id','file_id','date','visibility'],
@@ -24,16 +25,17 @@ export const money=(v:unknown,label:string)=>{const s=String(v);insist(/^\d{1,12
 export function timestamp(v:unknown,label:string){const s=text(v,label,40);insist(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{3})?Z$/.test(s)&&Number.isFinite(Date.parse(s))&&new Date(s).toISOString()===(s.includes('.')?s:s.slice(0,-1)+'.000Z'),`${label} must be a UTC timestamp`);return s;}
 export function parsePackage(input:unknown){
  insist(input&&typeof input==='object'&&!Array.isArray(input),'Supply a prepared migration package');
- const p=(input as Data).schema==='satchel-mycase-v1'?prepareMyCase(input as Data,columns) as unknown as MovePackage:input as MovePackage;
- insist(['satchel-clio-v1','satchel-mycase-v1'].includes(p.schema),'Use a supported Clio or MyCase export schema');
+ const p=((input as Data).schema==='satchel-filevine-v1'?prepareFilevine(input as Data,columns):(input as Data).schema==='satchel-mycase-v1'?prepareMyCase(input as Data,columns):input) as MovePackage;
+ insist(['satchel-clio-v1','satchel-mycase-v1','satchel-filevine-v1'].includes(p.schema),'Use a supported Clio, MyCase or Filevine export schema');
  insist(p.schema==='satchel-mycase-v1'||!p.mycase,'MyCase source envelope requires its own schema');
+ insist(p.schema==='satchel-filevine-v1'||!p.filevine,'Filevine source envelope requires its own schema');
  text(p.account,'Source account reference',100);timestamp(p.extractedAt,'Extraction time');
  insist(p.phase==='snapshot'||p.phase==='delta','Choose snapshot or delta');
  if(p.phase==='delta')insist(typeof p.previousFingerprint==='string'&&/^[a-f0-9]{64}$/.test(p.previousFingerprint),'A delta must name its preceding completed package');
  insist(p.datasets&&p.counts&&p.coverage&&p.balances&&p.staff&&p.clientRepairs,'Supply datasets, counts, coverage, balances and explicit staff and client mappings');
  insist(Array.isArray(p.files)&&p.files.length<=500,'Supply at most 500 small originals per package');
  insist(JSON.stringify(p).length<=12_000_000,'Split packages larger than 12 MB into reviewed deltas');
- const errors:string[]=[...(p.mycaseReview?.errors??[])],warnings:string[]=[...(p.mycaseReview?.warnings??[])],records:MoveRow[]=[];
+ const errors:string[]=[...(p.mycaseReview?.errors??p.filevineReview?.errors??[])],warnings:string[]=[...(p.mycaseReview?.warnings??p.filevineReview?.warnings??[])],records:MoveRow[]=[];
  const fail=(message:string)=>errors.push(message);
  const files=new Map<string,MoveFile>();
  for(const f of p.files){
@@ -95,5 +97,5 @@ export function parsePackage(input:unknown){
  for(const r of byKind('trust')){references.push({row:r,kind:'documents',id:r.value.document_id});references.push({row:r,kind:'contacts',id:p.clientRepairs[r.value.client_id]??r.value.client_id});}
  for(const r of [...byKind('time'),...byKind('expenses')])if(r.value.invoice_id)references.push({row:r,kind:'invoices',id:r.value.invoice_id});
  for(const k of ['billedCents','unbilledCents','arCents','trustCents'])money(p.balances[k],k);
- return {package:p,records,files,references,errors,warnings,fingerprint:sha256(canonicalJson(p)),mappingVersion:p.mycase?`${p.schema}:${p.mycase.mappingRevision}`:p.schema,columns,contactIds,matterIds};
+ return {package:p,records,files,references,errors,warnings,fingerprint:sha256(canonicalJson(p)),mappingVersion:p.mycase||p.filevine?`${p.schema}:${(p.mycase??p.filevine)!.mappingRevision}`:p.schema,columns,contactIds,matterIds};
 }

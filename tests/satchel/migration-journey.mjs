@@ -76,3 +76,25 @@ export async function proveMyCaseMoveInUi(h,page,shot){
  await tab(page,'Matters');await page.getByLabel('Find a matter').fill('MC-2020-1');await page.getByRole('button',{name:/MC-2020-1 · MyCase active advice/}).click();const history=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'Imported source history',exact:true})});await history.getByText('matters · matter-1 · imported',{exact:true}).waitFor();await shot('mycase-case-provenance');
  await tab(page,'Documents');await page.getByText('MyCase-advice.txt',{exact:true}).first().waitFor();await shot('mycase-original');
 }
+
+export async function proveFilevineMoveInUi(h,page,shot){
+ const {setupFilevine}=await import('./filevine-migration-flow.mjs'),p=await setupFilevine(h);
+ await tab(page,'Move in');const panel=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'Whole firm move',exact:true})});
+ await panel.getByLabel('Prepared migration package',{exact:true}).setInputFiles({name:'synthetic-satchel-filevine.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(p))});
+ await panel.getByRole('button',{name:'Preview whole firm move',exact:true}).click();await panel.getByText('Source: Filevine',{exact:true}).waitFor();
+ const roles=panel.locator('details').filter({has:page.getByText('Proposed role mappings',{exact:true})});await roles.locator('summary').click();await roles.getByText('matter-1 · synthetic-satchel-member · Project Administrator → owner',{exact:true}).waitFor();await shot('filevine-preview');
+ assert.equal(await panel.getByRole('alert').count(),0);await panel.getByRole('button',{name:'Commit reviewed package',exact:true}).click();await panel.getByText('applying · 0 of 6 records',{exact:true}).waitFor();
+ for(let index=0;index<6;index++){
+  const search=panel.getByRole('button',{name:'Search conflicts for next matter',exact:true});
+  if(await search.count()){
+   await search.click();const review=form(panel,'Import reviewed source matter');await review.getByLabel('Conflict conclusion and clearance',{exact:true}).fill('Principal reviewed the Filevine project and each source relationship.');await review.getByLabel('I reviewed the source matter, every match and my authority to open it.',{exact:true}).check();await review.getByRole('button',{name:'Import reviewed source matter',exact:true}).click();
+  }else await panel.getByRole('button',{name:'Apply next source record',exact:true}).click();
+  await panel.getByText(new RegExp('^(applying|completed) · '+(index+1)+' of 6 records$')).waitFor();
+  if(index===2){await page.reload();await tab(page,'Move in');const item=panel.locator('article.record').filter({has:page.getByText(/^filevine · synthetic-satchel-1/)});await item.getByRole('button',{name:'Open move checkpoint',exact:true}).click();await panel.getByText('applying · 3 of 6 records',{exact:true}).waitFor();}
+ }
+ await panel.getByRole('button',{name:'Review retained Filevine source',exact:true}).click();const [download]=await Promise.all([page.waitForEvent('download'),panel.getByRole('link',{name:'Download Treatments.csv',exact:true}).click()]);assert.equal((await readFile(await download.path())).toString('base64'),p.csvFiles.find(f=>f.name==='Treatments.csv').contentBase64);await shot('filevine-retained-source');
+ await panel.getByRole('button',{name:'Reconcile whole firm move',exact:true}).click();await panel.getByRole('alert').filter({hasText:'Filevine unsupported: Doc Zipping'}).waitFor();assert.equal(await panel.getByRole('button',{name:'Sign reconciled cutover',exact:true}).count(),0);await shot('filevine-incomplete-reconciliation');
+ await tab(page,'Matters');await page.getByLabel('Find a matter').fill('FV-2020-1');await page.getByRole('button',{name:/FV-2020-1 · Filevine injury review/}).click();
+ const fields=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'Matter type and fields',exact:true})});await fields.getByText('Matter type: Filevine injury · version 1',{exact:true}).waitFor();await fields.getByText('Imported collection rows (2)',{exact:true}).click();await fields.getByRole('heading',{name:'treatment · row-1',exact:true}).waitFor();await fields.getByRole('heading',{name:'treatment · row-2',exact:true}).waitFor();assert.equal(await fields.getByText('$120.50',{exact:true}).count(),2);await shot('filevine-injury-collections');
+ await page.getByLabel('Find a matter').fill('FV-2020-2');await page.getByRole('button',{name:/FV-2020-2 · Filevine estate review/}).click();await fields.getByText('Matter type: Filevine estate · version 1',{exact:true}).waitFor();await fields.getByText('Imported collection rows (2)',{exact:true}).click();await fields.getByText('Synthetic Satchel Heir',{exact:true}).waitFor();await fields.getByText('49.5',{exact:true}).waitFor();await shot('filevine-estate-collections');
+}

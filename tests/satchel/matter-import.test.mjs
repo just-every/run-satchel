@@ -1,3 +1,4 @@
+import {proveFilevineMove} from './filevine-migration-flow.mjs';
 import {proveMyCaseMove} from './mycase-migration-flow.mjs';
 import {proveWholeFirmMove,proveMoveRefusals} from './migration-flow.mjs';
 import { test } from 'node:test';
@@ -65,6 +66,7 @@ test('MATTER-008 / MOVE-002 matter subset previews without writes, preserves sou
     assert.equal((await restored.json('/state', undefined, restored.owner)).matters.length, 3);
     await proveMyCaseMove(h);
     await proveWholeFirmMove(h);
+    await proveFilevineMove(h);
   } finally { await restored?.close(); await h.close(); }
 });
 

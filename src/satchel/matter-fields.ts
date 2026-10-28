@@ -11,6 +11,7 @@ function profileJson(p:Data|null):Profile {
  return {typeId:p?.type_id??null,typeVersion:p?.type_version??null,caseNumber:p?.case_number??null,court:p?.court??null,insuranceLimitCents:p?.insurance_limit_cents??null,feeArrangement:p?.fee_arrangement??null,feeTerms:p?.fee_terms??null,custom:JSON.parse(p?.custom??'{}'),revision:p?.revision??null};
 }
 export const readProfile=async(db:D1Database,matterId:string)=>profileJson(await stmt(db,'SELECT * FROM s_matter_fields WHERE matter_id=?',matterId).first<Data>());
+export const readCollections=async(db:D1Database,matterId:string)=>JSON.parse((await stmt(db,'SELECT collections_json FROM s_matter_fields WHERE matter_id=?',matterId).first<Data>())?.collections_json??'[]');
 export const caseNumber=(value:unknown)=>plain(value,'Case number',100);
 
 const builtinValue:Record<Builtin,(p:Profile)=>unknown>={caseNumber:p=>p.caseNumber,court:p=>p.court,insuranceLimit:p=>p.insuranceLimitCents,feeArrangement:p=>p.feeArrangement};
@@ -39,7 +40,7 @@ export async function matterFields(db:D1Database,actor:Actor,matterId:string) {
   rows(db,"SELECT p.name FROM s_matter_parties mp JOIN s_parties p ON p.id=mp.party_id WHERE mp.matter_id=? AND mp.relation='adverse' ORDER BY p.name",matterId),
   rows(db,'SELECT * FROM s_matter_field_events WHERE matter_id=? ORDER BY at,id',matterId)]);
  const available=documents.filter(d=>!d.erasedAt),titles=new Map(documents.map(d=>[d.id,d.title]));
- return {matterId,matterNumber:m.matter_number,practiceCode:m.practice_code,lifecycleStatus:m.lifecycle_status,profile,type:pinned,latestVersion:current?.version??null,
+ return {matterId,matterNumber:m.matter_number,practiceCode:m.practice_code,lifecycleStatus:m.lifecycle_status,profile,collections:await readCollections(db,matterId),type:pinned,latestVersion:current?.version??null,
   opponents:opponents.map(o=>o.name),
   records:(pinned?.definition.records??[]).map(type=>{const onFile=available.filter(d=>d.documentType===type);return {type,status:onFile.length?'on file':'missing',documents:onFile.map(d=>({id:d.id,title:d.title,version:d.currentVersion}))};}),
   // The docket reuses deadline visibility: only dates and sources this viewer may see.
@@ -117,5 +118,28 @@ export async function mappedMatterProfile(db:D1Database,practice:string,input:Da
  return p;
 }
 export async function importedMatterProfile(db:D1Database,actor:Actor,matterId:string,practice:string,input:Data,source:Data){
- const p=await mappedMatterProfile(db,practice,input),revision=id(),at=now();return [write(db,actor,matterId,p,revision,at),...event(db,actor,matterId,'imported',{previous:null,profile:p,source},at)];
+ const p=await mappedMatterProfile(db,practice,input),collections=await mappedMatterCollections(db,input),revision=id(),at=now();return [write(db,actor,matterId,p,revision,at),stmt(db,'UPDATE s_matter_fields SET collections_json=? WHERE matter_id=?',JSON.stringify(collections),matterId),...event(db,actor,matterId,'imported',{previous:null,profile:p,collections,source},at)];
+}
+
+// Collection cells use the mapped matter type's field definitions. Row identity
+// and source location are independent of position and of repeated cell values.
+export async function mappedMatterCollections(db:D1Database,input:Data){
+ const incoming=input.collections??[];insist(Array.isArray(incoming)&&incoming.length<=1000,'Supply at most 1,000 collection rows per matter');
+ if(!incoming.length)return [];
+ const type=await typeVersion(db,input.typeId,input.typeVersion);insist(type,'Map a native matter type before importing collections');
+ const ids=new Set<string>();
+ return incoming.map((row:Data)=>{
+  const section=text(row.section,'Collection section',100),sourceId=text(row.sourceId,'Collection source identity',300),identity=JSON.stringify([section,sourceId]);
+  insist(!ids.has(identity),'Collection row identities must be unique within their section');ids.add(identity);
+  insist(row.values&&typeof row.values==='object'&&!Array.isArray(row.values),'Map collection fields explicitly');
+  insist(row.source&&typeof row.source==='object'&&!Array.isArray(row.source),'Retain the collection source location');
+  text(row.source.file,'Collection source filename',240);integer(row.source.line,'Collection source line',1);text(row.source.mappingRevision,'Collection mapping revision',100);
+  const values:Data={},fields:Data[]=[];
+  for(const [key,value] of Object.entries(row.values)){
+   const field=type.definition.fields.find(f=>f.key===key);insist(field,`Map collection field ${key} to the adopted matter type`);
+   const parsed=typedValue(field,value);insist(!field.required||parsed!==undefined,`${field.label} is required in each mapped collection row`);
+   if(parsed!==undefined)values[key]=parsed;fields.push({key,label:field.label,type:field.type});
+  }
+  return {section,sourceId,typeId:input.typeId,typeVersion:input.typeVersion,fields,values,source:row.source};
+ });
 }
