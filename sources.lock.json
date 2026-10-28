@@ -3772,7 +3772,7 @@
       "executable": false
     },
     "src/satchel/stripe-api.ts": {
-      "sha256": "b543dd1f354b1e5773d5a076abd503e1dad05dc41f0c67ec8a84f1162b24c54d",
+      "sha256": "a3877702a0e6dc939ac6b48df5c84c80a61a19607d9ed1b25d489fd6f5892567",
       "executable": false
     },
     "src/satchel/stripe-config.ts": {
@@ -4825,6 +4825,10 @@
     },
     "tests/satchel/payment-plan-flow.mjs": {
       "sha256": "4c548c3365277f292e420cccd7aca2a4905a9d7582fcd98a95d39e0bcf74ec91",
+      "executable": false
+    },
+    "tests/satchel/payment-plan-sandbox.mjs": {
+      "sha256": "f2d0b0cc69752ecc1404bc7b3fec5bef1d59640275f252e057890d1770ac3270",
       "executable": false
     },
     "tests/satchel/portal-identities-journey.test.mjs": {
