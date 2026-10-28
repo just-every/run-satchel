@@ -36,7 +36,8 @@ export async function collectionView(db:D1Database,s:Data):Promise<Data>{
  else if(status==='active'&&lastEvent&&['dispute','promise','hardship','representation'].includes(lastEvent.kind)){status='paused';reason=lastEvent.kind+': '+lastEvent.note;}
  else if(status==='active'&&last&&!['accepted','delivered','sandbox_validated'].includes(last.outcome)&&!(lastEvent?.kind==='decision'&&lastEvent.decision_attempt_id===last.id)){status='review';reason='Check the provider and record a new decision before another step';}
  else if(status==='active'&&step>=steps.length){status='completed';reason='Approved steps exhausted; route to counsel';}
- const nextDueAt=step>=steps.length?null:lastEvent?.next_due_at??new Date(Math.max(Math.max(Date.parse(s.first_due_at),balance.dueDate?Date.parse(balance.dueDate+'T00:00:00.000Z'):0)+steps[step]*86400000,last?Date.parse(last.attempted_at)+(steps[step]-steps[step-1])*86400000:0)).toISOString();
+ // A cleared pause may delay contact, but cannot remove the approved interval between steps.
+ const nextDueAt=step>=steps.length?null:new Date(Math.max(lastEvent?.next_due_at?Date.parse(lastEvent.next_due_at):0,Math.max(Date.parse(s.first_due_at),balance.dueDate?Date.parse(balance.dueDate+'T00:00:00.000Z'):0)+steps[step]*86400000,last?Date.parse(last.attempted_at)+(steps[step]-steps[step-1])*86400000:0)).toISOString();
  return {...s,approvalReason:s.reason,kind:s.bill_id?'invoice':'retainer',steps,events,attempts,step,status,reason,...balance,nextDueAt};
 }
 export async function collectionSendGuards(db:D1Database,actor:Actor,attempt:Data,atMs:number){

@@ -25,7 +25,7 @@ export async function collectionsFlow(options={}){
   }
   const state=()=>h.json(base+'/collections',undefined,h.owner),get=async id=>(await state()).sequences.find(s=>s.id===id);
   const start=async source=>h.json(base+'/collections',{...source,recipient:client,firstDueAt:'2000-01-01T00:00:00.000Z',steps:[0,7,14],reason:'Counsel approves three consented reminder steps',confirmed:true},h.owner);
-  const run=id=>h.json('/collections/'+id+'/run',{},h.owner),act=(id,kind)=>h.json('/collections/'+id+'/actions',{kind,note:'Counsel routes and resolves '+kind+' with the responsible person'},h.owner);
+  const run=id=>h.json('/collections/'+id+'/run',{},h.owner),act=(id,kind,nextDueAt)=>h.json('/collections/'+id+'/actions',{kind,note:'Counsel routes and resolves '+kind+' with the responsible person',...(nextDueAt?{nextDueAt}:{})},h.owner);
   const receipt=async(b,key,cents=10000)=>h.json('/offline-payments',{requestKey:key,payer:m.client,method:'check',reference:'synthetic-satchel-'+key,receivedDate:'2026-10-01',depositDate:'2026-10-02',operatingAccountId:f.operating.id,cents,purpose:'operating',allocations:[{billId:b.id,cents}]},h.owner);
   const bounce=async(p,key)=>h.json('/offline-payments/'+p.id+'/actions',{requestKey:key,kind:'bounce',reason:'Bank returned the recorded check'},h.owner);
   const first=await issued('Overdue counsel invoice'),s=await start({billId:first.id});
@@ -36,9 +36,13 @@ export async function collectionsFlow(options={}){
   assert.ok(Date.parse((await state()).invoices.find(i=>i.id===first.id).dueDate)<Date.parse(clock(1)));await h.scheduled(clock(1));let result=await get(s.id);assert.equal(result.step,1);assert.equal(result.attempts[0].due_cents,10000);assert.ok(['accepted','sandbox_validated'].includes(result.attempts[0].outcome));
   await run(s.id);assert.equal((await get(s.id)).step,1,'Replayed capture cannot contact again');
   await h.json('/mail-attempts/'+result.attempts[0].attempt_id+'/resend-review',{reason:'Cannot bypass the collection step'},h.owner,409);
-  for(const kind of ['dispute','promise','hardship','representation']){assert.equal((await act(s.id,kind)).status,'paused');await h.scheduled(clock(8));assert.equal((await get(s.id)).step,1);assert.equal((await act(s.id,'clear')).status,'active');}
+  for(const kind of ['dispute','promise','hardship','representation']){assert.equal((await act(s.id,kind)).status,'paused');await h.scheduled(clock(8));assert.equal((await get(s.id)).step,1);assert.equal((await act(s.id,'clear',kind==='representation'?clock(8):undefined)).status,'active');}
   const paid=await receipt(first,'paid');assert.equal((await get(s.id)).status,'resolved');await h.scheduled(clock(8));assert.equal((await get(s.id)).step,1);
-  await bounce(paid,'returned');assert.equal((await get(s.id)).status,'active');await h.restart();await h.scheduled(clock(8));result=await get(s.id);assert.equal(result.step,2);assert.deepEqual(result.attempts.map(a=>a.collection_step),[0,1]);
+  await bounce(paid,'returned');assert.equal((await get(s.id)).status,'active');await h.restart();
+  const beforeResumedContact=h.mails.length;await h.scheduled(Date.parse(clock(8))-15*60000);assert.equal((await get(s.id)).step,1,'The cleared pause waits for its approved next contact');assert.equal(h.mails.length,beforeResumedContact);
+  await h.scheduled(clock(8));result=await get(s.id);assert.equal(result.step,2);assert.deepEqual(result.attempts.map(a=>a.collection_step),[0,1]);
+  assert.equal(result.nextDueAt,clock(15),'Later steps retain the approved interval after a cleared pause');
+  const afterResumedContact=h.mails.length;await h.restart();await h.scheduled(Date.parse(clock(8))+15*60000);result=await get(s.id);assert.equal(result.step,2,'The next cron tick cannot reuse the cleared-pause contact date');assert.equal(h.mails.length,afterResumedContact,'No reminder is sent before the next approved step');assert.equal(result.nextDueAt,clock(15));
   await bounce(paid,'returned');assert.equal((await get(s.id)).step,2);await act(s.id,'stop');
 
   const full=await issued('Trust pays in full'),part=await issued('Trust pays in part'),sf=await start({billId:full.id}),sp=await start({billId:part.id});
