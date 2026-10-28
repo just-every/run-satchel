@@ -3104,11 +3104,11 @@
       "executable": false
     },
     "src/satchel/agent-jobs.ts": {
-      "sha256": "4297cedb0a8dc21efc9a3aaf04ec7c1bd5945d5523c592fff36d46232a59c1ef",
+      "sha256": "73804a53745a4713dbac8a674195254e51a16f2ac4d63668d2301c4ddb2b0f9a",
       "executable": false
     },
     "src/satchel/agent-preparations.ts": {
-      "sha256": "6dcf7d8b07d19056f0ffe3e4d187a265e51f2e18f219ee7e42eb71c43cb84cf0",
+      "sha256": "4da229f3f198ee7add65004d53ccc73727cc4dba7fd2a40fc65f89c0cff9d502",
       "executable": false
     },
     "src/satchel/api.ts": {
@@ -4452,7 +4452,7 @@
       "executable": false
     },
     "tests/satchel/agent-execution-flow.mjs": {
-      "sha256": "73c0f0c314a789fcdb16691fa410136256f0401f521bc3c2e8f77710e2fe5e46",
+      "sha256": "2e5570ba010b7c000757a382a5fc53e7a6d4de909b0c2660651a8aa4beaec764",
       "executable": false
     },
     "tests/satchel/agent-fixture.mjs": {

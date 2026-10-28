@@ -59,7 +59,7 @@ export async function proveAgentExecution(){
   // A fresh delegation cannot keep queued work alive after agreement withdrawal,
   // erased source bytes, credential revocation, expiry or sponsor removal.
   const make=async(label,options={})=>{const k=await h.json('/keys',{label},h.owner),grant=await authorizeAgent(h,k,m.id,options);return {k,...grant};};
-  const queue=async(g,requestKey)=>h.json('/agent/jobs',{...jobBody,requestKey},'',200,g.auth);
+  const queue=async(g,requestKey)=>h.json('/agent/jobs',{...jobBody,requestKey,payload:{matterId:m.id,title:'Bounded new preparation',date:'2027-01-15',timezone:'America/New_York',source:'Review required'}},'',200,g.auth);
   const withdrawn=await make('Withdrawn agreement'),wj=await queue(withdrawn,'synthetic-satchel-11');await h.json('/agent-agreements/'+withdrawn.agreement.id+'/withdraw',{reason:'Terms no longer approved'},h.owner);await h.scheduled(Date.now());assert.equal((await h.json('/agent-controls',undefined,h.owner)).jobs.find(j=>j.id===wj.id).outcome,'agreement_withdrawn');
   const erased=await make('Erased source fence',{delegation:{sources:[{documentId:record.id,version:1,kind:'matter'}]}}),ej=await queue(erased,'synthetic-satchel-12');
   await h.json('/documents/'+record.id+'/erase',{confirm:record.title,reason:'Remove source bytes'},h.owner);await h.scheduled(Date.now());assert.equal((await h.json('/agent-controls',undefined,h.owner)).jobs.find(j=>j.id===ej.id).status,'refused');await h.json('/agent/matters/'+m.id,undefined,'',403,erased.auth);
