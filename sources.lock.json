@@ -115,6 +115,10 @@
     }
   ],
   "files": {
+    ".github/satchel-shards.json": {
+      "sha256": "0daae8419b924dce1f64d39a4f769330121bb162d4138ec0c33742554ffd8a5e",
+      "executable": false
+    },
     ".github/workflows/rer-managed.yml": {
       "sha256": "272fc0a0722e4c60f99ef911340bfe5944b1afbb1730e2a6810f6262fdc5d656",
       "executable": false
@@ -128,7 +132,7 @@
       "executable": false
     },
     ".github/workflows/verify.yml": {
-      "sha256": "cb50355f63973195adcbfba30f15fb3f8e009241b409a664bfe7539b599ec806",
+      "sha256": "1555791fe82c05acda8083a030ab47900e204101dfc578c43152371bb42082f6",
       "executable": false
     },
     ".gitignore": {
@@ -1189,6 +1193,10 @@
     },
     "scripts/operations-config.mjs": {
       "sha256": "decbd8619e40c741708b49639d54282bd19edc4581a782b240d96a423ad47f01",
+      "executable": false
+    },
+    "scripts/test-satchel-shard.mjs": {
+      "sha256": "11802bfc92e0c36ebab062df0d5df71ecec27eb96de1c6b1dcc4c18b17279ed7",
       "executable": false
     },
     "SEED-COMMAND-CONTRACT.md": {
