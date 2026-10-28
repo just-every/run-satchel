@@ -69,7 +69,7 @@ function CollectionRecord({sequence:s,act}:{sequence:Row;act:Act}){
  const [kind,setKind]=useState('dispute');
  const open=['active','paused','review'].includes(s.status);
  return <article className="record" aria-label={'Collection for '+(s.number??s.recipient)}>
-  <strong>{s.kind==='invoice'?'Invoice '+(s.number??s.bill_id):'Retainer replenishment'} · {dollars(s.dueCents)} remaining</strong>
+  <strong>{s.kind==='invoice'?'Invoice '+(s.number??s.bill_id):'Retainer replenishment'} · {s.dueCents===null?'Balance requires review':dollars(s.dueCents)+' remaining'}</strong>
   <p>{s.recipient} · <span className="badge">{s.status}</span><br/>Responsible owner: {s.owner_email}<br/>Next contact: {dateTime(s.nextDueAt)} · {Number(s.step)<s.steps.length?`Step ${Number(s.step)+1} of ${s.steps.length}`:'Schedule complete'}</p>
   <details><summary>Schedule and collection history</summary>
    <p>{s.reason}</p>{s.subject&&<><h3>Approved reminder wording</h3><p><strong>{s.subject}</strong></p><p style={{whiteSpace:'pre-wrap'}}>{s.body}</p></>}<p>Contact day offsets: {s.steps.join(', ')}</p>

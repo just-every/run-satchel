@@ -27,7 +27,7 @@ export async function collectionView(db:D1Database,s:Data):Promise<Data>{
  const attempts=await rows(db,`SELECT c.*,a.status,a.attempted_at,a.detail,a.provider_id,COALESCE((SELECT e.status FROM s_correspondence_events e WHERE e.attempt_id=a.id ORDER BY e.observed_at DESC,e.id DESC LIMIT 1),a.status) outcome FROM s_collection_attempts c JOIN s_correspondence_attempts a ON a.id=c.attempt_id WHERE c.collection_id=? ORDER BY c.collection_step`,s.id);
  const steps=JSON.parse(s.steps),sent=attempts.filter(a=>a.attempted_at),last=sent.at(-1),step=sent.length,lastEvent=events.at(-1);
  let balance:Data,reason='',status='active';
- try{balance=await collectionBalance(db,s);}catch(e){balance={dueCents:0,number:s.bill_id?'Invoice unavailable':'Retainer replenishment',void:false};status='review';reason=e instanceof Error?e.message:'Review source';}
+ try{balance=await collectionBalance(db,s);}catch(e){balance={dueCents:null,number:s.bill_id?'Invoice unavailable':'Retainer replenishment',void:false};status='review';reason=e instanceof Error?e.message:'Review source';}
  const authorization=await stmt(db,'SELECT * FROM s_client_reminder_authorizations WHERE matter_id=? ORDER BY sequence DESC LIMIT 1',s.matter_id).first<Data>();
  if(status==='active'&&(!authorization?.enabled||authorization.id!==s.authorization_id)){status='review';reason='Reminder authority changed; no further contact';}
  if(lastEvent?.kind==='stop'){status='completed';reason=lastEvent.note;}
