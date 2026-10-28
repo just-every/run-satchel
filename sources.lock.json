@@ -3096,7 +3096,7 @@
       "executable": false
     },
     "src/satchel/agent-authority.ts": {
-      "sha256": "aa1c71f2cde1016c423066fdd3dfc05fc91e08c908defaee01b92efb1a73ef47",
+      "sha256": "336fa8cdb6bec729d95ffda55797cb1fbcd5b9fa2ea1da219662f614df07ffed",
       "executable": false
     },
     "src/satchel/agent-context.ts": {
@@ -4292,7 +4292,7 @@
       "executable": false
     },
     "src/ui/proposals.tsx": {
-      "sha256": "a39ab7943780e4556073c638fad374821c17f4b6464c972ed0f8891b70edad9c",
+      "sha256": "0c0400c806942eb278594100b403ca4fc42f5357827dbf06b7fbe0aefdab1e69",
       "executable": false
     },
     "src/ui/providers.tsx": {
@@ -4452,7 +4452,7 @@
       "executable": false
     },
     "tests/satchel/agent-execution-flow.mjs": {
-      "sha256": "2e5570ba010b7c000757a382a5fc53e7a6d4de909b0c2660651a8aa4beaec764",
+      "sha256": "46e9f15c5239ae66aabba5eee8c278eb03f9006aa35dc11dd1541714acf44f3c",
       "executable": false
     },
     "tests/satchel/agent-fixture.mjs": {

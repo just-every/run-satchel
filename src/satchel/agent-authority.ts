@@ -7,9 +7,9 @@ export function agentOwner(actor:Actor){human(actor);need(actor,'owner');}
 export const guard=(db:D1Database,sql:string,...values:any[])=>{const g=id();return [stmt(db,'INSERT INTO s_guard VALUES(?,CASE WHEN ('+sql+') THEN 1 ELSE 0 END)',g,...values),stmt(db,'DELETE FROM s_guard WHERE id=?',g)];};
 export async function agentControls(db:D1Database,actor:Actor){
  human(actor);need(actor,'owner','lawyer');
- const delegations=await rows(db,'SELECT d.* FROM s_agent_delegations d WHERE d.sponsor_id=? ORDER BY d.approved_at,d.id',actor.id),visible:Data[]=[];
+ const delegations=await rows(db,"SELECT d.* FROM s_agent_delegations d WHERE d.sponsor_id=? OR ?='owner' ORDER BY d.approved_at,d.id",actor.id,actor.role),visible:Data[]=[];
  for(const d of delegations){try{await matter(db,actor,d.matter_id);visible.push({...d,actions:JSON.parse(d.actions),recipients:JSON.parse(d.recipients),sources:await rows(db,'SELECT * FROM s_agent_sources WHERE delegation_id=?',d.id)});}catch(error){if((error as {status?:number}).status!==404)throw error;}}
- return {agreements:await rows(db,'SELECT a.* FROM s_agent_agreements a JOIN s_agent_keys k ON k.id=a.key_id WHERE k.owner_id=? ORDER BY a.approved_at,a.id',actor.id),delegations:visible,jobs:await rows(db,`SELECT j.id,j.delegation_id,j.action,j.due_at,j.status,j.outcome,j.proposal_id,j.created_at,j.finished_at FROM s_agent_jobs j WHERE j.delegation_id IN (SELECT value FROM json_each(?)) ORDER BY j.created_at,j.id`,JSON.stringify(visible.map(d=>d.id)))};
+ return {agreements:await rows(db,"SELECT a.* FROM s_agent_agreements a LEFT JOIN s_agent_keys k ON k.id=a.key_id WHERE k.owner_id=? OR ?='owner' ORDER BY a.approved_at,a.id",actor.id,actor.role),delegations:visible,jobs:await rows(db,`SELECT j.id,j.delegation_id,j.action,j.due_at,j.status,j.outcome,j.proposal_id,j.created_at,j.finished_at FROM s_agent_jobs j WHERE j.delegation_id IN (SELECT value FROM json_each(?)) ORDER BY j.created_at,j.id`,JSON.stringify(visible.map(d=>d.id)))};
 }
 export async function approveAgentAgreement(db:D1Database,actor:Actor,b:Data){
  agentOwner(actor);const keyId=text(b.keyId,'Agent key',100);
