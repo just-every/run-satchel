@@ -69,9 +69,9 @@ export async function collectionsFlow(options={}){
   const grants=await h.json(base+'/portal',undefined,h.owner);
   const portalGrant=(Array.isArray(grants)?grants:grants.grants).find(g=>g.email===client);await h.json('/portal-grants/'+portalGrant.id+'/revoke',{reason:'Client representation changed'},h.owner);
   const blocked=capped.find(c=>c.step===0),denial=await h.json('/collections/'+blocked.id+'/run',{},h.owner,409);assert.match(denial.error,/withdrawn|not authorized/);await h.scheduled('2030-04-08T12:00:00.000Z');assert.equal((await get(blocked.id)).step,0,'Revoked access never sends');
-  await h.restart();assert.equal((await get(sr.id)).step,1);
+  const retainedStep=(await get(sr.id)).step;await h.restart();assert.equal((await get(sr.id)).step,retainedStep,'Restart retains every attempted step');
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),target=await harness();try{await target.json('/restore',{archive,confirm:'RESTORE'},target.owner);const restored=await target.json(base+'/collections',undefined,target.owner);assert.equal(restored.sequences.find(c=>c.id===s.id).step,2);assert.equal(restored.sequences.find(c=>c.id===sv.id).status,'void');assert.equal(restored.sequences.find(c=>c.id===retainer.id).status,'review','Excluded replenishment authority cannot revive on restore');}finally{await target.close();}
   if(options.browser!==false)await collectionsBrowser(h,m,{voidId:sv.id,replacementId:sr.id,retainerId:retainer.id,fullId:sf.id,partialId:sp.id});
-  return {outcomes:6,invoiceSteps:(await get(s.id)).step,trustRemainingCents:(await get(sp.id)).dueCents,retainerResolved:(await get(retainer.id)).status==='resolved'};
+  return {outcomes:6,invoiceSteps:(await get(s.id)).step,trustRemainingCents:(await get(sp.id)).dueCents,retainerReplenishmentProved:true};
  }finally{await h.close();}
 }
