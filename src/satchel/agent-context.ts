@@ -3,6 +3,9 @@ import {activeDelegations,authorizedDelegation,guard,liveAgentArgs,liveAgentSql}
 import {decode,documentGuard,listDocuments,visibleDocument} from './documents';
 import {listBilling} from './billing';
 import {listDeadlines} from './deadlines';
+import {agentForKey} from './session';
+import {gateGrants} from './role-areas';
+import {redact} from './role-redaction';
 
 export async function agentContext(db:D1Database,actor:Actor){
  const delegations=await activeDelegations(db,actor),matters:Data[]=[];
@@ -29,7 +32,6 @@ export async function agentMatterContext(db:D1Database,actor:Actor,matterId:stri
 
 export async function previewAgentContext(db:D1Database,actor:Actor,delegationId:string){
  human(actor);const d=await stmt(db,'SELECT * FROM s_agent_delegations WHERE id=? AND sponsor_id=?',delegationId,actor.id).first<Data>();insist(d,'Delegation not found',404);await matter(db,actor,d.matter_id);
- const {agentForKey}=await import('./session'),agent=await agentForKey(db,d.key_id);
- const {gateGrants}=await import('./role-areas');gateGrants(agent,'GET','/api/satchel/agent/matters/'+d.matter_id);
- return agentMatterContext(db,agent,d.matter_id,d.id);
+ const agent=await agentForKey(db,d.key_id),path='/api/satchel/agent/matters/'+d.matter_id;gateGrants(agent,'GET',path);
+ return redact(db,agent,path,await agentMatterContext(db,agent,d.matter_id,d.id));
 }

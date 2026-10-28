@@ -3,10 +3,11 @@ import {agentOwner,authorizedDelegation,guard,instant,liveAgentArgs,liveAgentSql
 import {preparationPayload} from './agent-preparations';
 import {matterGuard} from './documents';
 import {agentForKey} from './session';
-import {gateGrants} from './role-areas';
+import {gateGrants,requireArea} from './role-areas';
 import {propose} from './proposals';
 
 export async function queueAgentJob(db:D1Database,actor:Actor,delegationId:string,b:Data){
+ if(b.action==='prepare-bill')requireArea(actor,'billing','write');
  const d=await authorizedDelegation(db,actor,delegationId,text(b.action,'Preparation action',80)),requestKey=text(b.requestKey,'Request identity',100),due=instant(b.dueAt,'Scheduled instant'),{payload}=preparationPayload(b.action,b.payload,d);
  insist(due<d.expires_at,'Scheduled work must precede delegation expiry');
  const fingerprint=await digest(JSON.stringify({delegationId,action:b.action,dueAt:due,payload})),existing=await stmt(db,'SELECT * FROM s_agent_jobs WHERE key_id=? AND request_key=?',actor.agentKeyId,requestKey).first<Data>();

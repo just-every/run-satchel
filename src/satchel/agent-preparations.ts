@@ -1,6 +1,7 @@
 import {atomic,audit,id,insist,matter,now,rows,stmt,text,type Actor,type Data} from './model';
 import {authorizedDelegation} from './agent-authority';
 import {propose} from './proposals';
+import {requireArea} from './role-areas';
 
 const fields:Record<string,string[]>={matter:['title','client','adverse'],bill:['matterId','title','date','entryIds'],deadline:['matterId','title','date','timezone','source','kind','documentId']};
 export function preparationPayload(action:string,b:Data,d:Data){
@@ -12,6 +13,7 @@ export function preparationPayload(action:string,b:Data,d:Data){
 }
 export async function prepareAgent(db:D1Database,actor:Actor,delegationId:string,action:string,b:Data){
  try{
+  if(action==='prepare-bill')requireArea(actor,'billing','write');
   const d=await authorizedDelegation(db,actor,delegationId,action),{kind,payload}=preparationPayload(action,b,d);
   if(payload.documentId)insist(await stmt(db,'SELECT 1 FROM s_agent_sources WHERE delegation_id=? AND document_id=?',d.id,payload.documentId).first(),'Source outside this delegation',403);
   return await propose(db,{...actor,agentExecution:{delegation:d}},kind,payload);

@@ -3,7 +3,7 @@ import {api,Field,Form,type Row,type Run} from './common';
 
 function AgreementForm({keys,run}:{keys:Row[];run:Run}){
  return <details><summary>Review processing agreements</summary><Form label="Approve processing agreement" submit={d=>run(()=>api('/agent-agreements',{...d,confirmed:d.confirmed==='on',trainingAllowed:false}),'Processing agreement approved')}>
- <Field label="Agent key" name="keyId"><select name="keyId" required>{keys.filter(k=>!k.revoked).map(k=><option key={k.id} value={k.id}>{k.label}</option>)}</select></Field>
+ <Field label="Agent key" name="keyId"><select aria-label="Agent key" name="keyId" required>{keys.filter(k=>!k.revoked).map(k=><option key={k.id} value={k.id}>{k.label}</option>)}</select></Field>
  <Field label="Named processor" name="processor"/><Field label="Model or native preparation revision" name="modelRevision"/>
  <Field label="Reviewed agreement reference" name="agreementReference"/><Field label="Retention and deletion terms" name="retentionTerms"/><Field label="No-training terms" name="trainingTerms"/>
  <Field label="Health-data agreement reference" name="healthReference" required={false}/><Field label="Agreement expiry (ISO instant)" name="expiresAt"/>
@@ -14,8 +14,8 @@ function DelegationForm({state,controls,keys,run}:{state:Row;controls:Row;keys:R
  const [matterId,setMatterId]=useState(''),[documents,setDocuments]=useState<Row[]>([]),[sources,setSources]=useState<Record<string,Row>>({});
  useEffect(()=>{setSources({});setDocuments([]);if(matterId)api('/matters/'+matterId+'/documents').then(setDocuments).catch(e=>run(async()=>{throw e;}));},[matterId]);
  return <details><summary>Approve a bounded delegation</summary><Form label="Approve agent delegation" submit={d=>run(()=>api('/agent-delegations',{...d,matterId,actions:String(d.actions).split(',').map(v=>v.trim()).filter(Boolean),recipients:[d.recipient],maxJobs:Number(d.maxJobs),spendCents:0,escalationEmail:state.actor.email,confirmed:d.confirmed==='on',sources:Object.values(sources)}),'Agent delegation approved')}>
- <Field label="Delegated agent key" name="keyId"><select name="keyId" required>{keys.filter(k=>!k.revoked).map(k=><option key={k.id} value={k.id}>{k.label}</option>)}</select></Field>
- <Field label="Processing agreement" name="agreementId"><select name="agreementId" required>{controls.agreements.filter((a:Row)=>!a.withdrawn_at).map((a:Row)=><option key={a.id} value={a.id}>{a.processor} · {a.model_revision} · {a.approved_at}</option>)}</select></Field>
+ <Field label="Delegated agent key" name="keyId"><select aria-label="Delegated agent key" name="keyId" required>{keys.filter(k=>!k.revoked).map(k=><option key={k.id} value={k.id}>{k.label}</option>)}</select></Field>
+ <Field label="Processing agreement" name="agreementId"><select aria-label="Processing agreement" name="agreementId" required>{controls.agreements.filter((a:Row)=>!a.withdrawn_at).map((a:Row)=><option key={a.id} value={a.id}>{a.processor} · {a.model_revision} · {a.approved_at}</option>)}</select></Field>
  <label>Delegated matter<select value={matterId} onChange={e=>setMatterId(e.target.value)} required><option value="">Choose a matter</option>{state.matters.map((m:Row)=><option key={m.id} value={m.id}>{m.title}</option>)}</select></label>
  <Field label="Permitted preparation actions (comma separated)" name="actions" value="context,prepare-deadline"/>
  <Field label="Preparation recipient" name="recipient" value={state.actor.email}/><Field label="Maximum executions" name="maxJobs" type="number" value={1}/>

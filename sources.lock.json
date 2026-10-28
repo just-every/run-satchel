@@ -3100,15 +3100,15 @@
       "executable": false
     },
     "src/satchel/agent-context.ts": {
-      "sha256": "ec83b1ae6e68298f56a03b08f55cca21ecada6211d3dd69d0998e97f655312b2",
+      "sha256": "b026748eee1837d03afe346dbadb9fb2bd86a19b7a1dc4292b29a760c20f9b2a",
       "executable": false
     },
     "src/satchel/agent-jobs.ts": {
-      "sha256": "29d5f6b0e33c9db23de41fc5e3212d0a2d63f43e3e93969c3fdbb4092e10345b",
+      "sha256": "4297cedb0a8dc21efc9a3aaf04ec7c1bd5945d5523c592fff36d46232a59c1ef",
       "executable": false
     },
     "src/satchel/agent-preparations.ts": {
-      "sha256": "e28e26d5c000e1b90d09493ebe48d8983b138fdb0a8eb842c8f75b0ce603818a",
+      "sha256": "6dcf7d8b07d19056f0ffe3e4d187a265e51f2e18f219ee7e42eb71c43cb84cf0",
       "executable": false
     },
     "src/satchel/api.ts": {
@@ -4012,7 +4012,7 @@
       "executable": false
     },
     "src/ui/agent-controls.tsx": {
-      "sha256": "5b3a0b565fe02c285f4815d8f5baa5a06aeeeb1d0caba9cbf5f28e540c140990",
+      "sha256": "7c7963ebc009ed51cb56d852554a1ae6a454fbd537cc04e5d32e64561f28c6c2",
       "executable": false
     },
     "src/ui/assembly.tsx": {
@@ -4452,7 +4452,7 @@
       "executable": false
     },
     "tests/satchel/agent-execution-flow.mjs": {
-      "sha256": "0a5c8c354dc3fa1af92c1e39598bb831b948c96d626b1988efe3a0c1ccb7c7d5",
+      "sha256": "73c0f0c314a789fcdb16691fa410136256f0401f521bc3c2e8f77710e2fe5e46",
       "executable": false
     },
     "tests/satchel/agent-fixture.mjs": {
