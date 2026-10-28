@@ -97,7 +97,7 @@ Generated from CONTRACT.md; regenerate with the documented contract-docs command
 | BILL-006 | Collect through Stripe legal configurations | done |
 | BILL-007 | Reconcile payments refunds and disputes | partial |
 | BILL-008 | Run consented payment plans | partial |
-| BILL-009 | Pursue collections until resolved | partial |
+| BILL-009 | Pursue collections until resolved | done |
 | BILL-010 | Show client ledgers and receivables | partial |
 | BILL-011 | Consolidate multi-matter billing | done |
 | BILL-012 | Record offline payments against invoices | partial |
