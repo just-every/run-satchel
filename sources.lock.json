@@ -144,7 +144,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "07b98f8b4d3e57411cee491471ae14ea644377aa37856d1ee04fa52f8ee94f29",
+      "sha256": "56494d44629e5edac12f8d89d34d06372d81107e8527320d61ea8af8f2c3bd13",
       "executable": false
     },
     "AGENTS.md": {
@@ -168,7 +168,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "e937d2fc3222a37a8733ce92ba3ca95e60412d4e37046d4d5ffdaa4adda8edac",
+      "sha256": "2afbc44f388861c1dd1758044753372f5889ce392337d1d829edb5164c3df7b6",
       "executable": false
     },
     "DEMO.md": {
@@ -1009,6 +1009,10 @@
     },
     "rer-setup.json": {
       "sha256": "e77e78ad28c97a8002f14718ab4fe8d0f50bca7c34ae570c5ae33056908df6ef",
+      "executable": false
+    },
+    "RULINGS.md": {
+      "sha256": "d788b0330561e4b392aaffe18494ddeaea8b7a76951af978a5337002f7369c51",
       "executable": false
     },
     "RUN-LOCALLY.md": {
@@ -3796,7 +3800,7 @@
       "executable": false
     },
     "src/satchel/stripe-api.ts": {
-      "sha256": "b543dd1f354b1e5773d5a076abd503e1dad05dc41f0c67ec8a84f1162b24c54d",
+      "sha256": "a3877702a0e6dc939ac6b48df5c84c80a61a19607d9ed1b25d489fd6f5892567",
       "executable": false
     },
     "src/satchel/stripe-config.ts": {
@@ -4876,7 +4880,11 @@
       "executable": false
     },
     "tests/satchel/payment-plan-flow.mjs": {
-      "sha256": "4c548c3365277f292e420cccd7aca2a4905a9d7582fcd98a95d39e0bcf74ec91",
+      "sha256": "896d03082adf6777db584a9de569dcc2177e55a68d61cd8716f0fd43ad7b413f",
+      "executable": false
+    },
+    "tests/satchel/payment-plan-sandbox.mjs": {
+      "sha256": "d79974107f53b713befb8832a06462a5d0e765e69fb01129b1503fd38c8da8b6",
       "executable": false
     },
     "tests/satchel/portal-identities-journey.test.mjs": {
