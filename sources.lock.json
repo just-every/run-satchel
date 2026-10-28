@@ -4624,7 +4624,7 @@
       "executable": false
     },
     "tests/satchel/followups.test.mjs": {
-      "sha256": "846048c7847f8051eed71f173a191b1604336b55c81b590778d228a0c701156f",
+      "sha256": "55422d0bab1ae1bd47cfd86f750bdbcc85795e0224a6b6852e674fcd33e3148e",
       "executable": false
     },
     "tests/satchel/fresh-install.mjs": {

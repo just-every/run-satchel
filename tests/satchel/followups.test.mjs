@@ -69,10 +69,15 @@ test('INTAKE-008 consented bounded follow-ups: authority, consent, quiet hours, 
 test('follow-up events treat inherited names exactly like unknown names for a signed-in member',async()=>{
  const h=await harness({bindings:{MAIL_API_KEY:'prototype-door-binding-sentinel'}});
  try{
+  const json=async(path,body,cookie)=>{
+   const response=await h.request('/api/satchel'+path,body,cookie);
+   assert.equal(response.status,200,'Fixture or history request succeeds');
+   try{return await response.json();}catch{assert.fail('Fixture or history response must be valid JSON');}
+  };
   const email='lawyer@example.test';
-  await h.json('/team',{email,name:'Follow-up lawyer',role:'lawyer'},h.owner);
-  await h.json('/team/invite',{email},h.owner);
-  const member=await h.login(email),prospect=await lead(h,{name:'Prototype door prospect'},h.owner);
+  await json('/team',{email,name:'Follow-up lawyer',role:'lawyer'},h.owner);
+  await json('/team/invite',{email},h.owner);
+  const member=await h.login(email),prospect=await json('/leads',{name:'Prototype door prospect',summary:'Estate planning question',referralSource:'Website',assignedEmail:email},h.owner);
   const path='/api/satchel/leads/'+prospect.id+'/followup-events';
   const results=[];
   for(const kind of ['unknown-followup-event','constructor','__proto__','reply']){
@@ -88,7 +93,7 @@ test('follow-up events treat inherited names exactly like unknown names for a si
    assert.ok(result.body===unknown.body,result.kind+' returns only the unknown-event refusal, with no binding or environment content');
   }
   assert.equal(results[3].status,200,'A registered reply still works for the member');
-  const detail=await h.json('/leads/'+prospect.id,undefined,member);
+  const detail=await json('/leads/'+prospect.id,undefined,member);
   assert.ok(detail.history.some(e=>e.kind==='followup_reply'),'The registered reply is recorded');
  }finally{await h.close();}
 });
