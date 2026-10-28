@@ -32,7 +32,7 @@ README.md covers a real owner installation, development, backup and deployment.
 Run `rer dev --stop` before builds or verification. `rer reset --yes` is destructive.
 
 Keep product scope in CONTRACT.md; ACCEPTANCE.md and docs/CLAIMS.md are generated. Private handlers must check the native
-session, firm role and matter access themselves. Agent calls carry risk classes; the company’s policy decides each call. USD cents are integers. Trust accounting and fund movement stay external.
+session, firm role and matter access themselves. Agent calls carry risk classes; the company’s policy decides each call. USD cents are integers. Satchel owns trust accounting; custody and actual fund movement remain with regulated banks and processors.
 Preserve immutable original files, reviewed bill artifacts, revision guards,
 import provenance and erasure fences. New schema changes use new migrations.
 
