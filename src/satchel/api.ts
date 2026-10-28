@@ -290,7 +290,7 @@ api.post('/api/satchel/integrations/:id/dispatch',as(async(a,c)=>dispatchIntegra
 api.get('/api/satchel/v1/matters',c=>viaIntegration(c,i=>integrationMatters(db(c),i,c.req.query())));
 api.get('/api/satchel/v1/matters/:id',c=>viaIntegration(c,async i=>{capability(i,'matters:read');return integrationMatter(db(c),i,param(c));}));
 api.get('/api/satchel/v1/matters/:id/:resource',c=>viaIntegration(c,i=>integrationRecords(db(c),i,param(c),param(c,'resource'),c.req.query())));
-api.get('/api/satchel/v1/documents/:id/file',async c=>{const i=await integrationAuth(db(c),c.req.raw);await assertStripeEnvironment(runtimeBindings(c.env));gateGrants(i.actor,c.req.method,c.req.path);capability(i,'documents:read');const d=await visibleDocument(db(c),i.actor,param(c));await integrationMatter(db(c),i,d.matter_id);return documentFile(db(c),i.actor,d.id,c.req.query('version')?Number(c.req.query('version')):undefined);});
+api.get('/api/satchel/v1/documents/:id/file',async c=>{const i=await integrationAuth(db(c),c.req.raw);await assertStripeEnvironment(runtimeBindings(c.env));gateGrants(i.actor,c.req.method,c.req.path);capability(i,'documents:read');const d=await visibleDocument(db(c),i.actor,param(c));await integrationMatter(db(c),i,d.matter_id);return documentFile(db(c),i.actor,d.id,c.req.query('version')?Number(c.req.query('version')):undefined,c.req.query('sha256'));});
 api.get('/api/satchel/v1/events',c=>viaIntegration(c,i=>integrationEventPage(db(c),i,c.req.query())));
 api.post('/api/satchel/v1/prepare/:kind',c=>viaIntegration(c,async i=>integrationPrepare(db(c),i,param(c,'kind'),await body(c),c.req.header('Idempotency-Key')??'')));
 api.get('/api/satchel/trust/checks',as((a,c)=>checkState(db(c),a)));
@@ -431,7 +431,7 @@ api.get('/api/satchel/matters/:id/document-sets',as((a,c)=>documentSetState(db(c
 api.post('/api/satchel/matters/:id/document-sets/:op',as(async(a,c)=>documentSetAction(db(c),a,param(c),param(c,'op'),await body(c))));
 api.post('/api/satchel/matters/:id/documents',as(async(a,c)=>saveDocument(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/documents/:id/text',as((a,c)=>documentTextCitation(db(c),a,param(c),Number(c.req.query('version')),c.req.query('sha256')??'',Number(c.req.query('page')))));
-api.get('/api/satchel/documents/:id/file',as((a,c)=>documentFile(db(c),a,param(c),c.req.query('version')?Number(c.req.query('version')):undefined)));
+api.get('/api/satchel/documents/:id/file',as((a,c)=>documentFile(db(c),a,param(c),c.req.query('version')?Number(c.req.query('version')):undefined,c.req.query('sha256'))));
 api.get('/api/satchel/documents/:id/review',as((a,c)=>documentReview(db(c),a,param(c))));
 api.post('/api/satchel/documents/:id/annotations',as(async(a,c)=>annotateDocument(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/documents/:id/conflicts/:conflictId/file',as((a,c)=>conflictFile(db(c),a,param(c),c.req.param('conflictId')!)));
