@@ -11,7 +11,7 @@ export const kinds=['contacts','matters','relationships','documents','notes','ca
 export type Kind=typeof kinds[number];
 export type MoveRow={kind:Kind;id:string;identity:string;hash:string;value:Data;line:number};
 export type MoveFile={id:string;name:string;sha256:string;contentBase64:string;modifiedAt:string;mime:string;size:number};
-export type MovePackage={schema:string;account:string;phase:string;previousFingerprint?:string;extractedAt:string;datasets:Record<Kind,string>;files:MoveFile[];staff:Record<string,string>;clientRepairs:Record<string,string>;coverage:Record<string,string>;counts:Record<Kind,number>;balances:Data;trustAccountId?:string;calendarMatters?:Record<string,string>;mycase?:MyCaseSource;mycaseReview?:Data;sourceAccount?:string;mappingRevision?:string;sourceExports?:Data[];sourceWarnings?:string[];sourceFiles?:Data[]};
+export type MovePackage={schema:string;account:string;phase:string;previousFingerprint?:string;extractedAt:string;datasets:Record<Kind,string>;files:MoveFile[];staff:Record<string,string>;clientRepairs:Record<string,string>;coverage:Record<string,string>;counts:Record<Kind,number>;balances:Data;trustAccountId?:string;calendarMatters?:Record<string,string>;mycase?:MyCaseSource;mycaseReview?:Data;sourceAccount?:string;mappingRevision?:string;mappings?:Data;staffFile?:Data;sourceExports?:Data[];sourceWarnings?:string[];sourceFiles?:Data[]};
 const columns:Record<Kind,string[]>={
  contacts:['id','name'],matters:['id','display_number','description','client_id','adverse_party','status','opened_at'],
  relationships:['id','matter_id','contact_id','relation'],documents:['id','matter_id','file_id','date','visibility'],

@@ -99,7 +99,7 @@ async function proveSmokeballHistory(h){
  const malformed=structuredClone(p);malformed.mappings.invoices.columns.ar_cents='total_cents';const bad=await preview(h,malformed);assert.equal(bad.errors.length,0,'A different valid source mapping requires a fresh review');await h.json('/migration/commit',{package:malformed,fingerprint:plan.fingerprint},h.owner,409);
  let job=await commitMove(h,p);job=await applyMove(h,p,job,{stopAt:3});
  await h.restart();job=await h.json('/migration/status',{id:job.job.id},h.owner);
- const source=await h.json('/migration/source',{id:job.job.id},h.owner);assert.deepEqual(source.source.sourceExports,p.sourceExports);assert.equal(source.source.mappingRevision,p.mappingRevision);
+ const source=await h.json('/migration/source',{id:job.job.id},h.owner);assert.deepEqual(source.source.sourceExports,p.sourceExports);assert.equal(source.source.mappingRevision,p.mappingRevision);assert.deepEqual(source.source.staffFile,p.staffFile);
  job=await applyMove(h,p,job,{stopAt:13});
  const trustBefore=productRows(await(await h.request('/api/satchel/backup',undefined,h.owner)).text());
  await h.json('/migration/resume',{id:job.job.id},h.owner,403);
@@ -111,14 +111,19 @@ async function proveSmokeballHistory(h){
  assert.deepEqual(history.invoices.map(i=>[i.number,i.total_cents,i.paid_cents]).sort(),[['SB-2020-201',11111,11111],['SB-2020-202',22222,2221]]);
  for(const invoice of history.invoices){const expected=p.files.find(f=>f.id===(invoice.number.endsWith('201')?'paid-pdf':'unpaid-pdf')),response=await h.request('/api/satchel/bills/'+invoice.id+'/invoice.pdf',undefined,h.owner);assert.equal(response.status,200);assert.equal(Buffer.from(await response.arrayBuffer()).toString('base64'),expected.contentBase64);}
  const collision=structuredClone(p);collision.sourceAccount='synthetic-satchel-6';const duplicate=await preview(h,collision);assert.ok(duplicate.errors.some(e=>e.includes('source number is already registered')));await h.json('/migration/commit',{package:collision,fingerprint:duplicate.fingerprint},h.owner,409);
- await h.json('/invoice-numbering',{prefix:'SB-NATIVE',padding:3,separator:'-',year:false,nextNumber:202,revision:null},h.owner,422);
- const numbering=await h.json('/invoice-numbering',{prefix:'SB-NATIVE',padding:3,separator:'-',year:false,nextNumber:203,revision:null},h.owner);assert.equal(numbering.counter.next_number,203,'First saved numbering scheme starts above every imported source ordinal');
+ await h.json('/invoice-numbering',{prefix:'SBNATIVE',padding:3,separator:'-',year:false,nextNumber:202,revision:null},h.owner,422);
+ const numbering=await h.json('/invoice-numbering',{prefix:'SBNATIVE',padding:3,separator:'-',year:false,nextNumber:203,revision:null},h.owner);assert.equal(numbering.counter.next_number,203,'First saved numbering scheme starts above every imported source ordinal');
  const timeline=await h.json('/matters/'+mid+'/timeline',undefined,h.owner);assert.ok(JSON.stringify(timeline.entries).includes('Exact source memo body.'));
  const memo=history.sources.find(s=>s.kind==='notes');assert.equal(JSON.parse(memo.source_json).source_visibility,'Internal');assert.equal(JSON.parse(memo.source_json).body,'Exact source memo body.');
  const tasks=await h.json('/matters/'+mid+'/tasks',undefined,h.owner);assert.ok(JSON.stringify(tasks).includes('Source open review'));assert.ok(JSON.stringify(tasks).includes('Source completed review'));const nativeTasks=tasks;assert.equal(nativeTasks.find(t=>t.title==='Source completed review').status,'done');
  const calendar=await h.json('/matters/'+mid+'/calendar',undefined,h.owner);assert.equal(calendar.appointments.find(a=>a.title==='Source client meeting').occurrences[0].time,'09:30');
  const documents=await h.json('/matters/'+mid+'/documents',undefined,h.owner);
  for(const [id,name] of [['word-original','Advice.docx'],['email-original','Source-message.eml']]){const d=documents.find(d=>d.name===name),response=await h.request('/api/satchel/documents/'+d.id+'/file?version=1',undefined,h.owner);assert.equal(response.status,200);assert.equal(Buffer.from(await response.arrayBuffer()).toString('base64'),p.files.find(f=>f.id===id).contentBase64);}
+ const readerAddress='synthetic-satchel-7'+'@'+'example.test';await h.json('/team',{email:readerAddress,name:'Synthetic Satchel History Reader',role:'lawyer'},h.owner);await h.json('/team/invite',{email:readerAddress},h.owner);const reader=await h.login(readerAddress);
+ await h.json('/migration/source',{id:job.job.id},reader,403);await h.json('/matters/'+mid+'/access',{email:readerAddress},h.owner);
+ const word=documents.find(d=>d.name==='Advice.docx'),shared=documents.find(d=>d.name==='Source-message.eml');assert.equal((await h.request('/api/satchel/documents/'+word.id+'/file',undefined,reader)).status,404);assert.equal((await h.request('/api/satchel/documents/'+shared.id+'/file',undefined,reader)).status,200);
+ assert.ok(!JSON.stringify(await h.json('/matters/'+mid+'/timeline',undefined,reader)).includes('Exact source memo body.'));assert.ok(!(await h.json('/matters/'+mid+'/migration',undefined,reader)).sources.some(s=>s.kind==='notes'||s.source_id==='word-1'));
+ await h.json('/matters/'+mid+'/access',{email:readerAddress,remove:true},h.owner);assert.equal((await h.request('/api/satchel/documents/'+shared.id+'/file',undefined,reader)).status,404);
  const trust=await h.json('/trust',undefined,h.owner);assert.equal(trust.ledgers.find(l=>l.matter_id===mid).balance_cents,78901);
  const delta={...p,phase:'delta',previousFingerprint:job.job.fingerprint},final=await applyMove(h,delta,await commitMove(h,delta)),report=await h.json('/migration/reconcile',{id:final.job.id},h.owner);assert.deepEqual(report.report.nativeBalances,p.balances);assert.equal(report.report.counts.invoices.native,2);assert.ok(report.report.gaps.some(g=>g.includes('Full source trust activity')));
  await h.json('/migration/cutover',{id:final.job.id,fingerprint:report.fingerprint,confirmed:true,declaration:'Source history is not complete'},h.owner,409);
