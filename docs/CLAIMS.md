@@ -48,7 +48,7 @@ Generated from CONTRACT.md; regenerate with the documented contract-docs command
 | MATTER-009 | Search the whole firm from one box | done |
 | DOC-001 | Store real working files | partial |
 | DOC-002 | Preview and compare versions | done |
-| DOC-003 | Search OCR and full text | missing |
+| DOC-003 | Search OCR and full text | partial |
 | DOC-004 | Organize and act on document sets | done |
 | DOC-005 | Work in Microsoft Word | missing |
 | DOC-006 | Assemble legal documents and forms | done |
