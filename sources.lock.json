@@ -3220,11 +3220,11 @@
       "executable": false
     },
     "src/satchel/collection-state.ts": {
-      "sha256": "5bb62ed403924b01e389ba4385e9deb93f3da721a87dedbd5ac49149a638dd15",
+      "sha256": "a0d645ffb74c93671989a15e3eb836de9bcceea5f8c2242e5b56bc8dbe3af56d",
       "executable": false
     },
     "src/satchel/collections.ts": {
-      "sha256": "cd2b52021bbb18948da070fa075b1dc3024153ecc7e685d941764daab4b85bac",
+      "sha256": "1cde29604090ab817bd62963d9c93fc43cff3291fcad5f8a6aaac3d13d049a5a",
       "executable": false
     },
     "src/satchel/conflict-context.ts": {
@@ -4580,7 +4580,7 @@
       "executable": false
     },
     "tests/satchel/collections-flow.mjs": {
-      "sha256": "8de8faba601b0b32d291765e540f6ee27f19c2bce6681f8623ffd26dd228d689",
+      "sha256": "d12f38b6564a4a4812ca3898848ebaa5427ab90eca0f594416ff229ecb3d22fd",
       "executable": false
     },
     "tests/satchel/collections-sandbox.mjs": {

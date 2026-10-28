@@ -32,7 +32,7 @@ export async function collectionView(db:D1Database,s:Data):Promise<Data>{
  if(status==='active'&&(!authorization?.enabled||authorization.id!==s.authorization_id)){status='review';reason='Reminder authority changed; no further contact';}
  if(lastEvent?.kind==='stop'){status='completed';reason=lastEvent.note;}
  else if(balance.void){status='void';reason='Invoice voided; this sequence has ended';}
- else if(status==='active'&&balance.dueCents===0){status='resolved';reason='No collectible balance remains';}
+ else if(balance.dueCents===0){status='resolved';reason='No collectible balance remains';}
  else if(status==='active'&&lastEvent&&['dispute','promise','hardship','representation'].includes(lastEvent.kind)){status='paused';reason=lastEvent.kind+': '+lastEvent.note;}
  else if(status==='active'&&last&&!['accepted','delivered','sandbox_validated'].includes(last.outcome)&&!(lastEvent?.kind==='decision'&&lastEvent.decision_attempt_id===last.id)){status='review';reason='Check the provider and record a new decision before another step';}
  else if(status==='active'&&step>=steps.length){status='completed';reason='Approved steps exhausted; route to counsel';}

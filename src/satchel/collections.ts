@@ -49,6 +49,6 @@ export async function runCollection(env:Bindings,actor:Actor,collectionId:string
  await sendCorrespondence(env,actor,link.attempt_id,atMs);return collectionView(db,s);
 }
 export async function runCollections(env:Bindings,atMs:number){
- const list=await rows(env.DB,'SELECT * FROM s_collection_sequences ORDER BY approved_at,id LIMIT 500');
+ const list=await rows(env.DB,"SELECT s.* FROM s_collection_sequences s WHERE s.first_due_at<=? AND NOT EXISTS(SELECT 1 FROM s_collection_events e WHERE e.collection_id=s.id AND e.kind='stop') AND NOT EXISTS(SELECT 1 FROM s_bills b WHERE b.id=s.bill_id AND b.status='void') ORDER BY s.approved_at,s.id",new Date(atMs).toISOString());
  for(const s of list){try{const o=await stmt(env.DB,'SELECT o.*,m.role member_role,m.active,r.permissions FROM oa_operators o LEFT JOIN s_members m ON m.email=o.email LEFT JOIN s_custom_roles r ON r.id=m.custom_role_id WHERE o.id=?',s.owner_id).first<Data>();insist(o?.status==='active'&&(o.role==='owner'||o.active===1),'Collection owner no longer active',409);const actor:Actor={id:o.id,email:o.email,name:o.display_name,role:o.role==='owner'?'owner':o.member_role,channel:'person',...(o.role!=='owner'&&o.permissions?{grants:parseGrants(o.permissions)}:{})};await runCollection(env,actor,s.id,atMs);}catch{/* A denied sequence never grants alternate outbound authority. */}}
 }
