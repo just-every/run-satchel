@@ -9,7 +9,7 @@ export async function collectionsBrowser(h,m){
   if(page.url().includes('/setup')){await page.getByLabel('Your name').fill('Avery Barton');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup'}).click();await page.waitForURL(/\/app/);}
   await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Time & bills',exact:true}).click();await page.getByLabel('Current matter').selectOption(m.id);
   const panel=page.getByRole('region',{name:'Collections',exact:true});await panel.getByText('Retainer replenishment · $0.00 remaining',{exact:true}).waitFor();
-  await panel.getByText('Invoice to void',{exact:false}).count();assert.match(await panel.innerText(),/void/);assert.match(await panel.innerText(),/\$50.00 remaining/);assert.match(await panel.innerText(),/Responsible owner/);
+  await panel.getByText('Invoice to void',{exact:false}).count();assert.match(await panel.innerText(),/void/);assert.match(await panel.innerText(),/\$100.00 remaining/);assert.match(await panel.innerText(),/Responsible owner/);
   await panel.getByText('Schedule and collection history',{exact:true}).first().click();await panel.getByRole('heading',{name:'Contact attempts'}).first().waitFor();assert.match(await panel.innerText(),/Step 2/);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0);
   assert.deepEqual(await panel.locator('button,a[href],[role=button]').evaluateAll(es=>es.filter(e=>!e.textContent.trim()).map(e=>e.outerHTML)),[]);

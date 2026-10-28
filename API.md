@@ -529,3 +529,27 @@ The principal uses `POST /api/satchel/trust/ledgers/:id/releases` with `packetId
 A principal who is also a designated trust officer approves `POST /api/satchel/trust/ledgers/:id/replenishments` with that exact current `reviewDigest`, `confirmed: true`, a current client or co-client `recipient` and `reason`. The request is published once for that policy, crossing and recipient grant. `GET /api/satchel/portal/matters/:id/replenishments` exposes only the named recipient's current-grant requests. Delivery means publication inside the authenticated portal, with an audited timestamp; no email or SMS is sent. Approval changes no journal balance, initiates no provider call and authorizes no debit. Grant revocation and ethical walls end access. Request delivery authority is excluded from archive restore. These conservative authority and delivery defaults await ct approval; TRUST-008 remains partial.
 
 `GET /api/satchel/trust/packets/:id/records?state=CA` and the same door with `state=NY` download source-grounded previews from the immutable signed packet under the existing full-account trust-record authority. Every reconciliation amount lists its source period or journal entries. The New York journal includes retained transaction dates, payees, purposes, bank references and original-document citations where recorded. Older signed packets without that transaction detail remain unchanged and may have unknown fields. Both previews return `complete: false`, `reviewRequired: true` and explicit missing-record categories. California annual account-registration answers, the complete New York required-record set, seven-year preservation and final firm review remain unproved; no compliance certification or filing is made.
+
+## Collections
+
+Responsible counsel approves each invoice or retainer sequence through
+`POST /matters/:id/collections` with one of `billId` or `ledgerId`, `recipient`,
+`firstDueAt` (ISO UTC), increasing `steps` (day offsets beginning at zero),
+`reason` and `confirmed:true`. The matter must have current client-reminder
+authority, an approved exact template and affirmative recipient consent.
+Invoices need a reviewed delivery due date. A retainer sequence requires the
+principal's approved replenishment request for that exact recipient and ledger;
+it requests replenishment and never moves funds.
+
+`GET /matters/:id/collections` returns the receivables aging queue, current
+collectible balances, owners, next due steps, replies and retained attempts.
+`POST /collections/:id/actions` records `kind`, `note` and optional `nextDueAt`.
+Dispute, promise, hardship and representation replies pause contact for counsel;
+`clear` resumes, `stop` ends, and `decision` records a checked provider outcome
+before the next distinct step after uncertainty. No decision repeats a sent step.
+`POST /collections/:id/run` processes a due step under the same current authority,
+consent, source and shared recipient contact cap as the scheduled worker.
+Payments and write-offs reduce only the collectible remainder; a returned
+payment reopens that remainder without discarding attempts. A void ends the
+original sequence, and an issued replacement needs its own approval at step one.
+Reminder configuration lives in Firm, under Client reminder settings.

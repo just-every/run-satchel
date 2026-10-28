@@ -29,6 +29,7 @@ function CollectionsPanel({matterId,run,tick}:{matterId:string;run:Run;tick:numb
  return <section className="panel" aria-label="Collections" style={{overflowWrap:'anywhere'}}><h2>Collections</h2>
   {error&&<p role="alert">{error}</p>}
   {!state?(!error&&<p role="status">Opening collections…</p>):<>
+   {state.invoices.some((i:Row)=>i.dueCents>0)&&<details><summary>Receivables aging queue</summary>{state.invoices.filter((i:Row)=>i.dueCents>0).map((i:Row)=><article className="record" key={i.id}><strong>{i.number} · {dollars(i.dueCents)} remaining</strong><p>{i.dueDate?'Due '+i.dueDate+' · '+i.agingDays+' days overdue':'Due date needs reviewed delivery'}</p></article>)}</details>}
    {!state.sequences.length&&<Empty>No collection sequences recorded.</Empty>}
    <fieldset aria-label="Collection sequences" disabled={pending} style={{border:0,padding:0,margin:0,minWidth:0}}>
     {state.sequences.map((sequence:Row)=><CollectionRecord key={sequence.id} sequence={sequence} act={act}/>)}
