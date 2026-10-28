@@ -59,7 +59,7 @@ export async function searchFirm(db:D1Database,actor:Actor,query:string,filters:
    if(extracted)for(const p of extracted.pages)if(matches(p.body)){
     const offset=Math.max(0,normalize(p.body).indexOf(tokens[0])-60),snippet=p.body.slice(offset,offset+300);
     const citation={documentId:d.id,version:extracted.index.version,sha256:extracted.index.sha256,page:p.page};
-    add('Documents',d.id+':page:'+p.page,d.title,snippet,'/documents/'+d.id+'/text?version='+citation.version+'&sha256='+citation.sha256+'&page='+p.page,m.id,'Documents',{citation,freshness:extracted.index});
+    add(email?'Email':'Documents',d.id+':page:'+p.page,d.title,snippet,'/documents/'+d.id+'/text?version='+citation.version+'&sha256='+citation.sha256+'&page='+p.page,m.id,'Documents',{citation,freshness:extracted.index});
    }
    if(!documentsOnly&&permitted(actor,'/documents/'+d.id+'/review'))for(const n of (await documentReview(db,actor,d.id)).annotations)if(n.note&&matches(context,d.title,n.note))add('Notes',n.id,d.title+' · note',n.note,'/documents/'+d.id+'/review',m.id,'Documents');
   }

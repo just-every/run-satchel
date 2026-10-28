@@ -57,22 +57,28 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`MATTER-009 one search 
   await page.getByLabel('Document type',{exact:true}).fill('Correspondence');await box.focus();await status.getByText('No matching records you may see.').waitFor();
   await page.getByLabel('Document type',{exact:true}).fill('');await page.getByLabel('Search matter',{exact:true}).selectOption('');await page.getByLabel('Original date from',{exact:true}).fill('');await page.getByLabel('Original date to',{exact:true}).fill('');
   await page.getByText('Document filters',{exact:true}).click();
+  const {scannedOriginal}=await import('./document-text-fixture.mjs'),scan=await scannedOriginal();await textFixture.upload('Witness scan.pdf',scan.pdf);
+  const scannedAnswer=await ask(page,box,'quartz harbor');assert.equal(scannedAnswer.total,1);const scannedHit=results.getByRole('option').filter({hasText:'Witness scan.pdf'});await scannedHit.waitFor();assert.match(await scannedHit.innerText(),/Version 1 · page 2/);
+  if(process.env.SATCHEL_SCREENSHOTS)await page.screenshot({path:`${process.env.SATCHEL_SCREENSHOTS}/scanned-page-search-${width}.png`});
+  const scanPopup=page.waitForEvent('popup');await scannedHit.click();const scannedPage=await scanPopup;await scannedPage.waitForLoadState();assert.match(await scannedPage.locator('pre').innerText(),/Quartz harbor witness statement/);assert.match(await scannedPage.locator('body').innerText(),/Version 1 · page 2/);
+  if(process.env.SATCHEL_SCREENSHOTS)await scannedPage.screenshot({path:`${process.env.SATCHEL_SCREENSHOTS}/scanned-page-citation-${width}.png`});await scannedPage.close();await page.bringToFront();
   // An unassigned assistant receives no record, title, count or snippet.
   await h.json('/team',{email:'reader@example.test',name:'Case assistant',role:'assistant'},h.owner);await h.json('/team/invite',{email:'reader@example.test'},h.owner);
   const assistant=await(await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true})).newPage();assistant.setDefaultTimeout(15000);
   const invite=h.mails.toReversed().find(m=>m.to.includes('reader@example.test')),link=(invite.text??invite.html).match(/https:\/\/[^\s"<]+\/auth\/[^\s"<]+/)[0].replaceAll('&amp;','&');
   await assistant.goto(link);await assistant.getByRole('button').first().click();await assistant.goto(h.origin+'/app');await assistant.getByRole('navigation',{name:'Workspace'}).waitFor();
-  const reader=assistant.getByRole('combobox',{name:'Search the firm'});for(const query of ['Barton',f.m.matter_number,'CASE-2026-BARTON-42']){assert.deepEqual((await ask(assistant,reader,query)).groups,[]);await assistant.locator('.firm-search [role=status]').getByText('No matching records you may see.').waitFor();assert.equal(await assistant.locator('.firm-search').getByRole('option').count(),0);assert.ok(!(await assistant.locator('.firm-search').innerText()).includes('Barton Workshop'),'No title or snippet');}
-  await h.json(base+'/access',{email:'reader@example.test'},h.owner);
-  const permitted=await ask(assistant,reader,'copper lantern');assert.equal(permitted.total,1);await assistant.getByRole('option').filter({hasText:'Testimony.pdf'}).waitFor();assert.ok(!JSON.stringify(permitted).includes(textFixture.privateDocument.id));
-  await assistant.getByRole('heading',{level:1}).click();assert.equal(await assistant.getByRole('option').count(),0,'Blur removes the cached text');
-  await h.json(base+'/access',{email:'reader@example.test',remove:true},h.owner);
-  await reader.focus();await assistant.locator('.firm-search [role=status]').getByText('No matching records you may see.').waitFor();assert.equal(await assistant.getByRole('option').count(),0,'Refocus cannot restore revoked snippets');
-  assert.deepEqual((await ask(assistant,reader,'copper lantern')).documentIndex,[]);
+  const reader=assistant.getByRole('combobox',{name:'Search the firm'});for(const query of ['Barton',f.m.matter_number,'CASE-2026-BARTON-42']){assert.deepEqual((await ask(assistant,reader,query)).groups,[]);await assistant.locator('.firm-search [role=status]').getByText('No matching records you may see.').waitFor();assert.equal(await assistant.locator('.firm-search').locator('[role=option]').count(),0);assert.ok(!(await assistant.locator('.firm-search').innerText()).includes('Barton Workshop'),'No title or snippet');}
+  const readerEmail=await assistant.evaluate(async()=>{const r=await fetch('/api/satchel/me');return (await r.json()).email;});
+  await h.json(base+'/access',{email:readerEmail},h.owner);
+  const permitted=await ask(assistant,reader,'quartz harbor');assert.equal(permitted.total,1);await assistant.getByRole('option').filter({hasText:'Witness scan.pdf'}).waitFor();assert.ok(!JSON.stringify(permitted).includes(textFixture.privateDocument.id));
+  await reader.press('Shift+Tab');assert.equal(await assistant.locator('[role=option]').count(),0,'Blur removes the cached text');
+  await h.json(base+'/access',{email:readerEmail,remove:true},h.owner);
+  const revokedResponse=assistant.waitForResponse(r=>r.url().includes('/api/satchel/search?q='+encodeURIComponent('quartz harbor')));await reader.focus();const revokedAnswer=await(await revokedResponse).json();await assistant.locator('.firm-search [role=status]').getByText('No matching records you may see.').waitFor();assert.equal(await assistant.locator('[role=option]').count(),0,'Refocus cannot restore revoked snippets');
+  assert.deepEqual(revokedAnswer.documentIndex,[]);
   // A walled-out principal receives none either; the wall's custodian still finds the matter.
   await h.json('/team',{email:'custodian@example.test',name:'Wall counsel',role:'lawyer'},h.owner);await h.json('/team/invite',{email:'custodian@example.test'},h.owner);await h.login('custodian@example.test');await h.json(base+'/access',{email:'custodian@example.test'},h.owner);
   await h.json(base+'/wall',{custodianEmail:'custodian@example.test',members:[],reason:'Conflicting representation screen',revision:null},h.owner);
-  for(const query of ['Barton',f.m.matter_number,'CASE-2026-BARTON-42']){const answer=await ask(page,box,query);assert.deepEqual(answer.groups,[],'The server returns no group, count or snippet');await status.getByText('No matching records you may see.').waitFor();assert.equal(await page.locator('.firm-search').getByRole('option').count(),0);assert.ok(!(await page.locator('.firm-search').innerText()).includes('Barton Workshop'));}
+  for(const query of ['Barton',f.m.matter_number,'CASE-2026-BARTON-42']){const answer=await ask(page,box,query);assert.deepEqual(answer.groups,[],'The server returns no group, count or snippet');await status.getByText('No matching records you may see.').waitFor();assert.equal(await page.locator('.firm-search').locator('[role=option]').count(),0);assert.ok(!(await page.locator('.firm-search').innerText()).includes('Barton Workshop'));}
   assert.deepEqual(errors,[]);
  }finally{await browser.close();await h.close();}
 });
