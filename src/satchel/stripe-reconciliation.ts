@@ -1,5 +1,6 @@
 import {readSettlement,settlementWrites} from './stripe-settlements';
 import {bankMatches} from './stripe-bank';
+import {accountWallScope} from './trust-wall-scope';
 import {atomic,audit,human,id,insist,integer,need,now,rows,stmt,text,type Actor,type Data} from './model';
 import {accessGuard,guard} from './trust-guards';
 import {paymentInvoice} from './invoice-payment';
@@ -47,7 +48,8 @@ async function stateForBill(env:StripeEnv,actor:Actor,bill:Data){
  const ownPayouts=new Set(settlements.map(s=>s.payout_id));
  const bankHistory=history.filter(m=>ownPayouts.has(m.payout_id));
  const processorPostings=await rows(env.DB,'SELECT * FROM s_stripe_processor_postings WHERE payout_id IN(SELECT value FROM json_each(?)) ORDER BY id',JSON.stringify([...ownPayouts]));
- return {bankHistory,processorPostings,billId:bill.id,revision:bill.revision,principal:actor.role==='owner',canRefund:env.STRIPE_MODE!=='live',attempts:await Promise.all(attempts.map(async a=>({...a,events:await rows(env.DB,'SELECT * FROM s_stripe_events WHERE checkout_id=? ORDER BY at,id',a.id),adjustments:await rows(env.DB,'SELECT * FROM s_stripe_adjustments WHERE checkout_id=? ORDER BY at,id',a.id),receipt:await stmt(env.DB,'SELECT * FROM s_stripe_receipts WHERE checkout_id=?',a.id).first(),refunds:await rows(env.DB,'SELECT r.*,o.provider_id,o.status outcome FROM s_stripe_refund_requests r LEFT JOIN s_stripe_refund_outcomes o ON o.request_id=r.id WHERE r.checkout_id=? ORDER BY r.at,r.id',a.id)}))),settlements:settlements.map(r=>({...r,bank:matched.find(m=>m.payout_id===r.payout_id)??null,bankHistory:[]})),bankStatus:latest.length&&latest.every(bankConfirmed)?'matched':'unconfirmed'};
+ const accounts=await rows(env.DB,`SELECT a.id,a.name FROM s_trust_accounts a CROSS JOIN (SELECT ? email) viewer WHERE a.kind='operating' AND ${accountWallScope('a.id','viewer.email')} ORDER BY a.name,a.id`,actor.email);
+ return {accounts,bankHistory,processorPostings,billId:bill.id,revision:bill.revision,principal:actor.role==='owner',attempts:await Promise.all(attempts.map(async a=>({...a,events:await rows(env.DB,'SELECT * FROM s_stripe_events WHERE checkout_id=? ORDER BY at,id',a.id),adjustments:await rows(env.DB,'SELECT * FROM s_stripe_adjustments WHERE checkout_id=? ORDER BY at,id',a.id),receipt:await stmt(env.DB,'SELECT * FROM s_stripe_receipts WHERE checkout_id=?',a.id).first(),refunds:await rows(env.DB,'SELECT r.*,o.provider_id,o.status outcome FROM s_stripe_refund_requests r LEFT JOIN s_stripe_refund_outcomes o ON o.request_id=r.id WHERE r.checkout_id=? ORDER BY r.at,r.id',a.id)}))),settlements:settlements.map(r=>({...r,bank:matched.find(m=>m.payout_id===r.payout_id)??null})),bankStatus:latest.length&&latest.every(bankConfirmed)?'matched':'unconfirmed'};
 }
 export async function inspectSettlement(env:StripeEnv,actor:Actor,attemptId:string,b:Data){
  const {bill,config}=await operatingAttempt(env,actor,attemptId),payoutId=text(b.payoutId,'Stripe payout ID',100);
