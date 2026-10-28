@@ -184,7 +184,7 @@ test('Every scheduled client reminder send retains its approved template version
 
 import {stripeEdge,paymentFixture} from './stripe-fixture.mjs';
 test('Hosted invoice collection allocates exact card and ACH funds once, preserves pending and returned states, and fences trust protection',async()=>{
- await reconciliationFlow();
+ await reconciliationFlow();await proveWriteoffReversal();
  const edge=stripeEdge(),h=await harness(edge);
  try{
   const s=await paymentFixture(h),base=id=>'/portal/invoices/'+id;
@@ -413,3 +413,5 @@ import {provePaymentPlans} from './payment-plan-flow.mjs';
 test('Exact client mandates dispatch each installment once and stop imported, revoked, failed, disputed and uncertain plans for human review',provePaymentPlans);
 
 import {collectionsFlow} from './collections-flow.mjs';
+
+import {proveWriteoffReversal} from './writeoff-reversal-flow.mjs';

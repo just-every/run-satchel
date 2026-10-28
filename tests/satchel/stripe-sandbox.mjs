@@ -4,7 +4,7 @@ import {chromium} from '@playwright/test';
 import {harness} from './harness.mjs';
 import {paymentFixture} from './stripe-fixture.mjs';
 const key=process.env.STRIPE_US_TEST_SECRET_KEY;
-async function providerTransport(request){const r=await fetch(request.url,{method:request.method,headers:Object.fromEntries([...request.headers].filter(([name])=>['authorization','content-type','idempotency-key','stripe-account'].includes(name))),...(request.method==='GET'?{}:{body:await request.arrayBuffer()}),redirect:'manual'}),headers=new Headers(r.headers);headers.delete('content-encoding');headers.delete('content-length');return new Response(await r.arrayBuffer(),{status:r.status,headers});}
+async function providerTransport(request){const r=await fetch(request.url,{method:request.method,headers:Object.fromEntries([...request.headers].filter(([name])=>['authorization','content-type','idempotency-key','stripe-account','stripe-version'].includes(name))),...(request.method==='GET'?{}:{body:await request.arrayBuffer()}),redirect:'manual'}),headers=new Headers(r.headers);headers.delete('content-encoding');headers.delete('content-length');return new Response(await r.arrayBuffer(),{status:r.status,headers});}
 assert.ok(/^(sk|rk)_test_/.test(key??''),'An injected Stripe test credential is required');
 const directory=process.env.SATCHEL_SCREENSHOTS;
 let h,browser,page,stage='setup';

@@ -1,3 +1,5 @@
+import {readSettlement,settlementWrites} from './stripe-settlements';
+import {bankMatches} from './stripe-bank';
 import {atomic,audit,human,id,insist,integer,need,now,rows,stmt,text,type Actor,type Data} from './model';
 import {accessGuard,guard} from './trust-guards';
 import {paymentInvoice} from './invoice-payment';
@@ -31,7 +33,7 @@ export async function reconciliationState(env:StripeEnv,actor:Actor,billId:strin
  human(actor);need(actor,'owner');const bill=await paymentInvoice(env.DB,actor,billId);
  insist(bill,'Invoice not found',404);return stateForBill(env,actor,bill);
 }
-async function settlementAccess(env:StripeEnv,actor:Actor,transactions:Data[]){
+export async function settlementAccess(env:StripeEnv,actor:Actor,transactions:Data[]){
  const bills=await rows(env.DB,'SELECT DISTINCT c.bill_id,b.matter_id FROM s_stripe_checkouts c JOIN s_bills b ON b.id=c.bill_id WHERE c.payment_intent_id IN(SELECT value FROM json_each(?))',JSON.stringify(transactions.map(t=>t.paymentIntentId).filter(Boolean)));
  for(const b of bills)await paymentInvoice(env.DB,actor,b.bill_id);
  return bills.map(b=>accessGuard(env.DB,actor,b.matter_id));
@@ -40,31 +42,19 @@ async function stateForBill(env:StripeEnv,actor:Actor,bill:Data){
  const attempts=await rows(env.DB,"SELECT * FROM s_stripe_checkouts WHERE bill_id=? AND purpose='operating' ORDER BY created_at,id",bill.id);
  const settlements:Data[]=(await rows(env.DB,'SELECT * FROM s_stripe_settlement_observations ORDER BY sequence')).map(r=>({...r,snapshot:JSON.parse(r.snapshot)})).filter(r=>r.snapshot.transactions.some((t:Data)=>attempts.some(a=>a.payment_intent_id&&t.paymentIntentId===a.payment_intent_id)));
  for(const settlement of settlements)await settlementAccess(env,actor,settlement.snapshot.transactions);
- const matched=await rows(env.DB,'SELECT * FROM s_stripe_bank_matches'),latest=[...new Map(settlements.map(r=>[r.payout_id,r])).values()];
+ const history=await bankMatches(env),matched=history.filter(m=>!m.reversal),latest=[...new Map(settlements.map(r=>[r.payout_id,r])).values()];
  const bankConfirmed=(r:Data)=>r.snapshot.status==='paid'&&r.snapshot.reconciliationStatus==='completed'&&r.snapshot.transactions.every((t:Data)=>t.status==='available')&&r.snapshot.netCents===r.snapshot.amountCents&&matched.some(m=>m.payout_id===r.payout_id&&m.cents===r.snapshot.netCents);
- return {billId:bill.id,revision:bill.revision,principal:actor.role==='owner',canRefund:env.STRIPE_MODE!=='live',attempts:await Promise.all(attempts.map(async a=>({...a,events:await rows(env.DB,'SELECT * FROM s_stripe_events WHERE checkout_id=? ORDER BY at,id',a.id),adjustments:await rows(env.DB,'SELECT * FROM s_stripe_adjustments WHERE checkout_id=? ORDER BY at,id',a.id),refunds:await rows(env.DB,'SELECT r.*,o.provider_id,o.status outcome FROM s_stripe_refund_requests r LEFT JOIN s_stripe_refund_outcomes o ON o.request_id=r.id WHERE r.checkout_id=? ORDER BY r.at,r.id',a.id)}))),settlements:settlements.map(r=>({...r,bank:matched.find(m=>m.payout_id===r.payout_id)??null})),bankStatus:latest.length&&latest.every(bankConfirmed)?'matched':'unconfirmed'};
+ const ownPayouts=new Set(settlements.map(s=>s.payout_id));
+ const bankHistory=history.filter(m=>ownPayouts.has(m.payout_id));
+ const processorPostings=await rows(env.DB,'SELECT * FROM s_stripe_processor_postings WHERE payout_id IN(SELECT value FROM json_each(?)) ORDER BY id',JSON.stringify([...ownPayouts]));
+ return {bankHistory,processorPostings,billId:bill.id,revision:bill.revision,principal:actor.role==='owner',canRefund:env.STRIPE_MODE!=='live',attempts:await Promise.all(attempts.map(async a=>({...a,events:await rows(env.DB,'SELECT * FROM s_stripe_events WHERE checkout_id=? ORDER BY at,id',a.id),adjustments:await rows(env.DB,'SELECT * FROM s_stripe_adjustments WHERE checkout_id=? ORDER BY at,id',a.id),receipt:await stmt(env.DB,'SELECT * FROM s_stripe_receipts WHERE checkout_id=?',a.id).first(),refunds:await rows(env.DB,'SELECT r.*,o.provider_id,o.status outcome FROM s_stripe_refund_requests r LEFT JOIN s_stripe_refund_outcomes o ON o.request_id=r.id WHERE r.checkout_id=? ORDER BY r.at,r.id',a.id)}))),settlements:settlements.map(r=>({...r,bank:matched.find(m=>m.payout_id===r.payout_id)??null,bankHistory:[]})),bankStatus:latest.length&&latest.every(bankConfirmed)?'matched':'unconfirmed'};
 }
 export async function inspectSettlement(env:StripeEnv,actor:Actor,attemptId:string,b:Data){
  const {bill,config}=await operatingAttempt(env,actor,attemptId),payoutId=text(b.payoutId,'Stripe payout ID',100);
- const payout=await stripeApi(env,'/payouts/'+encodeURIComponent(payoutId));insist(payout.id===payoutId&&payout.currency==='usd'&&payout.livemode===(config.mode==='live'),'Settlement currency or environment mismatch',409);
- const transactions:Data[]=[];let after='';
- do{const list=await stripeApi(env,'/balance_transactions?payout='+encodeURIComponent(payoutId)+'&limit=100&expand[]=data.source'+(after?'&starting_after='+encodeURIComponent(after):''));insist(Array.isArray(list.data),'Invalid settlement readback',502);
-  for(const t of list.data){insist(t.currency==='usd'&&Number.isSafeInteger(t.amount)&&Number.isSafeInteger(t.fee)&&t.net===t.amount-t.fee,'Settlement totals do not reconcile',409);const source=t.source;transactions.push({id:t.id,sourceId:typeof source==='string'?source:source?.id,paymentIntentId:typeof source==='object'?(typeof source?.payment_intent==='string'?source.payment_intent:source?.payment_intent?.id):null,grossCents:t.amount,feeCents:t.fee,netCents:t.net,type:t.type,status:t.status});}
-  if(!list.has_more)break;insist(list.data.length,'Incomplete settlement readback',502);after=list.data.at(-1).id;
- }while(true);
- const snapshot={payoutId,status:payout.status,reconciliationStatus:payout.reconciliation_status??'unknown',destination:typeof payout.destination==='string'?payout.destination:payout.destination?.id??null,amountCents:payout.amount,arrivalDate:payout.arrival_date,transactions,grossCents:transactions.reduce((n,t)=>n+t.grossCents,0),feeCents:transactions.reduce((n,t)=>n+t.feeCents,0),netCents:transactions.reduce((n,t)=>n+t.netCents,0)};
+ const snapshot=await readSettlement(env,config,payoutId),transactions=snapshot.transactions;
  const own=await rows(env.DB,"SELECT payment_intent_id FROM s_stripe_checkouts WHERE bill_id=? AND purpose='operating'",bill.id);insist(transactions.some(t=>own.some(a=>a.payment_intent_id&&a.payment_intent_id===t.paymentIntentId)),'This payout contains no verified collection for this invoice',409);
  const batchGuards=await settlementAccess(env,actor,transactions),observationId=id();
- await atomic(env.DB,actor,[...batchGuards,accessGuard(env.DB,actor,bill.matter_id),stmt(env.DB,'INSERT INTO s_stripe_settlement_observations SELECT ?,COALESCE(MAX(sequence),0)+1,?,?,?,? FROM s_stripe_settlement_observations',observationId,payoutId,config.id,JSON.stringify(snapshot),now()),audit(env.DB,actor,'stripe.settlement_observed',observationId,JSON.stringify(snapshot),{matterId:bill.matter_id})]);
+ await atomic(env.DB,actor,[...batchGuards,accessGuard(env.DB,actor,bill.matter_id),...settlementWrites(env,config,snapshot,observationId),audit(env.DB,actor,'stripe.settlement_observed',observationId,JSON.stringify(snapshot),{matterId:bill.matter_id})]);
  return reconciliationState(env,actor,bill.id);
 }
-export async function matchSettlement(env:StripeEnv,actor:Actor,attemptId:string,b:Data){
- const {bill,config}=await operatingAttempt(env,actor,attemptId),observation=await stmt(env.DB,'SELECT * FROM s_stripe_settlement_observations WHERE id=? AND config_id=?',text(b.observationId,'Reviewed settlement',100),config.id).first<Data>();insist(observation,'Settlement not found',404);
- const s=JSON.parse(observation.snapshot),cents=integer(b.cents,'Bank deposit in USD cents',1),reference=text(b.bankReference,'Bank statement reference',200),reason=text(b.reason,'Finance match evidence',1000);
- insist(b.confirmed===true&&s.status==='paid'&&s.reconciliationStatus==='completed'&&s.netCents===s.amountCents&&s.amountCents===cents&&s.transactions.every((t:Data)=>t.status==='available'),'Only a fully reconciled paid payout can match an exact bank deposit',409);
- const current=await stripeApi(env,'/payouts/'+encodeURIComponent(s.payoutId));insist(current.status==='paid'&&current.amount===cents&&current.currency==='usd','Payout changed; inspect it again',409);
- const attempts=await rows(env.DB,"SELECT payment_intent_id FROM s_stripe_checkouts WHERE bill_id=? AND purpose='operating'",bill.id);insist(s.transactions.some((t:Data)=>attempts.some(a=>a.payment_intent_id===t.paymentIntentId)),'Settlement is not allocated to this invoice',409);
- const batchGuards=await settlementAccess(env,actor,s.transactions);
- const prior=await stmt(env.DB,'SELECT * FROM s_stripe_bank_matches WHERE payout_id=?',s.payoutId).first<Data>();if(prior){insist(prior.bank_reference===reference&&prior.cents===cents&&prior.reason===reason,'The bank match is immutable',409);return reconciliationState(env,actor,bill.id);}
- await atomic(env.DB,actor,[...batchGuards,accessGuard(env.DB,actor,bill.matter_id),stmt(env.DB,'INSERT INTO s_stripe_bank_matches VALUES(?,?,?,?,?,?,?,?)',id(),s.payoutId,observation.id,reference,cents,reason,actor.email,now()),audit(env.DB,actor,'stripe.bank_matched',s.payoutId,JSON.stringify({reference,cents,reason,observationId:observation.id}),{matterId:bill.matter_id})]);return reconciliationState(env,actor,bill.id);
-}
+export {matchSettlement,reverseBankMatch} from './stripe-bank';
