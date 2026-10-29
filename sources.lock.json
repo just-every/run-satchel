@@ -192,7 +192,7 @@
       "executable": false
     },
     "docs/agents.md": {
-      "sha256": "76093357ac497f991ae0966c52de697fa1246f7f9b8efc390fb6e8b85b87012f",
+      "sha256": "6bbc79f90eed3ed0fe93d2b3650170a1c60ebd6edbea2f79a33615a591d35bc3",
       "executable": false
     },
     "docs/assembly-font-license.txt": {
@@ -3768,7 +3768,7 @@
       "executable": false
     },
     "src/satchel/door/tools.ts": {
-      "sha256": "0801265f65265561d037de604bbfa762e27837661b005a7443fb92d5db4912ff",
+      "sha256": "eb2a27f08e65761fe1b01c9863d1ef118941c83ad55b860892509fbfaeea2c0a",
       "executable": false
     },
     "src/satchel/economics.ts": {
