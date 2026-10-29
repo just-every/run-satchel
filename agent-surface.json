@@ -1,0 +1,443 @@
+{
+  "schema": "rer-agent-surface/1",
+  "seed": "satchel",
+  "specialist": "legal-practice coordinator",
+  "capabilities": [
+    "tools",
+    "policy",
+    "pause",
+    "audit",
+    "idempotency"
+  ],
+  "tools": [
+    {
+      "name": "satchel.agent.identity",
+      "scope": "satchel:identity",
+      "readOnly": true,
+      "classes": [
+        "standard"
+      ],
+      "clauses": [
+        "SAT-009",
+        "AGENT-010"
+      ]
+    },
+    {
+      "name": "satchel.agent.context",
+      "scope": "satchel:context",
+      "readOnly": true,
+      "classes": [
+        "standard"
+      ],
+      "clauses": [
+        "SAT-009",
+        "AGENT-010"
+      ]
+    },
+    {
+      "name": "satchel.matter.context",
+      "scope": "satchel:context",
+      "readOnly": true,
+      "classes": [
+        "standard",
+        "sensitive"
+      ],
+      "clauses": [
+        "SAT-007",
+        "SAT-009",
+        "AGENT-010"
+      ]
+    },
+    {
+      "name": "satchel.proposal.prepare_matter",
+      "scope": "satchel:prepare",
+      "readOnly": false,
+      "classes": [
+        "standard",
+        "sensitive"
+      ],
+      "clauses": [
+        "SAT-009",
+        "AGENT-010"
+      ]
+    },
+    {
+      "name": "satchel.proposal.prepare_bill",
+      "scope": "satchel:prepare",
+      "readOnly": false,
+      "classes": [
+        "standard",
+        "sensitive"
+      ],
+      "clauses": [
+        "SAT-009",
+        "AGENT-010"
+      ]
+    },
+    {
+      "name": "satchel.proposal.prepare_deadline",
+      "scope": "satchel:prepare",
+      "readOnly": false,
+      "classes": [
+        "standard",
+        "sensitive"
+      ],
+      "clauses": [
+        "SAT-009",
+        "AGENT-010"
+      ]
+    }
+  ],
+  "notTools": [
+    {
+      "clauses": [
+        "SAT-009",
+        "AGENT-010"
+      ],
+      "reason": "screen"
+    },
+    {
+      "clauses": [
+        "SAT-010"
+      ],
+      "reason": "import-door"
+    },
+    {
+      "clauses": [
+        "SAT-011",
+        "BASE-001"
+      ],
+      "reason": "installation"
+    },
+    {
+      "clauses": [
+        "FIRM-004"
+      ],
+      "reason": "device"
+    },
+    {
+      "clauses": [
+        "CONNECT-001",
+        "CONNECT-002",
+        "CONNECT-003"
+      ],
+      "reason": "connector"
+    }
+  ],
+  "resources": [],
+  "journey": [
+    {
+      "id": "identity",
+      "tool": "satchel.agent.identity",
+      "args": {},
+      "expect": [
+        {
+          "class": "standard",
+          "facts": {
+            "measure": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "context",
+      "tool": "satchel.agent.context",
+      "args": {},
+      "expect": [
+        {
+          "class": "standard",
+          "facts": {
+            "measure": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "read-matter0",
+      "tool": "satchel.matter.context",
+      "args": {
+        "delegationId": {
+          "$from": "context",
+          "pointer": "/delegations/0/id"
+        },
+        "matterId": {
+          "$from": "context",
+          "pointer": "/delegations/0/matterId"
+        }
+      },
+      "expect": [
+        {
+          "class": "standard",
+          "facts": {
+            "measure": 1
+          }
+        }
+      ],
+      "inject": {
+        "internal": true,
+        "confirmExternal": true,
+        "risk": "standard"
+      }
+    },
+    {
+      "id": "matter0",
+      "tool": "satchel.proposal.prepare_matter",
+      "args": {
+        "delegationId": {
+          "$from": "context",
+          "pointer": "/delegations/0/id"
+        },
+        "payload": {
+          "title": "Native matter proposal",
+          "client": "Synthetic client",
+          "adverse": "Synthetic counterparty"
+        }
+      },
+      "expect": [
+        {
+          "class": "standard",
+          "facts": {
+            "measure": 1
+          }
+        }
+      ],
+      "inject": {
+        "internal": true,
+        "confirmExternal": true,
+        "risk": "standard"
+      }
+    },
+    {
+      "id": "bill0",
+      "tool": "satchel.proposal.prepare_bill",
+      "args": {
+        "delegationId": {
+          "$from": "context",
+          "pointer": "/delegations/0/id"
+        },
+        "payload": {
+          "title": "Native bill proposal",
+          "matterId": {
+            "$from": "context",
+            "pointer": "/delegations/0/matterId"
+          },
+          "date": "2027-01-15",
+          "entryIds": []
+        }
+      },
+      "expect": [
+        {
+          "class": "standard",
+          "facts": {
+            "measure": 1
+          }
+        }
+      ],
+      "inject": {
+        "internal": true,
+        "confirmExternal": true,
+        "risk": "standard"
+      }
+    },
+    {
+      "id": "deadline0",
+      "tool": "satchel.proposal.prepare_deadline",
+      "args": {
+        "delegationId": {
+          "$from": "context",
+          "pointer": "/delegations/0/id"
+        },
+        "payload": {
+          "title": "Native deadline proposal",
+          "matterId": {
+            "$from": "context",
+            "pointer": "/delegations/0/matterId"
+          },
+          "date": "2027-01-15",
+          "timezone": "America/New_York",
+          "source": "Counsel-selected native evidence",
+          "kind": "court"
+        }
+      },
+      "expect": [
+        {
+          "class": "standard",
+          "facts": {
+            "measure": 1
+          }
+        }
+      ],
+      "inject": {
+        "internal": true,
+        "confirmExternal": true,
+        "risk": "standard"
+      }
+    },
+    {
+      "id": "read-matter1",
+      "tool": "satchel.matter.context",
+      "args": {
+        "delegationId": {
+          "$from": "context",
+          "pointer": "/delegations/1/id"
+        },
+        "matterId": {
+          "$from": "context",
+          "pointer": "/delegations/1/matterId"
+        }
+      },
+      "expect": [
+        {
+          "class": "standard",
+          "facts": {
+            "measure": 1
+          }
+        },
+        {
+          "class": "sensitive",
+          "facts": {
+            "measure": 1,
+            "kind": "health"
+          }
+        }
+      ],
+      "inject": {
+        "internal": true,
+        "confirmExternal": true,
+        "risk": "standard"
+      }
+    },
+    {
+      "id": "matter1",
+      "tool": "satchel.proposal.prepare_matter",
+      "args": {
+        "delegationId": {
+          "$from": "context",
+          "pointer": "/delegations/1/id"
+        },
+        "payload": {
+          "title": "Native matter proposal",
+          "client": "Synthetic client",
+          "adverse": "Synthetic counterparty"
+        }
+      },
+      "expect": [
+        {
+          "class": "standard",
+          "facts": {
+            "measure": 1
+          }
+        },
+        {
+          "class": "sensitive",
+          "facts": {
+            "measure": 1,
+            "kind": "health"
+          }
+        }
+      ],
+      "inject": {
+        "internal": true,
+        "confirmExternal": true,
+        "risk": "standard"
+      }
+    },
+    {
+      "id": "bill1",
+      "tool": "satchel.proposal.prepare_bill",
+      "args": {
+        "delegationId": {
+          "$from": "context",
+          "pointer": "/delegations/1/id"
+        },
+        "payload": {
+          "title": "Native bill proposal",
+          "matterId": {
+            "$from": "context",
+            "pointer": "/delegations/1/matterId"
+          },
+          "date": "2027-01-15",
+          "entryIds": []
+        }
+      },
+      "expect": [
+        {
+          "class": "standard",
+          "facts": {
+            "measure": 1
+          }
+        },
+        {
+          "class": "sensitive",
+          "facts": {
+            "measure": 1,
+            "kind": "health"
+          }
+        }
+      ],
+      "inject": {
+        "internal": true,
+        "confirmExternal": true,
+        "risk": "standard"
+      }
+    },
+    {
+      "id": "deadline1",
+      "tool": "satchel.proposal.prepare_deadline",
+      "args": {
+        "delegationId": {
+          "$from": "context",
+          "pointer": "/delegations/1/id"
+        },
+        "payload": {
+          "title": "Native deadline proposal",
+          "matterId": {
+            "$from": "context",
+            "pointer": "/delegations/1/matterId"
+          },
+          "date": "2027-01-15",
+          "timezone": "America/New_York",
+          "source": "Counsel-selected native evidence",
+          "kind": "court"
+        }
+      },
+      "expect": [
+        {
+          "class": "standard",
+          "facts": {
+            "measure": 1
+          }
+        },
+        {
+          "class": "sensitive",
+          "facts": {
+            "measure": 1,
+            "kind": "health"
+          }
+        }
+      ],
+      "inject": {
+        "internal": true,
+        "confirmExternal": true,
+        "risk": "standard"
+      }
+    }
+  ],
+  "witness": {
+    "tool": "satchel.agent.identity",
+    "args": {}
+  },
+  "escalations": [],
+  "spend": {
+    "none": true
+  },
+  "verification": {
+    "owner": {
+      "initializer": "tests/agent-door/initialize-owner.mjs"
+    },
+    "journey": "tests/agent-door/native-journey.mjs",
+    "agent": {
+      "initializer": "tests/agent-door/initialize-agent.mjs"
+    }
+  }
+}

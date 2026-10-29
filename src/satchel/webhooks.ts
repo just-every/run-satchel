@@ -20,7 +20,7 @@ async function visible(db:D1Database,i:Integration,e:Data) {
   await integrationMatter(db,i,e.matter_id);
   if(e.kind==='document.changed')await visibleDocument(db,i.actor,e.object_id);
   if(e.kind==='deadline.changed')await visibleDeadline(db,i.actor,e.object_id);
-  if(e.kind==='proposal.decided')insist(await stmt(db,'SELECT 1 FROM s_proposals WHERE id=? AND for_email=?',e.object_id,i.actor.email).first(),'Proposal not found',404);
+  if(e.kind==='proposal.decided')insist(await stmt(db,'SELECT 1 FROM s_proposals WHERE id=? AND (sponsor_id=? OR EXISTS(SELECT 1 FROM s_proposal_sponsor_links ps WHERE ps.proposal_id=s_proposals.id AND ps.operator_id=?) OR (sponsor_id IS NULL AND for_email=?))',e.object_id,i.actor.id,i.actor.id,i.actor.email).first(),'Proposal not found',404);
   return true;
  } catch(e) {if(e instanceof Error&&'status'in e&&[403,404].includes(Number(e.status)))return false;throw e;}
 }
