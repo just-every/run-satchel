@@ -3800,7 +3800,7 @@
       "executable": false
     },
     "src/satchel/imports/native.ts": {
-      "sha256": "45fb972ff45962f689ff8a1ac7ebc3ec1b411dfdaf34ca332d5d0b0cf227d968",
+      "sha256": "5301a9cd3110d8692d5a8c284bc498f62e0accdf9e399ae8db5054e3e298a838",
       "executable": false
     },
     "src/satchel/imports/package.ts": {
