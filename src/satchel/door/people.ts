@@ -20,14 +20,25 @@ export async function nativePerson(db:D1Database,id:string):Promise<Person|null>
 }
 export function people(env:Bindings):PeopleAdapter {
  const base=operatorAuthPeople({db:env.DB,session:r=>operatorAuth(runtimeBindings(env)).getSession(r)})
+ const read=async(id:string)=>{
+  const current=await nativePerson(env.DB,id)
+  if(!env.RER_OWNER_CLAIM_PUBLIC_KEYS)return current
+  if(!current?.active)return null
+  const state=await stmt(env.DB,'SELECT owner_id FROM bs_settings WHERE singleton=1 AND stopped=0').first<{owner_id:string}>()
+  if(!state?.owner_id)return null
+  const member=await base.businessMember!(current)
+  if(!member)return null
+  if(member.role!=='owner'&&!await stmt(env.DB,"SELECT 1 FROM bs_team WHERE operator_id=? AND business_id=? AND state='active'",id,member.id).first())return null
+  return current
+ }
  return {
-  person:id=>nativePerson(env.DB,id),
+  person:read,
   businessRole:p=>env.RER_OWNER_CLAIM_PUBLIC_KEYS?(p as Person & {businessPolicyRole:'owner'|'editor'|null}).businessPolicyRole:p.role==='owner'?'owner':null,
   async sponsor(claims){
    const settings=await stmt(env.DB,'SELECT owner_id FROM bs_settings WHERE singleton=1 AND stopped=0').first<{owner_id:string}>()
    if(!settings?.owner_id)return null
    if(settings.owner_id!==claims.sub&&!await stmt(env.DB,"SELECT 1 FROM bs_team WHERE business_id=? AND state='active'",claims.sub).first())return null
-   const linked=await base.sponsor(claims);return linked?.active?nativePerson(env.DB,linked.id):null
+   const linked=await base.sponsor(claims);return linked?.active?read(linked.id):null
   },
   async businessMember(p){
    const state=await stmt(env.DB,'SELECT owner_id FROM bs_settings WHERE singleton=1 AND stopped=0').first<{owner_id:string}>()
