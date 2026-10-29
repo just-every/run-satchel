@@ -54,7 +54,7 @@
     "@cloudflare/workers-types": "5.20260908.1",
     "@napi-rs/canvas": "0.1.80",
     "@playwright/test": "1.63.0",
-    "@runeditrun/rer": "0.2.80",
+    "@runeditrun/rer": "0.2.86",
     "@types/html-to-text": "9.0.4",
     "@types/node": "22.20.5",
     "@types/react": "19.2.18",
