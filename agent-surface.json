@@ -86,17 +86,6 @@
         "SAT-009",
         "AGENT-010"
       ]
-    },
-    {
-      "name": "satchel.events.list",
-      "scope": "events:read",
-      "readOnly": true,
-      "classes": [
-        "standard"
-      ],
-      "clauses": [
-        "BASE-AGENT-010"
-      ]
     }
   ],
   "notTools": [
@@ -135,9 +124,7 @@
       "reason": "connector"
     }
   ],
-  "resources": [
-    "satchel://proposals/{id}"
-  ],
+  "resources": [],
   "journey": [
     {
       "id": "identity",
@@ -434,21 +421,6 @@
         "confirmExternal": true,
         "risk": "standard"
       }
-    },
-    {
-      "id": "events",
-      "tool": "satchel.events.list",
-      "args": {
-        "limit": 200
-      },
-      "expect": [
-        {
-          "class": "standard",
-          "facts": {
-            "measure": 1
-          }
-        }
-      ]
     }
   ],
   "witness": {
@@ -463,6 +435,9 @@
     "owner": {
       "initializer": "tests/agent-door/initialize-owner.mjs"
     },
-    "journey": "tests/agent-door/native-journey.mjs"
+    "journey": "tests/agent-door/native-journey.mjs",
+    "fixtures": {
+      "module": "tests/agent-door/phase-fixtures.mjs"
+    }
   }
 }
