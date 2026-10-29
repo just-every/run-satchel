@@ -8,14 +8,16 @@ export async function native<T>(run:()=>Promise<T>):Promise<T> {
  try{return await run()}catch(error){if(error instanceof Fault)throw new ToolRefusal(error.status===404?'resource_unavailable':error.status===409?'native_conflict':'native_authority_required');throw error}
 }
 /** Both credentials converge on the same current key, sponsor and delegation. */
-export async function actor(ctx:ToolContext):Promise<Actor & {label:string}> {
+type NativePrincipalContext=Pick<ToolContext,'db'|'person'|'agent'|'clientId'> & Partial<Pick<ToolContext,'actor'|'approvers'>>
+export async function actor(ctx:NativePrincipalContext):Promise<Actor & {label:string}> {
  return native(async()=>{
   const local=ctx.clientId===undefined&&ctx.agent.id.startsWith('satchel-local:')
   const key=await stmt(ctx.db,'SELECT id FROM s_agent_keys WHERE owner_id=? AND revoked=0 AND '+(local?'id=?':'business_agent_id=?'),ctx.person.id,local?ctx.agent.id.slice(14):ctx.agent.id).first<{id:string}>()
   if(!key)throw new ToolRefusal('native_delegation_required')
   const who=await agentForKey(ctx.db,key.id)
   if(who.id!==ctx.person.id)throw new ToolRefusal('native_delegation_required')
-  return {...who,label:ctx.actor.label,agentAttribution:ctx.actor,agentApprovers:ctx.approvers.map(p=>({...p})),...(!local?{doorAgentId:ctx.agent.id}:{})}
+  const attribution=ctx.actor??{agent:{id:ctx.agent.id,name:ctx.agent.name},for:{id:ctx.person.id,name:ctx.person.name},label:`${ctx.agent.name} for ${ctx.person.name}`}
+  return {...who,label:attribution.label,agentAttribution:attribution,agentApprovers:(ctx.approvers??[]).map(p=>({...p})),...(!local?{doorAgentId:ctx.agent.id}:{})}
  })
 }
 export async function delegation(args:Data,ctx:ToolContext,action:string){

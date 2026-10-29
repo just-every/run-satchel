@@ -3720,7 +3720,7 @@
       "executable": false
     },
     "src/satchel/door/native.ts": {
-      "sha256": "3e6bca8874188b7b2dff2d44e9c62cdd64baf28113ac2e88887913a7653c8e1e",
+      "sha256": "85e849856d8184b279bb66bdbaa4aeab469c4d32a572037ee22398d648716a1d",
       "executable": false
     },
     "src/satchel/door/people.ts": {
@@ -3732,7 +3732,7 @@
       "executable": false
     },
     "src/satchel/door/tools.ts": {
-      "sha256": "3623a17b1bbedf61072d0eece0d971c61a4fb47b45341ac38528d7217d613afd",
+      "sha256": "0801265f65265561d037de604bbfa762e27837661b005a7443fb92d5db4912ff",
       "executable": false
     },
     "src/satchel/economics.ts": {
