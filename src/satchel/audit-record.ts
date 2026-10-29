@@ -97,7 +97,7 @@ const contexts=[
  record('s_deadlines',['id','title','kind','owner_email','date','timezone','source','document_id','document_version','status','confirmed_by','confirmed_at','completed_by','completed_at','completion_evidence'],'x.matter_id','x.revision'),
  record('s_conflicts',['id','client','adverse','queries','matches','party_revision','actor','at','search_summary'],'NULL','CAST(x.party_revision AS TEXT)'),
  record('s_parties',['id','name','aliases','email','source'],'NULL','x.revision'),
- record('s_proposals',['id','kind','payload','for_email','agent_label','status','result_id','decided_by','decided_at','delegation_id','agreement_id'],'json_extract(x.payload,\'$.matterId\')'),
+ record('s_proposals',['id','kind','payload','for_email','agent_label','status','result_id','decided_by','decided_at','delegation_id','agreement_id','sponsor_id','prepared_agent_id'],'json_extract(x.payload,\'$.matterId\')'),
  record('s_members',['email','name','role','active'],'NULL','NULL','x.email=i.object_id'),
  record('s_agent_keys',['id','label','owner_id','revoked','created_at']),
  record('s_reminder_rules',['id','deadline_id','recipient','backup','advance_days','send_time','quiet_start','quiet_end','channels','escalate_hours','due_at','status','created_email','created_role','reason'], '(SELECT matter_id FROM s_deadlines WHERE id=x.deadline_id)','x.revision'),
@@ -127,7 +127,7 @@ const contexts=[
  record('s_trust_transfer_policy',['id','dual_authorization'],'NULL','x.revision',"i.object_id='1' AND i.action='trust.transfer_policy_changed'"),
  record('ik_jobs',['id','namespace','mapping_version','fingerprint','state','checkpoint','total','error']),
 ];
-export type AuditActor={id:string;email:string;role:string;channel:string;approval?:{id:string;resultId:string}};
+export type AuditActor={id:string;email:string;role:string;channel:string;approval?:{id:string;resultId:string};agentAttribution?:unknown;agentApprovers?:unknown};
 export function auditQuery(actor:AuditActor,action:string,objectId:string,detail='',evidence:Record<string,unknown>={}){
  const selected=contexts.filter(context=>{
   const table=context.match(/'recordType','([^']+)'/)![1];
@@ -136,5 +136,5 @@ export function auditQuery(actor:AuditActor,action:string,objectId:string,detail
   return true;
  });
  const snapshot=`COALESCE(${selected.join(',')},json_object('recordType','action','matterId',CASE WHEN json_valid(i.detail) THEN json_extract(i.detail,'$.matterId') ELSE NULL END,'revision',NULL,'objectId',i.object_id))`;
- return {sql:`WITH i AS (SELECT ? id,? actor,? action,? object_id,? detail,? at,? actor_id,? role,? channel), c AS MATERIALIZED (SELECT i.*,${snapshot} snapshot FROM i) INSERT INTO s_audit(id,actor,action,object_id,detail,at,actor_id,role,channel,matter_id,revision,evidence) SELECT id,actor,action,object_id,CASE WHEN json_extract(snapshot,'$.settlementRestricted')=1 THEN '' ELSE detail END,at,actor_id,role,channel,json_extract(snapshot,'$.matterId'),json_extract(snapshot,'$.revision'),json_object('record',json(snapshot),'decision',json(?),'context',json_patch(json_object('designatedFirmRole',(SELECT role FROM s_members WHERE email=c.actor AND active=1)),json(?))) FROM c`,params:[crypto.randomUUID(),actor.email,action,objectId,detail,new Date().toISOString(),actor.id,actor.role,actor.channel,JSON.stringify(actor.approval??null),JSON.stringify(evidence)]};
+ return {sql:`WITH i AS (SELECT ? id,? actor,? action,? object_id,? detail,? at,? actor_id,? role,? channel), c AS MATERIALIZED (SELECT i.*,${snapshot} snapshot FROM i) INSERT INTO s_audit(id,actor,action,object_id,detail,at,actor_id,role,channel,matter_id,revision,evidence) SELECT id,actor,action,object_id,CASE WHEN json_extract(snapshot,'$.settlementRestricted')=1 THEN '' ELSE detail END,at,actor_id,role,channel,json_extract(snapshot,'$.matterId'),json_extract(snapshot,'$.revision'),json_object('record',json(snapshot),'decision',json(?),'context',json_patch(json_object('designatedFirmRole',(SELECT role FROM s_members WHERE email=c.actor AND active=1)),json(?))) FROM c`,params:[crypto.randomUUID(),actor.email,action,objectId,detail,new Date().toISOString(),actor.id,actor.role,actor.channel,JSON.stringify(actor.approval??null),JSON.stringify({...evidence,...(actor.agentAttribution?{preparedBy:actor.agentAttribution,approvers:actor.agentApprovers??[]}: {})})]};
 }

@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {harness,open} from './harness.mjs';
 import {formInput,intakeTeam} from './intake-fixture.mjs';
-const zoneDay=(offset,zone)=>{const d=new Date(Date.now()+offset*86400000),parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:zone,weekday:'short'}).formatToParts(d).map(p=>[p.type,p.value]));return ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].indexOf(parts.weekday)+1;};
+// Advance the offer's calendar date, not 24-hour instants across a DST change.
+const zoneDay=(offset,zone)=>{const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(p=>[p.type,p.value])),day=new Date(`${parts.year}-${parts.month}-${parts.day}T12:00:00Z`);day.setUTCDate(day.getUTCDate()+offset);return day.getUTCDay()||7;};
 const localIn=(iso,zone)=>new Intl.DateTimeFormat('en-US',{timeZone:zone,weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'}).format(new Date(iso));
 const book=(h,offer,slot,who,extra={})=>h.request('/api/satchel/consult/'+offer.id+'/book',{slot:slot.start,timezone:'Asia/Tokyo',name:who,email:who.toLowerCase().replace(/\W+/g,'.')+'@example.test',phone:'',summary:'Need advice on parenting arrangements',consent:true,feeAcknowledged:true,website:'',answers:{children:'no'},...extra});
 const mailText=h=>h.mails.map(m=>m.text??'').join('\n');

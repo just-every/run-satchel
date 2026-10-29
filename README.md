@@ -146,3 +146,5 @@ Verify builds, typechecks, runs the public Worker journeys and ordinary email-li
 sign-in, then Base checks hosted assets and hydration. Tests use fresh local D1
 through real HTTP routes; no provider account is needed. One GitHub **Verify**
 workflow runs per push. [SOURCES.md](SOURCES.md) records Base and sibling reuse.
+
+Company agents: see [native preparation jobs and authority](docs/agents.md) and the declared registry in `agent-surface.json`.

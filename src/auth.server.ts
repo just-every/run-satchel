@@ -12,6 +12,7 @@ import { securityGate } from './satchel/security-gate'
 const theme = { href: '/rer-theme.css', productName: branding.name, accentColor: branding.primaryColor }
 
 export interface Bindings {
+ RER_BUSINESS_TRUST?: string
  ENTRA_TENANT_ID?: string
  ENTRA_CLIENT_ID?: string
  ENTRA_CLIENT_SECRET?: string
