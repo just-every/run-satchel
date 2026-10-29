@@ -1,4 +1,6 @@
 // Complete native data, small-file originals, import provenance and review history.
+// Version-bound text derivatives follow originals through the native archive
+// and the same erasure epoch fence; current access is checked after restore.
 // Identity, sessions, outboxes and private configuration stay in Base's exclusions.
 export default {
  product: 'legal/satchel',

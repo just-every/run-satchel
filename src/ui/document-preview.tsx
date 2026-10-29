@@ -1,5 +1,6 @@
 import {useEffect,useRef,useState} from 'react';
 import type {PDFDocumentProxy} from 'pdfjs-dist';
+import {PdfBinaryData} from './pdf-resources';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import type {Row,Run} from './common';
 import {officeKind,OfficePreview} from './office-preview';
@@ -7,15 +8,15 @@ import {DocumentReview} from './document-review';
 
 // DOC-002: render only authenticated, integrity-checked original bytes in memory.
 // No preview derivative, object URL or extracted text is saved by the application.
-export function DocumentPreview({documentId,version,sourceUrl}:{documentId:string;version:Row;sourceUrl?:string}){
- const [pdf,setPdf]=useState<PDFDocumentProxy>(),[pageNumber,setPageNumber]=useState(1),[url,setUrl]=useState(''),[plain,setPlain]=useState(''),[error,setError]=useState(''),[loading,setLoading]=useState(true),[pageText,setPageText]=useState<string>();
+export function DocumentPreview({documentId,version,sourceUrl,initialPage=1}:{documentId:string;version:Row;sourceUrl?:string;initialPage?:number}){
+ const [pdf,setPdf]=useState<PDFDocumentProxy>(),[pageNumber,setPageNumber]=useState(initialPage),[url,setUrl]=useState(''),[plain,setPlain]=useState(''),[error,setError]=useState(''),[loading,setLoading]=useState(true),[pageText,setPageText]=useState<string>();
  const [officeBytes,setOfficeBytes]=useState<Uint8Array>();const office=officeKind(version);
  const fileUrl=sourceUrl??`/api/satchel/documents/${documentId}/file?version=${version.version}`;
  const canvas=useRef<HTMLCanvasElement>(null);
  const supported=Boolean(office)||['application/pdf','image/png','image/jpeg','image/gif','image/webp','text/plain'].includes(version.mime);
  useEffect(()=>{
   const controller=new AbortController();let active=true,objectUrl='',task:{destroy:()=>Promise<void>}|undefined;
-  setOfficeBytes(undefined);setPdf(undefined);setUrl('');setPlain('');setError('');setLoading(supported);setPageNumber(1);
+  setOfficeBytes(undefined);setPdf(undefined);setUrl('');setPlain('');setError('');setLoading(supported);setPageNumber(initialPage);
   if(supported)void (async()=>{
    const response=await fetch(fileUrl,{credentials:'same-origin',cache:'no-store',signal:controller.signal});
    if(!response.ok){const result=await response.json() as Row;throw new Error(result.error??'The original could not be opened');}
@@ -27,14 +28,14 @@ export function DocumentPreview({documentId,version,sourceUrl}:{documentId:strin
    else if(version.mime==='application/pdf'){
     const library=await import('pdfjs-dist');if(!active)return;
     library.GlobalWorkerOptions.workerSrc=workerUrl;
-    const job=library.getDocument({data:bytes,useSystemFonts:true});task=job;
+    const job=library.getDocument({data:bytes,useSystemFonts:true,useWorkerFetch:false,BinaryDataFactory:PdfBinaryData});task=job;
     const opened=await job.promise;if(active)setPdf(opened);
    }else if(version.mime==='text/plain')setPlain(new TextDecoder().decode(bytes));
    else{objectUrl=URL.createObjectURL(new Blob([bytes],{type:version.mime}));setUrl(objectUrl);}
    if(active)setLoading(false);
   })().catch(reason=>{if(active){setLoading(false);setError(reason instanceof Error?reason.message:String(reason));}});
   return()=>{active=false;controller.abort();if(objectUrl)URL.revokeObjectURL(objectUrl);void task?.destroy();};
- },[documentId,version.version,version.sha256,version.size,version.mime,supported,fileUrl,office]);
+ },[documentId,version.version,version.sha256,version.size,version.mime,supported,fileUrl,office,initialPage]);
  useEffect(()=>{
   if(!pdf)return;setPageText(undefined);let active=true,render:{cancel:()=>void}|undefined;
   void (async()=>{

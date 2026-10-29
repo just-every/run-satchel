@@ -1,18 +1,22 @@
 import {DocumentChronologies} from './document-chronologies';
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import {api,Empty,Field,Form,type Row,type Run} from './common';
 import {MatterRetention} from './retention';
 import {Assembly} from './assembly';
 import {DocumentSets} from './document-sets';
 import {DocumentProductions} from './document-productions';
-import {DocumentVersions} from './document-preview';
-export function Documents({matterId,actor,run,tick}:{matterId:string;actor:Row;run:Run;tick:number}){
+import {DocumentPreview,DocumentVersions} from './document-preview';
+export function Documents({matterId,actor,run,tick,citation,closeCitation}:{matterId:string;actor:Row;run:Run;tick:number;citation?:Row;closeCitation:()=>void}){
+ const [cited,setCited]=useState<Row>(),[citationError,setCitationError]=useState(''),citationPanel=useRef<HTMLElement>(null);
+ useEffect(()=>{let active=true;setCited(undefined);setCitationError('');if(citation)api('/documents/'+citation.documentId+'/text?'+new URLSearchParams({version:String(citation.version),sha256:citation.sha256,page:String(citation.page),format:'json'})).then(r=>{if(active)setCited(r);}).catch(e=>{if(active)setCitationError(e.message);});return()=>{active=false;};},[citation]);
+ useEffect(()=>{if(cited)citationPanel.current?.scrollIntoView({block:'start'});},[cited]);
+ useEffect(()=>{if(!citation)return;const clear=()=>closeCitation();window.addEventListener('blur',clear);return()=>window.removeEventListener('blur',clear);},[citation,closeCitation]);
  const [conflictNotice,setConflictNotice]=useState('');
  const [items,setItems]=useState<Row[]>([]),[files,setFiles]=useState<File[]>([]),[versionFor,setVersionFor]=useState<Row>();
  useEffect(()=>{setItems([]);setFiles([]);setVersionFor(undefined);},[matterId]);
  useEffect(()=>{let active=true;if(matterId)api('/matters/'+matterId+'/documents').then(s=>{if(active)setItems(s);}).catch(e=>{if(active)void run(async()=>{throw e;});});return()=>{active=false;};},[matterId,tick]);
  if(!matterId)return <Empty>Choose or open a matter first.</Empty>;
- return <><Assembly matterId={matterId} actor={actor} run={run} tick={tick}/><DocumentChronologies matterId={matterId} actor={actor} run={run} tick={tick}/><DocumentProductions matterId={matterId} actor={actor} documents={items} run={run} tick={tick}/><div className="grid"><DocumentSets matterId={matterId} actor={actor} documents={items} run={run} tick={tick}>{(visible,selected,toggle)=><section className="panel document-originals"><h2>Originals & versions</h2>{conflictNotice&&<p role="alert">{conflictNotice}</p>}{!visible.length&&<Empty>{items.length?'No documents in this view.':'No documents uploaded yet.'}</Empty>}{visible.map(d=><article className="record" key={d.id}>
+ return <>{citation&&<section ref={citationPanel} className="panel" aria-label="Search citation"><h2>Search citation</h2><button className="quiet" onClick={closeCitation}>Close search citation</button>{citationError&&<p role="alert">{citationError}</p>}{!cited&&!citationError&&<p role="status">Opening exact source page…</p>}{cited&&<><p>{cited.title} · version {cited.version} · {cited.unit??'page'} {cited.page}</p>{cited.original.declaredMime==='message/rfc822'||/\.eml$/i.test(cited.title)?<a href={cited.sourceUrl}>Download exact original message</a>:<DocumentPreview documentId={cited.documentId} version={cited.original} sourceUrl={cited.sourceUrl} initialPage={cited.page}/>} <h3>Indexed page text</h3><pre style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{cited.body}</pre></>}</section>}<Assembly matterId={matterId} actor={actor} run={run} tick={tick}/><DocumentChronologies matterId={matterId} actor={actor} run={run} tick={tick}/><DocumentProductions matterId={matterId} actor={actor} documents={items} run={run} tick={tick}/><div className="grid"><DocumentSets matterId={matterId} actor={actor} documents={items} run={run} tick={tick}>{(visible,selected,toggle)=><section className="panel document-originals"><h2>Originals & versions</h2>{conflictNotice&&<p role="alert">{conflictNotice}</p>}{!visible.length&&<Empty>{items.length?'No documents in this view.':'No documents uploaded yet.'}</Empty>}{visible.map(d=><article className="record" key={d.id}>
   {!d.erasedAt&&(actor.role==='owner'||d.createdBy===actor.email)&&<label><input type="checkbox" checked={selected.includes(d.id)} onChange={()=>toggle(d.id)}/>Select {d.title}</label>}
   <strong>{d.title}</strong><small>Matter {d.matterNumber}</small><p><span className="badge">{d.visibility}</span> · {d.erasedAt?'Bytes erased':'Version '+d.currentVersion}</p>
   {(d.documentType||d.tags.length>0)&&<p>{[d.documentType,...d.tags].filter(Boolean).join(' · ')}</p>}

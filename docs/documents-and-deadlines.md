@@ -12,6 +12,36 @@ The file appears under **Originals & versions**. Use **Download version 1** or t
 
 The original uploader or principal can add a revision: choose **Append version** on the existing document, select the new **Original file**, then **Save original**. This retains the earlier versions and the document's visibility. Use **Cancel** to return to adding a separate document.
 
+## Search document contents
+
+Use **Search the firm** to find words in retained originals. Satchel reads
+embedded PDF text and UTF-8 text, recognizes English text in scanned PDF pages,
+PNG and JPEG originals, reads stored Word, spreadsheet and slide text, and reads retained EML message bodies and supported
+attachments locally. Search never sends originals to an OCR service or follows
+remote message images. Extraction creates no malware clearance.
+
+Expand **Document filters** to narrow results by matter, the current original’s
+upload date, or its filed document type. Use type Email for native reviewed correspondence. Those messages use their review date and retain their current counsel-only read permission. Each text hit shows its exact original
+version, SHA-256 hash, page and index time. Open a hit to read that page’s indexed
+text and download its matching original. For a message, cited sections identify
+the message body, nested message or attachment and its source page. Office citations identify stored sections, worksheets or slides without claiming a reproduced print layout.
+
+**Document text coverage** distinguishes current, incomplete and unavailable
+text. Encrypted originals, unreadable scans, unsupported formats and unsupported
+attachments remain explicit in that coverage; retain or supply a readable
+original when necessary. PDF search reads all pages in an accepted original;
+the separate native chronology extraction limit remains 200 pages. OCR accepts
+images up to twelve million pixels, including 300 dpi Letter and A4 scans.
+CCITT Group 4 scanned PDFs are decoded locally. OCR text can contain recognition
+errors, so verify quotations against the retained original.
+
+Appending a new version invalidates old search text and old search citations.
+Current firm roles, matter access, ethical walls and private-document rules
+apply before text, counts or snippets are returned. Search results are discarded
+when focus leaves the search and are requested again on refocus. Legal holds
+block erasure and disposal; permitted disposal removes indexed text along with
+originals, and older archives cannot restore it across the erasure fence.
+
 ## Propose and confirm a deadline
 
 1. Open **Deadlines**. Under **Propose a deadline**, enter **Deadline title**, **Date**, **Timezone**, and **Source and citation**.

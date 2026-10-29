@@ -212,3 +212,105 @@ test('native medical chronology requires health setup, pins source pages, reconc
   const after=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(!after.includes('synthetic-satchel-7 reviewed visit'));
  }finally{await restored?.close();await h.close();}
 });
+
+test('readable original search pins pages and filters, fences current access and stale citations, and disposes indexed derivatives with archive protection',async()=>{
+ const {textSearchFixture,readablePdf}=await import('./document-text-fixture.mjs');
+ const {createHash}=await import('node:crypto');
+ const h=await harness();let restored;
+ try{
+  const m=await open(h,'Indexed records'),base='/matters/'+m.id,f=await textSearchFixture(h,m);
+  // Reuse an ordinary invited person: no direct database access or index seeding.
+  const {intakeTeam}=await import('./intake-fixture.mjs'),people=await intakeTeam(h),members=(await h.json('/state',undefined,h.owner)).members;
+  const readerEmail=members.find(p=>p.role==='assistant').email,custodianEmail=members.find(p=>p.role==='lawyer').email;let reader=people[readerEmail];
+  const search=(q,c=h.owner,filters={})=>h.json('/search?q='+encodeURIComponent(q)+'&'+new URLSearchParams(filters),undefined,c);
+  assert.equal((await search('copper lantern',reader)).total,0);
+  await h.json(base+'/access',{email:readerEmail},h.owner);
+  const answer=await search('copper lantern',reader);assert.equal(answer.total,1);
+  const hit=answer.groups[0].items[0];assert.equal(hit.citation.documentId,f.document.id);assert.equal(hit.citation.page,2);assert.equal(hit.citation.version,1);
+  assert.equal(hit.citation.sha256,createHash('sha256').update(f.bytes).digest('hex'));assert.match(hit.snippet,/Copper lantern testimony/);assert.equal(hit.freshness.status,'ready');assert.ok(hit.freshness.indexedAt);
+  assert.ok(!JSON.stringify(answer).includes(f.privateDocument.id));assert.ok(!JSON.stringify(answer).includes('Counsel private'));
+  const citation=await h.request('/api/satchel'+hit.path,undefined,reader);assert.equal(citation.status,200);assert.match(citation.headers.get('cache-control'),/no-store/);
+  const text=await citation.text();assert.match(text,/Copper lantern testimony/);assert.ok(!text.includes('First page of retained testimony'));assert.ok(text.includes(hit.citation.sha256));
+  const file=await h.request('/api/satchel/documents/'+f.document.id+'/file?version=1',undefined,reader);assert.deepEqual(Buffer.from(await file.arrayBuffer()),f.bytes);
+  assert.equal((await h.request('/api/satchel/documents/'+f.document.id+'/file?version=1&sha256='+('0'.repeat(64)),undefined,reader)).status,409);
+  assert.equal((await h.request('/api/satchel'+hit.path.replace(hit.citation.sha256,'0'.repeat(64)),undefined,reader)).status,409);
+  const day=f.document.versions[0].createdAt.slice(0,10);
+  assert.equal((await search('copper lantern',reader,{matterId:m.id,from:day,to:day,documentType:'Deposition'})).total,1);
+  for(const filters of [{matterId:'synthetic-satchel-1'},{documentType:'Correspondence'},{from:'1900-01-01',to:'1900-12-31'}])assert.equal((await search('copper lantern',reader,filters)).total,0);
+  await h.json('/search?q=copper&from=2026-10-30&to=2026-10-01',undefined,reader,400);
+  assert.equal((await search('silver compass',reader)).groups[0].items[0].citation.page,1);
+  const {messageOriginal}=await import('./document-text-fixture.mjs');
+  const message=await f.upload('Instructions.eml',await messageOriginal(),'message/rfc822');
+  for(const phrase of ['violet harbor','golden meadow','saffron bridge','indigo island','scarlet orchard','marigold field','cerulean counsel']){
+   const found=await search(phrase,reader);assert.equal(found.total,1,phrase+' is searched through the retained message');assert.equal(found.groups[0].type,'Email');
+   const emailHit=found.groups[0].items[0];assert.equal(emailHit.citation.documentId,message.id);assert.equal(emailHit.freshness.status,'ready');
+   const page=await h.request('/api/satchel'+emailHit.path,undefined,reader);assert.equal(page.status,200);assert.match((await page.text()).toLowerCase(),new RegExp(phrase));
+  }
+  assert.equal((await search('hostile executable',reader)).total,0,'Executable HTML content is never interpreted or indexed');
+  const {office}=await import('./office-fixture.mjs');
+  for(const [kind,phrase,mime] of [['docx','Carnelian counsel directions','application/vnd.openxmlformats-officedocument.wordprocessingml.document'],['xlsx','Reviewed filing cost','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],['pptx','Hearing preparation summary','application/vnd.openxmlformats-officedocument.presentationml.presentation']]){
+   const original=await f.upload('Retained record.'+kind,office(kind,'Carnelian counsel directions'),mime),found=await search(phrase,reader);assert.equal(found.total,1);const item=found.groups[0].items[0];assert.equal(item.citation.documentId,original.id);assert.equal(item.citation.unit,'section');assert.equal(item.freshness.status,'ready');assert.equal((await h.request('/api/satchel'+item.path,undefined,reader)).status,200);
+  }
+  const {reviewedMessage}=await import('./document-text-fixture.mjs'),nativeMail=await reviewedMessage(h,m);
+  const nativeResult=await search('turquoise garden');assert.equal(nativeResult.total,1);assert.equal(nativeResult.groups[0].type,'Email');const nativeHit=nativeResult.groups[0].items[0];assert.equal(nativeHit.id,nativeMail.id);assert.equal(nativeHit.sourceCitation.revision,nativeMail.id);assert.match(nativeHit.sourceCitation.sha256,/^[a-f0-9]{64}$/);
+  assert.equal((await search('turquoise garden',reader)).total,0,'Document access alone cannot read counsel correspondence');
+  await h.json(base+'/access',{email:custodianEmail},h.owner);const counsel=people[custodianEmail];assert.equal((await search('turquoise garden',counsel)).total,1);
+  await h.json(base+'/access',{email:custodianEmail,remove:true},h.owner);assert.equal((await search('turquoise garden',counsel)).total,0);
+  const transcript=await f.upload('synthetic-satchel-202.pdf',await readablePdf(Array.from({length:201},(_,i)=>i===200?'synthetic-satchel-201 final testimony passage':'Retained transcript testimony page '+(i+1))));
+  const transcriptResult=await search('synthetic-satchel-201',reader);assert.equal(transcriptResult.total,1);
+  const transcriptHit=transcriptResult.groups[0].items[0];assert.equal(transcriptHit.citation.documentId,transcript.id);assert.equal(transcriptHit.citation.page,201);assert.equal(transcriptHit.freshness.status,'ready');
+  assert.match(await(await h.request('/api/satchel'+transcriptHit.path,undefined,reader)).text(),/final testimony passage/);
+  const {scannedOriginal,ccittScannedPdf}=await import('./document-text-fixture.mjs'),scan=await scannedOriginal('Quartz harbor witness statement',{width:2550,height:3300,dpi:300});
+  const scanned=await f.upload('Witness scan.pdf',scan.pdf),image=await f.upload('Witness scan.png',scan.png,'image/png'),jpeg=await f.upload('Witness scan.jpg',scan.jpeg,'image/jpeg');
+  const ocr=await search('quartz harbor',reader);assert.equal(ocr.total,3,'Real OCR finds a phrase absent from every PDF text layer and metadata field');
+  const scanHit=ocr.groups[0].items.find(i=>i.citation.documentId===scanned.id);assert.ok(scanHit);assert.equal(scanHit.citation.page,2);assert.equal(scanHit.citation.sha256,createHash('sha256').update(scan.pdf).digest('hex'));assert.match(scanHit.freshness.detail,/OCR/);
+  const scanPage=await h.request('/api/satchel'+scanHit.path,undefined,reader);assert.equal(scanPage.status,200);assert.match(await scanPage.text(),/Quartz harbor witness statement/);
+  const scannedFile=await h.request('/api/satchel/documents/'+scanned.id+'/file?version=1&sha256='+scanHit.citation.sha256,undefined,reader);assert.deepEqual(Buffer.from(await scannedFile.arrayBuffer()),scan.pdf);
+  const faxBytes=await ccittScannedPdf(),fax=await f.upload('synthetic-satchel-83.pdf',faxBytes),faxResult=await search('synthetic-satchel-82',reader);assert.equal(faxResult.total,1,'Group 4 image text is decoded and recognized locally');
+  const faxHit=faxResult.groups[0].items[0];assert.equal(faxHit.citation.documentId,fax.id);assert.equal(faxHit.citation.page,1);assert.equal(faxHit.citation.sha256,createHash('sha256').update(faxBytes).digest('hex'));assert.equal(faxHit.freshness.status,'ready');assert.match(faxHit.freshness.detail,/OCR/);
+  assert.match(await(await h.request('/api/satchel'+faxHit.path,undefined,reader)).text(),/synthetic-satchel-82/);
+  await h.json('/documents/'+jpeg.id+'/erase',{confirm:jpeg.title,reason:'Approved scan duplicate erasure'},h.owner);
+  await h.json('/documents/'+image.id+'/erase',{confirm:image.title,reason:'Approved scan duplicate erasure'},h.owner);assert.equal((await search('quartz harbor',reader)).total,1);
+  // New head removes old text immediately; a saved URL cannot open a stale page.
+  const current=(await h.json(base+'/documents',undefined,h.owner)).find(d=>d.id===f.document.id);
+  await f.upload('Testimony revised.pdf',await readablePdf(['Revised first page of retained testimony','Amber vessel replacement testimony is the current record']),'application/pdf','matter',{documentId:current.id,revision:current.revision});
+  assert.equal((await search('copper lantern',reader)).total,0);assert.equal((await h.request('/api/satchel'+hit.path,undefined,reader)).status,409);
+  const revised=(await search('amber vessel',reader)).groups[0].items[0];assert.equal(revised.citation.version,2);assert.equal(revised.citation.page,2);
+  await h.json(base+'/access',{email:readerEmail,remove:true},h.owner);
+  assert.equal((await search('amber vessel',reader)).total,0);assert.deepEqual((await search('amber vessel',reader)).documentIndex,[]);assert.equal((await h.request('/api/satchel'+revised.path,undefined,reader)).status,404);
+  await h.json(base+'/access',{email:readerEmail},h.owner);
+  const permissions={rates:'none',bank:'none',reports:'none',contacts:'none',documents:'none',billing:'none',settings:'none'},role=await h.json('/roles',{name:'No document access',permissions,reason:'Document search denied'},h.owner);
+  await h.json('/team',{email:readerEmail,name:'Search reader',role:'assistant',customRoleId:role.id},h.owner);
+  const denied=await search('amber vessel',reader);assert.equal(denied.total,0);assert.deepEqual(denied.documentIndex,[]);assert.equal((await h.request('/api/satchel'+revised.path,undefined,reader)).status,403);
+  await h.json('/team',{email:readerEmail,name:'Search reader',role:'assistant',customRoleId:null},h.owner);
+  const revokedReader=reader,session=(await h.json('/security/mfa',undefined,reader)).sessionId;reader=await h.login(readerEmail);
+  await h.json('/security/devices/'+session+'/revoke',{},reader);
+  await h.json('/search?q=amber%20vessel',undefined,revokedReader,401);assert.equal((await h.request('/api/satchel'+revised.path,undefined,revokedReader)).status,401);
+  const beforeArchive=await search('amber vessel');await h.restart();assert.deepEqual(await search('amber vessel'),beforeArchive);
+  const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();
+  restored=await harness();await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);assert.deepEqual(await restored.json('/search?q=amber%20vessel',undefined,restored.owner),beforeArchive);
+  assert.equal((await restored.request('/api/satchel'+revised.path,undefined,restored.owner)).status,200);assert.equal((await restored.json('/search?q=marigold%20field',undefined,restored.owner)).total,1);assert.equal((await restored.json('/search?q=turquoise%20garden',undefined,restored.owner)).total,1);
+  await h.json('/retention',{matterId:m.id,documentId:f.document.id,disposeAfter:'2000-01-01',basis:'Expired retained evidence'},h.owner);
+  const hold=await h.json('/holds',{matterId:m.id,documentId:f.document.id,reason:'Preserve current testimony'},h.owner);
+  const dispose={confirm:f.document.title,reason:'Authorized expired-record disposal'};
+  await h.json('/documents/'+f.document.id+'/dispose',dispose,h.owner,409);assert.equal((await search('amber vessel',reader)).total,1);
+  await h.json('/documents/'+f.document.id+'/erase',{confirm:f.document.title,reason:'Ordinary erasure also respects holds'},h.owner,409);
+  await h.json('/holds/'+hold.id+'/release',{reason:'Counsel released preservation'},h.owner);
+  const disposed=await h.json('/documents/'+f.document.id+'/dispose',dispose,h.owner);assert.equal(disposed.journal.derivatives.searchVectors,2);
+  const absent=await search('amber vessel');assert.equal(absent.total,0);assert.ok(!JSON.stringify(absent.documentIndex).includes(f.document.id));assert.equal((await h.request('/api/satchel'+revised.path,undefined,h.owner)).status,404);
+  await h.json('/retention',{matterId:m.id,documentId:scanned.id,disposeAfter:'2000-01-01',basis:'Expired scanned evidence'},h.owner);
+  const scanHold=await h.json('/holds',{matterId:m.id,documentId:scanned.id,reason:'Hold scanned evidence'},h.owner);
+  await h.json('/documents/'+scanned.id+'/dispose',{confirm:scanned.title,reason:'Reviewed scan disposal'},h.owner,409);assert.equal((await search('quartz harbor',reader)).total,1);
+  await h.json('/holds/'+scanHold.id+'/release',{reason:'Counsel released scanned evidence'},h.owner);
+  const scanDisposal=await h.json('/documents/'+scanned.id+'/dispose',{confirm:scanned.title,reason:'Reviewed scan disposal'},h.owner);assert.equal(scanDisposal.journal.derivatives.ocrText,1);assert.equal(scanDisposal.journal.derivatives.searchVectors,2);assert.equal((await search('quartz harbor',reader)).total,0);assert.equal((await h.request('/api/satchel'+scanHit.path,undefined,reader)).status,404);
+  await h.json('/retention',{matterId:m.id,documentId:message.id,disposeAfter:'2000-01-01',basis:'Expired retained message'},h.owner);
+  const messageDisposal=await h.json('/documents/'+message.id+'/dispose',{confirm:message.title,reason:'Reviewed message disposal'},h.owner);assert.equal(messageDisposal.journal.derivatives.ocrText,1);assert.equal(messageDisposal.journal.derivatives.searchVectors,7);assert.equal((await search('marigold field',reader)).total,0);assert.equal((await search('violet harbor',reader)).total,0);
+  const journal=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(!journal.includes('Amber vessel replacement testimony'));
+  await restored.close();restored=await harness();await restored.json('/restore',{archive,journal,confirm:'RESTORE'},restored.owner,409);
+  await restored.json('/restore',{archive:journal,confirm:'RESTORE'},restored.owner);assert.equal((await restored.json('/search?q=amber%20vessel',undefined,restored.owner)).total,0);
+  await h.json('/documents/'+f.plain.id+'/erase',{confirm:f.plain.title,reason:'Approved ordinary erasure'},h.owner);assert.equal((await search('silver compass')).total,0);
+ await h.json(base+'/access',{email:custodianEmail},h.owner);
+  await h.json(base+'/wall',{custodianEmail:custodianEmail,members:[],reason:'Current ethical wall',revision:null},h.owner);
+  assert.equal((await search('copper lantern')).total,0);assert.deepEqual((await search('copper lantern')).documentIndex,[]);assert.equal((await search('turquoise garden')).total,0);
+ }finally{await restored?.close();await h.close();}
+});

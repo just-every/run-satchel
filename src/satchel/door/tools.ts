@@ -3,7 +3,7 @@ import { agentContext, agentMatterContext } from '../agent-context.ts'
 import { prepareAgent } from '../agent-preparations.ts'
 import { redact } from '../role-redaction.ts'
 import { rows, stmt } from '../model.ts'
-import {requireArea} from '../role-areas.ts'
+import {requireArea,gateGrants} from '../role-areas.ts'
 import {authorizedDelegation} from '../agent-authority.ts'
 import { actor, classes, delegation, native, standard } from './native.ts'
 
@@ -37,7 +37,8 @@ export const proposalResource={
    const p=await stmt(ctx.db,'SELECT id,kind,payload,status,agent_label,delegation_id FROM s_proposals WHERE id=? AND sponsor_id=? AND prepared_agent_id=?',id,ctx.person.id,ctx.agent.id).first<any>()
    if(!p?.delegation_id)return null
    if(p.kind==='bill')requireArea(who,'billing','read')
-   await authorizedDelegation(ctx.db,who,p.delegation_id,'prepare-'+p.kind)
+   const grant=await authorizedDelegation(ctx.db,who,p.delegation_id,'prepare-'+p.kind)
+   gateGrants(who,'GET','/api/satchel/agent/matters/'+grant.matter_id)
    const health=await rows(ctx.db,"SELECT document_id FROM s_agent_sources WHERE delegation_id=? AND kind='health'",p.delegation_id)
    return {json:{id:p.id,kind:p.kind,payload:JSON.parse(p.payload),status:p.status,preparedBy:p.agent_label,healthRecords:health.length},untrusted:true}
   }catch(error){if(error instanceof Error && ('status' in error || error.name==='ToolRefusal'))return null;throw error}

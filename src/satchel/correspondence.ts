@@ -4,7 +4,7 @@ import {matterUpdateSendGuards} from './matter-update-delivery';
 import {reminderSendGuards} from './client-reminders';
 import type {Bindings} from '../auth.server';
 import {operatorMail} from '../mail.server.mjs';
-import {atomic,audit,human,id,insist,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
+import {atomic,audit,digest,human,id,insist,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
 import {accessGuard,guard} from './trust-guards';
 import {contactData,contactRevisionGuard} from './contact-data';
 import {contactGraph} from './contact-graph';
@@ -27,7 +27,7 @@ export function fences(db:D1Database,actor:Actor,m:Data,revision:number){return 
 export async function correspondenceState(db:D1Database,actor:Actor,matterId:string){
  counsel(actor);await matter(db,actor,matterId);
  const messages=await rows(db,'SELECT * FROM s_correspondence WHERE matter_id=? ORDER BY reviewed_at,id',matterId);
- for(const m of messages){m.attempts=await rows(db,'SELECT * FROM s_correspondence_attempts WHERE correspondence_id=? ORDER BY decision_at,id',m.id);for(const a of m.attempts){a.events=await rows(db,'SELECT * FROM s_correspondence_events WHERE attempt_id=? ORDER BY observed_at,id',a.id);const outcomes=a.events.map((e:Data)=>e.status);a.outcome=outcomes.includes('complained')?'complained':outcomes.includes('bounced')?'bounced':outcomes.includes('delivered')?'delivered':a.events.at(-1)?.status??(a.status==='sending'?'uncertain':a.status);a.nextAction=nextAction(a.outcome);}}
+ for(const m of messages){m.searchDigest=await digest(JSON.stringify({revision:m.id,subject:m.subject,body:m.body,recipient:m.recipient,reviewedAt:m.reviewed_at}));m.attempts=await rows(db,'SELECT * FROM s_correspondence_attempts WHERE correspondence_id=? ORDER BY decision_at,id',m.id);for(const a of m.attempts){a.events=await rows(db,'SELECT * FROM s_correspondence_events WHERE attempt_id=? ORDER BY observed_at,id',a.id);const outcomes=a.events.map((e:Data)=>e.status);a.outcome=outcomes.includes('complained')?'complained':outcomes.includes('bounced')?'bounced':outcomes.includes('delivered')?'delivered':a.events.at(-1)?.status??(a.status==='sending'?'uncertain':a.status);a.nextAction=nextAction(a.outcome);}}
  const invoices=await rows(db,"SELECT i.bill_id id,i.number FROM s_invoice_issues i JOIN s_bills b ON b.id=i.bill_id WHERE b.matter_id=? AND b.status<>'void' ORDER BY i.issued_at",matterId);
  return {messages,invoices};
 }

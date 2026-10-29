@@ -14,7 +14,7 @@ export async function harness(options={}){
  const config=JSON.parse(await readFile('dist/server/wrangler.json','utf8'));
  const vars={AUTH_LOCAL:'false',AUTH_ORIGIN:origin,OWNER_EMAIL:'owner@example.test',SESSION_SECRET:randomBytes(32).toString('hex'),SETUP_TOKEN:randomBytes(32).toString('hex'),MAIL_PROVIDER:'resend',MAIL_FROM:'auth@example.test',MAIL_API_KEY:'synthetic-satchel-1',...options.bindings};
  const configOptions={...convertV4MiniflareOptions({
-  host:'127.0.0.1',port,https:true,modulesRoot:resolve('dist/server'),modules:[config.main,...(await readdir('dist/server/assets')).filter(f=>f.endsWith('.js')).map(f=>'assets/'+f)].map(f=>({type:'ESModule',path:resolve('dist/server',f)})),
+  host:'127.0.0.1',port,https:true,modulesRoot:resolve('dist/server'),modules:[config.main,...(await readdir('dist/server/assets')).filter(f=>f.endsWith('.js')||f.endsWith('.wasm')).map(f=>'assets/'+f)].map(f=>({type:f.endsWith('.wasm')?'CompiledWasm':'ESModule',path:resolve('dist/server',f)})),
   compatibilityDate:config.compatibility_date,compatibilityFlags:config.compatibility_flags,
   assets:{directory:resolve('dist/client'),routerConfig:{has_user_worker:true}},d1Databases:{DB:'satchel-test'},r2Buckets:{ORIGINALS:'satchel-originals-test'},bindings:vars,
   // Only paid/network boundaries are fake; the built application is unchanged.
