@@ -256,12 +256,19 @@ test('readable original search pins pages and filters, fences current access and
   assert.equal((await search('turquoise garden',reader)).total,0,'Document access alone cannot read counsel correspondence');
   await h.json(base+'/access',{email:custodianEmail},h.owner);const counsel=people[custodianEmail];assert.equal((await search('turquoise garden',counsel)).total,1);
   await h.json(base+'/access',{email:custodianEmail,remove:true},h.owner);assert.equal((await search('turquoise garden',counsel)).total,0);
-  const {scannedOriginal}=await import('./document-text-fixture.mjs'),scan=await scannedOriginal();
+  const transcript=await f.upload('synthetic-satchel-202.pdf',await readablePdf(Array.from({length:201},(_,i)=>i===200?'synthetic-satchel-201 final testimony passage':'Retained transcript testimony page '+(i+1))));
+  const transcriptResult=await search('synthetic-satchel-201',reader);assert.equal(transcriptResult.total,1);
+  const transcriptHit=transcriptResult.groups[0].items[0];assert.equal(transcriptHit.citation.documentId,transcript.id);assert.equal(transcriptHit.citation.page,201);assert.equal(transcriptHit.freshness.status,'ready');
+  assert.match(await(await h.request('/api/satchel'+transcriptHit.path,undefined,reader)).text(),/final testimony passage/);
+  const {scannedOriginal,ccittScannedPdf}=await import('./document-text-fixture.mjs'),scan=await scannedOriginal('Quartz harbor witness statement',{width:2550,height:3300,dpi:300});
   const scanned=await f.upload('Witness scan.pdf',scan.pdf),image=await f.upload('Witness scan.png',scan.png,'image/png'),jpeg=await f.upload('Witness scan.jpg',scan.jpeg,'image/jpeg');
   const ocr=await search('quartz harbor',reader);assert.equal(ocr.total,3,'Real OCR finds a phrase absent from every PDF text layer and metadata field');
   const scanHit=ocr.groups[0].items.find(i=>i.citation.documentId===scanned.id);assert.ok(scanHit);assert.equal(scanHit.citation.page,2);assert.equal(scanHit.citation.sha256,createHash('sha256').update(scan.pdf).digest('hex'));assert.match(scanHit.freshness.detail,/OCR/);
   const scanPage=await h.request('/api/satchel'+scanHit.path,undefined,reader);assert.equal(scanPage.status,200);assert.match(await scanPage.text(),/Quartz harbor witness statement/);
   const scannedFile=await h.request('/api/satchel/documents/'+scanned.id+'/file?version=1&sha256='+scanHit.citation.sha256,undefined,reader);assert.deepEqual(Buffer.from(await scannedFile.arrayBuffer()),scan.pdf);
+  const faxBytes=await ccittScannedPdf(),fax=await f.upload('synthetic-satchel-83.pdf',faxBytes),faxResult=await search('synthetic-satchel-82',reader);assert.equal(faxResult.total,1,'Group 4 image text is decoded and recognized locally');
+  const faxHit=faxResult.groups[0].items[0];assert.equal(faxHit.citation.documentId,fax.id);assert.equal(faxHit.citation.page,1);assert.equal(faxHit.citation.sha256,createHash('sha256').update(faxBytes).digest('hex'));assert.equal(faxHit.freshness.status,'ready');assert.match(faxHit.freshness.detail,/OCR/);
+  assert.match(await(await h.request('/api/satchel'+faxHit.path,undefined,reader)).text(),/synthetic-satchel-82/);
   await h.json('/documents/'+jpeg.id+'/erase',{confirm:jpeg.title,reason:'Approved scan duplicate erasure'},h.owner);
   await h.json('/documents/'+image.id+'/erase',{confirm:image.title,reason:'Approved scan duplicate erasure'},h.owner);assert.equal((await search('quartz harbor',reader)).total,1);
   // New head removes old text immediately; a saved URL cannot open a stale page.

@@ -2,7 +2,7 @@ import {officeText} from './document-office-text';
 import {decode as decodePng,convertIndexedToRgb} from 'fast-png';
 import {decode as decodeJpeg} from 'jpeg-js';
 import {nativePdfSearchPages} from './chronology-pdf-text';
-import {scanText,type ScanImage} from './document-ocr';
+import {scanText,maxScanPixels,type ScanImage} from './document-ocr';
 
 export async function readableText(bytes:Uint8Array,mime:string,version:Record<string,any>={mime}){
  const office=officeText(bytes,version);if(office)return office;
@@ -17,7 +17,7 @@ export async function readableText(bytes:Uint8Array,mime:string,version:Record<s
   }
  }else if(mime==='image/png'||mime==='image/jpeg'){
   let image:ScanImage;
-  if(mime==='image/jpeg'){const jpg=decodeJpeg(bytes,{useTArray:true,formatAsRGBA:true,maxResolutionInMP:8,maxMemoryUsageInMB:64});image={...jpg,kind:3};}
+  if(mime==='image/jpeg'){const jpg=decodeJpeg(bytes,{useTArray:true,formatAsRGBA:true,maxResolutionInMP:maxScanPixels/1_000_000,maxMemoryUsageInMB:128});image={...jpg,kind:3};}
   else {
    let png=decodePng(bytes);if(png.palette)png={...png,data:convertIndexedToRgb(png),channels:png.palette[0].length,depth:8,palette:undefined};
    const {width,height,data,channels,depth}=png,rgba=new Uint8Array(width*height*4),scale=depth===16?257:1;

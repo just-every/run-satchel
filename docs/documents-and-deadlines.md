@@ -29,8 +29,10 @@ the message body, nested message or attachment and its source page. Office citat
 **Document text coverage** distinguishes current, incomplete and unavailable
 text. Encrypted originals, unreadable scans, unsupported formats and unsupported
 attachments remain explicit in that coverage; retain or supply a readable
-original when necessary. The local PDF reader accepts up to 200 pages and OCR
-accepts images up to eight million pixels. OCR text can contain recognition
+original when necessary. PDF search reads all pages in an accepted original;
+the separate native chronology extraction limit remains 200 pages. OCR accepts
+images up to twelve million pixels, including 300 dpi Letter and A4 scans.
+CCITT Group 4 scanned PDFs are decoded locally. OCR text can contain recognition
 errors, so verify quotations against the retained original.
 
 Appending a new version invalidates old search text and old search citations.

@@ -15,8 +15,23 @@ export function FirmSearch({open,matters,tick}:{open:(item:Row)=>void;matters:Ro
  useEffect(()=>{
   const term=query.trim(),mine=++generation.current;setResult(null);setActive(-1);
   if(term.length<2){setResult(null);setError('');setActive(-1);return;}
-  const timer=setTimeout(()=>{api('/search?q='+encodeURIComponent(term)+'&'+new URLSearchParams(filters)).then(r=>{if(mine===generation.current){setResult(r);setError('');setActive(r.total?0:-1);setShown(document.activeElement===input.current);}}).catch(e=>{if(mine===generation.current){setResult(null);setError(e.message);setShown(true);}});},200);
-  return()=>clearTimeout(timer);
+  let timer:ReturnType<typeof setTimeout>;
+  // Recheck current authority while the person keeps the result list open.
+  // Sequential requests avoid an older snapshot overwriting a revocation.
+  const search=async()=>{
+   if(mine!==generation.current||document.hidden||document.activeElement!==input.current)return;
+   try{
+    const r=await api('/search?q='+encodeURIComponent(term)+'&'+new URLSearchParams(filters));
+    if(mine!==generation.current)return;
+    setResult(r);setError('');setActive(a=>r.total?Math.max(0,Math.min(a,r.total-1)):-1);setShown(true);
+   }catch(e){
+    if(mine!==generation.current)return;
+    setResult(null);setActive(-1);setError(e instanceof Error?e.message:String(e));setShown(true);
+   }
+   if(mine===generation.current)timer=setTimeout(search,1000);
+  };
+  timer=setTimeout(search,200);
+  return()=>{clearTimeout(timer);if(mine===generation.current)generation.current++;};
  },[query,filters,refresh,tick]);
  useEffect(()=>{const hide=()=>{if(document.hidden)clear();},blur=()=>clear();document.addEventListener('visibilitychange',hide);window.addEventListener('blur',blur);return()=>{document.removeEventListener('visibilitychange',hide);window.removeEventListener('blur',blur);};},[]);
  const choose=(item:Row)=>{clear();open(item);};
