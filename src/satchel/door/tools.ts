@@ -12,7 +12,7 @@ const clauses=['SAT-009','AGENT-010']
 export const scopes=['satchel:identity','satchel:context','satchel:prepare','events:read']
 export const tools:ToolDefinition[]=[{
  name:'satchel.agent.identity',title:'Read admitted identity',description:'Inspect the native sponsor and exact admitted Business agent before linking a native preparation key.',scope:'satchel:identity',readOnly:true,inputSchema:object({}),outputSchema:identityOutput,classes:['standard'],clauses,
- classify:standard,async run(_args,ctx){const count=await stmt(ctx.db,'SELECT count(*) n FROM s_proposals WHERE sponsor_id=? AND prepared_agent_id=?',ctx.person.id,ctx.agent.id).first<{n:number}>();return {result:{personId:ctx.person.id,agentId:ctx.agent.id,role:ctx.person.role,proposals:count?.n??0}}},
+ classify:standard,async run(_args,ctx){const business=await stmt(ctx.db,"SELECT json_extract(document,'$.values.display_name') name FROM bs_settings WHERE singleton=1 AND stopped=0").first<{name:string|null}>();const count=await stmt(ctx.db,'SELECT count(*) n FROM s_proposals WHERE sponsor_id=? AND prepared_agent_id=?',ctx.person.id,ctx.agent.id).first<{n:number}>();return {result:{personId:ctx.person.id,agentId:ctx.agent.id,role:ctx.person.role,businessName:business?.name??null,proposals:count?.n??0}}},
 },{
  name:'satchel.agent.context',title:'List delegated preparation work',description:'List only this native key’s current principal-approved matter delegations.',scope:'satchel:context',readOnly:true,inputSchema:object({}),outputSchema:contextOutput,classes:['standard'],clauses,
  classify:async(_args,ctx)=>{await actor(ctx);return standard()},async run(_args,ctx){return {result:await native(async()=>agentContext(ctx.db,await actor(ctx)))}} ,

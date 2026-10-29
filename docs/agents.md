@@ -7,7 +7,7 @@ sends signed policy to `/api/rer/agent-policy`; an unset, expired or paused poli
 permits no tool effects. The door uses the installation's existing owner-claim
 trust, with Business subjects bound by signed Business settings to native people.
 
-The declared jobs are reading an admitted identity, listing approved preparation
+The identity read shows the signed company display name when paired. The declared jobs are reading an admitted identity, listing approved preparation
 delegations, reading selected matter evidence, and preparing pending matter, bill
 and deadline proposals. `agent-surface.json` is the executable registry and
 journey. Source text is untrusted evidence. Preparation never clears a conflict,

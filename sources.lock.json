@@ -192,7 +192,7 @@
       "executable": false
     },
     "docs/agents.md": {
-      "sha256": "7379b9b3a451c24d410f1a2b4b58f592a2a95b5e0769e34091dd67f9f855434c",
+      "sha256": "76093357ac497f991ae0966c52de697fa1246f7f9b8efc390fb6e8b85b87012f",
       "executable": false
     },
     "docs/assembly-font-license.txt": {
@@ -3728,11 +3728,11 @@
       "executable": false
     },
     "src/satchel/door/schemas.ts": {
-      "sha256": "2caa8724208e4233f4cb6111fcfa7f4dc09c68b833d6a49d49a090624e015d4d",
+      "sha256": "8b5c0c8b3cfed7d209a066bce399a1432c5918f630c30c2ff120696e216bbf94",
       "executable": false
     },
     "src/satchel/door/tools.ts": {
-      "sha256": "ac4bc1ca7a9d10a0e035a7ce636d166d28b42eb5a5678897babb73ba7a3b78de",
+      "sha256": "3623a17b1bbedf61072d0eece0d971c61a4fb47b45341ac38528d7217d613afd",
       "executable": false
     },
     "src/satchel/economics.ts": {
