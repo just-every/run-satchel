@@ -5,7 +5,12 @@ import {requireProviderReview} from './providers';
 import {sourceDocument,sourceGuard} from './trust';
 import {stripeApi,type StripeEnv} from './stripe-api';
 export async function stripeSettings(env:StripeEnv,actor:Actor){
- human(actor);need(actor,'owner');return {configurations:await rows(env.DB,`SELECT c.* FROM s_stripe_config c WHERE c.bank_account_id IS NULL OR EXISTS(SELECT 1 FROM s_trust_accounts a CROSS JOIN (SELECT ? email) viewer WHERE a.id=c.bank_account_id AND ${accountWallScope('a.id','viewer.email')}) ORDER BY c.approved_at,c.id`,actor.email),accounts:await rows(env.DB,`SELECT a.id,a.name,a.kind FROM s_trust_accounts a CROSS JOIN (SELECT ? email) viewer WHERE ${accountWallScope('a.id','viewer.email')} ORDER BY a.name`,actor.email),sandbox:env.STRIPE_MODE!=='live'};
+ human(actor);need(actor,'owner');
+ const accounts=await rows(env.DB,`SELECT a.id,a.name,a.kind FROM s_trust_accounts a CROSS JOIN (SELECT ? email) viewer WHERE ${accountWallScope('a.id','viewer.email')} ORDER BY a.name`,actor.email);
+ // Reuse the scoped account identities rather than nesting the bank's entire
+ // source and payout authority query beyond D1's expression depth limit.
+ const configurations=await rows(env.DB,'SELECT c.* FROM s_stripe_config c WHERE c.bank_account_id IS NULL OR c.bank_account_id IN(SELECT value FROM json_each(?)) ORDER BY c.approved_at,c.id',JSON.stringify(accounts.map(a=>a.id)));
+ return {configurations,accounts,sandbox:env.STRIPE_MODE!=='live'};
 }
 export async function approveStripe(env:StripeEnv,actor:Actor,b:Data){
  human(actor);need(actor,'owner');await requireProviderReview(env.DB,'stripe');

@@ -9,6 +9,7 @@ import {currentDate,ledgerFor} from './trust-transactions';
 async function original(db:D1Database,actor:Actor,entryId:string){
  await trustOfficer(db,actor);const e=await stmt(db,'SELECT e.*,COALESCE(e.cleared_date,c.cleared_date) bank_cleared FROM s_trust_entries e LEFT JOIN s_trust_clearings c ON c.entry_id=e.id WHERE e.id=?',entryId).first<Data>();insist(e,'Original entry not found',404);await requireEntryWallAccess(db,actor,e.id);
  if(e.ledger_id)await ledgerFor(db,actor,e.ledger_id);else insist(actor.role==='owner','The principal reviews suspense and operating corrections',403);
+ insist(!['stripe_payout','stripe_payout_reversal'].includes(e.kind),'Use the invoice payment reconciliation controls to correct a Stripe bank match',409);
  insist(!['earned_fee_transfer','earned_fee_reversal','journal_reversal','matter_allocation','matter_bank_transfer'].includes(e.kind),'Use the original earned-fee application reversal, or correct the original journal entry',409);return e;
 }
 export async function journalState(db:D1Database,actor:Actor){
