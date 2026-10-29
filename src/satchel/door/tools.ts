@@ -1,4 +1,4 @@
-import { type ToolDefinition, type ToolContext } from '../../modules/agent-door/index.ts'
+import { type ToolDefinition, type ToolContext, type ResourceContext } from '../../modules/agent-door/index.ts'
 import { agentContext, agentMatterContext } from '../agent-context.ts'
 import { prepareAgent } from '../agent-preparations.ts'
 import { redact } from '../role-redaction.ts'
@@ -31,9 +31,9 @@ export const tools:ToolDefinition[]=[{
 export const proposalResource={
  uriTemplate:'satchel://proposals/{id}',name:'Pending native preparation',scope:'satchel:context',classes:['standard','sensitive'] as ('standard'|'sensitive')[],
  classify(record:{json?:unknown}){const p=record.json as {healthRecords:number};return [...standard(),...(p.healthRecords?[{class:'sensitive' as const,facts:{measure:p.healthRecords,kind:'health'}}]:[])]},
- async read(uri:string,ctx:any){
+ async read(uri:string,ctx:ResourceContext){
   try{
-   const who=await actor({...ctx,actor:{label:`${ctx.agent.name} for ${ctx.person.name}`}}),id=decodeURIComponent(uri.slice('satchel://proposals/'.length))
+   const who=await actor(ctx),id=decodeURIComponent(uri.slice('satchel://proposals/'.length))
    const p=await stmt(ctx.db,'SELECT id,kind,payload,status,agent_label,delegation_id FROM s_proposals WHERE id=? AND sponsor_id=? AND prepared_agent_id=?',id,ctx.person.id,ctx.agent.id).first<any>()
    if(!p?.delegation_id)return null
    if(p.kind==='bill')requireArea(who,'billing','read')
