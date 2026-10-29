@@ -37,7 +37,7 @@ teammate IDs bind only to existing native operators and preserve the firm's
 assigned legal role. A Business admin is an editor of company policy only; this
 does not promote them to principal or lawyer. A native promotion does not make a
 person a Business editor. Unknown, inactive and natively inadmissible sponsors
-are refused. Token email never selects a sponsor. New teammates must first
+are refused. Token email never selects a sponsor, and must still match that native person’s current address; changing it refuses the token without moving the binding. New teammates must first
 complete Satchel's existing person invitation and firm membership lifecycle.
 
 `standard` describes a pending internal preparation. Approved health-source
@@ -68,9 +68,9 @@ not established; original-file erasure alone is not a claim to erase that data.
 
 The disposable conformance fixtures use the production signed owner claim and
 person-only key/agreement/delegation routes. They use no database writes or
-production credentials. RER 0.2.88's phase fixture reads the newly admitted actor
-from the person's agent inventory and binds that exact ID through the existing
-person-only native route before standard policy phases. Native preparation,
+production credentials. RER 0.2.91's agent initializer receives each chosen conformance agent ID
+before its first request and binds that exact ID through the existing person-only
+native route. No inventory lookup or first-call admission is needed. Native preparation,
 classification, held approval, replay and revocation remain real. No declared
 tool reaches an outbound provider, so no provider edge is declared.
 

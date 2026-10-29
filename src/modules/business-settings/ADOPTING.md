@@ -21,10 +21,10 @@ history. The updated source supplies `auth.businessTeam` and the Business
 branding/stop integration. Native-account compositions need their own team
 adapter; passing `businessSettings` alone does not provide one.
 
-Copy `./modules/business-settings/schema/0123_business_settings.sql` and
-`./modules/business-settings/schema/0124_business_people.sql` into the
+Copy `./modules/business-settings/schema/0001_business_settings.sql` and
+`./modules/business-settings/schema/0002_business_people.sql` into the
 seed's normal migration directory under consecutive unused migration numbers.
-The maintained reference uses `./default-seed/migrations/core/0123_business_settings.sql`.
+The maintained reference uses `./default-seed/migrations/core/0033_business_settings.sql`.
 Do not replace an applied migration or assume 0033 is free in another seed.
 An installation that already applied the first schema adds only the second.
 Apply it through the seed's existing local/deployment migration lifecycle,

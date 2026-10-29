@@ -26,7 +26,7 @@ the signed document path; `logo_ref` is not a setup Business-field hint.
 `createBusinessSettings({db, business, trust?, team?, mail?})` accepts the seed's D1
 binding, its manifest block, optional trust JSON/object, and optional team
 adapter. All reads use D1; constructing per request is supported. Apply
-`schema/0123_business_settings.sql`, then `schema/0124_business_people.sql`
+`schema/0001_business_settings.sql`, then `schema/0002_business_people.sql`
 before invoking database methods. Existing installations add only the second
 migration; preserve the previously applied schema.
 

@@ -436,8 +436,8 @@
       "initializer": "tests/agent-door/initialize-owner.mjs"
     },
     "journey": "tests/agent-door/native-journey.mjs",
-    "fixtures": {
-      "module": "tests/agent-door/phase-fixtures.mjs"
+    "agent": {
+      "initializer": "tests/agent-door/initialize-agent.mjs"
     }
   }
 }
