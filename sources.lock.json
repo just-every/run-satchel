@@ -3728,7 +3728,7 @@
       "executable": false
     },
     "src/satchel/door/people.ts": {
-      "sha256": "7840e2c7e126192e1fe7626a4f892a1dbdaa4d1b4fed7a55d5d0b29569ec47ab",
+      "sha256": "5cebe822b29df95fe5863b775358e4e07783fbdbbc2f59b773bf67d253bfdb52",
       "executable": false
     },
     "src/satchel/door/schemas.ts": {
