@@ -388,7 +388,7 @@ mapping the following target fields to exact source header names:
 | time | id, matter_id, date, description, minutes, rate_cents, amount_cents, invoice_id, staff_id, billable | utbms_task, utbms_activity |
 | expenses | id, matter_id, date, description, amount_cents, invoice_id, staff_id, billable, category, vendor, vendor_reference, accounting_code | utbms_expense |
 | fees | id, matter_id, date, description, amount_cents, invoice_id, terms | none |
-| invoices | id, matter_id, number, ordinal, date, total_cents, ar_cents, pdf_file_id | tax_cents |
+| invoices | id, matter_id, number, ordinal, date, total_cents, ar_cents, pdf_file_id | tax_cents, due_date |
 | trust | id, matter_id, client_id, balance_cents, statement_date, source_reference, document_id | none |
 | financial | id, matter_id, client_id, ledger, kind, date, amount_cents, invoice_id, document_id, source_reference | none |
 | portal, sms | id, matter_id, title, body, occurred_at, visibility, thread_id, author, recipient | staff_id |
@@ -461,6 +461,28 @@ source invoice. Reconciliation compares each invoice's activity with its AR and
 each case's trust activity with its source-backed native opening. Opposite errors
 on separate cases cannot cancel out. Missing statement originals, changed
 native rows, incomplete counts and unequal balances remain visible gaps.
+
+The active principal can inspect a source-account statement with
+`POST /api/satchel/migration/ledger` and `{id, asOf: "2020-04-03"}`. The date
+is inclusive. Imported invoice issues, cash payments, credits, refunds and trust
+activity retain distinct source references and statement-original version and hash.
+The report also shows native check allocations and returns, unapplied credit,
+write-offs, trust applications beside their trust debits, application reversals,
+processor observations, pending collections, voids and replacement links for the
+imported matters. Repeated reads create no financial records. Later native events
+do not change an earlier statement. Source financial facts never certify a provider
+payment or a bank settlement.
+
+For aging CSV, use `POST /api/satchel/migration/ledger.csv` with the same fields
+and `group` equal to `payer`, `matter` or `lawyer`. Map an optional invoice
+`due_date` column explicitly. Missing due dates have an unknown bucket, rather
+than an invented overdue date. Responsible lawyer uses the current native matter
+assignment, with unassigned matters named explicitly. The report names missing
+source originals and incomplete source coverage. Complete historical lawyer
+assignments, interest and late-fee assessments, dispute resolution and the full
+BILL-010 ledger target remain required; zero values do not certify missing data.
+The statement inherits the migration principal and whole-firm wall checks and
+creates no client portal grant.
 
 Authorized supplemental extraction and complete source shutdown remain required;
 this adapter does not log into MyCase or certify source-account authority.

@@ -1,3 +1,4 @@
+import {stripeEdge} from './stripe-fixture.mjs';
 import {proveMyCaseMove,proveMyCaseHistoryMove} from './mycase-migration-flow.mjs';
 import {proveSmokeballMove} from './smokeball-migration-flow.mjs';
 import {proveWholeFirmMove,proveMoveRefusals} from './migration-flow.mjs';
@@ -20,7 +21,7 @@ function nativeRows(contents) {
 }
 
 test('MATTER-008 / MOVE-002 matter subset previews without writes, preserves source numbers and bytes, resumes after restore and replays without duplicates', async () => {
-  const h = await harness(); let restored;
+  const edge=stripeEdge(),h = await harness(edge); h.migrationStripeEdge=edge; let restored;
   try {
     const before = await archive(h), plan = await preview(h);
     const after=await archive(h),afterRows=nativeRows(after),priorIds=new Set(nativeRows(before).map(row=>JSON.parse(row).row.id));

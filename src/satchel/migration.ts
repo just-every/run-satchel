@@ -1,3 +1,4 @@
+import {migrationLedger,migrationLedgerCsv} from './migration-ledger';
 import {canonicalJson,sha256} from '../modules/import-kit/src/d1/index';
 import {atomic,audit,human,id,insist,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
 import {requireWholeFirmWallAccess} from './wall-doors';
@@ -48,6 +49,14 @@ async function review(db:D1Database,input:unknown){
   const work=new Map<string,Data>();
   for(const old of prior.filter(r=>['time','expenses','fees'].includes(r.kind)&&['imported','preserved'].includes(r.disposition)))work.set(old.identity,JSON.parse(old.source_json));
   for(const row of plan.records.filter(r=>['time','expenses','fees'].includes(r.kind)))work.set(row.identity,row.value);
+  const financial=new Map(prior.filter(r=>r.kind==='financial'&&['imported','preserved'].includes(r.disposition)).map(r=>[r.identity,JSON.parse(r.source_json)]));
+  for(const row of plan.records.filter(r=>r.kind==='financial'))financial.set(row.identity,row.value);
+  const invoices=new Map(prior.filter(r=>r.kind==='invoices'&&['imported','preserved'].includes(r.disposition)).map(r=>[r.source_id,JSON.parse(r.source_json)]));
+  for(const row of plan.records.filter(r=>r.kind==='invoices'))invoices.set(row.id,row.value);
+  for(const [sourceId,invoice] of invoices){
+   const issues=[...financial.values()].filter(v=>v.ledger==='ar'&&v.kind==='invoice'&&v.invoice_id===sourceId);
+   if(issues.length&&(issues.length!==1||Number(issues[0].amount_cents)!==Number(invoice.total_cents)))plan.errors.push('Invoice '+sourceId+': financial issue must match its original invoice total exactly once');
+  }
   for(const invoice of plan.records.filter(r=>r.kind==='invoices')){
    const total=[...work.values()].filter(v=>v.invoice_id===invoice.id&&v.matter_id===invoice.value.matter_id).reduce((sum,v)=>sum+Number(v.amount_cents),0)+Number(invoice.value.tax_cents??0);
    if(total!==Number(invoice.value.total_cents))plan.errors.push('Invoice '+invoice.id+': source lines and tax do not reconcile to its original total');
@@ -105,6 +114,10 @@ export async function migrationAction(db:D1Database,actor:Actor,op:string,b:Data
   return migrationAction(db,actor,'status',{id:jobId});
  }
  const job=await load(db,b.id);
+ if(op==='ledger'||op==='ledger.csv'){
+  const report=await migrationLedger(db,job,b.asOf);
+  return op==='ledger.csv'?migrationLedgerCsv(report,b.group):report;
+ }
  if(op==='source'){const p=await retainedPackage(db,job);insist(p.mycase,'This job has no MyCase source envelope',404);return {source:{...p.mycase,supplementalAuthority:JSON.parse(job.package_json).supplementalAuthority,binaryArchive:p.binaryArchive,clientRepairs:p.clientRepairs,staff:p.staff,currency:p.currency,counts:p.counts,balances:p.balances,coverage:p.coverage}};}
  if(op==='status'){
   let next:Data|null=null;
@@ -209,6 +222,7 @@ async function mycaseActivity(db:D1Database,account:string,sources:Data[],gaps:s
   const expected=Number(ledger==='ar'?v.ar_cents:v.balance_cents);
   compared.push({ledger,sourceId:source.source_id,sourceBalanceCents:expected,activityBalanceCents:balance,records:group.length});
   if(!group.length||balance!==expected)gaps.push(ledger+' '+source.source_id+': source financial activity does not reconcile to the case balance');
+  if(ledger==='ar'){const issues=group.filter(f=>f.kind==='invoice');if(issues.length!==1||Number(issues[0]?.amount_cents)!==Number(v.total_cents))gaps.push('Invoice '+source.source_id+': financial issue does not match its original invoice total exactly once');}
  }
  for(const f of activity){
   const linked=sources.some(s=>s.kind===(f.ledger==='ar'?'invoices':'trust')&&(f.ledger==='ar'?s.target_id===f.invoice_id:targetId(account,'matters',JSON.parse(s.source_json).matter_id)===f.matter_id));
