@@ -59,7 +59,7 @@ export async function openMatter(db: D1Database, actor: Actor, body: Data, fixed
 export async function workspace(db: D1Database, actor: Actor) {
  const matters=await rows(db,`SELECT m.* FROM s_matters m WHERE ${matterScope('m.id',actor.channel==='agent'?"'agent'":"'person'")} ORDER BY opened_at DESC`,actor.role,actor.email);
  const members=await rows(db,'SELECT email,name,role,active,custom_role_id customRoleId FROM s_members ORDER BY name');
- const proposals=await rows(db,`SELECT p.* FROM s_proposals p WHERE (p.sponsor_id=? OR (p.sponsor_id IS NULL AND p.for_email=?)) AND (json_extract(p.payload,'$.matterId') IS NULL OR ${matterScope("json_extract(p.payload,'$.matterId')",actor.channel==='agent'?"'agent'":"'person'")}) ORDER BY created_at DESC`,actor.id,actor.email,actor.role,actor.email);
+ const proposals=await rows(db,`SELECT p.* FROM s_proposals p WHERE (p.sponsor_id=? OR EXISTS(SELECT 1 FROM s_proposal_sponsor_links ps WHERE ps.proposal_id=p.id AND ps.operator_id=?) OR (p.sponsor_id IS NULL AND p.for_email=?)) AND (json_extract(p.payload,'$.matterId') IS NULL OR ${matterScope("json_extract(p.payload,'$.matterId')",actor.channel==='agent'?"'agent'":"'person'")}) ORDER BY created_at DESC`,actor.id,actor.id,actor.email,actor.role,actor.email);
  const canInspectAudit=actor.role==='owner'||!!await stmt(db,`SELECT 1 FROM s_ethical_walls w JOIN s_wall_members m ON m.matter_id=w.matter_id AND m.email=w.custodian_email WHERE w.custodian_email=? AND w.dissolved_at IS NULL`,actor.email).first();
  return {actor,canInspectAudit,matters,members,proposals:proposals.map(p=>({...p,payload:JSON.parse(p.payload)})),firm:(await firmSettings(db)).settings};
 }
