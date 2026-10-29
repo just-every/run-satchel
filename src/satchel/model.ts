@@ -2,7 +2,7 @@ import {matterScope} from './matter-scope';
 import type {Grants} from './custom-roles';
 import {auditQuery,type AuditActor} from './audit-record';
 export type Data = Record<string, any>;
-export type Actor = { id: string; email: string; name: string; role: 'owner' | 'lawyer' | 'assistant' | 'trust_officer' | 'billing' | 'accountant' | 'client'; channel: 'person' | 'agent'; grants?: Grants; approval?: {id: string; resultId: string}; agentKeyId?:string; agentExecution?:{delegation:Data;jobId?:string} };
+export type Actor = { id: string; email: string; name: string; role: 'owner' | 'lawyer' | 'assistant' | 'trust_officer' | 'billing' | 'accountant' | 'client'; channel: 'person' | 'agent'; grants?: Grants; approval?: {id: string; resultId: string}; agentAttribution?:{agent:{id:string;name:string};for:{id:string;name:string};label:string};agentApprovers?:{id:string;name:string}[];doorAgentId?:string;agentKeyId?:string; agentExecution?:{delegation:Data;jobId?:string} };
 export class Fault extends Error { constructor(message: string, public status = 400) { super(message); } }
 export function insist(value: unknown, message: string, status = 400): asserts value { if (!value) throw new Fault(message, status); }
 export function text(value: unknown, label: string, max = 1000) { insist(typeof value === 'string' && value.trim().length > 0 && value.trim().length <= max, `${label} is required (maximum ${max} characters)`); return value.trim(); }
@@ -24,7 +24,7 @@ export function authority(actor: Actor) {
 export function audit(db:D1Database,actor:AuditActor,action:string,objectId:string,detail='',evidence:Data={}){const q=auditQuery(actor,action,objectId,detail,evidence);return stmt(db,q.sql,...q.params);}
 export async function atomic(db: D1Database, actor: Actor, statements: D1PreparedStatement[]) {
  const a = authority(actor), guard = id();
- const approval = actor.approval ? [stmt(db, `INSERT INTO s_guard(id,ok) VALUES(?,CASE WHEN EXISTS(SELECT 1 FROM s_proposals WHERE id=? AND for_email=? AND status='pending') THEN 1 ELSE 0 END)`, 'approval:'+guard, actor.approval.id, actor.email)] : [];
+ const approval = actor.approval ? [stmt(db, `INSERT INTO s_guard(id,ok) VALUES(?,CASE WHEN EXISTS(SELECT 1 FROM s_proposals WHERE id=? AND (sponsor_id=? OR EXISTS(SELECT 1 FROM s_proposal_sponsor_links ps WHERE ps.proposal_id=s_proposals.id AND ps.operator_id=?) OR (sponsor_id IS NULL AND for_email=?)) AND status='pending') THEN 1 ELSE 0 END)`, 'approval:'+guard, actor.approval.id, actor.id, actor.id, actor.email)] : [];
  const decision = actor.approval ? [stmt(db, "UPDATE s_proposals SET status='approved',result_id=?,decided_by=?,decided_at=? WHERE id=?",actor.approval.resultId,actor.email,now(),actor.approval.id),audit(db,actor,'proposal.approved',actor.approval.id,JSON.stringify({resultId:actor.approval.resultId})),stmt(db,'DELETE FROM s_guard WHERE id=?','approval:'+guard)] : [];
  try { await db.batch([...approval,stmt(db, `INSERT INTO s_guard(id,ok) VALUES(?,CASE WHEN (${a.sql}) THEN 1 ELSE 0 END)`, guard, ...a.params), ...statements, ...decision, stmt(db, 'DELETE FROM s_guard WHERE id=?', guard)]); }
  catch (error) { if (/constraint|s_guard|UNIQUE|stale conflict|closed trust period|trust statement periods cannot overlap|reopen the signed period first|only the current signed packet/i.test(String(error))) throw new Fault('The record changed or this action is no longer allowed. Refresh and try again.', 409); throw error; }
