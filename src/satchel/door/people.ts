@@ -12,9 +12,10 @@ export async function nativePerson(db:D1Database,id:string):Promise<Person|null>
  const role=row.operator_role==='owner'?'owner':row.active===1?row.role:null
  if(!role)return null
  try{agentSponsor(role)}catch{return null}
+ const installationOwner=await stmt(db,"SELECT o.id FROM oa_operators o LEFT JOIN oa_bootstrap b ON b.claim_id=o.id WHERE o.role='owner' ORDER BY b.claim_id IS NULL,o.created_at,o.id LIMIT 1").first<{id:string}>()
  const settings=await stmt(db,'SELECT owner_id FROM bs_settings WHERE singleton=1 AND stopped=0').first<{owner_id:string}>()
  const binding=settings?await stmt(db,"SELECT business_role FROM bs_team WHERE operator_id=? AND state='active' AND business_id IS NOT NULL",row.id).first<{business_role:string}>():null
- return {id:row.id,email:row.email,name:row.name,role,active:row.status==='active',businessPolicyRole:settings?.owner_id&&role==='owner'?'owner':binding?.business_role==='admin'?'editor':null} as Person
+ return {id:row.id,email:row.email,name:row.name,role,active:row.status==='active',businessPolicyRole:settings?.owner_id&&installationOwner?.id===row.id?'owner':binding?.business_role==='admin'?'editor':null} as Person
 
 }
 export function people(env:Bindings):PeopleAdapter {

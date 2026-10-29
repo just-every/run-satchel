@@ -22,5 +22,5 @@ export default async function journey({request,origin,cookie,tool}) {
  const controls=await native('/agent-controls');
  assert.ok(controls.delegations.every(d=>d.spend_cents===0),'No spend authority');
  await native('/keys/'+key.id+'/revoke',{});
- const refused=await tool('satchel.agent.context',{});assert.equal(refused.status,403,'Native key revocation stops company agent');assert.equal(refused.message?.error?.data?.code,'insufficient_scope');console.log('Native door journey: binding, class coverage, replay and revocation passed');
+ const refused=await tool('satchel.agent.context',{});assert.equal(refused.result?.isError,true,'Native key revocation stops company agent');assert.equal(refused.result?._meta?.['com.runeditrun/error']?.code,'native_delegation_required');console.log('Native door journey: binding, class coverage, replay and revocation passed');
 }

@@ -96,7 +96,7 @@ const contexts=[
  record('s_deadlines',['id','title','kind','owner_email','date','timezone','source','document_id','document_version','status','confirmed_by','confirmed_at','completed_by','completed_at','completion_evidence'],'x.matter_id','x.revision'),
  record('s_conflicts',['id','client','adverse','queries','matches','party_revision','actor','at','search_summary'],'NULL','CAST(x.party_revision AS TEXT)'),
  record('s_parties',['id','name','aliases','email','source'],'NULL','x.revision'),
- record('s_proposals',['id','kind','payload','for_email','agent_label','status','result_id','decided_by','decided_at','delegation_id','agreement_id'],'json_extract(x.payload,\'$.matterId\')'),
+ record('s_proposals',['id','kind','payload','for_email','agent_label','status','result_id','decided_by','decided_at','delegation_id','agreement_id','sponsor_id','prepared_agent_id'],'json_extract(x.payload,\'$.matterId\')'),
  record('s_members',['email','name','role','active'],'NULL','NULL','x.email=i.object_id'),
  record('s_agent_keys',['id','label','owner_id','revoked','created_at']),
  record('s_reminder_rules',['id','deadline_id','recipient','backup','advance_days','send_time','quiet_start','quiet_end','channels','escalate_hours','due_at','status','created_email','created_role','reason'], '(SELECT matter_id FROM s_deadlines WHERE id=x.deadline_id)','x.revision'),

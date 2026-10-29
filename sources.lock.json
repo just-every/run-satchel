@@ -755,6 +755,10 @@
       "sha256": "6ed21e4c2c7e7325a31dc76cf1ff920c6ef8229a831353a1a5b68a7177afe7f7",
       "executable": false
     },
+    "migrations/core/0122_proposal_agent_identity.sql": {
+      "sha256": "f2b0115b0b54baf57a2d398c804e053e47aa11f7a2b1fb8af6f6df4ad46ebf1e",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "31dbf44f24514b9f626261911b9b83c806cacdf00dd23e49f465f3fdfebb715e",
       "executable": false
@@ -3532,7 +3536,7 @@
       "executable": false
     },
     "src/satchel/audit-record.ts": {
-      "sha256": "31ea960dfbe3cddf008fe11f51a4561de0959c35368fec2bdb0bd908b9780d7f",
+      "sha256": "0f9526fe0121975a3d3efe87300c4936fc65f401f50390439e596205001fe6b8",
       "executable": false
     },
     "src/satchel/audit.ts": {
@@ -3668,7 +3672,7 @@
       "executable": false
     },
     "src/satchel/door/index.ts": {
-      "sha256": "64f1f7285e89d4189c6ccff3a7c47c132309aafea57bd372f5864979148bc11d",
+      "sha256": "afd2af31c64c586c94c2e0c4138b0e407ea810b2913d9fefb8d1beb7c162fc12",
       "executable": false
     },
     "src/satchel/door/native.ts": {
@@ -3676,11 +3680,15 @@
       "executable": false
     },
     "src/satchel/door/people.ts": {
-      "sha256": "ec9b7b112b2cf2eaa7ef660194fcf3386bdf9c321a685e7bda890bda6afd3d85",
+      "sha256": "7840e2c7e126192e1fe7626a4f892a1dbdaa4d1b4fed7a55d5d0b29569ec47ab",
+      "executable": false
+    },
+    "src/satchel/door/schemas.ts": {
+      "sha256": "2caa8724208e4233f4cb6111fcfa7f4dc09c68b833d6a49d49a090624e015d4d",
       "executable": false
     },
     "src/satchel/door/tools.ts": {
-      "sha256": "983e1be69482904b9cf9a20a5a357696c03f5809e526e997e3753ede440d5eb0",
+      "sha256": "c7aecacbe3b47a6edab7c45608a97ac88ab380fbdce8e813e83dc4416794d3d7",
       "executable": false
     },
     "src/satchel/economics.ts": {
@@ -3932,7 +3940,7 @@
       "executable": false
     },
     "src/satchel/matters.ts": {
-      "sha256": "0a6573b3abe3ed2635abb1398aec4bf122ad444d0367b0df1d47f5c22a389229",
+      "sha256": "c9571c95d8f2d869ecd3b75084f566adadf5e054910af12dce3f30502d486639",
       "executable": false
     },
     "src/satchel/microsoft-authority.ts": {
@@ -3956,7 +3964,7 @@
       "executable": false
     },
     "src/satchel/model.ts": {
-      "sha256": "556b4c30acbe1c96af4416c6755fadb8c292eb2d84ba77e9783e2bd2658ba2bd",
+      "sha256": "794dd5b36169ca05cf3c77f34072afcaab1e1994175d8f41ee9ec2ea6f00dec8",
       "executable": false
     },
     "src/satchel/numbering.ts": {
@@ -4024,7 +4032,7 @@
       "executable": false
     },
     "src/satchel/proposals.ts": {
-      "sha256": "14805c60ea78ee89e3d3fe36033fedec2b9530e2c6d3e66e769463fdb5900bce",
+      "sha256": "5d44918f0cf555c410b12e8caf339ddce13db6045125a2694c6a7425084db71f",
       "executable": false
     },
     "src/satchel/providers.ts": {
@@ -4288,7 +4296,7 @@
       "executable": false
     },
     "src/satchel/webhooks.ts": {
-      "sha256": "115ee33e9662830e5512e7f3c92b3a608b401de3563524e9788fb7381eddde27",
+      "sha256": "976b498d6f564f30176af04f5a9b26c60d00e929334df8746cd97f788a1a4ceb",
       "executable": false
     },
     "src/satchel/workflow-runs.ts": {
@@ -4884,7 +4892,7 @@
       "executable": false
     },
     "tests/agent-door/native-journey.mjs": {
-      "sha256": "e2a76ed3cf4efb0a2119892b4aa7fdd79c7c0632cc1507e442687aa3930a2cf8",
+      "sha256": "0b1377c01805aaf5b35b763554570704fa2a35ff51158e8a49a5d3ba1e9e6bc2",
       "executable": false
     },
     "tests/email-link.mjs": {
