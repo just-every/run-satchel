@@ -1,3 +1,4 @@
+import {reversalKinds,sourceMoneyEffect} from './imports/financial';
 import {migrationLedger,migrationLedgerCsv} from './migration-ledger';
 import {canonicalJson,sha256} from '../modules/import-kit/src/d1/index';
 import {atomic,audit,human,id,insist,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
@@ -51,6 +52,13 @@ async function review(db:D1Database,input:unknown){
   for(const row of plan.records.filter(r=>['time','expenses','fees'].includes(r.kind)))work.set(row.identity,row.value);
   const financial=new Map(prior.filter(r=>r.kind==='financial'&&['imported','preserved'].includes(r.disposition)).map(r=>[r.identity,JSON.parse(r.source_json)]));
   for(const row of plan.records.filter(r=>r.kind==='financial'))financial.set(row.identity,row.value);
+  for(const [identity,v] of financial){
+   if(!v.related_id)continue;
+   const original=financial.get(sha256(canonicalJson([p.account,'financial',v.related_id]))),expected=reversalKinds[v.kind];
+   if(!expected||!original||original.kind!==expected||original.ledger!==v.ledger||original.invoice_id!==v.invoice_id||original.matter_id!==v.matter_id||(p.clientRepairs[original.client_id]??original.client_id)!==(p.clientRepairs[v.client_id]??v.client_id)||v.date<original.date){plan.errors.push('Financial '+(v.id??identity)+': reversal must name its exact original kind, invoice, case and client without backdating');continue;}
+   const reversed=[...financial.values()].filter(r=>r.related_id===v.related_id&&reversalKinds[r.kind]===expected).reduce((n,r)=>n+Number(r.amount_cents),0);
+   if(reversed>Number(original.amount_cents))plan.errors.push('Financial '+(v.id??identity)+': cumulative reversals exceed their original source amount');
+  }
   const invoices=new Map(prior.filter(r=>r.kind==='invoices'&&['imported','preserved'].includes(r.disposition)).map(r=>[r.source_id,JSON.parse(r.source_json)]));
   for(const row of plan.records.filter(r=>r.kind==='invoices'))invoices.set(row.id,row.value);
   for(const [sourceId,invoice] of invoices){
@@ -116,7 +124,8 @@ export async function migrationAction(db:D1Database,actor:Actor,op:string,b:Data
  const job=await load(db,b.id);
  if(op==='ledger'||op==='ledger.csv'){
   const report=await migrationLedger(db,job,b.asOf);
-  return op==='ledger.csv'?migrationLedgerCsv(report,b.group):report;
+  if(op==='ledger.csv'){const response=migrationLedgerCsv(report,b.group);await atomic(db,actor,[audit(db,actor,'move.ledger_exported',job.id,JSON.stringify({asOf:report.asOf,group:b.group}))]);return response;}
+  return report;
  }
  if(op==='source'){const p=await retainedPackage(db,job);insist(p.mycase,'This job has no MyCase source envelope',404);return {source:{...p.mycase,supplementalAuthority:JSON.parse(job.package_json).supplementalAuthority,binaryArchive:p.binaryArchive,clientRepairs:p.clientRepairs,staff:p.staff,currency:p.currency,counts:p.counts,balances:p.balances,coverage:p.coverage}};}
  if(op==='status'){
@@ -202,10 +211,12 @@ async function reconcile(db:D1Database,job:Data){
   if(s.kind==='trust'){const t=await stmt(db,'SELECT COALESCE(SUM(e.cents),0) balance_cents FROM s_move_trust t JOIN s_trust_entries e ON e.ledger_id=t.ledger_id WHERE t.id=?',s.target_id).first<Data>();balances.trustCents+=Number(t?.balance_cents??0);}
  }
  const activity=p.schema==='satchel-mycase-v1'?await mycaseActivity(db,job.account,sources,gaps):[];
+ const statement=p.schema==='satchel-mycase-v1'?await migrationLedger(db,job,p.extractedAt.slice(0,10)):null;
+ if(statement)gaps.push(...statement.gaps);
  for(const k of Object.keys(balances) as (keyof typeof balances)[])if(balances[k]!==Number(p.balances[k]))gaps.push(`${k}: source and native totals differ`);
  gaps.push(...((p as MovePackage & {coverageGaps?:string[]}).coverageGaps??[]));
  if(job.state!=='completed')gaps.push('Package apply is not complete');
- return {account:job.account,finalDelta:job.phase==='delta',fingerprint:job.fingerprint,counts,sourceBalances:p.balances,nativeBalances:balances,activity,trustBoundary:'Source-backed native opening approved by the designated trust officer; no bank funds are moved',gaps};
+ return {account:job.account,finalDelta:job.phase==='delta',fingerprint:job.fingerprint,counts,sourceBalances:p.balances,nativeBalances:balances,activity,statement,trustBoundary:'Source-backed native opening approved by the designated trust officer; no bank funds are moved',gaps};
 }
 export async function matterMigration(db:D1Database,actor:Actor,matterId:string){
  await matter(db,actor,matterId);human(actor);need(actor,'owner','lawyer','assistant');
@@ -218,7 +229,7 @@ async function mycaseActivity(db:D1Database,account:string,sources:Data[],gaps:s
  for(const source of sources.filter(s=>['invoices','trust'].includes(s.kind)&&['imported','preserved'].includes(s.disposition))){
   const v=JSON.parse(source.source_json),ledger=source.kind==='invoices'?'ar':'trust';
   const group=activity.filter(f=>f.ledger===ledger&&(ledger==='ar'?f.invoice_id===source.target_id:f.matter_id===targetId(account,'matters',v.matter_id)));
-  const balance=group.reduce((sum,f)=>sum+(['invoice','refund','opening','deposit'].includes(f.kind)?Number(f.amount_cents):-Number(f.amount_cents)),0);
+  const balance=group.reduce((sum,f)=>sum+(f.ledger==='ar'?Number(sourceMoneyEffect(f.kind,Number(f.amount_cents)).dueCents??0):['opening','deposit'].includes(f.kind)?Number(f.amount_cents):-Number(f.amount_cents)),0);
   const expected=Number(ledger==='ar'?v.ar_cents:v.balance_cents);
   compared.push({ledger,sourceId:source.source_id,sourceBalanceCents:expected,activityBalanceCents:balance,records:group.length});
   if(!group.length||balance!==expected)gaps.push(ledger+' '+source.source_id+': source financial activity does not reconcile to the case balance');

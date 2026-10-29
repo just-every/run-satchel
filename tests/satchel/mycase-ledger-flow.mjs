@@ -1,14 +1,29 @@
 import assert from 'node:assert/strict';
-import {earnedBill} from './trust-fixture.mjs';
+import {scheme} from './invoice-numbering-fixture.mjs';
+import {exemptTaxReview} from './tax-fixture.mjs';
 
 // Extends the existing move sanity journey, through the built HTTP application.
 export async function proveMyCaseLedger(h,job,active,archived){
  const ledger=async(asOf='2020-04-03')=>h.json('/migration/ledger',{id:job.job.id,asOf},h.owner);
+ const numbering=await h.json('/invoice-numbering',undefined,h.owner);if(!numbering.counter)await h.json('/invoice-numbering',scheme(),h.owner);
+ async function nativeBill(m,cents,title){
+  const entry=await h.json('/matters/'+m.id+'/entries',{kind:'time',date:'2026-10-01',description:title,minutes:60,rateCents:cents},h.owner);
+  let bill=await h.json('/matters/'+m.id+'/bills',{title,date:'2026-10-01',entryIds:[entry.id]},h.owner);
+  bill=await h.json('/bills/'+bill.id+'/approve',{revision:bill.revision,reviewNote:'Exact earned work and source terms reviewed.',taxReviewId:await exemptTaxReview(h,'/bills/'+bill.id+'/approve')},h.owner);
+  await h.json('/invoices/issue',{bills:[{id:bill.id,revision:bill.revision}]},h.owner);
+  assert.equal((await h.request('/api/satchel/bills/'+bill.id+'/export',undefined,h.owner)).status,200);
+  return (await h.json('/matters/'+m.id+'/billing',undefined,h.owner)).bills.find(b=>b.id===bill.id);
+ }
+
  const issued=await ledger('2020-04-01');
  assert.deepEqual([issued.totals.billedCents,issued.totals.paidCents,issued.totals.creditedCents,issued.totals.dueCents,issued.totals.trustHeldCents],[15000,0,0,15000,150001]);
- const paid=await ledger('2020-04-02');assert.deepEqual([paid.totals.paidCents,paid.totals.dueCents],[2000,13000]);
+ const paid=await ledger('2020-04-02');assert.deepEqual([paid.totals.paidCents,paid.totals.dueCents],[2000,13000]);assert.equal(paid.totals.disputedCents,500);
  const source=await ledger();
  assert.deepEqual([source.totals.billedCents,source.totals.paidCents,source.totals.creditedCents,source.totals.dueCents,source.totals.unbilledCents,source.totals.trustHeldCents],[15000,1750,250,13000,10000,150001]);
+ assert.equal(source.totals.disputedCents,0);assert.equal(source.totals.interestCents,600);assert.equal(source.totals.lateFeeCents,400);
+ const reversedPayment=source.transactions.find(t=>t.kind==='source_payment_reversal'),reversedCredit=source.transactions.find(t=>t.kind==='source_credit_reversal');assert.equal(reversedPayment.paidCents,-50);assert.equal(reversedPayment.source.relatedSourceId,'finance-8');assert.equal(reversedCredit.creditedCents,-25);assert.equal(reversedCredit.source.relatedSourceId,'finance-10');
+ const components=source.transactions.filter(t=>t.kind==='historical_interest_component'||t.kind==='historical_late_fee_component');assert.equal(components.length,2);assert.ok(components.every(t=>!t.dueCents&&!t.billedCents),'Source fee components are already in the original invoice total');
+ const invoicePdf=await h.request(components[0].source.originalPdf,undefined,h.owner),{createHash}=await import('node:crypto');assert.equal(createHash('sha256').update(Buffer.from(await invoicePdf.arrayBuffer())).digest('hex'),components[0].source.sha256);
  assert.equal(source.invoices[0].number,'MYCASE-2020-81');assert.equal(source.invoices[0].dueDate,'2020-04-15');assert.equal(source.totals.overdueCents,0);
  assert.ok(source.transactions.filter(t=>t.kind.startsWith('source_')).every(t=>t.source.documentId&&t.source.version===1&&/^[a-f0-9]{64}$/.test(t.source.sha256)));
  assert.ok(source.coverageGaps.some(g=>g.includes('authorized supplemental')));
@@ -16,9 +31,10 @@ export async function proveMyCaseLedger(h,job,active,archived){
  for(const group of ['payer','matter','lawyer']){
   const csv=await h.request('/api/satchel/migration/ledger.csv',{id:job.job.id,asOf:'2020-05-20',group},h.owner);assert.equal(csv.status,200);assert.match(csv.headers.get('content-type'),/text\/csv/);const contents=await csv.text();assert.ok(contents.includes('"13000"'));assert.ok(contents.includes(group==='matter'?active.matter_number:group==='payer'?active.client:'Unassigned'));
  }
+ const transactionCsv=await h.request('/api/satchel/migration/ledger.csv',{id:job.job.id,asOf:'2020-04-03',group:'transactions'},h.owner);assert.equal(transactionCsv.status,200);const exported=await transactionCsv.text();assert.ok(exported.includes('MYCASE-2020-81'));for(const t of source.transactions.filter(t=>t.kind.startsWith('source_'))){assert.ok(exported.includes(t.id));assert.ok(exported.includes(t.source.sha256));}assert.equal((await ledger()).transactions.length,source.transactions.length,'Export writes no new financial fact');
  await h.json('/migration/ledger',{id:job.job.id,asOf:'2020-02-30'},h.owner,400);
  await h.json('/migration/ledger.csv',{id:job.job.id,asOf:'2020-05-20',group:'secret'},h.owner,400);
- const bill=await earnedBill(h,active,10000,'Native advice following MyCase cutover preparation');
+ const bill=await nativeBill(active,10000,'Native advice following MyCase cutover preparation');
  const operating=await h.json('/trust/accounts',{name:'Synthetic Satchel move operating',kind:'operating',bankReference:'Synthetic Satchel operating statement'},h.owner);
  const receipt=await h.json('/offline-payments',{requestKey:'synthetic-satchel-move-ledger-check',payer:active.client,method:'check',reference:'Synthetic Satchel check statement',receivedDate:'2026-10-01',depositDate:'2026-10-02',operatingAccountId:operating.id,cents:2500,purpose:'operating',allocations:[{billId:bill.id,cents:1000}]},h.owner);
  const today='2099-12-31',current=await ledger(today);
@@ -27,17 +43,21 @@ export async function proveMyCaseLedger(h,job,active,archived){
  await h.json('/offline-payments/'+receipt.id+'/actions',{requestKey:'synthetic-satchel-move-ledger-bounce',kind:'bounce',reason:'Returned check confirmed in the source operating statement.'},h.owner);
  const bounced=await ledger(today);assert.equal(bounced.totals.paidCents,1750);assert.equal(bounced.totals.unappliedCreditCents,0);assert.equal(bounced.invoices.find(b=>b.id===bill.id).dueCents,10000);
  assert.deepEqual((await ledger('2020-04-03')).totals,source.totals,'A later check and its reversal do not change the source-date statement');
+ const {open}=await import('./harness.mjs'),outside=await open(h,'Native matter outside the source account',active.client,'Synthetic Satchel unrelated opponent'),outsideBill=await nativeBill(outside,1000,'Outside-account advice');
+ const shared=await h.json('/offline-payments',{requestKey:'synthetic-satchel-move-ledger-shared',payer:active.client,method:'check',reference:'Synthetic Satchel shared payer receipt',receivedDate:'2026-10-01',depositDate:'2026-10-02',operatingAccountId:operating.id,cents:1000,purpose:'operating',allocations:[{billId:outsideBill.id,cents:500}]},h.owner);
+ const scoped=await ledger(today);assert.equal(scoped.totals.unappliedCreditCents,500,'An allocation outside the imported matters still consumes the payer credit');assert.equal(scoped.totals.paidCents,1750);assert.ok(!scoped.invoices.some(b=>b.id===outsideBill.id));assert.ok(scoped.gaps.some(g=>g.includes('allocations extend beyond')));
+ await h.json('/offline-payments/'+shared.id+'/actions',{requestKey:'synthetic-satchel-move-ledger-shared-return',kind:'bounce',reason:'Shared receipt returned and all allocations released.'},h.owner);assert.equal((await ledger(today)).totals.unappliedCreditCents,0);
  const billNow=(await h.json('/matters/'+active.id+'/billing',undefined,h.owner)).bills.find(b=>b.id===bill.id);
  await h.json('/invoices/'+bill.id+'/void',{revision:billNow.revision,reason:'Reviewed released work is to be rebilled separately.'},h.owner);
  const voided=await ledger(today);assert.equal(voided.invoices.find(b=>b.id===bill.id).dueCents,0);assert.equal(voided.invoices.find(b=>b.id===bill.id).voided,true);assert.equal(voided.transactions.filter(t=>t.kind==='invoice_void'&&t.billId===bill.id).length,1);
  const entries=(await h.json('/matters/'+active.id+'/billing',undefined,h.owner)).entries.filter(e=>!e.reservedBy&&e.description==='Native advice following MyCase cutover preparation');assert.equal(entries.length,1);
  const replacement=await h.json('/matters/'+active.id+'/bills',{title:'Reviewed replacement after returned source-era check',date:'2026-10-01',entryIds:[entries[0].id]},h.owner);
- const {exemptTaxReview}=await import('./tax-fixture.mjs');
- await h.json('/bills/'+replacement.id+'/approve',{revision:replacement.revision,reviewNote:'Exact released source work reviewed for replacement.',taxReviewId:await exemptTaxReview(h,'/bills/'+replacement.id+'/approve')},h.owner);
+ const approvedReplacement=await h.json('/bills/'+replacement.id+'/approve',{revision:replacement.revision,reviewNote:'Exact released source work reviewed for replacement.',taxReviewId:await exemptTaxReview(h,'/bills/'+replacement.id+'/approve')},h.owner);
+ await h.json('/invoices/issue',{bills:[{id:replacement.id,revision:approvedReplacement.revision}]},h.owner);
  const afterRebill=await ledger(today);assert.equal(afterRebill.invoices.find(b=>b.id===replacement.id).dueCents,10000);assert.ok(afterRebill.transactions.find(t=>t.kind==='invoice_void'&&t.billId===bill.id).replacements.some(b=>b.id===replacement.id));
  assert.deepEqual((await ledger('2020-04-03')).totals,source.totals);
 
- const trustBill=await earnedBill(h,active,5000,'Native trust-supported advice after source import');
+ const trustBill=await nativeBill(active,5000,'Native trust-supported advice after source import');
  const trust=(await h.json('/trust',undefined,h.owner)).ledgers.find(l=>l.matter_id===active.id),document=(await h.json('/matters/'+active.id+'/documents',undefined,h.owner))[0];
  let policy=await h.json('/trust/transfer-policy',undefined,h.owner);await h.json('/trust/transfer-policy',{revision:policy.revision,dualAuthorization:false},h.owner);
  const application=await h.json('/trust/transfers',{billId:trustBill.id,ledgerId:trust.id,operatingAccountId:operating.id,requestKey:'synthetic-satchel-move-ledger-trust',allocation:{earnedCents:2500,taxCents:0,reference:'Reviewed partial earned amount and explicit zero tax.'}},h.owner);
@@ -58,6 +78,12 @@ export async function proveMyCaseLedger(h,job,active,archived){
  await notify('checkout.session.completed','pending');let processor=await ledger(today);assert.equal(processor.totals.pendingCents,5000);assert.equal(processor.invoices.find(b=>b.id===trustBill.id).dueCents,5000,'Pending ACH never settles the invoice');
  const paidEvent=await notify('checkout.session.async_payment_succeeded','paid');await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(paidEvent)});processor=await ledger(today);assert.equal(processor.totals.pendingCents,0);assert.equal(processor.invoices.find(b=>b.id===trustBill.id).dueCents,0);assert.equal(processor.transactions.filter(t=>t.kind==='processor_payment'&&t.billId===trustBill.id).length,1);
  await notify('charge.failed','returned',{status:'failed',amount_refunded:0});processor=await ledger(today);assert.equal(processor.invoices.find(b=>b.id===trustBill.id).dueCents,5000);assert.equal(processor.transactions.filter(t=>t.kind==='processor_return'&&t.billId===trustBill.id).length,1);
+ const liveTrustBill=(await h.json('/matters/'+active.id+'/billing',undefined,h.owner)).bills.find(b=>b.id===trustBill.id);
+ let correction=await h.json('/bills/'+trustBill.id+'/correct',{revision:liveTrustBill.revision,sourceId:liveTrustBill.snapshot.lines[0].sourceId,correctedAmountCents:4500,reason:'Reviewed source work reduction after returned collection.',date:'2026-10-02'},h.owner);
+ correction=await h.json('/bills/'+correction.id+'/approve',{revision:correction.revision,reviewNote:'Exact additive credit reviewed.',taxReviewId:await exemptTaxReview(h,'/bills/'+correction.id+'/approve')},h.owner);
+ const beforeIssue=await ledger(today);assert.ok(!beforeIssue.invoices.some(b=>b.id===correction.id),'A reviewed draft after numbering cutover is not an issued invoice');
+ await h.json('/invoices/issue',{bills:[{id:correction.id,revision:correction.revision}]},h.owner);
+ processor=await ledger(today);assert.equal(processor.invoices.find(b=>b.id===trustBill.id).dueCents,4500);assert.equal(processor.invoices.find(b=>b.id===correction.id).appliedTo,trustBill.id);assert.equal(processor.totals.creditedCents,750);assert.equal(processor.totals.dueCents,27500);
  assert.deepEqual((await ledger('2020-04-03')).totals,source.totals);
  await h.restart();assert.deepEqual((await ledger(today)).totals,processor.totals);
  const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),{harness}=await import('./harness.mjs'),restored=await harness(edge);

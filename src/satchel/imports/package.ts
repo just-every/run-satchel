@@ -1,3 +1,4 @@
+import {sourceArKinds} from './financial';
 import {canonicalJson,sha256} from '../../modules/import-kit/src/d1/index';
 import {decode,mediaType} from '../documents';
 import {date,insist,text,type Data} from '../model';
@@ -77,15 +78,19 @@ export function parsePackage(input:unknown){
     if(['time','expenses'].includes(kind)){text(v.description,'Work description',2000);if(kind==='time')insist(/^\d+$/.test(v.minutes)&&Number(v.minutes)>=1&&Number(v.minutes)<=1440,'Time must contain 1–1440 minutes');}
     if(kind==='fees'){
      text(v.description,'Source fee description',2000);
+     insist(!v.fee_type||['fee','interest','late_fee'].includes(v.fee_type),'Map a supported historical fee category');
+     insist(!v.fee_type||v.fee_type==='fee'||v.invoice_id,'Historical interest and late fees must belong to an existing source invoice; no new assessment is authorized');
      if(!v.invoice_id){const terms=JSON.parse(v.terms);insist(terms&&['flat','retainer','milestone'].includes(terms.kind)&&['on_approval','period_end','milestone'].includes(terms.earning)&&['permitted','prohibited'].includes(terms.trustDraw),'Unbilled fees need exact native fee terms for human review');}
     }
     if(kind==='financial'){
      insist(['ar','trust'].includes(v.ledger),'Map AR or trust source activity explicitly');
-     insist((v.ledger==='ar'?['invoice','payment','credit','refund']:['opening','deposit','withdrawal']).includes(v.kind),'Map a supported historical financial activity kind');
+     insist((v.ledger==='ar'?sourceArKinds:['opening','deposit','withdrawal']).includes(v.kind),'Map a supported historical financial activity kind');
      insist(Number(v.amount_cents)>0,'Financial activity needs a positive exact amount');
      insist(v.ledger!=='ar'||v.invoice_id,'AR activity must name its source invoice');
      insist(v.ledger!=='trust'||!v.invoice_id,'Trust activity cannot masquerade as an operating invoice allocation');
      text(v.source_reference,'Source financial reference',1000);
+     if(['payment_reversal','credit_reversal','dispute_clear'].includes(v.kind))text(v.related_id,'Original source financial identity',300);
+     if(v.kind==='refund'&&!v.related_id)warnings.push('Financial '+sid+': link the refund to its original source payment before complete reconciliation');
     }
     if(kind==='invoices')insist(Number(v.ar_cents)<=Number(v.total_cents)&&Number(v.ordinal)>0,'Invoice AR cannot exceed total; ordinal must be positive');
     if(kind==='documents')insist(['private','matter'].includes(v.visibility),'Map source document visibility explicitly');
@@ -111,7 +116,7 @@ export function parsePackage(input:unknown){
  for(const r of byKind('relationships')){references.push({row:r,kind:'contacts',id:r.value.contact_id});if(r.value.other_contact_id)references.push({row:r,kind:'contacts',id:r.value.other_contact_id});}
  for(const r of byKind('trust')){references.push({row:r,kind:'documents',id:r.value.document_id});references.push({row:r,kind:'contacts',id:p.clientRepairs[r.value.client_id]??r.value.client_id});}
  for(const r of [...byKind('time'),...byKind('expenses'),...byKind('fees'),...byKind('financial')])if(r.value.invoice_id)references.push({row:r,kind:'invoices',id:r.value.invoice_id});
- for(const r of byKind('financial')){references.push({row:r,kind:'contacts',id:p.clientRepairs[r.value.client_id]??r.value.client_id});references.push({row:r,kind:'documents',id:r.value.document_id});}
+ for(const r of byKind('financial')){if(r.value.related_id)references.push({row:r,kind:'financial',id:r.value.related_id});references.push({row:r,kind:'contacts',id:p.clientRepairs[r.value.client_id]??r.value.client_id});references.push({row:r,kind:'documents',id:r.value.document_id});}
  for(const k of ['billedCents','unbilledCents','arCents','trustCents'])money(p.balances[k],k);
  return {package:p,records,files,references,errors,warnings,fingerprint:sha256(canonicalJson(p)),kinds:kindsFor(p),mappingVersion:p.mycase?`${p.schema}:${p.mycase.mappingRevision}`:p.schema+(p.mappingRevision?':'+p.mappingRevision:''),columns,contactIds,matterIds};
 }

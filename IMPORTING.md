@@ -387,10 +387,10 @@ mapping the following target fields to exact source header names:
 | tasks | id, matter_id, title, due_date, status | staff_id |
 | time | id, matter_id, date, description, minutes, rate_cents, amount_cents, invoice_id, staff_id, billable | utbms_task, utbms_activity |
 | expenses | id, matter_id, date, description, amount_cents, invoice_id, staff_id, billable, category, vendor, vendor_reference, accounting_code | utbms_expense |
-| fees | id, matter_id, date, description, amount_cents, invoice_id, terms | none |
+| fees | id, matter_id, date, description, amount_cents, invoice_id, terms | fee_type |
 | invoices | id, matter_id, number, ordinal, date, total_cents, ar_cents, pdf_file_id | tax_cents, due_date |
 | trust | id, matter_id, client_id, balance_cents, statement_date, source_reference, document_id | none |
-| financial | id, matter_id, client_id, ledger, kind, date, amount_cents, invoice_id, document_id, source_reference | none |
+| financial | id, matter_id, client_id, ledger, kind, date, amount_cents, invoice_id, document_id, source_reference | related_id |
 | portal, sms | id, matter_id, title, body, occurred_at, visibility, thread_id, author, recipient | staff_id |
 
 For example, cases may use `columns: {"id":"Case ID", "status":"Case Status"}`
@@ -454,11 +454,22 @@ to the native author boundary and current matter access.
 
 Financial activity is retained historical evidence, separate from new payments,
 bank deposits or trust movements. Map `ledger` to `ar` or `trust`. AR activity
-kinds are `invoice`, `payment`, `credit` and `refund`; trust activity kinds are
+kinds are `invoice`, `payment`, `credit`, `refund`, `payment_reversal`,
+`credit_reversal`, `dispute` and `dispute_clear`; trust activity kinds are
 `opening`, `deposit` and `withdrawal`. Each positive exact amount names its source
 reference, client, case and retained statement document; AR rows also name their
 source invoice. Reconciliation compares each invoice's activity with its AR and
-each case's trust activity with its source-backed native opening. Opposite errors
+each case's trust activity with its source-backed native opening. Payment and
+credit reversals and dispute clearances must name their exact original source
+financial row in `related_id`, in the same invoice, case and client. Their dates
+cannot precede that original, and cumulative refunds and reversals cannot exceed
+it. A legacy refund without its original link remains an explicit reconciliation
+gap. Disputes change the disputed amount, not the invoice debt.
+
+A fee can map `fee_type` to `fee`, `interest` or `late_fee`. Historical interest
+and late fees require their source invoice and remain components of its original
+total. The statement separates them without adding the charge again. Unbilled
+interest and late fees are refused: this import grants no new assessment authority. Opposite errors
 on separate cases cannot cancel out. Missing statement originals, changed
 native rows, incomplete counts and unequal balances remain visible gaps.
 
@@ -474,12 +485,19 @@ do not change an earlier statement. Source financial facts never certify a provi
 payment or a bank settlement.
 
 For aging CSV, use `POST /api/satchel/migration/ledger.csv` with the same fields
-and `group` equal to `payer`, `matter` or `lawyer`. Map an optional invoice
+and `group` equal to `payer`, `matter` or `lawyer`. Choose `transactions` for
+the source-linked statement CSV, including distinct money deltas and original
+version and hash references. Every export records its principal, date and group
+in the audit. Allocations outside the imported matters still consume shared payer
+credit and are named as a scope gap. Additive invoice credits apply once to their
+original receivable; unissued drafts after numbering cutover stay outside aging.
+Map an optional invoice
 `due_date` column explicitly. Missing due dates have an unknown bucket, rather
 than an invented overdue date. Responsible lawyer uses the current native matter
 assignment, with unassigned matters named explicitly. The report names missing
 source originals and incomplete source coverage. Complete historical lawyer
-assignments, interest and late-fee assessments, dispute resolution and the full
+assignments, native interest and late-fee assessments, complete dispute resolution
+and the full
 BILL-010 ledger target remain required; zero values do not certify missing data.
 The statement inherits the migration principal and whole-firm wall checks and
 creates no client portal grant.

@@ -1,3 +1,4 @@
+import {sourceMoneyEffect} from './imports/financial';
 import {date,insist,rows,stmt,type Data} from './model';
 
 const live=(s:Data)=>['imported','preserved'].includes(s.disposition);
@@ -27,7 +28,7 @@ export async function migrationLedger(db:D1Database,job:Data,asOf:unknown){
  const sourceInvoiceFacts=sourceFacts.filter(f=>f.ledger==='ar');
  for(const b of invoices){
   const s=JSON.parse(b.retained_snapshot),source=sourceByTarget.get(b.id),original=source?JSON.parse(source.source_json):null;
-  const effective=original?.date??day(b.issued_at??b.approved_at??'9999-12-31');
+  const effective=original?.date??day(b.issued_at??(!s.numberingCutover?b.approved_at:null)??'9999-12-31');
   if(effective>selected)continue;
   const cents=Number(s.totalCents),dueDate=original?.due_date||b.delivered_due||null;
   b.statement={date:effective,dueDate,payer:s.client,number:b.number??b.id,totalCents:cents};
@@ -49,10 +50,10 @@ export async function migrationLedger(db:D1Database,job:Data,asOf:unknown){
  for(const f of sourceFacts){
   if(f.date>selected)continue;
   const b=f.invoice_id?invoiceById.get(f.invoice_id):null,trust=f.ledger==='trust';
-  const effect=trust?{trustHeldCents:['opening','deposit'].includes(f.kind)?f.amount_cents:-f.amount_cents}:f.kind==='invoice'?{}:f.kind==='credit'?{creditedCents:f.amount_cents,dueCents:-f.amount_cents}:f.kind==='refund'?{paidCents:-f.amount_cents,dueCents:f.amount_cents}:{paidCents:f.amount_cents,dueCents:-f.amount_cents};
+  const effect=trust?{trustHeldCents:['opening','deposit'].includes(f.kind)?f.amount_cents:-f.amount_cents}:f.kind==='invoice'?{}:sourceMoneyEffect(f.kind,Number(f.amount_cents));
   const original=await stmt(db,'SELECT v.version,v.sha256 FROM s_documents d JOIN s_document_versions v ON v.document_id=d.id AND v.version=1 WHERE d.id=? AND d.erased_at IS NULL AND v.content_base64 IS NOT NULL',f.document_id).first<Data>();
   if(!original)gaps.push('Financial '+f.source_id+': retained source statement original unavailable');
-  add({id:f.id,date:f.date,kind:'source_'+f.kind,ledger:f.ledger,billId:b?.id??null,matterId:f.matter_id,cents:f.amount_cents,...effect,source:{table:'s_move_financial_activity',id:f.id,sourceId:f.source_id,reference:f.source_reference,documentId:f.document_id,version:original?.version??null,sha256:original?.sha256??null}});
+  add({id:f.id,date:f.date,kind:'source_'+f.kind,ledger:f.ledger,billId:b?.id??null,matterId:f.matter_id,cents:f.amount_cents,...effect,source:{table:'s_move_financial_activity',id:f.id,sourceId:f.source_id,relatedSourceId:JSON.parse(f.source_json).related_id??null,reference:f.source_reference,documentId:f.document_id,version:original?.version??null,sha256:original?.sha256??null}});
  }
  const inScope='IN(SELECT value FROM json_each(?))';
  const receipts=await rows(db,`SELECT * FROM s_offline_receipts WHERE payer IN(SELECT client FROM s_matters WHERE id ${inScope})`,ids);
@@ -62,10 +63,10 @@ export async function migrationLedger(db:D1Database,job:Data,asOf:unknown){
   const actions=await rows(db,'SELECT * FROM s_offline_actions WHERE receipt_id=? ORDER BY at,id',r.id);
   const allocations=await rows(db,'SELECT a.*,x.at FROM s_offline_allocations a JOIN s_offline_actions x ON x.id=a.action_id WHERE a.receipt_id=?',r.id);
   for(const a of allocations){
-   const b=invoiceById.get(a.bill_id);if(!b){gaps.push('Receipt '+r.id+': allocations extend beyond this migration account');continue;}
-   add({id:a.id,date:day(a.at),kind:'offline_allocation',billId:b.id,matterId:b.matter_id,payer:r.payer,cents:a.cents,paidCents:a.cents,dueCents:-a.cents,unappliedCreditCents:-a.cents,source:{table:'s_offline_allocations',id:a.id,receiptId:r.id,actionId:a.action_id}});
+   const b=invoiceById.get(a.bill_id);if(!b)gaps.push('Receipt '+r.id+': allocations extend beyond this migration account');
+   add({id:a.id,date:day(a.at),kind:b?'offline_allocation':'outside_scope_allocation',...(b?{billId:b.id,matterId:b.matter_id,paidCents:a.cents,dueCents:-a.cents}:{}),payer:r.payer,cents:a.cents,unappliedCreditCents:-a.cents,source:{table:'s_offline_allocations',id:a.id,receiptId:r.id,actionId:a.action_id}});
    const release=await stmt(db,'SELECT a.* FROM s_offline_releases r JOIN s_offline_actions a ON a.id=r.action_id WHERE r.allocation_id=?',a.id).first<Data>();
-   if(release)add({id:'release:'+a.id,date:day(release.at),kind:'offline_'+release.kind,billId:b.id,matterId:b.matter_id,payer:r.payer,cents:a.cents,paidCents:-a.cents,dueCents:a.cents,unappliedCreditCents:a.cents,reason:release.reason,source:{table:'s_offline_releases',id:a.id,receiptId:r.id,actionId:release.id}});
+   if(release)add({id:'release:'+a.id,date:day(release.at),kind:'offline_'+release.kind,...(b?{billId:b.id,matterId:b.matter_id,paidCents:-a.cents,dueCents:a.cents}:{}),payer:r.payer,cents:a.cents,unappliedCreditCents:a.cents,reason:release.reason,source:{table:'s_offline_releases',id:a.id,receiptId:r.id,actionId:release.id}});
   }
   const bounce=actions.find(a=>a.kind==='bounce');if(bounce)add({id:bounce.id,date:day(bounce.at),kind:'returned_receipt',payer:r.payer,cents:r.cents,unappliedCreditCents:-r.cents,reason:bounce.reason,source:{table:'s_offline_actions',id:bounce.id,receiptId:r.id}});
  }
@@ -105,16 +106,20 @@ export async function migrationLedger(db:D1Database,job:Data,asOf:unknown){
  }
  for(const f of sources.filter(s=>s.kind==='fees')){
   const v=JSON.parse(f.source_json),b=v.invoice_id?invoices.find(i=>sourceByTarget.get(i.id)?.source_id===v.invoice_id):null;
+  if(v.invoice_id&&!v.fee_type)gaps.push('Fee '+f.source_id+': historical fee category not supplied');
+  if(b?.statement&&['interest','late_fee'].includes(v.fee_type))add({id:'fee-component:'+f.target_id,date:v.date,kind:'historical_'+v.fee_type+'_component',billId:b.id,matterId:b.matter_id,cents:Number(v.amount_cents),[v.fee_type==='interest'?'interestCents':'lateFeeCents']:Number(v.amount_cents),source:{table:'s_move_fee_lines',id:f.target_id,sha256:JSON.parse(b.retained_snapshot).originalPdfDigest,originalPdf:'/api/satchel/bills/'+encodeURIComponent(b.id)+'/invoice.pdf'}});
+
   const fee=await stmt(db,'SELECT native_plan_id FROM s_move_fee_lines WHERE id=?',f.target_id).first<Data>();
   const occurrences=fee?.native_plan_id?await rows(db,'SELECT bill_id FROM s_fee_occurrences WHERE plan_id=?',fee.native_plan_id):[];
   const reserved=occurrences.some(o=>invoices.some(i=>i.id===o.bill_id&&i.statement&&(!i.voided_at||day(i.voided_at)>selected)));
   if((!b?.statement||b.voided_at&&day(b.voided_at)<=selected)&&!reserved)add({id:'unbilled:'+f.target_id,date:v.date,kind:'unbilled_source_fee',matterId:matters.find(m=>m.id===matterSources.find(s=>s.source_id===v.matter_id)?.target_id)?.id,cents:Number(v.amount_cents),unbilledCents:Number(v.amount_cents),source:{table:'s_move_fee_lines',id:f.target_id}});
  }
+ const rootInvoice=(id:string)=>{const seen=new Set<string>();let current=id;while(invoiceById.get(current)?.corrects_bill_id&&!seen.has(current)){seen.add(current);current=invoiceById.get(current)!.corrects_bill_id;}return current;};
  const invoiceRows=invoices.filter(b=>b.statement).map(b=>{
-  const related=transactions.filter(t=>t.billId===b.id),dueCents=sum(related,'dueCents'),voided=related.some(t=>t.kind==='invoice_void');
+  const root=rootInvoice(b.id),related=root===b.id?transactions.filter(t=>t.billId&&rootInvoice(t.billId)===b.id):transactions.filter(t=>t.billId===b.id),dueCents=root===b.id?sum(related,'dueCents'):0,voided=related.some(t=>t.kind==='invoice_void');
   if(!b.statement.dueDate&&!voided&&dueCents>0)gaps.push('Invoice '+b.statement.number+': source due date unavailable; aging is unknown');
   const age=b.statement.dueDate?Math.max(0,Math.floor((Date.parse(selected)-Date.parse(b.statement.dueDate))/86400000)):null;
-  return {id:b.id,matterId:b.matter_id,...b.statement,dueCents:Math.max(0,dueCents),creditCents:Math.max(0,-dueCents),voided,agingDays:age,overdueCents:!voided&&age!==null&&age>0?Math.max(0,dueCents):0,transactions:related.map(t=>t.id)};
+  return {id:b.id,matterId:b.matter_id,appliedTo:root===b.id?null:root,...b.statement,dueCents:Math.max(0,dueCents),creditCents:Math.max(0,-dueCents),voided,agingDays:age,overdueCents:!voided&&age!==null&&age>0?Math.max(0,dueCents):0,transactions:related.map(t=>t.id)};
  });
  const totals={...empty(),...Object.fromEntries(fields.map(k=>[k,sum(transactions,k)]))};
  totals.overdueCents=sum(invoiceRows,'overdueCents');totals.dueCents=sum(invoiceRows,'dueCents');
@@ -126,9 +131,13 @@ export async function migrationLedger(db:D1Database,job:Data,asOf:unknown){
  const aging={payer:group('payer'),matter:group('matter'),lawyer:group('lawyer')};
  for(const amount of Object.values(totals))insist(Number.isSafeInteger(amount),'Statement exceeds exact integer money range',409);
  transactions.sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id));
- return {account:job.account,asOf:selected,currency:'USD',basis:'Inclusive effective dates; native allocations, refunds and provider observations use their recorded UTC dates. Imported facts are source evidence, never provider verification.',totals,invoices:invoiceRows,transactions,aging,gaps:[...new Set(gaps)],coverageGaps:header.coverageGaps??[],boundary:'Interest and late-fee assessments and complete historical dispute resolution remain unavailable; zero amounts do not certify their absence. Responsible lawyer is the current native assignment.'};
+ return {account:job.account,asOf:selected,currency:'USD',basis:'Inclusive effective dates; native allocations, refunds and provider observations use their recorded UTC dates. Imported facts are source evidence, never provider verification.',totals,invoices:invoiceRows,transactions,aging,gaps:[...new Set(gaps)],coverageGaps:header.coverageGaps??[],boundary:'Historical interest and late-fee components require explicit source fee categories and are included in the original invoice total, never charged twice. No new assessment is created. Complete native assessments and historical responsible-lawyer assignments remain unavailable; zero amounts do not certify missing data.'};
 }
 export function migrationLedgerCsv(report:Awaited<ReturnType<typeof migrationLedger>>,group:unknown){
+ if(group==='transactions')return new Response(csv([
+  ['as of','transaction ID','date','kind','matter ID','invoice ID','invoice number','USD cents',...fields.map(k=>k+' delta'),'source table','source ID','reference','document ID','source version','source SHA-256','original invoice PDF'],
+  ...report.transactions.map(t=>[report.asOf,t.id,t.date,t.kind,t.matterId,t.billId,report.invoices.find(i=>i.id===t.billId)?.number,t.cents,...fields.map(k=>t[k]??0),t.source.table,t.source.id,t.source.reference??t.reference,t.source.documentId,t.source.version,t.source.sha256,t.source.originalPdf]),
+ ]),{headers:{'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="migration-transactions.csv"','cache-control':'no-store'}});
  insist(['payer','matter','lawyer'].includes(String(group)),'Choose payer, matter or lawyer aging');
  const records=report.aging[group as keyof typeof report.aging];
  return new Response(csv([['as of','group','name','current USD cents','1 to 30 USD cents','31 to 60 USD cents','61 to 90 USD cents','over 90 USD cents','unknown due date USD cents','invoice IDs'],...records.map(r=>[report.asOf,group,r.name,r.currentCents,r.days1to30Cents,r.days31to60Cents,r.days61to90Cents,r.daysOver90Cents,r.unknownCents,r.invoices.join('; ')])]),{headers:{'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="migration-aging.csv"','cache-control':'no-store'}});
