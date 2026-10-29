@@ -25,8 +25,8 @@ for(const c of contract.clauses.filter(c=>selected.has(c.id))){
  const row=source.split('\n')[c.row-1],evidence=row.split('|')[5].trim();
  const line=`- **${c.id} — ${c.title}.** **Status: ${c.status}.** ${point} Current evidence: ${evidence}.${c.gap?' Gap: '+c.gap:''}`;
  const pattern=new RegExp('^- \\*\\*'+c.id+' —[^\\n]*','m');
- if(!pattern.test(acceptance))throw Error('Acceptance section missing for '+c.id);
- acceptance=acceptance.replace(pattern,()=>line);
+ if(!pattern.test(acceptance))acceptance=acceptance.trimEnd()+'\n\n'+line+'\n';
+ else acceptance=acceptance.replace(pattern,()=>line);
 }
 const claims='# Clause register\n\nGenerated from CONTRACT.md; regenerate with the documented contract-docs command. Acceptance requirements and status remain in that source.\n\n| Clause | Title | Status |\n| --- | --- | --- |\n'+contract.clauses.map(c=>`| ${c.id} | ${c.title} | ${c.status} |`).join('\n')+'\n';
 const outputs=new Map([['CONTRACT.md',source],['ACCEPTANCE.md',acceptance],['docs/CLAIMS.md',claims]]);

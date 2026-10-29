@@ -143,3 +143,16 @@ Generated from CONTRACT.md; regenerate with the documented contract-docs command
 | AGENT-008 | Coordinate milestones with billing and collection | missing |
 | AGENT-009 | Measure recovered work and agent decisions | missing |
 | AGENT-010 | Constrain agent data and execution | partial |
+| BASE-AGENT-001 | One MCP door per seed | partial |
+| BASE-AGENT-002 | The seed's jobs are tools, through the UI's own actions | partial |
+| BASE-AGENT-003 | Records are resources | partial |
+| BASE-AGENT-004 | Business identity and short-lived, audience-bound tokens | partial |
+| BASE-AGENT-005 | An agent acts as a person in a role, never more | partial |
+| BASE-AGENT-006 | Every action declares its risk class | partial |
+| BASE-AGENT-007 | The company's policy decides, at one chokepoint | partial |
+| BASE-AGENT-008 | Truthful attribution | partial |
+| BASE-AGENT-009 | Every agent action is audited with its class and decision | partial |
+| BASE-AGENT-010 | Agents can follow changes | partial |
+| BASE-AGENT-011 | Limits are policy, and Pause stops everything | partial |
+| BASE-AGENT-012 | Writes are idempotent and conflict-safe | partial |
+| BASE-AGENT-013 | Manifest, docs and the conformance journey | partial |

@@ -1,3 +1,4 @@
+import {bindBusinessAgent} from './team';
 import {collectionsState,startCollection,collectionAction,runCollection} from './collections';
 import {migrationAction,migrationState,matterMigration} from './migration';
 import {settlementPolicy,saveSettlementPolicy} from './settlement-policy';
@@ -488,6 +489,7 @@ api.post('/api/satchel/team/invite',as(async(a,c)=>inviteMember(c.req.raw,c.env,
 api.post('/api/satchel/keys',as(async(a,c)=>createAgentKey(db(c),a,await body(c))));
 api.post('/api/satchel/keys/:id/revoke',as((a,c)=>revokeAgentKey(db(c),a,param(c))));
 api.post('/api/satchel/proposals/:id/decide',as(async(a,c)=>decideProposal(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/agent-keys/:id/business',as(async(a,c)=>bindBusinessAgent(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/agent-controls',as((a,c)=>agentControls(db(c),a)));
 api.post('/api/satchel/agent-agreements',as(async(a,c)=>approveAgentAgreement(db(c),a,await body(c))));
 api.post('/api/satchel/agent-agreements/:id/withdraw',as(async(a,c)=>withdrawAgreement(db(c),a,param(c),await body(c))));

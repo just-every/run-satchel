@@ -1,3 +1,5 @@
+import {satchelDoor} from './satchel/door/index.ts'
+import {businessSettings} from './satchel/door/business.ts'
 import {runCollections} from './satchel/collections';
 import {runPaymentPlans} from './satchel/payment-plans';
 import {runAgentJobs} from './satchel/agent-jobs';
@@ -37,6 +39,10 @@ export default withDemo({
   async fetch(request, env, execution) {
     const asset = await staticAssetResponse(request, env)
     if (asset) return asset
+    const business = await businessSettings(runtimeBindings(env)).handle(request)
+    if (business) return business
+    const door = await satchelDoor(env).handle(request)
+    if (door) return door
     const auth = await authResponse(request, env)
     if (auth) return auth
     // The installed variant: the Lobby at / and the public claim state it reads.

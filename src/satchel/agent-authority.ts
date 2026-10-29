@@ -73,7 +73,7 @@ export async function activeDelegations(db:D1Database,actor:Actor){
 
 export async function preparationWrites(db:D1Database,actor:Actor,proposalId:string){
  const execution=actor.agentExecution;insist(!actor.agentKeyId||execution,'Explicit delegation required',403);if(!execution)return [];
- const d=execution.delegation,writes=[...guard(db,liveAgentSql,...liveAgentArgs(d)),...matterGuard(db,actor,d.matter_id)];
+ const d=execution.delegation,writes=[...(actor.doorAgentId?guard(db,'EXISTS(SELECT 1 FROM s_agent_keys WHERE id=? AND owner_id=? AND business_agent_id=? AND revoked=0)',actor.agentKeyId,actor.id,actor.doorAgentId):[]),...guard(db,liveAgentSql,...liveAgentArgs(d)),...matterGuard(db,actor,d.matter_id)];
  for(const s of await rows(db,'SELECT * FROM s_agent_sources WHERE delegation_id=?',d.id))writes.push(...documentGuard(db,actor,await visibleDocument(db,actor,s.document_id)));
  if(execution.jobId)writes.push(...guard(db,"EXISTS(SELECT 1 FROM s_agent_jobs WHERE id=? AND status='queued' AND delegation_id=?)",execution.jobId,d.id),stmt(db,"UPDATE s_agent_jobs SET status='prepared',outcome='human_review_required',proposal_id=?,finished_at=? WHERE id=? AND status='queued'",proposalId,now(),execution.jobId),audit(db,actor,'agent.job_prepared',execution.jobId,'Proposal only; no external effect',{matterId:d.matter_id}));
  else writes.push(...guard(db,'EXISTS(SELECT 1 FROM s_agent_delegations WHERE id=? AND used_jobs<max_jobs)',d.id),stmt(db,'UPDATE s_agent_delegations SET used_jobs=used_jobs+1 WHERE id=?',d.id));

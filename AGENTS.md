@@ -52,3 +52,5 @@ then use the same command with `check` instead of `write`. The `--clauses` list
 names the rows being worked; other acceptance sections are preserved.
 Stage new files before running `node scripts/edition-authoring/cli.mjs lock`;
 `node scripts/edition-authoring/cli.mjs check` verifies the final source lock.
+
+Lander-Regenerate: node scripts/contract-docs.mjs write --clauses BASE-AGENT-001,BASE-AGENT-002,BASE-AGENT-003,BASE-AGENT-004,BASE-AGENT-005,BASE-AGENT-006,BASE-AGENT-007,BASE-AGENT-008,BASE-AGENT-009,BASE-AGENT-010,BASE-AGENT-011,BASE-AGENT-012,BASE-AGENT-013
