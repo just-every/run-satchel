@@ -1,0 +1,15 @@
+CREATE TABLE s_stripe_receipts(checkout_id TEXT PRIMARY KEY REFERENCES s_stripe_checkouts(id),charge_id TEXT NOT NULL UNIQUE,cents INTEGER NOT NULL CHECK(cents>0),at TEXT NOT NULL);
+CREATE TABLE s_stripe_processor_postings(id TEXT PRIMARY KEY,config_id TEXT NOT NULL REFERENCES s_stripe_config(id),payout_id TEXT NOT NULL,payment_intent_id TEXT,gross_cents INTEGER NOT NULL,fee_cents INTEGER NOT NULL,net_cents INTEGER NOT NULL,kind TEXT NOT NULL,at TEXT NOT NULL,CHECK(net_cents=gross_cents-fee_cents));
+CREATE TABLE s_stripe_payout_events(id TEXT PRIMARY KEY,observation_id TEXT NOT NULL REFERENCES s_stripe_settlement_observations(id),at TEXT NOT NULL);
+CREATE TABLE s_stripe_bank_deposits(id TEXT PRIMARY KEY,payout_id TEXT NOT NULL,observation_id TEXT NOT NULL REFERENCES s_stripe_settlement_observations(id),bank_reference TEXT NOT NULL UNIQUE,cents INTEGER NOT NULL CHECK(cents>0),reason TEXT NOT NULL,approved_by TEXT NOT NULL,at TEXT NOT NULL,account_id TEXT NOT NULL REFERENCES s_trust_accounts(id),entry_id TEXT NOT NULL UNIQUE REFERENCES s_trust_entries(id),deposit_date TEXT NOT NULL);
+CREATE TABLE s_stripe_bank_reversals(id TEXT PRIMARY KEY,request_key TEXT NOT NULL UNIQUE,request_json TEXT NOT NULL,match_id TEXT NOT NULL UNIQUE,reason TEXT NOT NULL,approved_by TEXT NOT NULL,at TEXT NOT NULL,entry_id TEXT UNIQUE REFERENCES s_trust_entries(id));
+CREATE TRIGGER s_stripe_receipts_no_update BEFORE UPDATE ON s_stripe_receipts BEGIN SELECT RAISE(ABORT,'processor history is append-only'); END;
+CREATE TRIGGER s_stripe_receipts_no_delete BEFORE DELETE ON s_stripe_receipts BEGIN SELECT RAISE(ABORT,'processor history is append-only'); END;
+CREATE TRIGGER s_stripe_processor_postings_no_update BEFORE UPDATE ON s_stripe_processor_postings BEGIN SELECT RAISE(ABORT,'processor history is append-only'); END;
+CREATE TRIGGER s_stripe_processor_postings_no_delete BEFORE DELETE ON s_stripe_processor_postings BEGIN SELECT RAISE(ABORT,'processor history is append-only'); END;
+CREATE TRIGGER s_stripe_payout_events_no_update BEFORE UPDATE ON s_stripe_payout_events BEGIN SELECT RAISE(ABORT,'processor history is append-only'); END;
+CREATE TRIGGER s_stripe_payout_events_no_delete BEFORE DELETE ON s_stripe_payout_events BEGIN SELECT RAISE(ABORT,'processor history is append-only'); END;
+CREATE TRIGGER s_stripe_bank_deposits_no_update BEFORE UPDATE ON s_stripe_bank_deposits BEGIN SELECT RAISE(ABORT,'processor history is append-only'); END;
+CREATE TRIGGER s_stripe_bank_deposits_no_delete BEFORE DELETE ON s_stripe_bank_deposits BEGIN SELECT RAISE(ABORT,'processor history is append-only'); END;
+CREATE TRIGGER s_stripe_bank_reversals_no_update BEFORE UPDATE ON s_stripe_bank_reversals BEGIN SELECT RAISE(ABORT,'processor history is append-only'); END;
+CREATE TRIGGER s_stripe_bank_reversals_no_delete BEFORE DELETE ON s_stripe_bank_reversals BEGIN SELECT RAISE(ABORT,'processor history is append-only'); END;

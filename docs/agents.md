@@ -46,7 +46,7 @@ risk flags and instructions in documents cannot remove that class. Approval
 summaries name the sponsor, delegated matter and proposed title. A proposal
 resource is visible only to its current sponsor and preparing agent while its
 native delegation remains valid. Missing and restricted resources have the same
-refusal. Native proposals and audit retain the preparer's agent and sponsor;
+refusal. Native proposals and audit retain the preparer's agent and sponsor IDs;
 company approval does not substitute for counsel's later native decision.
 
 Device admission, human legal/financial decisions, installation, import and
@@ -55,7 +55,7 @@ does not schedule the legacy local preparation queue, subscribe to provider
 changes, deliver external mail, refresh resources, or erase retained door evidence.
 Those families remain undeclared. Door policy, identity, pending approvals,
 retained replay and audit stores are installation authority and are excluded
-from portable firm archives. Client custody/redaction of retained door data is
+from portable firm archives. An explicit empty-destination restore reconciles proposal sponsors against the destination's admitted native people; it restores no key or company authority. Client custody/redaction of retained door data is
 not established; original-file erasure alone is not a claim to erase that data.
 
 The disposable conformance fixtures use the production signed owner claim and

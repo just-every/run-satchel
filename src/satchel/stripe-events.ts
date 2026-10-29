@@ -1,3 +1,4 @@
+import {ingestPayout} from './stripe-settlements';
 import {syncPaymentPlanAttempt} from './payment-plan-records';
 import {verifyProtectedStripe} from './stripe-config';
 import {audit,id,insist,now,rows,stmt,text,type Data} from './model';
@@ -12,10 +13,12 @@ export async function stripeEvent(env:StripeEnv,request:Request){
  insist(!input.account||connected,'Unknown connected processor account',400);
  const event=await stripeApi(env,'/events/'+encodeURIComponent(eventId),undefined,undefined,connected?.account_id);insist(event.id===eventId&&event.livemode===(env.STRIPE_MODE==='live'),'Only verified Stripe events in the configured environment are accepted',400);
  const object=event.data?.object;insist(object,'Invalid provider event',400);
+ if(object.object==='payout'&&!input.account)return ingestPayout(env,event);
  let attempt:Data|null=null;
  if(object.object==='checkout.session')attempt=await stmt(env.DB,'SELECT * FROM s_stripe_checkouts WHERE session_id=?',object.id).first<Data>();
  else{
-  const intent=object.object==='payment_intent'?object.id:object.payment_intent;
+  let intent=object.object==='payment_intent'?object.id:object.payment_intent;
+  if(!intent&&object.charge){const charge=await stripeApi(env,'/charges/'+encodeURIComponent(typeof object.charge==='string'?object.charge:object.charge.id),undefined,undefined,connected?.account_id);intent=charge.payment_intent;}
   if(intent)attempt=await stmt(env.DB,'SELECT * FROM s_stripe_checkouts WHERE payment_intent_id=?',typeof intent==='string'?intent:intent.id).first<Data>();
   if(!attempt&&object.metadata?.satchel_checkout)attempt=await stmt(env.DB,'SELECT * FROM s_stripe_checkouts WHERE id=?',object.metadata.satchel_checkout).first<Data>();
  }
@@ -47,6 +50,7 @@ export async function reconcileStripe(env:StripeEnv,attempt:Data,eventId:string,
  const at=now(),writes:D1PreparedStatement[]=[guard(env.DB,'NOT EXISTS(SELECT 1 FROM s_stripe_events WHERE id=?)',eventId),guard(env.DB,'EXISTS(SELECT 1 FROM s_stripe_checkouts WHERE id=? AND status=? AND updated_at=?)',attempt.id,attempt.status,attempt.updated_at)];
  if(status==='paid'&&!wasPaid)writes.push(guard(env.DB,"EXISTS(SELECT 1 FROM s_bills WHERE id=? AND status<>'void')",attempt.bill_id));
  if(delta>0)writes.push(stmt(env.DB,'INSERT INTO s_stripe_adjustments VALUES(?,?,?,?,?,?)',id(),attempt.id,String(charge.id)+':'+returned,delta,charge.disputed?'dispute':charge.status==='failed'?'return':'refund',at));
+ if(attempt.purpose==='operating'&&pi?.status==='succeeded'&&charge?.id){writes.push(stmt(env.DB,'INSERT INTO s_stripe_receipts SELECT ?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM s_stripe_receipts WHERE checkout_id=?)',attempt.id,charge.id,attempt.cents,at,attempt.id));}
  if(attempt.purpose==='trust'&&status==='paid'&&!wasPaid){
   const day=at.slice(0,10);writes.push(guard(env.DB,'EXISTS(SELECT 1 FROM s_trust_ledgers WHERE id=? AND account_id=?)',attempt.ledger_id,config.bank_account_id),stmt(env.DB,"INSERT INTO s_trust_entries VALUES(?,?,?,'ach',?,?,?,?,?,?)",id(),config.bank_account_id,attempt.ledger_id,attempt.cents,day,day,'stripe:'+attempt.id,attempt.created_by,at));
  }

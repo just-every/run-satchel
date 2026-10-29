@@ -1,4 +1,5 @@
 import {bindBusinessAgent} from './team';
+import {invoiceWriteoffHistory,reverseInvoiceWriteoff} from './invoice-writeoff-reversal';
 import {collectionsState,startCollection,collectionAction,runCollection} from './collections';
 import {migrationAction,migrationState,matterMigration} from './migration';
 import {settlementPolicy,saveSettlementPolicy} from './settlement-policy';
@@ -6,7 +7,7 @@ import {disposeSettlement} from './settlement-retention';
 import {prepareSettlementBill} from './settlement-billing';
 import {paymentPlans,paymentPlan,savePaymentPlan,paymentPlanAction,startPlanMandate,confirmPlanMandate} from './payment-plans';
 import {approveRefund} from './stripe-refunds';
-import {reconciliationState,reconcileCollection,inspectSettlement,matchSettlement} from './stripe-reconciliation';
+import {reconciliationState,reconcileCollection,inspectSettlement,matchSettlement,reverseBankMatch} from './stripe-reconciliation';
 import {settlements,saveContingency,prepareSettlement,approveSettlement,checkSettlementFunds} from './settlements';
 import {stateTrustRecords} from './trust-state-records';
 import {setRetainerPolicy,retainerAlert,deliverReplenishment,portalReplenishments} from './trust-retainers';
@@ -566,6 +567,9 @@ api.get('/api/satchel/offline-payments/:id',as((a,c)=>offlineReceipt(db(c),a,par
 api.post('/api/satchel/offline-payments/:id/actions',as(async(a,c)=>offlineAction(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/invoices/:id/writeoff',as(async(a,c)=>writeOffInvoice(db(c),a,param(c),await body(c))));
 
+api.get('/api/satchel/invoices/:id/writeoff-reversals',as((a,c)=>invoiceWriteoffHistory(db(c),a,param(c))));
+api.post('/api/satchel/invoices/:id/writeoff-reversals',as(async(a,c)=>reverseInvoiceWriteoff(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/stripe/collections/:id/bank-reversal',as(async(a,c)=>reverseBankMatch(runtimeBindings(c.env),a,param(c),await body(c))));
 api.get('/api/satchel/bills/:id/reconciliation',as((a,c)=>reconciliationState(runtimeBindings(c.env),a,param(c))));
 api.post('/api/satchel/stripe/collections/:id/reconcile',as((a,c)=>reconcileCollection(runtimeBindings(c.env),a,param(c))));
 api.post('/api/satchel/stripe/collections/:id/refund',as(async(a,c)=>approveRefund(runtimeBindings(c.env),a,param(c),await body(c))));
