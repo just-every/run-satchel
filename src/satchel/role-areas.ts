@@ -27,7 +27,7 @@ export const areaRules:[RegExp,string[]][]=[
  rule('/matters/'+seg+'/revenue(/rules|/allocations)?',['reports','rates:all','bank:full']),
  rule('/time/bulk(/'+seg+'/(rows|post))?',['billing']),
  rule('/(offline-payments|offline-payments/'+seg+'|offline-payments/'+seg+'/actions|invoices/'+seg+'/(writeoff|writeoff-reversals))',['billing','bank:full']),
- rule('/reports/(staff-costs|economics(?:/export)?)',['reports','rates:all','bank:full']),
+ rule('/reports/(staff-costs(?:/drafts|/'+seg+'/approve)?|economics(?:/export)?)',['reports','rates:all','bank:full']),
  rule('/bills/'+seg+'/trust-options',['billing','bank:balances']),
  rule('/(prebill-runs|prebill-runs/'+seg+'|bills/'+seg+'/review|matters/'+seg+'/invoice-template)',['billing']),
  rule('/(stripe/events|providers/sendgrid/events)',open),

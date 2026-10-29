@@ -144,7 +144,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "f164d9821ed1eeaa1a413371810bc067a80769050906b2eae3e6395e3460fbe3",
+      "sha256": "d7d35f9b6252ca3b5560e67ed988096129be3e148f82bcd7e7a1d0862c7fe9dd",
       "executable": false
     },
     "AGENTS.md": {
@@ -152,7 +152,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "4a522d06d99dc9cf90a5ed3b4d8db7c0881d3ebcc9f68b7748d6fc0fd2d29f76",
+      "sha256": "8d1e9ecfcac8422b803ff5d2222732f25e38aaf27b2ae51e43d761513623c7c6",
       "executable": false
     },
     "base-copies.json": {
@@ -168,7 +168,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "70cde7d981344c4daafe43717d78091cae7294256fde7817a7b154f3fdeed8bc",
+      "sha256": "cd5cacf0deb5dfc3dae2f132f50676b771e8cbce0956330bab7b6488e3905612",
       "executable": false
     },
     "DEMO.md": {
@@ -747,6 +747,10 @@
       "sha256": "fe3b0e7005a0992da4ca00a45ffcdfbc753cd1237b7f72681b855356b3847472",
       "executable": false
     },
+    "migrations/core/0122_staff_cost_versions.sql": {
+      "sha256": "1cda8d12e2773dbabeed639bff3538a1efcd0c5bfacd4b1eacc93552de87806b",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "31dbf44f24514b9f626261911b9b83c806cacdf00dd23e49f465f3fdfebb715e",
       "executable": false
@@ -1012,7 +1016,7 @@
       "executable": false
     },
     "RELEASE.json": {
-      "sha256": "d65efe3d0683fad680de76c3f04ca51a18c935fa9a1668c23a2d03cc12fd9af9",
+      "sha256": "2488f157e9e6eaa158cf38a7b0e675fd0328e920eb2b69c2c468d667608af67e",
       "executable": false
     },
     "rer-project.json": {
@@ -3164,7 +3168,7 @@
       "executable": false
     },
     "src/satchel/api.ts": {
-      "sha256": "20c6077140c1e29f1e86e74143f83bc19eea4559dddbdb0db7a3163ccaa0b6eb",
+      "sha256": "0c2aa75d0c330fd62420cde6ab4469496b1c4b88e417aa65edbc5d2e533050b0",
       "executable": false
     },
     "src/satchel/appointments.ts": {
@@ -3208,11 +3212,11 @@
       "executable": false
     },
     "src/satchel/audit-record.ts": {
-      "sha256": "e91c193f78b799fdfe8f31dbfa11aedc073ffdd1841af201b5e78eba2807a972",
+      "sha256": "2dcea6b68f2ab4609b8e69e341ef88762e761b59601549ed1041c1723cb50619",
       "executable": false
     },
     "src/satchel/audit.ts": {
-      "sha256": "23b6638606531e73eff93ee579fa4ac4d5f9f5f45573f30820f356296322616c",
+      "sha256": "3232eccabf13a3d18e87e11d42908f80a9ff9eb18ec2fd34226630ae870b923f",
       "executable": false
     },
     "src/satchel/billing-corrections.ts": {
@@ -3224,7 +3228,7 @@
       "executable": false
     },
     "src/satchel/bulk-work.ts": {
-      "sha256": "a2169cf92f28ca2d0770e69d0cf3a7278e13f0bc1f9edef275d769c0aafdfb90",
+      "sha256": "88cc851a6c7e4ecf937ff97ec8792cc28259cc8fb6c951b6e4c6d095fc43226f",
       "executable": false
     },
     "src/satchel/chronology-extraction.ts": {
@@ -3360,7 +3364,7 @@
       "executable": false
     },
     "src/satchel/economics.ts": {
-      "sha256": "edc3f9dd82603be226a85f950e9d632325543458b0f8798519bd10b9c4c3d57f",
+      "sha256": "a27ab88fb095416c1bd950477554a0e862547aa9f53edee942b816cb26635bf6",
       "executable": false
     },
     "src/satchel/ethical-walls.ts": {
@@ -3780,7 +3784,7 @@
       "executable": false
     },
     "src/satchel/role-areas.ts": {
-      "sha256": "e2ae8d277034f45457790bbd02351974f0671271e2c09abf603bc7badf3d8441",
+      "sha256": "01affa8ca534447a1243e39478ea1f7eb85b4348d707a6ab6521beac66b6d1f4",
       "executable": false
     },
     "src/satchel/role-doors.ts": {
@@ -3837,6 +3841,10 @@
     },
     "src/satchel/settlements.ts": {
       "sha256": "8c4109bce9b84daeb3a202fbfdc669b7228b0899ce98d3624d90e805b1c237fd",
+      "executable": false
+    },
+    "src/satchel/staff-costs.ts": {
+      "sha256": "62b9d71f892c76e42cb749dc1c75597d04428379f45d853f7aeeb21298c56a0c",
       "executable": false
     },
     "src/satchel/stripe-api.ts": {
@@ -4800,7 +4808,7 @@
       "executable": false
     },
     "tests/satchel/integrations.test.mjs": {
-      "sha256": "181a59d56fd8d923b1a4eac20ae0ce00b02b54e62ff5fca42714d3a6b7e12337",
+      "sha256": "bc004698a43c686b3fb9d94b01b4d365f0d1f3072b85ed91ed1e8af9a0628f55",
       "executable": false
     },
     "tests/satchel/invoice-delivery-fixture.mjs": {
@@ -5008,7 +5016,7 @@
       "executable": false
     },
     "tests/satchel/report-schedules.test.mjs": {
-      "sha256": "7eabc92bf14e6bb9aa1b6545143639878fbe176184821a4a73b065678442b4a7",
+      "sha256": "0e4b96ec5c7f8ced399e1efaa1fb4be1d6cc02d34c96e174964a859e4ea9b1ef",
       "executable": false
     },
     "tests/satchel/reports-journey.test.mjs": {
@@ -5016,7 +5024,7 @@
       "executable": false
     },
     "tests/satchel/reports.test.mjs": {
-      "sha256": "dea4c2b74e116a98312860a6e18bbd272be4e7fc2ca08fd97b45739c25449923",
+      "sha256": "8aed02ed90200f87bd6d8538580d03563c400d5cb89bebb151112ab464c3f7ff",
       "executable": false
     },
     "tests/satchel/roles-journey.test.mjs": {

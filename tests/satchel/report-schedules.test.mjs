@@ -10,6 +10,7 @@ test('REPORT-003 a weekly overdue-work report reaches current permitted recipien
   const people={};for(const [email,role] of [['lawyer@example.test','lawyer'],['lawyer2@example.test','lawyer'],['assistant@example.test','assistant']]){await h.json('/team',{email,name:email,role},h.owner);await h.json('/team/invite',{email},h.owner);people[email]=await h.login(email);}
   const m=await open(h,'Harper lease dispute','Harper Bakery LLC','Main Street Holdings');for(const e of ['lawyer@example.test','lawyer2@example.test'])await h.json('/matters/'+m.id+'/access',{email:e},h.owner);await h.json('/matters/'+m.id+'/tasks',{title:'Overdue: serve the notice',priority:'high',dueDate:'2026-09-01'},h.owner);
   await h.json('/providers/mail/review',{termsUrl:'https://resend.com/legal/terms-of-service',confirmed:true},h.owner);
+  const staffCost=await h.json('/reports/staff-costs',{email:'owner@example.test',effectiveFrom:'2026-01-01',hourlyCents:19321,reason:'Synthetic confidential Satchel compensation basis',confirmed:true},h.owner);
   const slot=nextMonday(),slots=[0,1,2,3,4,5].map(nextMonday),def={name:'Weekly overdue work',dashboard:'workload',filters:{status:'open'},weekday:1,time:'08:00',timezone:'America/New_York',channel:'email',recipients:['owner@example.test','lawyer@example.test']};
   // Only the principal schedules; recipients must be able to open reports.
   await h.json('/report-schedules',def,people['lawyer@example.test'],403);await h.json('/report-schedules',{...def,recipients:['assistant@example.test']},h.owner,400);await h.json('/report-schedules',{...def,dashboard:'status'},h.owner,400);await h.json('/report-schedules',{...def,time:'25:00'},h.owner,400);
@@ -41,6 +42,7 @@ test('REPORT-003 a weekly overdue-work report reaches current permitted recipien
   // Portal summaries are shown to the recipient inside Satchel with counts only.
   await h.json('/report-schedules',{...def,name:'Overdue in the workspace',channel:'portal',recipients:['owner@example.test']},h.owner);await h.scheduled(slots[5]+5*60000);
   const mine=(await h.json('/report-summaries',undefined,h.owner)).summaries.find(s=>s.name==='Overdue in the workspace');assert.equal(mine.status,'available');assert.equal(mine.summary.overdue,1);assert.ok(!JSON.stringify(mine).includes('Harper'));await h.json('/report-summaries',undefined,people['assistant@example.test'],403);
+  for(const outbound of [...h.mails.filter(mail=>mail.subject.startsWith('Weekly summary')),mine])for(const confidential of [staffCost.id,staffCost.reason,'hourly_cents','costBasis','profitCents'])assert.ok(!JSON.stringify(outbound).includes(confidential),'Scheduled email and portal summaries contain no staff costs or economics');
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(archive.includes('Weekly overdue work')&&archive.includes('"status":"open"'));
  }finally{await h.close();}
 });

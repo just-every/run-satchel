@@ -295,25 +295,56 @@ is sent. The frozen statement retains invoice allocations and source fee terms;
 its list and PDF routes refuse disclosure unless the reader still has access to
 every included matter. Losing one grant suppresses the whole statement.
 
-The principal may use `POST /api/satchel/reports/staff-costs` with `email`,
-`effectiveFrom`, `hourlyCents`, `reason` and `confirmed: true` to record an immutable
-staff cost approval. One approval per staff member and effective date is allowed;
-a later effective date changes costing prospectively by work date. These costs
-never change billing rates. CT approved the principal-only policy with riders on 26 October 2026; complete implementation proof remains partial.
+The principal may use `POST /api/satchel/reports/staff-costs/drafts` with
+`email`, `effectiveFrom`, `hourlyCents` and `reason` to save an immutable cost
+revision. `POST /api/satchel/reports/staff-costs/:id/approve` requires that exact
+saved `revision` and `confirmed: true`. Saving alone never supplies a cost.
+`GET /api/satchel/reports/staff-costs` returns approved effective versions and
+saved revision history, including the original author and approver timestamps.
+The existing `POST /api/satchel/reports/staff-costs` with the same cost fields and
+`confirmed: true` saves and approves the exact submitted revision atomically.
+
+One approved version per staff member and effective date is allowed. To replace
+that version, give its current `supersedesId` with the same staff member and date.
+Approval refuses a stale predecessor or a competing same-date version. Different
+effective dates form successive work-date intervals; a later version never
+supplies a cost for earlier work. Explicit zero is an approved cost, while an
+unapproved or missing version is unknown. Retroactive supersession changes newly
+generated calculations, preserving earlier downloaded bytes and audit history.
+Bulk work uses the same approved versions and refuses posting a changed cost
+basis without refreshed review. Costs never change billing prices. CT approved
+the principal-only policy with riders on 26 October 2026; REPORT-002 stays partial.
 
 `GET /api/satchel/reports/economics` returns current permitted matter economics,
-formulas, a UTC read timestamp and the source entries, live issued lines, invoice
-balances and cost approvals used. The existing practice, owner, opening-date and
-case-status filters select matters; they are not transaction-period filters.
-`GET /api/satchel/reports/economics/export` downloads that same formula basis as
-JSON and records an export audit event. Both doors are principal-only. An `asOf`
-input is refused: the read timestamp describes current state and does not claim
-historical accounting. Missing staff cost makes profitability unknown. Pending
-applications and trust cash stay separate from cleared operating receipts.
+formulas, explicit units and ratio numerators and denominators, a UTC read timestamp and the source entries, work dates, revisions,
+live issued lines, invoice balances and cost approvals used. Existing practice,
+owner, opening-date and case-status filters select matters; they are not
+transaction-period filters. Per-matter and cohort cost coverage disclose missing
+source IDs and separately known staff costs. One missing required cost makes
+complete staff cost and profitability unknown, including cohort totals. Only
+permitted matters contribute to those totals. Cohort ratios divide summed numerators by summed denominators; they never average matter ratios. Aging totals reconcile unpaid cents to each frozen due-date bucket, with unknown due dates separate. A zero ratio denominator is unknown.
 
-The economics workspace screen, populated aging and the remaining CT policy riders
-remain REPORT-002 gaps. Current processor-pending values and additive correction
-reconciliation are asserted through the public report doors.
+`GET /api/satchel/reports/economics/export` downloads the formula basis as JSON
+with a confidential internal-use marking and manifest identifying the saved firm name,
+requesting actor, generation timestamp, filters, current-state basis and missing
+cost coverage. Export refuses until firm settings identify the firm. `payloadSha256` hashes UTF-8 `JSON.stringify(report)` before the
+manifest is added; the manifest describes that hash basis. The
+`X-Satchel-Sha256` header hashes the complete downloaded bytes, including the
+manifest. The audit freezes both digests, actor, time and included matter IDs.
+This synchronous door rechecks matter access transactionally before returning
+the response; it creates no public link or retained report artifact. Response
+creation does not prove receipt by the reader. Cost decisions and economics
+custody payloads are excluded from non-principal audit rows, counts and exports.
+
+All cost and economics doors require the current native principal session.
+Wider custom reporting grants confer no principal authority. An `asOf` input is
+refused: the read timestamp describes current state, not historical accounting.
+Pending applications and trust cash stay separate from cleared operating receipts.
+The economics screens, populated aging, complete historical reconstruction,
+separate artifact authority checks, complete outbound exclusion and disposal riders remain gaps. Native principal role removal, deactivation and session revocation refuse the next direct read or export.
+Cost revisions, approvals and custody audit history travel in native archives;
+restore grants no new principal session. Full archive-authority and erasure-fence
+rider proof remains owed.
 
 ### Recorded contact preferences
 
