@@ -1,4 +1,5 @@
 import {insist,type Data} from './model';
+import faxDecoder from 'pdfjs-dist/wasm/jbig2.wasm?module';
 
 export type PdfTextItem={str:string;transform:number[];width:number;height:number;hasEOL?:boolean};
 export type PdfTextPage={page:number;lines:string[]};
@@ -33,6 +34,10 @@ async function pdfPages(bytes:Uint8Array,scans:boolean):Promise<PdfSearchPage[]>
     const [name,type,image]=message.action==='obj'?[message.data[0],message.data[2],message.data[3]]:message.data;
     if(type==='Image'){imageObjects.set(name,image);imageWaiters.get(name)?.(image);imageWaiters.delete(name);}
     if(message.callbackId)send({callback:1,callbackId:message.callbackId,data:0});
+   }else if(message.action==='FetchBinaryData'&&message.data.kind==='wasmUrl'&&message.data.filename==='jbig2.wasm'){
+    // PDF.js uses this bundled decoder for CCITT fax and JBIG2 images. The
+    // local transport carries a precompiled module; no resource is fetched.
+    send({callback:1,callbackId:message.callbackId,data:faxDecoder});
    }else if(message.action==='GetDoc')readyResolve(message.data.pdfInfo);
    else if(message.action==='DocException')readyReject(failure(message.data));
    else if(message.callback){const p=pending.get(message.callbackId);pending.delete(message.callbackId);if(message.callback===1)p?.resolve(message.data);else p?.reject(failure(message.reason));}
@@ -51,9 +56,11 @@ async function pdfPages(bytes:Uint8Array,scans:boolean):Promise<PdfSearchPage[]>
  };
  const call=(action:string,data:Data={})=>new Promise<Data>((resolve,reject)=>{const callbackId=++sequence;pending.set(callbackId,{resolve,reject});send({action,data,callbackId});});
  try{
-  workerName=WorkerMessageHandler.createDocumentHandler({docId,apiVersion:metadata.version,data:bytes,disableAutoFetch:true,enableXfa:false,evaluatorOptions:{ignoreErrors:false,isEvalSupported:false,disableFontFace:true,useSystemFonts:true,useWorkerFetch:false,useWasm:false,isOffscreenCanvasSupported:false,isImageDecoderSupported:false}},port);
+  workerName=WorkerMessageHandler.createDocumentHandler({docId,apiVersion:metadata.version,data:bytes,disableAutoFetch:true,enableXfa:false,evaluatorOptions:{ignoreErrors:false,isEvalSupported:false,disableFontFace:true,useSystemFonts:true,useWorkerFetch:false,useWasm:true,isOffscreenCanvasSupported:false,isImageDecoderSupported:false}},port);
   send({action:'Ready',data:null});
-  const info=await timed(ready);insist(info.numPages>0&&info.numPages<=200,'Native chronology extraction supports 1 to 200 pages per original',422);
+  const info=await timed(ready);
+  insist(info.numPages>0,'Native PDF extraction requires at least one page',422);
+  if(!scans)insist(info.numPages<=200,'Native chronology extraction supports 1 to 200 pages per original',422);
   const pages:PdfSearchPage[]=[];
   for(let pageIndex=0;pageIndex<info.numPages;pageIndex++){
    await timed(call('GetPage',{pageIndex}));

@@ -5,7 +5,7 @@ import {emailText} from './document-email-text';
 import {readableText} from './document-readable-text';
 
 const emailOriginal=(v:Data)=>/\.eml$/i.test(v.name)||v.declared_mime==='message/rfc822';
-const extractor='local-text-ocr-office-v1';
+const extractor='local-text-ocr-office-v2';
 export const normalizeText=(v:unknown)=>String(v??'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 export const eraseDocumentText=(db:D1Database,documentId:string)=>[
  stmt(db,'DELETE FROM s_document_text_pages WHERE document_id=?',documentId),

@@ -54,18 +54,31 @@ test('MATTER-009 one search box: grouped keyboard results, matter and case numbe
   await page.getByText('Document filters',{exact:true}).click();await page.getByLabel('Search matter',{exact:true}).selectOption(f.m.id);await page.getByRole('search').getByLabel('Document type',{exact:true}).fill('Deposition');
   const day=textFixture.document.versions[0].createdAt.slice(0,10);await page.getByLabel('Original date from',{exact:true}).fill(day);await page.getByLabel('Original date to',{exact:true}).fill(day);
   await box.focus();await results.getByRole('option').filter({hasText:'Testimony.pdf'}).waitFor();assert.match(await status.innerText(),/^1 result in 1 group$/);
-  // Refocusing after an authority change always asks the server; stale options
-  // and text are discarded on blur rather than cached for a later focus.
+  // Refocusing asks the server too; stale options and text are discarded on blur.
   await page.getByRole('search').getByLabel('Document type',{exact:true}).fill('Correspondence');await box.focus();await status.getByText('No matching records you may see.').waitFor();
   await page.getByRole('search').getByLabel('Document type',{exact:true}).fill('');await page.getByLabel('Search matter',{exact:true}).selectOption('');await page.getByLabel('Original date from',{exact:true}).fill('');await page.getByLabel('Original date to',{exact:true}).fill('');
   await page.getByText('Document filters',{exact:true}).click();
-  const {scannedOriginal}=await import('./document-text-fixture.mjs'),scan=await scannedOriginal();await textFixture.upload('Witness scan.pdf',scan.pdf);
+  const {scannedOriginal}=await import('./document-text-fixture.mjs'),scan=await scannedOriginal('Quartz harbor witness statement',{width:2550,height:3300,dpi:300});await textFixture.upload('Witness scan.pdf',scan.pdf);
   const scannedAnswer=await ask(page,box,'quartz harbor');assert.equal(scannedAnswer.total,1);const scannedHit=results.getByRole('option').filter({hasText:'Witness scan.pdf'});await scannedHit.waitFor();assert.match(await scannedHit.innerText(),/Version 1 · page 2/);
   if(process.env.SATCHEL_SCREENSHOTS)await page.screenshot({path:`${process.env.SATCHEL_SCREENSHOTS}/scanned-page-search-${width}.png`});
   await scannedHit.click();const scannedPage=page.getByRole('region',{name:'Search citation',exact:true});const scannedCanvas=scannedPage.getByRole('img',{name:'PDF version 1, page 2',exact:true});await scannedCanvas.waitFor();await scannedPage.getByText('Page 2 of 2',{exact:true}).waitFor();
   await scannedPage.getByText('No embedded text on this page.',{exact:true}).waitFor({state:'attached'});assert.match(await scannedPage.locator('pre').innerText(),/Quartz harbor witness statement/);
   assert.ok(await scannedCanvas.evaluate(canvas=>{const data=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;return data.some((v,i)=>i%4!==3&&v<100);}), 'The exact scanned page is rendered from original bytes');
   if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,scannedPage,process.env.SATCHEL_SCREENSHOTS,`scanned-page-citation-${width}`);await scannedPage.getByRole('button',{name:'Close search citation',exact:true}).click();
+  const {ccittScannedPdf,readablePdf}=await import('./document-text-fixture.mjs');
+  await textFixture.upload('Faxed statement.pdf',await ccittScannedPdf());
+  assert.equal((await ask(page,box,'synthetic-satchel-82')).total,1);
+  const faxHit=results.getByRole('option').filter({hasText:'Faxed statement.pdf'});await faxHit.waitFor();assert.match(await faxHit.innerText(),/Version 1 · page 1/);
+  if(process.env.SATCHEL_SCREENSHOTS)await page.screenshot({path:`${process.env.SATCHEL_SCREENSHOTS}/fax-search-${width}.png`});
+  await faxHit.click();const faxPage=page.getByRole('region',{name:'Search citation',exact:true});await faxPage.getByRole('img',{name:'PDF version 1, page 1',exact:true}).waitFor();await faxPage.getByText('Page 1 of 1',{exact:true}).waitFor();assert.match(await faxPage.locator('pre').innerText(),/synthetic-satchel-82/i);
+  if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,faxPage,process.env.SATCHEL_SCREENSHOTS,`fax-citation-${width}`);
+  await faxPage.getByRole('button',{name:'Close search citation',exact:true}).click();
+  await textFixture.upload('Hearing transcript.pdf',await readablePdf(Array.from({length:201},(_,i)=>i===200?'Obsidian orchard final testimony':'Retained hearing transcript page '+(i+1))));
+  assert.equal((await ask(page,box,'obsidian orchard')).total,1);
+  const transcriptHit=results.getByRole('option').filter({hasText:'Hearing transcript.pdf'});await transcriptHit.waitFor();assert.match(await transcriptHit.innerText(),/Version 1 · page 201/);
+  await transcriptHit.click();const transcriptPage=page.getByRole('region',{name:'Search citation',exact:true});await transcriptPage.getByRole('img',{name:'PDF version 1, page 201',exact:true}).waitFor();await transcriptPage.getByText('Page 201 of 201',{exact:true}).waitFor();assert.match(await transcriptPage.locator('pre').innerText(),/Obsidian orchard final testimony/);
+  if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,transcriptPage,process.env.SATCHEL_SCREENSHOTS,`transcript-citation-${width}`);
+  await transcriptPage.getByRole('button',{name:'Close search citation',exact:true}).click();
   const {reviewedMessage}=await import('./document-text-fixture.mjs');await reviewedMessage(h,f.m);const nativeMailAnswer=await ask(page,box,'turquoise garden');assert.equal(nativeMailAnswer.total,1);const nativeOption=results.getByRole('option').filter({hasText:'Reviewed case letter'});await nativeOption.waitFor();assert.match(await nativeOption.innerText(),/SHA-256/);await nativeOption.click();const nativeLetter=page.getByRole('article',{name:'Email Reviewed case letter',exact:true});await nativeLetter.getByText('Turquoise garden counsel instructions are retained in this native letter.',{exact:true}).waitFor();await nativeLetter.getByText('Message source',{exact:true}).click();assert.ok((await nativeLetter.innerText()).includes(nativeMailAnswer.groups[0].items[0].sourceCitation.sha256));if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,nativeLetter,process.env.SATCHEL_SCREENSHOTS,`native-email-source-${width}`);
   // An unassigned assistant receives no record, title, count or snippet.
   await h.json('/team',{email:'reader@example.test',name:'Case assistant',role:'assistant'},h.owner);await h.json('/team/invite',{email:'reader@example.test'},h.owner);
@@ -76,6 +89,14 @@ test('MATTER-009 one search box: grouped keyboard results, matter and case numbe
   const readerEmail=await assistant.evaluate(async()=>{const r=await fetch('/api/satchel/me');return (await r.json()).email;});
   await h.json(base+'/access',{email:readerEmail},h.owner);
   const permitted=await ask(assistant,reader,'quartz harbor');assert.equal(permitted.total,1);await assistant.getByRole('option').filter({hasText:'Witness scan.pdf'}).waitFor();assert.ok(!JSON.stringify(permitted).includes(textFixture.privateDocument.id));
+  await h.json(base+'/access',{email:readerEmail,remove:true},h.owner);
+  await assistant.locator('.firm-search [role=status]').getByText('No matching records you may see.').waitFor();
+  assert.equal(await reader.evaluate(el=>el===document.activeElement),true,'Revocation is observed while search stays focused');
+  assert.equal(await assistant.locator('[role=option]').count(),0,'Revocation removes cached OCR snippets without a focus change');
+  assert.ok(!(await assistant.locator('.firm-search').innerText()).includes('Quartz harbor'));
+  if(process.env.SATCHEL_SCREENSHOTS)await assistant.screenshot({path:`${process.env.SATCHEL_SCREENSHOTS}/revoked-search-${width}.png`});
+  await h.json(base+'/access',{email:readerEmail},h.owner);
+  await assistant.getByRole('option').filter({hasText:'Witness scan.pdf'}).waitFor();
   await reader.press('Shift+Tab');assert.equal(await assistant.locator('[role=option]').count(),0,'Blur removes the cached text');
   await h.json(base+'/access',{email:readerEmail,remove:true},h.owner);
   const revokedResponse=assistant.waitForResponse(r=>r.url().includes('/api/satchel/search?q='+encodeURIComponent('quartz harbor')));await reader.focus();const revokedAnswer=await(await revokedResponse).json();await assistant.locator('.firm-search [role=status]').getByText('No matching records you may see.').waitFor();assert.equal(await assistant.locator('[role=option]').count(),0,'Refocus cannot restore revoked snippets');

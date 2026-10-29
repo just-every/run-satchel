@@ -5,6 +5,8 @@ import modelData from './vendor/tesseract/eng.traineddata.gz?inline';
 import {createEngine} from './vendor/tesseract/engine.mjs';
 import {insist} from './model';
 export type ScanImage={width:number;height:number;data:Uint8Array;kind:number};
+// Covers 300 dpi Letter and A4 originals while bounding local OCR memory.
+export const maxScanPixels=12_000_000;
 
 // Each extraction owns its engine and releases native memory afterwards.
 // OCR is a local search derivative, never a replacement for retained evidence.
@@ -15,7 +17,7 @@ export async function scanText(images:ScanImage[]){
   engine.loadModel(gunzipSync(compressed));
   const text:string[]=[];
   for(const image of images){
-   const {width,height,data,kind}=image;insist(width>0&&height>0&&width*height<=8_000_000,'The scanned page exceeds local OCR resolution',422);
+   const {width,height,data,kind}=image;insist(width>0&&height>0&&width*height<=maxScanPixels,'The scanned page exceeds local OCR resolution',422);
    const rgba=new Uint8Array(width*height*4);
    for(let y=0;y<height;y++)for(let x=0;x<width;x++){
     const i=y*width+x,dest=i*4;let r,g,b,a=255;

@@ -1,5 +1,6 @@
 import {useEffect,useRef,useState} from 'react';
 import type {PDFDocumentProxy} from 'pdfjs-dist';
+import {PdfBinaryData} from './pdf-resources';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import type {Row,Run} from './common';
 import {officeKind,OfficePreview} from './office-preview';
@@ -27,7 +28,7 @@ export function DocumentPreview({documentId,version,sourceUrl,initialPage=1}:{do
    else if(version.mime==='application/pdf'){
     const library=await import('pdfjs-dist');if(!active)return;
     library.GlobalWorkerOptions.workerSrc=workerUrl;
-    const job=library.getDocument({data:bytes,useSystemFonts:true});task=job;
+    const job=library.getDocument({data:bytes,useSystemFonts:true,useWorkerFetch:false,BinaryDataFactory:PdfBinaryData});task=job;
     const opened=await job.promise;if(active)setPdf(opened);
    }else if(version.mime==='text/plain')setPlain(new TextDecoder().decode(bytes));
    else{objectUrl=URL.createObjectURL(new Blob([bytes],{type:version.mime}));setUrl(objectUrl);}

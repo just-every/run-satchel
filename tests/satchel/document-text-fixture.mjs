@@ -35,13 +35,46 @@ export async function messageOriginal(){
  ];
  return Buffer.from(parts.join('\r\n'));
 }
-export async function scannedOriginal(phrase='Quartz harbor witness statement'){
- const {createCanvas}=await import('@napi-rs/canvas'),canvas=createCanvas(1400,900),context=canvas.getContext('2d');
- context.fillStyle='white';context.fillRect(0,0,1400,900);context.fillStyle='black';context.font='52px sans-serif';context.fillText(phrase,70,140);context.fillText('Recorded from the scanned original',70,240);
+async function scanCanvas(phrase,width,height){
+ const {createCanvas}=await import('@napi-rs/canvas'),canvas=createCanvas(width,height),context=canvas.getContext('2d');
+ context.fillStyle='white';context.fillRect(0,0,width,height);context.fillStyle='black';context.font='52px sans-serif';context.fillText(phrase,70,140);context.fillText('Recorded from the scanned original',70,240);
+ return canvas;
+}
+export async function scannedOriginal(phrase='Quartz harbor witness statement',{width=1400,height=900,dpi=144}={}){
+ const canvas=await scanCanvas(phrase,width,height);
  const png=canvas.toBuffer('image/png'),pdf=await PDFDocument.create(),font=await pdf.embedFont(StandardFonts.Helvetica);
  const first=pdf.addPage([700,450]);first.drawText('First page has embedded text, no scan phrase',{x:30,y:350,font,size:15});
- const image=await pdf.embedPng(png),second=pdf.addPage([700,450]);second.drawImage(image,{x:0,y:0,width:700,height:450});
+ const image=await pdf.embedPng(png),pageWidth=width*72/dpi,pageHeight=height*72/dpi,second=pdf.addPage([pageWidth,pageHeight]);second.drawImage(image,{x:0,y:0,width:pageWidth,height:pageHeight});
  return {png,jpeg:canvas.toBuffer('image/jpeg'),pdf:Buffer.from(await pdf.save())};
+}
+export async function ccittScannedPdf(){
+ const width=1408,height=900,canvas=await scanCanvas('synthetic-satchel-82 witness statement',width,height),pixels=canvas.getContext('2d').getImageData(0,0,width,height).data;
+ // Genuine Group 4 horizontal coding. Zero-length opposite-color runs let
+ // this small fixture encoder use only the 0, 1 and 64-pixel Huffman codes.
+ const bytes=[];let value=0,bits=0;
+ const write=code=>{for(const bit of code){value=(value<<1)|Number(bit);if(++bits===8){bytes.push(value);value=0;bits=0;}}};
+ const zero=['00110101','0000110111'],one=['000111','010'],makeup=['11011','0000001111'];
+ const horizontal=(length,black)=>{
+  const color=black?1:0,code=length===64?makeup[color]+zero[color]:one[color];
+  write('001');write(black?zero[0]:code);write(black?code:zero[1]);
+ };
+ const run=(length,black)=>{
+  while(length>=64){horizontal(64,black);length-=64;}
+  while(length-->0)horizontal(1,black);
+ };
+ for(let y=0;y<height;y++){
+  let start=0,black=pixels[y*width*4]<128;
+  for(let x=1;x<=width;x++){
+   const next=x<width&&pixels[(y*width+x)*4]<128;
+   if(x===width||next!==black){run(x-start,black);start=x;black=next;}
+  }
+ }
+ write('000000000001000000000001');if(bits)bytes.push(value<<(8-bits));
+ const pdf=await PDFDocument.create(),context=pdf.context,page=pdf.addPage([704,450]);
+ const image=context.register(context.stream(Uint8Array.from(bytes),{Type:'XObject',Subtype:'Image',Width:width,Height:height,ColorSpace:'DeviceGray',BitsPerComponent:1,Filter:'CCITTFaxDecode',DecodeParms:{K:-1,Columns:width,Rows:height,BlackIs1:false}}));
+ const {PDFName}=await import('pdf-lib');page.node.set(PDFName.of('Resources'),context.obj({XObject:{Scan:image}}));
+ page.node.set(PDFName.of('Contents'),context.register(context.stream('q 704 0 0 450 0 0 cm /Scan Do Q')));
+ return Buffer.from(await pdf.save());
 }
 export async function reviewedMessage(h,m){
  const {inquiry}=await import('./intake-fixture.mjs'),recipient=inquiry({token:'synthetic-satchel-1',revision:null}).email,base='/matters/'+m.id;
