@@ -1,3 +1,4 @@
+import {restoredProposalSponsorLinks} from './proposal-sponsors.ts'
 import {requireWholeFirmWallAccess} from './wall-doors';
 // Stream native archives, including R2 intake originals, without a total-byte ceiling.
 import {recoverIntakeUploads} from './intake-files';
@@ -34,7 +35,7 @@ export async function restoreStream(db:D1Database,actor:Actor,source:ReadableStr
  }
  insist(job&&closing,'Incomplete archive');
  const result=await service.imports.finalize(job,{archiveHash:closing.archiveHash,contentHash:closing.contentHash,laterJournal});
- if(result.phase==='complete')await atomic(db,actor,[stmt(db,"UPDATE s_proposals SET sponsor_id=(SELECT o.id FROM oa_operators o WHERE o.email=s_proposals.for_email AND o.status='active')"),audit(db,actor,'firm.archive_restored','firm',JSON.stringify({importId:job,sha256:hash.digest('hex'),archiveHash:closing.archiveHash,contentHash:closing.contentHash,decision:'RESTORE into empty product data'}))]);
+ if(result.phase==='complete')await atomic(db,actor,[stmt(db,'DELETE FROM s_proposal_sponsor_links'),restoredProposalSponsorLinks(db),audit(db,actor,'firm.archive_restored','firm',JSON.stringify({importId:job,sha256:hash.digest('hex'),archiveHash:closing.archiveHash,contentHash:closing.contentHash,decision:'RESTORE into empty product data'}))]);
  return result;
  }catch(error){if(job)await service.imports.abort(job);throw error;}
 }

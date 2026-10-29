@@ -16,7 +16,7 @@ export async function propose(db:D1Database,actor:Actor,kind:string,body:Data,in
 }
 export async function decideProposal(db:D1Database,actor:Actor,proposalId:string,body:Data) {
  human(actor);need(actor,'owner','lawyer');
- const p=await stmt(db,'SELECT * FROM s_proposals WHERE id=? AND (sponsor_id=? OR (sponsor_id IS NULL AND for_email=?))',proposalId,actor.id,actor.email).first<Data>();
+ const p=await stmt(db,'SELECT * FROM s_proposals WHERE id=? AND (sponsor_id=? OR EXISTS(SELECT 1 FROM s_proposal_sponsor_links ps WHERE ps.proposal_id=s_proposals.id AND ps.operator_id=?) OR (sponsor_id IS NULL AND for_email=?))',proposalId,actor.id,actor.id,actor.email).first<Data>();
  insist(p,'Proposal not found',404);insist(p.status==='pending','This proposal was already decided',409);if(p.kind==='bill')requireArea(actor,'billing','write');
  if(body.decision==='decline') { const reason=text(body.reason,'Reason');await atomic(db,actor,[stmt(db,"INSERT INTO s_guard VALUES(?,CASE WHEN EXISTS(SELECT 1 FROM s_proposals WHERE id=? AND status='pending') THEN 1 ELSE 0 END)",proposalId,proposalId),stmt(db,"UPDATE s_proposals SET status='declined',decided_by=?,decided_at=? WHERE id=?",actor.email,now(),proposalId),audit(db,actor,'proposal.declined',proposalId,reason),stmt(db,'DELETE FROM s_guard WHERE id=?',proposalId)]);return {status:'declined'}; }
  insist(body.decision==='approve','Choose approve or decline');

@@ -192,7 +192,7 @@
       "executable": false
     },
     "docs/agents.md": {
-      "sha256": "d7e29e4915621621552135aed3666108c14103287771e6172c738e3bd0079cff",
+      "sha256": "7379b9b3a451c24d410f1a2b4b58f592a2a95b5e0769e34091dd67f9f855434c",
       "executable": false
     },
     "docs/assembly-font-license.txt": {
@@ -765,6 +765,10 @@
     },
     "migrations/core/0124_proposal_agent_identity.sql": {
       "sha256": "f2b0115b0b54baf57a2d398c804e053e47aa11f7a2b1fb8af6f6df4ad46ebf1e",
+      "executable": false
+    },
+    "migrations/core/0125_proposal_sponsor_links.sql": {
+      "sha256": "871277ac5b1374ebe10808bb0bf6f4158431009949e9dc35c753878f8025169a",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -3512,11 +3516,11 @@
       "executable": false
     },
     "src/satchel/archive-policy.mjs": {
-      "sha256": "092e7b34f768297c494cf1a8f2011c22899e8c2b622ddd14ee74e25631805544",
+      "sha256": "9549a7abe7ba0c49e89f05d24bf668449ffa69aaeae97c330cdefc9ca58a2d3f",
       "executable": false
     },
     "src/satchel/archive-transport.ts": {
-      "sha256": "85c7d9a5d175a9d7b06b66807d462f8381425f426c36228854d56be003fe87c4",
+      "sha256": "25d2ff2876e678e58040ccd73d478ec180fdf5352d9b100affbde0c4254334e2",
       "executable": false
     },
     "src/satchel/archive.ts": {
@@ -3952,7 +3956,7 @@
       "executable": false
     },
     "src/satchel/matters.ts": {
-      "sha256": "c9571c95d8f2d869ecd3b75084f566adadf5e054910af12dce3f30502d486639",
+      "sha256": "03ec834dad8370dbbf455c65f75a0fd0b2cb525fcc765457327a1d64311810ad",
       "executable": false
     },
     "src/satchel/microsoft-authority.ts": {
@@ -3976,7 +3980,7 @@
       "executable": false
     },
     "src/satchel/model.ts": {
-      "sha256": "794dd5b36169ca05cf3c77f34072afcaab1e1994175d8f41ee9ec2ea6f00dec8",
+      "sha256": "2b65421308c777d75daf829fc0d402fbea85f87721a4e998ce3d98e6e4a91705",
       "executable": false
     },
     "src/satchel/numbering.ts": {
@@ -4043,8 +4047,12 @@
       "sha256": "8bfde308ef9aa8371825791bb6292d72fefebe56d8bc7d4bca472f2e9f3d1daa",
       "executable": false
     },
+    "src/satchel/proposal-sponsors.ts": {
+      "sha256": "e42fc7d41a01d1be128843f85f2361f91ced4e4bf9c7606ecb470de453d122c9",
+      "executable": false
+    },
     "src/satchel/proposals.ts": {
-      "sha256": "5d44918f0cf555c410b12e8caf339ddce13db6045125a2694c6a7425084db71f",
+      "sha256": "b348bec6cebb8e90183c0ac0a79c1814d649d65b3bb0a52c8303dfe21b2555fd",
       "executable": false
     },
     "src/satchel/providers.ts": {
@@ -4212,7 +4220,7 @@
       "executable": false
     },
     "src/satchel/team.ts": {
-      "sha256": "e84f4d867b90e751f15bea0fa3951532fbe7bddac5f527bfdd77b3fc9c540795",
+      "sha256": "34a3cb2242c136543686112e14533efb3907ed406fd0c454ccadc09617797c79",
       "executable": false
     },
     "src/satchel/timeline.ts": {
@@ -4316,7 +4324,7 @@
       "executable": false
     },
     "src/satchel/webhooks.ts": {
-      "sha256": "976b498d6f564f30176af04f5a9b26c60d00e929334df8746cd97f788a1a4ceb",
+      "sha256": "4321e727f930a958448528438fd889b8629b3c66c084fa101ac36080ee134220",
       "executable": false
     },
     "src/satchel/workflow-runs.ts": {
