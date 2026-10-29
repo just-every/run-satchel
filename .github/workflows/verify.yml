@@ -35,3 +35,5 @@ jobs:
       - if: matrix.shard == 1
         run: pnpm run build:site && pnpm run typecheck && pnpm run test:email-link && pnpm run test:site
       - run: node scripts/test-satchel-shard.mjs ${{ matrix.shard }}
+      - if: matrix.shard == 1
+        run: node node_modules/@runeditrun/rer/cli/agent-door.mjs "$PWD"
