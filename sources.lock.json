@@ -5112,7 +5112,7 @@
       "executable": false
     },
     "tests/satchel/consultations.test.mjs": {
-      "sha256": "2e6d2bcea7dbd836750cecc51cd648478d911f45897e42c21b8cfaa531a531c8",
+      "sha256": "856efb29fb5f7d9c89a85f05f50f701f09075e6b974377fe0ac5b54be01953de",
       "executable": false
     },
     "tests/satchel/contacts-journey.test.mjs": {
