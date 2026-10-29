@@ -2,7 +2,7 @@ import type {JsonSchema} from '../../modules/agent-door/index.ts'
 export const string:JsonSchema={type:'string',minLength:1,maxLength:1000}
 export const object=(properties:Record<string,JsonSchema>,required=Object.keys(properties))=>({type:'object' as const,properties,required,additionalProperties:false})
 const strings:JsonSchema={type:'array',items:string}
-export const identityOutput=object({personId:string,agentId:string,role:string,proposals:{type:'integer',minimum:0}})
+export const identityOutput=object({personId:string,agentId:string,role:string,businessName:{type:['string','null']},proposals:{type:'integer',minimum:0}})
 export const contextOutput=object({
  matters:{type:'array',items:object({id:string,title:string,matter_number:{type:['string','null']}})},
  delegations:{type:'array',items:object({id:string,matterId:string,actions:strings,remainingJobs:{type:'integer'},spendCents:{type:'integer',minimum:0,maximum:0},expiresAt:string})},

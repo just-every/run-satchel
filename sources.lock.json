@@ -192,7 +192,7 @@
       "executable": false
     },
     "docs/agents.md": {
-      "sha256": "84b1baf19451bd72bf0d7527f29b306664b3e3b1b63f52da89eeab0170ee1a6c",
+      "sha256": "94e05544c06fce547911b3b48ef32233ea1f1f2309a21cf1408bd4a307ff09c1",
       "executable": false
     },
     "docs/assembly-font-license.txt": {
@@ -1072,7 +1072,7 @@
       "executable": false
     },
     "scripts/contract-docs.mjs": {
-      "sha256": "0b6467b61d889d2c383fe888ca31e87cd73ef88ec6e2421aef43623a3eb44602",
+      "sha256": "0ea204bdd2a9beee72497147fdfd0ef26a69de89949b025d902cd146de7577db",
       "executable": false
     },
     "scripts/delivery/base/artifact.mjs": {
@@ -3732,11 +3732,11 @@
       "executable": false
     },
     "src/satchel/door/schemas.ts": {
-      "sha256": "2caa8724208e4233f4cb6111fcfa7f4dc09c68b833d6a49d49a090624e015d4d",
+      "sha256": "8b5c0c8b3cfed7d209a066bce399a1432c5918f630c30c2ff120696e216bbf94",
       "executable": false
     },
     "src/satchel/door/tools.ts": {
-      "sha256": "c7aecacbe3b47a6edab7c45608a97ac88ab380fbdce8e813e83dc4416794d3d7",
+      "sha256": "3623a17b1bbedf61072d0eece0d971c61a4fb47b45341ac38528d7217d613afd",
       "executable": false
     },
     "src/satchel/economics.ts": {
