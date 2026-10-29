@@ -49,13 +49,13 @@ async function validate(db:D1Database,actor:Actor,input:Data,sourceSystem:string
   const guideline=await currentGuideline(db,m.client);
   let ledes=null;
   if(guideline){const checked=await codeLine(db,guideline,{kind,date:day,created_by:timekeeperEmail,minutes,billed_minutes:q?.billedMinutes,rate_cents:q?.rateCents,utbms_task:task,utbms_activity:activity,utbms_expense:expense},undefined,ordinal,amountCents,description);insist(!checked.problems.length,checked.problems.join('; '));ledes={guidelineId:guideline.id,line:checked.line};}
-  const cost=kind==='time'&&actor.role==='owner'?await stmt(db,'SELECT id,hourly_cents FROM s_staff_cost_rates WHERE email=? AND effective_from<=? ORDER BY effective_from DESC LIMIT 1',timekeeperEmail,day).first<Data>():null;
+  const cost=kind==='time'&&actor.role==='owner'?await stmt(db,'SELECT id,hourly_cents FROM s_approved_staff_cost_rates WHERE email=? AND effective_from<=? ORDER BY effective_from DESC LIMIT 1',timekeeperEmail,day).first<Data>():null;
   return {errors:[] as string[],value:{matterId,matterNumber:m.matter_number,timekeeperEmail,sourceSystem,sourceId,kind,date:day,description,minutes,billable:q?q.billable:billable,amountCents,price:q,task,activity,expense,expenseMeta,ledes,costBasis:cost?{approvalId:cost.id,hourlyCents:cost.hourly_cents,costCents:Number((BigInt(minutes!)*BigInt(cost.hourly_cents)+30n)/60n)}:null}};
  }catch(e){if(!(e instanceof Fault))throw e;return {errors:[e.message],value:null};}
 }
 async function policyGuards(db:D1Database,actor:Actor){
  const writes:D1PreparedStatement[]=[];
- for(const table of ['s_utbms_codes','s_ledes_timekeepers','s_ledes_guidelines',...(actor.role==='owner'?['s_staff_cost_rates']:[])]){
+ for(const table of ['s_utbms_codes','s_ledes_timekeepers','s_ledes_guidelines',...(actor.role==='owner'?['s_staff_cost_rates','s_staff_cost_revisions','s_staff_cost_approvals']:[])]){
   const snapshot=await rows(db,`SELECT * FROM ${table} ORDER BY rowid`);
   writes.push(guard(db,`(SELECT json_group_array(json(v)) FROM (SELECT json_object(${Object.keys(snapshot[0]??{}).flatMap(k=>[`'${k}'`,k]).join(',')||"'empty',0"}) v FROM ${table} ORDER BY rowid))=?`,JSON.stringify(snapshot)));
  }

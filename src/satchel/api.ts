@@ -19,7 +19,8 @@ import {listProductionShares,releaseProduction,recallProductionShare,inviteProdu
 import {revenueState,approveRevenueRule,approveRevenueAllocation} from './revenue';
 import {listBulkWork,prepareBulkWork,repairBulkRow,postBulkWork} from './bulk-work';
 import {recordOffline,offlineReceipt,offlineAction,writeOffInvoice} from './offline-payments';
-import {approveStaffCost,economics,exportEconomics} from './economics';
+import {economics,exportEconomics} from './economics';
+import {approveStaffCost,saveStaffCost,approveSavedStaffCost,staffCosts} from './staff-costs';
 import {prebillRuns,prebillRun,preparePrebillRun} from './prebill-runs';
 import {reviewPrebill} from './prebill-reviews';
 import {matterInvoiceTemplate,invoiceTemplateDefaults} from './matter-invoice-templates';
@@ -395,6 +396,9 @@ api.get('/api/satchel/bills/:id/ledes-xml',as((a,c)=>exportLedes(db(c),a,param(c
 api.get('/api/satchel/bills/:id/ledes',as((a,c)=>exportLedes(db(c),a,param(c))));
 api.post('/api/satchel/bills/:id/ledes-outcomes',as(async(a,c)=>importOutcomes(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/reports/staff-costs',as(async(a,c)=>approveStaffCost(db(c),a,await body(c))));
+api.get('/api/satchel/reports/staff-costs',as((a,c)=>staffCosts(db(c),a)));
+api.post('/api/satchel/reports/staff-costs/drafts',as(async(a,c)=>saveStaffCost(db(c),a,await body(c))));
+api.post('/api/satchel/reports/staff-costs/:id/approve',as(async(a,c)=>approveSavedStaffCost(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/reports/economics',as((a,c)=>economics(db(c),a,c.req.query())));
 api.get('/api/satchel/reports/economics/export',as((a,c)=>exportEconomics(db(c),a,c.req.query())));
 api.get('/api/satchel/reports',as((a,c)=>reportState(db(c),a,c.req.query())));
