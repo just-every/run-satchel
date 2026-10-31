@@ -5536,11 +5536,11 @@
       "executable": false
     },
     "tests/satchel/tasks-journey.test.mjs": {
-      "sha256": "45125af224686719e2e45f9002f47bde3677e1bde7fc4210b68efd6841374fe6",
+      "sha256": "93647630ebc7dba43e12b52ae56977a3f93698bd6fe0c2bcbd1c9bed89d66c75",
       "executable": false
     },
     "tests/satchel/tasks.test.mjs": {
-      "sha256": "7b6902ad1820d46340404851fccdc5b26c96215731ceff43bebc3488bbc8b5f9",
+      "sha256": "bdc8b89b8ffcd1f852da9e216a76f035b2be866d69ebee9d58dae25ee7491a51",
       "executable": false
     },
     "tests/satchel/tax-fixture.mjs": {

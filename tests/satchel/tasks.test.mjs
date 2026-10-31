@@ -21,7 +21,12 @@ test('MATTER-003 dependent discovery tasks: owners, priorities, subtasks, recurr
   assert.deepEqual(get('Serve interrogatories').blockers.map(b=>b.title),['Draft interrogatories']);assert.equal(get('Serve interrogatories').dueDate,'2026-12-15');assert.equal(get('Serve interrogatories').legalDate.deadlineId,legal.id);
   assert.deepEqual(get('Draft interrogatories').blockers.map(b=>[b.title,b.kind]),[['Collect exhibits','subtask']]);
   assert.deepEqual(get('Review responses').blockers.map(b=>b.title).sort(),['Draft interrogatories','Serve interrogatories']);
-  await h.json('/absences',{email:'dana@example.test',startDate:new Date().toISOString().slice(0,10),endDate:'2026-12-31',reason:'Leave'},h.owner);
+  // Keep the leave fixture active for the fixed discovery dates and for today,
+  // even after 2026 or when this journey crosses a firm-calendar midnight.
+  const leaveStart=new Date().toISOString().slice(0,10),tomorrow=new Date(leaveStart+'T00:00:00Z');
+  tomorrow.setUTCDate(tomorrow.getUTCDate()+1);
+  const leaveEnd=[tomorrow.toISOString().slice(0,10),'2026-12-31'].sort().at(-1);
+  await h.json('/absences',{email:'dana@example.test',startDate:leaveStart,endDate:leaveEnd,reason:'Leave'},h.owner);
   list=await h.json('/matters/'+m.id+'/tasks',undefined,lawyer);assert.equal(get('Draft interrogatories').coverage.absent,'dana@example.test');
   await h.json('/tasks/'+draft.id+'/assign',{email:'sam@example.test',reason:'Dana is away'},lawyer,400);
   await h.json('/tasks/'+draft.id+'/assign',{email:'eli@example.test',reason:'Dana is away until January'},lawyer);
