@@ -77,7 +77,7 @@ Generated from CONTRACT.md; regenerate with the documented contract-docs command
 | CLIENT-004 | Give clients tasks and events | done |
 | CLIENT-005 | Text clients and leads with Twilio | missing |
 | CLIENT-006 | Deliver and reconcile email | done |
-| CLIENT-007 | Keep call records and authorized recordings | missing |
+| CLIENT-007 | Keep call records and authorized recordings | partial |
 | CLIENT-008 | Send reviewed matter updates | done |
 | CLIENT-009 | Control sharing and communication preferences | partial |
 | CLIENT-010 | Automated client reminders | done |
@@ -111,7 +111,7 @@ Generated from CONTRACT.md; regenerate with the documented contract-docs command
 | TRUST-004 | Authorize earned-fee trust transfers | partial |
 | TRUST-005 | Reconcile all three trust views | done |
 | TRUST-006 | Correct and lock trust history | done |
-| TRUST-007 | Match banks and legal processor settlements | missing |
+| TRUST-007 | Match banks and legal processor settlements | partial |
 | TRUST-008 | Report trust and replenish retainers | partial |
 | TRUST-009 | Produce checks and deposit records | done |
 | TRUST-010 | Transfer trust between one client’s matters | done |
@@ -132,7 +132,7 @@ Generated from CONTRACT.md; regenerate with the documented contract-docs command
 | MOVE-005 | Migrate PracticePanther completely | missing |
 | MOVE-006 | Migrate Filevine completely | missing |
 | MOVE-007 | Migrate Eve work and source references | missing |
-| MOVE-008 | Prove finance and authority at cutover | missing |
+| MOVE-008 | Prove finance and authority at cutover | partial |
 | AGENT-001 | Build evidence-closed matter plans | missing |
 | AGENT-002 | Chase authorized evidence to acceptance | missing |
 | AGENT-003 | Explain deadline changes before propagation | partial |
@@ -145,14 +145,14 @@ Generated from CONTRACT.md; regenerate with the documented contract-docs command
 | AGENT-010 | Constrain agent data and execution | partial |
 | BASE-AGENT-001 | One MCP door per seed | partial |
 | BASE-AGENT-002 | The seed's jobs are tools, through the UI's own actions | partial |
-| BASE-AGENT-003 | Records are resources | partial |
+| BASE-AGENT-003 | Records are resources | missing |
 | BASE-AGENT-004 | Business identity and short-lived, audience-bound tokens | partial |
 | BASE-AGENT-005 | An agent acts as a person in a role, never more | partial |
 | BASE-AGENT-006 | Every action declares its risk class | partial |
 | BASE-AGENT-007 | The company's policy decides, at one chokepoint | partial |
 | BASE-AGENT-008 | Truthful attribution | partial |
 | BASE-AGENT-009 | Every agent action is audited with its class and decision | partial |
-| BASE-AGENT-010 | Agents can follow changes | partial |
+| BASE-AGENT-010 | Agents can follow changes | missing |
 | BASE-AGENT-011 | Limits are policy, and Pause stops everything | partial |
 | BASE-AGENT-012 | Writes are idempotent and conflict-safe | partial |
 | BASE-AGENT-013 | Manifest, docs and the conformance journey | partial |
