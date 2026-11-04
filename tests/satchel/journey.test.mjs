@@ -49,7 +49,7 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`SAT-013 sign-in, setup
   await exerciseAgentControls(page,h,width);
   await tab(page,'Move in');await page.getByRole('heading',{name:'Clio contacts'}).waitFor();
   await tab(page,'Firm');await page.getByRole('heading',{name:'Barton & Lee LLP'}).waitFor();
-  await exerciseRecoveryDiagnostics(browser,h,width,height);
+  await exerciseRecoveryDiagnostics(browser,width,height);
   // The assistant signs in from the invitation and sees only what the role allows.
   const staff=await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true}),assistant=await staff.newPage();assistant.on('pageerror',e=>errors.push(String(e)));
   const invite=h.mails.toReversed().find(m=>m.to.includes('assistant@example.test')),link=(invite.text??invite.html).match(/https:\/\/[^\s"<]+\/auth\/[^\s"<]+/)[0];

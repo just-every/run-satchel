@@ -55,10 +55,15 @@ a forward migration and verified transition/recovery.
 
 The principal opens **Team & safety → Operational diagnostics**. The surface
 reads native queue records, Microsoft authorization and retained successful-read
-times, original byte counts, actual bucket object sizes, local export and restore
-receipts, scheduler observations and unreconciled trust periods. Each section
-names its next action. Provider charges, total database usage, quota and bank-feed
-health remain unknown without a provider observation. A terms review does not
+times, scoped integration grants and retained receiver acknowledgments, original
+byte counts, actual bucket object sizes, local export and restore receipts,
+scheduler observations and unreconciled trust periods. Unclaimed webhook source
+events count as queued work before dispatch creates a delivery record. Receiver
+acceptance does not verify downstream completion. Each section names its next
+action. Allocated database bytes come from D1 query metadata and include indexes
+and transfer staging. Allocated storage adds bucket bytes once, without adding
+embedded originals a second time. Provider charges, quota, hosting assets and
+logs, and bank-feed health remain unknown without a provider observation. A terms review does not
 verify authorization, delivery, bank settlement or an off-site backup.
 
 Both the workspace restore and the installation recovery command normalize the
@@ -76,8 +81,13 @@ Workspace restore records the supplied archive digest after validating the
 archive's counts and hashes. A command-line restore has its command receipt;
 the workspace does not invent a verification record for it. Export completion
 records the bytes streamed, not proof that a private off-site copy was retained.
-Large-attachment recovery, live token-expiry and stopped-bank-feed proof, complete
-provider diagnostics and owner-hosted installation proof remain outstanding.
+The recovery flow exercises three supported 8 MiB intake originals in an archive
+larger than the JSON restore limit, using the workspace streaming restore door
+and native multipart object restoration. Supported upload sizes and scan status
+are unchanged. Full large-attachment recovery, including the DOC-001 large-file
+and hosted-bucket obligations, live token-expiry and stopped-bank-feed proof,
+complete provider diagnostics and owner-hosted installation proof remain
+outstanding.
 
 ## Deployment
 

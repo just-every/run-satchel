@@ -172,7 +172,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "8d493fc30e8a2d6e5780c857dfecb4e6734cc6641493ff4d7053b614cf5f38e1",
+      "sha256": "9d6b1f509330dde5d4055a12101d27babc03dc362aedae4ab27fa7f2517d3130",
       "executable": false
     },
     "DEMO.md": {
@@ -800,7 +800,7 @@
       "executable": false
     },
     "OPERATIONS.md": {
-      "sha256": "e2755b5ffc3e04139a7d2658b18a1243133e16c758f376608365035b4b4d8000",
+      "sha256": "c4ffbc98fc83e6712e3f875375d0da54ad732ec14c3aa392a819414df2794146",
       "executable": false
     },
     "package.json": {
@@ -3879,6 +3879,10 @@
       "sha256": "203cea32d7be51821dcd0ef82305433a2f5efc0a582718c8d2630758cee4a8ee",
       "executable": false
     },
+    "src/satchel/integration-diagnostics.ts": {
+      "sha256": "9f8b83f5c2bce79246f1d9db4de5c1ebf58dac9cc2206cb7c102aefdf89508a8",
+      "executable": false
+    },
     "src/satchel/integration-journal.ts": {
       "sha256": "9ced21d7f08fb409d50c80628e587c2c30ae58309643ff23ae61cc0446675b7f",
       "executable": false
@@ -4084,7 +4088,7 @@
       "executable": false
     },
     "src/satchel/operational-diagnostics.ts": {
-      "sha256": "6b987b35735d7c19bea68498763776c7862061d24b1708d7bac20980df187bcf",
+      "sha256": "37814b73b93f29fcf3ff7f582cbf18d413f9b3ab6dd49514f9ba499f75c7c928",
       "executable": false
     },
     "src/satchel/payer-statements.ts": {
@@ -4852,7 +4856,7 @@
       "executable": false
     },
     "src/ui/operational-diagnostics.tsx": {
-      "sha256": "60679cc385b5019add0dba1a5a1f95f31d3a7a7eeeb391d37453d541e7465578",
+      "sha256": "44addda513e61f77bd84c34144eeece234176e48ac9c42f6d7f870900f7b9690",
       "executable": false
     },
     "src/ui/payment-plans.tsx": {
@@ -5300,7 +5304,7 @@
       "executable": false
     },
     "tests/satchel/journey.test.mjs": {
-      "sha256": "975aeb4c7664de53368c65c68eb818362e9b58b3750fc9a259133cbd2be58642",
+      "sha256": "f54ef1454f09721330e38fe042b63ef5e3be6653ccf4954658fa164dcb247091",
       "executable": false
     },
     "tests/satchel/leads-journey.test.mjs": {
@@ -5451,12 +5455,20 @@
       "sha256": "4c211bfe0705929c5c38754c0066afac10bf47ddb1b6fcc591cc414747b29e75",
       "executable": false
     },
+    "tests/satchel/recovery-connector-flow.mjs": {
+      "sha256": "9e4f05280862923e4a2d606e191ebf745f1d3214b548d431b10668ca3d725d42",
+      "executable": false
+    },
     "tests/satchel/recovery-diagnostics-browser.mjs": {
-      "sha256": "45630ce00beef3cd22d32f91ed296dafa64fd27acae57bb9281d3592dc129d28",
+      "sha256": "d0b36ec93ea8e93c14d0deb1337c651b562b8cf73403457778021f211d8627f6",
       "executable": false
     },
     "tests/satchel/recovery-diagnostics-flow.mjs": {
-      "sha256": "32a48a8072d8953dd1bf695547aeb2cca6c7275d6b901daf59f4c82e35eaaa85",
+      "sha256": "f3e79831647b7253ff1249e64cb3ed8965f605cc891406e0666b98f0e2b78e3d",
+      "executable": false
+    },
+    "tests/satchel/recovery-originals.mjs": {
+      "sha256": "0c963968f3cb3f61509699e984fca161f680f89b9e105b75721e1f10a313a7dc",
       "executable": false
     },
     "tests/satchel/reminder-journey.test.mjs": {

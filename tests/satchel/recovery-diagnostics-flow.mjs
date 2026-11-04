@@ -3,22 +3,21 @@ import {createHash} from 'node:crypto';
 import {harness} from './harness.mjs';
 import {microsoftFixture} from './microsoft-security-flow.mjs';
 import {paymentPlanEdge} from './payment-plan-edge.mjs';
-import {sendInquiry,inquiry,pdf} from './intake-fixture.mjs';
+import {recoveryOriginals} from './recovery-originals.mjs';
+import {proveRecoveryConnectors} from './recovery-connector-flow.mjs';
 import {paymentFixture} from './stripe-fixture.mjs';
 import {periodFoundation,createPeriod,sign} from './trust-period-fixture.mjs';
 
 export const archiveRows=archive=>archive.trim().split('\n').map(JSON.parse).filter(r=>r.kind==='part').flatMap(p=>p.items).filter(i=>i.kind==='row');
 const sha256=bytes=>createHash('sha256').update(bytes).digest('hex');
-export async function recoveryFixture(){
- const microsoft=microsoftFixture(),edge=paymentPlanEdge();Object.assign(edge,{microsoftResponse:microsoft.microsoftResponse,bindings:{...edge.bindings,...microsoft.bindings}});
+export async function recoveryFixture({largeOriginals=false}={}){
+ const microsoft=microsoftFixture(),edge=paymentPlanEdge();Object.assign(edge,{webhookStatus:204,webhookResponse:async()=>new Response(null,{status:edge.webhookStatus}),microsoftResponse:microsoft.microsoftResponse,bindings:{...edge.bindings,...microsoft.bindings}});
  const h=await harness(edge);
  try{
   const finance=await paymentFixture(h),trust=await periodFoundation(h),owner=(await h.json('/state',undefined,h.owner)).actor.email;
   const closed=await createPeriod(h,trust,'2026-09-01','2026-09-30',100000);await sign(h,closed);
   const outstanding=await createPeriod(h,trust,'2026-10-01','2026-10-31',100000);
-  const form=await h.json('/intake/forms',{title:'Recovery inquiry',practice:'General',firmName:'Recovery firm',assignedEmail:owner,consentText:'Review this inquiry without automated contact.',published:true,questions:[]},h.owner),token=await h.json('/intake/public/'+form.id),bucketOriginal=pdf(32768);
-  await sendInquiry(h,form,{...inquiry(token),answers:{}},[bucketOriginal]);
-  const lead=(await h.json('/leads',undefined,h.owner)).leads[0],bucketFile=(await h.json('/leads/'+lead.id+'/intake',undefined,h.owner)).submissions[0].files[0];
+  const {originals:bucketOriginals,files:bucketFiles}=await recoveryOriginals(h,owner,largeOriginals);
   const bytes=Buffer.from('synthetic-satchel-supported-original\n'.repeat(512));
   const document=await h.json('/matters/'+finance.m.id+'/documents',{name:'Recovery-original.txt',mime:'text/plain',contentBase64:bytes.toString('base64'),visibility:'matter'},h.owner);
   const plan=await h.json('/bills/'+finance.card.id+'/payment-plans',{approve:true,billRevision:finance.card.revision,balanceCents:37500,startDate:'2026-11-01',reason:'Exact scheduled collection reviewed for recovery',installments:[{dueDate:'2026-11-01',cents:12500},{dueDate:'2026-12-01',cents:12500},{dueDate:'2027-01-01',cents:12500}]},h.owner);
@@ -28,11 +27,11 @@ export async function recoveryFixture(){
   // The first slot follows this native creation time; the test does not depend on today's weekday.
   const at=new Date();at.setUTCDate(at.getUTCDate()+7);at.setUTCHours(12,0,0,0);const slot=at.toISOString();
   await h.json('/report-schedules',{name:'Recovery workload',dashboard:'workload',filters:{},weekday:at.getUTCDay()||7,time:'12:00',timezone:'UTC',channel:'email',recipients:[owner]},h.owner);
-  return {h,edge,microsoft,finance,trust,document,bytes,plan,outstanding,closed,owner,slot,bucketOriginal,bucketFile};
+  return {h,edge,microsoft,finance,trust,document,bytes,plan,outstanding,closed,owner,slot,bucketOriginals,bucketFiles};
  }catch(error){await h.close();throw error;}
 }
 export async function proveRecoveryDiagnostics(){
- const f=await recoveryFixture(),{h,edge,microsoft}=f;let target;
+ const f=await recoveryFixture({largeOriginals:true}),{h,edge,microsoft}=f;let target;
  try{
   const base='/security/microsoft',approve={approved:true,capability:'directory:read'};
   await h.json('/providers/microsoft/review',{termsUrl:'https://www.microsoft.com/licensing/terms/',confirmed:true},h.owner);
@@ -50,18 +49,27 @@ export async function proveRecoveryDiagnostics(){
   const key=await h.json('/keys',{label:'Recovery preparations'},h.owner);await h.json('/diagnostics',undefined,'',401,{authorization:'Bearer '+key.key});
   assert.deepEqual(diagnostics.trust.unreconciledPeriods.map(p=>p.id),[f.outstanding.id]);
   assert.equal(diagnostics.bankFeed.lastSuccessfulReadAt,null);assert.equal(diagnostics.bankFeed.staleSeconds,null);assert.ok(diagnostics.connectors.filter(c=>c.id!=='microsoft').every(c=>c.authorization==='unknown'&&c.tokenExpiresAt===null&&c.costCents===null));assert.equal(diagnostics.storage.quotaBytes,null);
+  await proveRecoveryConnectors(h,edge,f.finance.m);
   // Reconcile the displayed storage against native archive rows, including retained versions.
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),records=archiveRows(archive),sourceRows=table=>records.filter(r=>r.table===table).map(r=>r.row);
   diagnostics=await h.json('/diagnostics',undefined,h.owner);
   assert.equal(diagnostics.storage.documentBytes,sourceRows('s_document_versions').filter(r=>r.content_base64!==null).reduce((n,r)=>n+r.size,0));
-  assert.equal(diagnostics.storage.measuredOriginalBytes,diagnostics.storage.documentBytes+diagnostics.storage.conflictBytes+diagnostics.storage.bucketBytes);assert.ok(diagnostics.storage.documentBytes>=f.bytes.length);assert.equal(diagnostics.storage.bucketBytes,f.bucketOriginal.bytes.length);assert.equal(diagnostics.storage.bucketObjects,1);
+  assert.equal(diagnostics.storage.measuredOriginalBytes,diagnostics.storage.documentBytes+diagnostics.storage.conflictBytes+diagnostics.storage.bucketBytes);assert.ok(diagnostics.storage.documentBytes>=f.bytes.length);assert.equal(diagnostics.storage.bucketBytes,f.bucketOriginals.reduce((n,o)=>n+o.bytes.length,0));assert.equal(diagnostics.storage.bucketObjects,f.bucketFiles.length);
+  assert.ok(diagnostics.storage.databaseBytes>=diagnostics.storage.documentBytes,'Allocated database storage includes embedded originals');assert.equal(diagnostics.storage.measuredAllocatedBytes,diagnostics.storage.databaseBytes+diagnostics.storage.bucketBytes,'Embedded originals are not counted twice');
   assert.equal(diagnostics.backup.lastVerified.sha256,sha256(archive));assert.equal(diagnostics.backup.lastVerified.bytes,Buffer.byteLength(archive));
   assert.ok(!records.some(r=>['s_recovery_authority','s_recovery_receipts','s_microsoft_connector','s_microsoft_jobs','s_scheduler_observation'].includes(r.table)));
   const beforeTrust=await h.json('/trust',undefined,h.owner);target=await harness(edge);
-  await target.json('/restore',{archive,confirm:'RESTORE'},target.owner);
+  assert.ok(Buffer.byteLength(archive)>24_000_000,'Recovery exercises an archive beyond the JSON convenience door');
+  const streamRestore=await target.raw('/api/satchel/restore',{method:'POST',headers:{'content-type':'application/x-ndjson','x-satchel-confirm':'RESTORE'},body:archive},target.owner);
+  assert.equal(streamRestore.status,200);assert.equal((await streamRestore.json()).phase,'complete');
   let restored=await target.json('/diagnostics',undefined,target.owner);assert.equal(restored.restore.lastVerified.sha256,sha256(archive));assert.ok(restored.restore.lastVerified.content_hash);assert.equal(restored.backup.lastVerified,null,'The destination cannot inherit source backup verification');assert.ok(restored.recovery.every(r=>r.authorized_at===null));
   const downloaded=Buffer.from(await(await target.request('/api/satchel/documents/'+f.document.id+'/file',undefined,target.owner)).arrayBuffer());assert.deepEqual(downloaded,f.bytes);assert.equal(sha256(downloaded),f.document.versions[0].sha256);
-  const restoredBucket=Buffer.from(await(await target.request(f.bucketFile.downloadUrl,undefined,target.owner)).arrayBuffer());assert.deepEqual(restoredBucket,f.bucketOriginal.bytes);assert.equal(sha256(restoredBucket),f.bucketFile.sha256);
+  for(const [index,file] of f.bucketFiles.entries()){
+   const response=await target.request(file.downloadUrl,undefined,target.owner),restoredBucket=Buffer.from(await response.arrayBuffer());
+   assert.equal(response.status,200);assert.deepEqual(restoredBucket,f.bucketOriginals[index].bytes);assert.equal(sha256(restoredBucket),file.sha256);assert.equal(response.headers.get('x-satchel-scan-status'),'not malware-scanned');
+  }
+  assert.ok(!restored.connectors.some(c=>c.id.startsWith('integration:')),'Restoration cannot inherit a scoped integration grant');
+  console.log(`PROBE FIRM-007 streamed recovery: ${Buffer.byteLength(archive)} archive bytes with ${f.bucketFiles.length} supported multipart originals -> all hashes match; original scan status retained; no integration credentials imported`);
   const restoredTrust=await target.json('/trust',undefined,target.owner);assert.deepEqual(restoredTrust.ledgers.map(l=>[l.id,l.balance_cents]),beforeTrust.ledgers.map(l=>[l.id,l.balance_cents]));assert.deepEqual(await target.json('/trust/periods?accountId='+f.trust.account.id,undefined,target.owner),await h.json('/trust/periods?accountId='+f.trust.account.id,undefined,h.owner));
   await target.json('/team/invite',{email:staff},target.owner);const restoredAssistant=await target.login(staff);
   const requests=edge.chargeCalls,mailBefore=target.mails.length;
