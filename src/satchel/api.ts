@@ -1,3 +1,4 @@
+import {refuseEconomicsValue} from './economics-confidentiality';
 import {invoiceWriteoffHistory,reverseInvoiceWriteoff} from './invoice-writeoff-reversal';
 import {documentTextCitation} from './document-text-index';
 import {bindBusinessAgent} from './team';
@@ -142,7 +143,7 @@ export const api=new Hono<{Bindings:Bindings}>();
 api.get('/health',c=>c.json({status:'ok',...deploymentHealth(c.env)}));
 api.use('/api/*',async(c,next)=>{await next();const policy=c.res.headers.get('cache-control');c.header('cache-control',policy?.includes('no-store')?policy:'no-store');c.header('x-content-type-options','nosniff');c.header('referrer-policy','no-referrer');});
 api.onError((e,c)=>{if(e instanceof Fault)return c.json({error:e.message},e.status as 400);if(e instanceof SyntaxError)return c.json({error:'Supply valid JSON'},400);if('code' in e && /^(erasure_epoch|erased_row)/.test(String(e.code)))return c.json({error:'This archive predates an erasure. Restore the latest archive ('+String(e.code)+').'},409);if('code' in e)return c.json({error:String(e.code)},('status'in e?Number(e.status):409) as 400);console.error(e);return c.json({error:'The operation failed. Refresh before trying again.'},500);});
-async function body(c:C):Promise<Data>{const raw=await c.req.text();insist(raw.length<=24_000_000,'Request too large',413);const b=JSON.parse(raw);insist(b&&typeof b==='object'&&!Array.isArray(b),'Supply a JSON object');return b;}
+async function body(c:C):Promise<Data>{const raw=await c.req.text();insist(raw.length<=24_000_000,'Request too large',413);const b=JSON.parse(raw);insist(b&&typeof b==='object'&&!Array.isArray(b),'Supply a JSON object');await refuseEconomicsValue(db(c),b);return b;}
 const db=(c:C)=>runtimeBindings(c.env).DB;
 const param=(c:C,key='id')=>c.req.param(key)!;
 const as=(fn:(a:Actor,c:C)=>Promise<unknown>)=>async(c:C)=>{const actor=await person(c.req.raw,c.env);await assertStripeEnvironment(runtimeBindings(c.env));gateRole(actor,c.req.method,c.req.path);gateGrants(actor,c.req.method,c.req.path);await recordWallExpiries(db(c),actor);const result=await fn(actor,c);if(c.req.method==='GET'&&(!(result instanceof Response)||result.ok))await auditWallReads(db(c),actor,c.req.path);return result instanceof Response?result:c.json(await redact(db(c),actor,c.req.path,result));};

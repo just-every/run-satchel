@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {harness} from './harness.mjs';
+import {proveCostDerivativeDisposal} from './economics-cost-disposal-flow.mjs';
+import {authorizeAgent} from './agent-fixture.mjs';
+import {proveMigratedEconomics,withLegacyEconomicsCapture} from './economics-migration-flow.mjs';
 import {economicsFoundation,economicsClock} from './economics-fixture.mjs';
 import {reportFoundation,csvRows,withoutRecordedOutcomes} from './report-fixture.mjs';
 test('REPORT-001 seven filtered dashboards drill and export identical permitted rows, retain unknown-practice lead denominators, report explicit outcomes and pause stage duration across closure',async()=>{
@@ -205,6 +208,7 @@ assert.match(basis.formulas.realization,/Void invoices contribute zero/);assert.
   await restored.json('/matters/'+movedSource.id+'/access',{email:'economics-lawyer@example.test'},restored.owner);const sourceProfile=await restored.json('/matters/'+movedSource.id+'/stage',undefined,restored.owner);await restored.json('/matters/'+movedSource.id+'/stage-profile',{revision:sourceProfile.profile.revision,lawyerEmail:'economics-lawyer@example.test'},restored.owner);
   const beforeMoveArtifact=await restored.json('/reports/economics/exports',{confirmed:true,filters:{owner:'economics-lawyer@example.test'}},restored.owner);assert.deepEqual(JSON.parse(await(await restored.request(beforeMoveArtifact.downloadPath,undefined,restored.owner)).text()).matters.map(x=>x.matterId),[movedSource.id]);
   const beforePrivateMove=(await restored.json('/reports/economics',undefined,restored.owner)).asOf;await restored.json('/entries/'+movedEntry.id+'/edit',{revision:movedEntry.revision,matterId:m.id,reason:'Move released work into its current matter'},restored.owner);assert.equal((await restored.request(beforeMoveArtifact.downloadPath,undefined,restored.owner)).status,200);
+  const movedHistory=await restored.json('/reports/economics?owner='+encodeURIComponent((await restored.json('/me',undefined,custodian)).email)+'&asOf='+encodeURIComponent(beforePrivateMove),undefined,restored.owner);assert.equal(movedHistory.matters.length,1);assert.equal(movedHistory.matters[0].matterId,movedSource.id);assert.equal(movedHistory.matters[0].unbilledCents,12300);assert.ok(movedHistory.matters[0].source.entries.some(e=>e.sourceId===movedEntry.id));
   const wall=await restored.json(base+'/wall',{custodianEmail:'economics-lawyer@example.test',members:['owner@example.test'],reason:'Synthetic confidential costing custody',revision:null},restored.owner);
   for(const action of ['report.staff_cost_saved','report.staff_cost_approved','report.economics_exported']){const audit=await restored.json('/audit?action='+action,undefined,custodian);assert.equal(audit.total,0);assert.deepEqual(audit.records,[]);const file=await restored.request('/api/satchel/audit/export?action='+action,undefined,custodian);assert.equal(await file.text(),'');}
   await restored.json(base+'/wall',{custodianEmail:'economics-lawyer@example.test',members:[],reason:'Exclude principal contributions',revision:wall.revision},custodian);
@@ -217,6 +221,8 @@ assert.match(basis.formulas.realization,/Void invoices contribute zero/);assert.
   const excludedExport=await(await restored.request('/api/satchel/reports/economics/export',undefined,restored.owner)).text();assert.ok(!excludedExport.includes(m.id));assert.ok(!excludedExport.includes(entry.id));
  }finally{await restored?.close();await h.close();}
  await proveEconomicsAging();
+ await proveMigratedEconomics();
+ await proveCostDerivativeDisposal();
 });
 
 // The aging journey uses fixed issue dates and advances a fixed worker clock.
@@ -262,7 +268,36 @@ async function proveEconomicsAging(){
   assert.deepEqual(await h.json('/matters/'+f.m.id+'/documents',undefined,h.owner),beforeDocuments);assert.deepEqual(await h.json('/matters/'+f.m.id+'/threads',undefined,h.owner),beforeThreads);assert.equal(h.mails.length,beforeMails);
   const {movePackage}=await import('./migration-fixture.mjs'),source=await movePackage(costRecord.email,f.account.id);await h.json('/migration/preview',{package:source},h.owner);
   const bytes=Buffer.from(original),{createHash}=await import('node:crypto');source.files[1]={...source.files[1],contentBase64:bytes.toString('base64'),sha256:createHash('sha256').update(bytes).digest('hex')};await h.json('/migration/preview',{package:source},h.owner,422);assert.equal((await h.json('/migration',undefined,h.owner)).jobs.length,0);
+  const wrapped={attachment:JSON.parse(original)},stripped=JSON.parse(original);delete stripped.kind;delete stripped.manifest;
+  const beforeTasks=await h.json('/matters/'+f.m.id+'/tasks',undefined,h.owner),beforeNotes=await h.json('/matters/'+f.m.id+'/timeline',undefined,h.owner),beforeSources=await h.json('/matters/'+f.m.id+'/billing',undefined,h.owner);
+  for(const content of [wrapped,[stripped],{body:JSON.stringify(wrapped)}]){
+   await h.json('/matters/'+f.m.id+'/tasks',{title:JSON.stringify(content),priority:'normal'},h.owner,422);
+   await h.json('/matters/'+f.m.id+'/notes',{title:'Synthetic confidential capture',body:JSON.stringify(content),visibility:'team'},h.owner,422);
+   await h.json('/matters/'+f.m.id+'/entries',{kind:'time',date:'2030-10-01',description:JSON.stringify(content),minutes:60,rateCents:5000},h.owner,422);
+  }
+  await h.json('/matters/'+f.m.id+'/threads',{subject:JSON.stringify(costRecord),body:'Synthetic ordinary client message'},h.owner,422);
+  assert.deepEqual(await h.json('/matters/'+f.m.id+'/tasks',undefined,h.owner),beforeTasks);assert.deepEqual(await h.json('/matters/'+f.m.id+'/timeline',undefined,h.owner),beforeNotes);assert.deepEqual(await h.json('/matters/'+f.m.id+'/billing',undefined,h.owner),beforeSources);assert.equal(h.mails.length,beforeMails);
+  const captureKey=await h.json('/keys',{label:'Synthetic economics confidentiality boundary'},h.owner),{auth:captureAuth}=await authorizeAgent(h,captureKey,f.m.id,{delegation:{sources:[{documentId:ordinary.id,version:1,kind:'matter'}]}});
+  const safeContext=await h.json('/agent/matters/'+f.m.id,undefined,'',200,captureAuth);assert.equal(safeContext.sources[0].text,'Synthetic ordinary client evidence');assert.ok(!JSON.stringify(safeContext).includes(f.costInput.reason));
+  const pendingBefore=(await h.json('/state',undefined,h.owner)).proposals.length;
+  await h.json('/agent/prepare-deadline',{matterId:f.m.id,title:JSON.stringify(wrapped),date:'2030-10-02',timezone:'America/New_York',source:'Synthetic captured report'},'',422,captureAuth);
+  assert.equal((await h.json('/state',undefined,h.owner)).proposals.length,pendingBefore);
+  const safePreparation=await h.json('/agent/prepare-deadline',{matterId:f.m.id,title:'Synthetic authorized deadline preparation',date:'2030-10-02',timezone:'America/New_York',source:'Synthetic reviewed source'},'',200,captureAuth);assert.equal(safePreparation.status,'pending');
+  const captureIntegration=await h.json('/integrations',{label:'Synthetic confidential report exclusion',matterIds:[f.m.id],scopes:['matters:read','finance:read','proposals:prepare']},h.owner),captureIntegrationAuth={authorization:'Bearer '+captureIntegration.key,'Idempotency-Key':'synthetic-satchel-confidential-capture'};
+  const beforeIntegration=(await h.json('/state',undefined,h.owner)).proposals.length;
+  await h.json('/v1/prepare/bill',{matterId:f.m.id,title:JSON.stringify(costRecord),date:'2030-10-01',entryIds:[]},'',422,captureIntegrationAuth);assert.equal((await h.json('/state',undefined,h.owner)).proposals.length,beforeIntegration);
+  const feed=await h.json('/v1/matters/'+f.m.id+'/finance',undefined,'',200,captureIntegrationAuth);assert.ok(!JSON.stringify(feed).includes(f.costInput.reason));assert.ok(!JSON.stringify(feed).includes(f.draft.id));
   const beforeDisposal=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();
+  const captureRestore=await harness({clock:economicsClock});try{
+   for(const captured of [wrapped,costRecord]){
+    const archive=await withLegacyEconomicsCapture(beforeDisposal,ordinary.id,captured);
+    await captureRestore.json('/restore',{archive,confirm:'RESTORE'},captureRestore.owner,422);
+    assert.equal((await captureRestore.json('/state',undefined,captureRestore.owner)).matters.length,0);assert.equal((await captureRestore.json('/reports/staff-costs',undefined,captureRestore.owner)).revisions.length,0);
+   }
+   await captureRestore.json('/restore',{archive:beforeDisposal,confirm:'RESTORE'},captureRestore.owner);
+   assert.equal((await captureRestore.json('/reports/economics',undefined,captureRestore.owner)).totals.profitCents,72000);assert.equal(await(await captureRestore.request(retained.downloadPath,undefined,captureRestore.owner)).text(),original);
+  }finally{await captureRestore.close();}
+
   const disposalClock='2030-10-01T17:00:00.000Z';await h.setClock(disposalClock);assert.equal((await h.json('/reports/economics?asOf='+encodeURIComponent(economicsClock),undefined,h.owner)).totals.profitCents,72000);
   const disposeCost={confirm:f.draft.id,reason:'Principal approved expired cost payload disposal'},disposeReport={confirm:retained.id,reason:'Principal approved expired report disposal'};
   const unused=(await h.json('/reports/staff-costs',undefined,h.owner)).approved.find(c=>c.effective_from==='2031-01-01'),emptyExport=await h.json('/reports/economics/exports',{confirmed:true,filters:{status:'closed'}},h.owner),disposeUnused={confirm:unused.id,reason:'Principal approved unused cost setting disposal'},disposeEmpty={confirm:emptyExport.id,reason:'Principal approved empty report disposal'};

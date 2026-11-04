@@ -1,4 +1,4 @@
-import {atomic,audit,date,human,id,insist,integer,need,now,rows,stmt,text,type Actor,type Data} from './model';
+import {atomic,audit,date,digest,human,id,insist,integer,need,now,rows,stmt,text,type Actor,type Data} from './model';
 import {guard} from './trust-guards';
 import {requireArea} from './role-areas';
 
@@ -35,4 +35,11 @@ export async function approveStaffCost(db:D1Database,actor:Actor,b:Data){
 }
 export async function staffCosts(db:D1Database,actor:Actor){
  economicsPrincipal(actor);return {approved:await rows(db,'SELECT * FROM s_approved_staff_cost_rates ORDER BY email,effective_from,id'),revisions:await rows(db,'SELECT r.*,a.approved_by,a.approved_at FROM s_staff_cost_revisions r LEFT JOIN s_staff_cost_approvals a ON a.revision_id=r.id WHERE NOT EXISTS(SELECT 1 FROM s_staff_cost_disposals d WHERE d.revision_id=r.id) ORDER BY r.created_at,r.id')};
+}
+
+// Disposing the latest applicable cost never makes an older cost current again.
+export async function approvedStaffCost(db:D1Database,email:string,workDate:string){
+ const cost=await stmt(db,'SELECT * FROM s_approved_staff_cost_rates WHERE email=? AND effective_from<=? ORDER BY effective_from DESC,approved_at DESC,id DESC LIMIT 1',email,workDate).first<Data>();
+ const disposed=await stmt(db,'SELECT effective_from FROM s_staff_cost_disposals WHERE was_approved=1 AND timekeeper_sha256=? AND effective_from<=? ORDER BY effective_from DESC LIMIT 1',await digest(email),workDate).first<Data>();
+ return disposed&&(!cost||disposed.effective_from>cost.effective_from)?null:cost;
 }

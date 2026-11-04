@@ -1,3 +1,4 @@
+import {refuseEconomicsCapture} from './economics-confidentiality';
 import {atomic,audit,digest,human,insist,matter,rows,stmt,type Actor,type Data} from './model';
 import {activeDelegations,authorizedDelegation,guard,liveAgentArgs,liveAgentSql} from './agent-authority';
 import {decode,documentGuard,listDocuments,visibleDocument} from './documents';
@@ -20,7 +21,7 @@ export async function agentMatterContext(db:D1Database,actor:Actor,matterId:stri
  for(const source of await rows(db,'SELECT * FROM s_agent_sources WHERE delegation_id=? ORDER BY document_id',d.id)){
   const doc=await visibleDocument(db,actor,source.document_id);insist(!doc.erased_at,'Source unavailable',404);
   const v=await stmt(db,'SELECT * FROM s_document_versions WHERE document_id=? AND version=? AND sha256=? AND content_base64 IS NOT NULL',doc.id,source.version,source.sha256).first<Data>();insist(v,'Source unavailable',404);
-  const bytes=decode(v.content_base64);insist(await digest(bytes)===source.sha256,'Source integrity failed',503);
+  const bytes=decode(v.content_base64);insist(await digest(bytes)===source.sha256,'Source integrity failed',503);await refuseEconomicsCapture(db,bytes,source.sha256);
   sources.push({documentId:doc.id,version:v.version,sha256:v.sha256,kind:source.kind,licenseReference:source.license_reference,permittedUse:source.permitted_use,trust:'untrusted_content',...(v.mime==='text/plain'?{text:new TextDecoder().decode(bytes)}:{mime:v.mime})});
   writes.push(...documentGuard(db,actor,doc));
  }
