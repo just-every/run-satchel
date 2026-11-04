@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {agentMetricsFixture} from './agent-metrics-flow.mjs';
 import {exemptTaxReview} from './tax-fixture.mjs';
 import {capturePanel} from './browser-shots.mjs';
-const form=(root,button)=>root.locator('form',{has:root.getByRole('button',{name:button,exact:true})});
+const form=(root,button)=>root.locator('form',{has:root.page().getByRole('button',{name:button,exact:true})});
 export async function exerciseAgentMetrics(page,h,width){
  const f=await agentMetricsFixture(h),nav=page.getByRole('navigation',{name:'Workspace'});
  await h.json('/keys/'+f.key.id+'/revoke',{},h.owner);

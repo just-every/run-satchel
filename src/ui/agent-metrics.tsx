@@ -47,7 +47,7 @@ function CohortForm({metrics,run}:{metrics:Row;run:Run}){
 }
 export function AgentMetrics({state,run,tick}:{state:Row;run:Run;tick:number}){
  const [metrics,setMetrics]=useState<Row>(),[error,setError]=useState(''),[status,setStatus]=useState('all');
- useEffect(()=>{let current=true;setMetrics(undefined);setError('');if(state.actor.role==='owner')api('/agent-metrics').then(value=>{if(current)setMetrics(value);}).catch(e=>{if(current)setError(e.message);});return()=>{current=false;};},[tick,state.actor.role]);
+ useEffect(()=>{let current=true;setError('');if(state.actor.role==='owner')api('/agent-metrics').then(value=>{if(current)setMetrics(value);}).catch(e=>{if(current)setError(e.message);});return()=>{current=false;};},[tick,state.actor.role]);
  return <section className="panel agent-metrics"><h2>Agent results</h2>
  {state.actor.role!=='owner'?<p>Only the principal can inspect agent results. Matter access alone does not grant this view.</p>:error?<p role="alert">{error}</p>:!metrics?<p>Loading current results…</p>:<>
  <p>Current permitted records · {metrics.asOf}</p><p>{metrics.rules.decisions}</p>
