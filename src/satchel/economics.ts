@@ -1,4 +1,4 @@
-import {economicsCutoff,historicalEconomicsDatabase,historicalEconomicsBasis} from './economics-history';
+import {economicsCutoff,economicsHistoryAvailability,historicalEconomicsDatabase,historicalEconomicsBasis} from './economics-history';
 import {atomic,audit,digest,id,insist,now,rows,stmt,type Actor,type Data} from './model';
 import {accessGuard,guard} from './trust-guards';
 import {economicsPrincipal as principal} from './staff-costs';
@@ -21,10 +21,11 @@ export const economicsFormulas={
 };
 export async function economics(db:D1Database,actor:Actor,filters:Data={}){
  principal(actor);const calculatedAt=now(),cutoff=economicsCutoff(filters.asOf,calculatedAt),report=await readReportData(db,actor,filters,cutoff??calculatedAt);
+ const historicalAvailability=await economicsHistoryAvailability(db,report.cohort.map(m=>m.id));
  if(cutoff)db=await historicalEconomicsDatabase(db,cutoff,report.cohort.map(m=>m.id));
  const costs=await rows(db,'SELECT * FROM s_approved_staff_cost_rates ORDER BY effective_from,approved_at,id'),disposedCosts=await rows(db,'SELECT * FROM s_staff_cost_disposals WHERE was_approved=1 ORDER BY effective_from,approved_at,revision_id'),matterRows:Data[]=[];
  for(const m of report.cohort){
-  const entries=await rows(db,'SELECT * FROM s_entries WHERE matter_id=? ORDER BY date,id',m.id),bills=await rows(db,"SELECT b.*,i.number,t.snapshot tax_snapshot FROM s_bills b JOIN s_invoice_issues i ON i.bill_id=b.id LEFT JOIN s_bill_tax_approvals t ON t.bill_id=b.id WHERE b.matter_id=? AND b.status<>'void' ORDER BY i.issued_at,b.id",m.id);
+  const entries=await rows(db,'SELECT * FROM s_entries WHERE matter_id=? ORDER BY date,id',m.id),bills=await rows(db,"SELECT b.*,i.number,i.approved_revision issue_revision,i.issued_at,t.snapshot tax_snapshot FROM s_bills b JOIN s_invoice_issues i ON i.bill_id=b.id LEFT JOIN s_bill_tax_approvals t ON t.bill_id=b.id WHERE b.matter_id=? AND b.status<>'void' ORDER BY i.issued_at,b.id",m.id);
   const invoices:Data[]=[],lines:Data[]=[];
   for(const b of bills){const snapshot=JSON.parse(b.tax_snapshot??b.snapshot),funds=b.corrects_bill_id?null:await invoiceFunds(db,b.id),delivery=await stmt(db,'SELECT due_date FROM s_invoice_deliveries WHERE bill_id=? ORDER BY created_at DESC,id DESC LIMIT 1',b.id).first<Data>();
    const selected=snapshot.lines.map((l:Data)=>({...l,billId:b.id,number:b.number,correction:Boolean(b.corrects_bill_id)}));lines.push(...selected);
@@ -44,7 +45,7 @@ export async function economics(db:D1Database,actor:Actor,filters:Data={}){
  const totals={matterCount:matterRows.length,billedCents:sum(matterRows,'billedCents'),earnedCents:sum(matterRows,'earnedCents'),paidCents:sum(matterRows,'paidCents'),pendingCents:sum(matterRows,'pendingCents'),trustCashCents:sum(matterRows,'trustCashCents'),unbilledCents:sum(matterRows,'unbilledCents'),wipCents:sum(matterRows,'wipCents'),expenseCents:sum(matterRows,'expenseCents'),staffCostCents:complete?sum(matterRows,'staffCostCents'):null,profitCents:complete?sum(matterRows,'profitCents'):null,costCoverage};
  const metricBasis=Object.fromEntries(['utilization','realization','collectionRate','effectiveHourlyCents'].map(metric=>[metric,{numerator:sum(matterRows.map(m=>m.metricBasis[metric]),'numerator'),denominator:sum(matterRows.map(m=>m.metricBasis[metric]),'denominator')}]));
  const ratios=Object.fromEntries(Object.entries(metricBasis).map(([metric,basis])=>[metric,ratio(basis.numerator,basis.denominator)]));
- return {kind:'satchel.economics',asOf:report.asOf,calculatedAt,basis:cutoff?'historical-recorded-state':'current-state',timezone:report.timezone,filters:{...report.filters,...(cutoff?{asOf:cutoff}:{})},units:{money:'USD cents',time:'Recorded minutes',effectiveHourlyCents:'USD cents per hour',utilization:'Billable recorded minutes divided by all recorded minutes',realization:'Live billed time cents divided by recorded billed-source cents',collectionRate:'Net cleared operating cents divided by invoice cents including tax',aging:'Unpaid USD cents by firm-local calendar days after the frozen due date'},formulas:{...economicsFormulas,...(cutoff?{asOf:historicalEconomicsBasis}:{})},matters:matterRows,totals:{...totals,...ratios,metricBasis,aging:Object.fromEntries(['current','1–30','31–60','61–90','91+','unknown'].map(bucket=>[bucket,sum(matterRows.map(m=>m.aging),bucket)]))}};
+ return {kind:'satchel.economics',asOf:report.asOf,calculatedAt,historicalAvailability,basis:cutoff?'historical-recorded-state':'current-state',timezone:report.timezone,filters:{...report.filters,...(cutoff?{asOf:cutoff}:{})},units:{money:'USD cents',time:'Recorded minutes',effectiveHourlyCents:'USD cents per hour',utilization:'Billable recorded minutes divided by all recorded minutes',realization:'Live billed time cents divided by recorded billed-source cents',collectionRate:'Net cleared operating cents divided by invoice cents including tax',aging:'Unpaid USD cents by firm-local calendar days after the frozen due date'},formulas:{...economicsFormulas,...(cutoff?{asOf:historicalEconomicsBasis}:{})},matters:matterRows,totals:{...totals,...ratios,metricBasis,aging:Object.fromEntries(['current','1–30','31–60','61–90','91+','unknown'].map(bucket=>[bucket,sum(matterRows.map(m=>m.aging),bucket)]))}};
 }
 export async function economicsArtifact(db:D1Database,actor:Actor,filters:Data){
  const report=await economics(db,actor,filters),firm=await stmt(db,'SELECT name FROM s_firm WHERE id=1').first<Data>();
