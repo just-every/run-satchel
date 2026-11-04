@@ -91,7 +91,7 @@ export async function proveDocumentUploads(){
   await h.json('/retention',{matterId:m.id,documentId:doc.id,disposeAfter:'2020-01-01',basis:'Expired synthetic record'},h.owner);
   const disposed=await h.json('/documents/'+doc.id+'/dispose',{confirm:doc.title,reason:'Approved disposal'},h.owner);
   assert.deepEqual(disposed.journal.originals.map(v=>[v.version,v.size,v.sha256]),[[1,bytes.length,hash(bytes)]]);
-  await complete(u,h.owner,404);assert.equal((await h.request('/api/satchel/documents/'+doc.id+'/file',undefined,h.owner)).status,404);
+  await complete(u,h.owner,404);await start(files,key,h.owner,404);assert.equal((await h.request('/api/satchel/documents/'+doc.id+'/file',undefined,h.owner)).status,404);
   const afterArchive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(!JSON.parse(afterArchive.split('\n')[0]).objects.some(o=>o.sha256===hash(bytes)),'Disposed original bytes are absent from the archive');
   const abandoned=await start([manifest(first,'Abandoned.pdf')]);await part(abandoned.uploads[0],1,first);
   assert.equal((await h.request('/api/satchel/backup',undefined,h.owner)).status,409,'Active reservations block incomplete archives');
@@ -99,6 +99,7 @@ export async function proveDocumentUploads(){
   const recovered=(await state()).uploads.find(f=>f.id===abandoned.uploads[0].id);assert.equal(recovered.state,'expired');await complete(recovered,h.owner,409);
   assert.equal((await state()).usedAndReservedBytes,files[1].size,'Expired and disposed originals release quota without duplicating charges');
   await proveResumableVersions(h);
+  await proveReviewedVersionRecovery(h);
   await proveFolderFormats(h);
   console.log('PROBE DOC-001 native: 16 MiB interrupted and resumed in real local R2; altered parts and final hash refused; quota, revocation, replay, quarantine, archive, holds, disposal and expiry passed');
  }finally{await h.close();}
@@ -142,12 +143,62 @@ async function proveResumableVersions(h){
  const theirs=await h.json('/matters/'+matter.id+'/documents',{name:'Their.txt',mime:'text/plain',visibility:'private',contentBase64:small.toString('base64')},colleague);
  const their=(await start([manifest(next,'Their-next.txt',{mime:'text/plain',documentId:theirs.id,revision:theirs.revision})],randomUUID(),colleague)).uploads[0];
  await h.json('/matters/'+matter.id+'/access',{email:colleagueAddress,remove:true},h.owner);
- await parts(their,next,colleague,404);await complete(their,404,colleague);await h.json('/document-uploads/'+their.id+'/cancel',{},colleague,404);await h.json(door,undefined,colleague,404);await cancel(their);
+ await parts(their,next,colleague,404);await complete(their,404,colleague);await h.json('/document-uploads/'+their.id+'/cancel',{},colleague,404);await h.json('/document-uploads/'+their.id+'/review',{revision:theirs.revision,sha256:hash(next),reason:'Revoked author cannot review',confirmed:true},colleague,404);await h.json(door,undefined,colleague,404);await cancel(their);
  const pending=(await start([manifest(Buffer.from('synthetic-satchel-14'),'Erased.txt',{mime:'text/plain',documentId:doc.id,revision:doc.revision})],randomUUID())).uploads[0];await parts(pending,Buffer.from('synthetic-satchel-14'));
  await h.json('/documents/'+doc.id+'/erase',{confirm:doc.title,reason:'Erase all retained and pending originals'},h.owner);
  await complete(pending,404);await parts(pending,Buffer.from('synthetic-satchel-14'),h.owner,404);
  assert.ok(!(await h.json(door,undefined,h.owner)).uploads.some(s=>s.id===pending.id),'Erased originals cannot return through a saved transfer');
  console.log('PROBE DOC-001 versions: legacy predecessor retained byte-identically; 16 MiB R2 version resumed after restart; replay publishes once; concurrent stale completion, unauthorized author, revoked access and erased transfer refused');
+}
+
+async function proveReviewedVersionRecovery(h){
+ const m=await open(h,'Reviewed transfer recovery'),door='/matters/'+m.id+'/document-uploads';
+ const small=Buffer.from('synthetic-satchel-30'),original=await h.json('/matters/'+m.id+'/documents',{name:'Review.txt',mime:'text/plain',visibility:'private',contentBase64:small.toString('base64')},h.owner);
+ const bytes=Buffer.alloc(16*1024*1024,82),files=[manifest(bytes,'Transferred.txt',{mime:'text/plain',documentId:original.id,revision:original.revision})],requestId=randomUUID();
+ const u=(await h.json(door,{files,requestId},h.owner)).uploads[0];
+ for(let n=0;n<2;n++){const data=bytes.subarray(n*8*1024*1024,(n+1)*8*1024*1024),r=await h.raw('/api/satchel/document-uploads/'+u.id+'/parts/'+(n+1),{method:'POST',headers:{'content-type':'application/octet-stream','x-part-sha256':hash(data)},body:data},h.owner);assert.equal(r.status,200,await r.text());}
+ // A normal edit wins while the original is transferring. Completion must
+ // preserve both versions and ask for an explicit review, without retransfers.
+ const edit=async(doc,value)=>h.json('/matters/'+m.id+'/documents',{documentId:doc.id,revision:doc.revision,name:'Review.txt',mime:'text/plain',visibility:'private',contentBase64:Buffer.from(value).toString('base64')},h.owner);
+ let current=await edit(original,'synthetic-satchel-31');
+ const complete=(expected=200,cookie=h.owner)=>h.json('/document-uploads/'+u.id+'/complete',{},cookie,expected);
+ await complete(409);
+ const read=()=>h.json(door,undefined,h.owner),before=await read(),reserved=before.usedAndReservedBytes,retained=before.uploads.find(s=>s.id===u.id).parts;
+ assert.deepEqual(retained.map(p=>p.number),[1,2]);assert.equal(before.uploads.find(s=>s.id===u.id).currentRevision,current.revision);
+ const reviewBody={revision:current.revision,sha256:hash(bytes),reason:'Reviewed the intervening original; keep this transfer as the next version.',confirmed:true};
+ const review=(body=reviewBody,expected=200,cookie=h.owner)=>h.json('/document-uploads/'+u.id+'/review',body,cookie,expected);
+ await review({...reviewBody,confirmed:false},400);
+ await review({...reviewBody,sha256:'0'.repeat(64)},409);
+ await review({...reviewBody,revision:original.revision},409);
+ const address=['synthetic-satchel-32','example.test'].join('@');
+ await h.json('/team',{email:address,name:'Unrelated reviewer',role:'lawyer'},h.owner);await h.json('/team/invite',{email:address},h.owner);const other=await h.login(address);
+ await h.json('/matters/'+m.id+'/access',{email:address},h.owner);await review(reviewBody,404,other);
+ assert.equal((await read()).usedAndReservedBytes,reserved,'Refused reviews neither publish nor charge');
+ const reviewed=await review();assert.equal(reviewed.baseRevision,original.revision);assert.equal(reviewed.reviewedRevision,current.revision);
+ assert.deepEqual(await review(),reviewed,'A replayed exact review is idempotent');
+ // Another edit invalidates even a previously accepted review.
+ current=await edit(current,'synthetic-satchel-33');await complete(409);await review(reviewBody,409);
+ const fresh={...reviewBody,revision:current.revision};await review(fresh);await h.restart();
+ const resumed=(await read()).uploads.find(s=>s.id===u.id);assert.equal(resumed.reviewedRevision,current.revision);assert.deepEqual(resumed.parts,retained);
+ const done=await complete();assert.deepEqual(await complete(),done);
+ const docs=await h.json('/matters/'+m.id+'/documents',undefined,h.owner),doc=docs.find(d=>d.id===original.id);
+ assert.equal(doc.currentVersion,4);assert.deepEqual(doc.versions.map(v=>v.sha256),[hash(small),hash(Buffer.from('synthetic-satchel-31')),hash(Buffer.from('synthetic-satchel-33')),hash(bytes)]);
+ assert.equal(doc.versions[3].scanStatus,'quarantined');assert.equal((await read()).usedAndReservedBytes,reserved+Buffer.byteLength('synthetic-satchel-33'),'Reviewed completion converts only its existing reservation');
+ assert.equal((await h.request('/api/satchel/documents/'+doc.id+'/file',undefined,h.owner)).status,423);
+ await review(fresh,409);
+ const audit=await h.json('/audit?action=document.upload_revision_reviewed&matterId='+m.id,undefined,h.owner),reviews=audit.records.filter(a=>a.objectId===doc.id);
+ assert.equal(reviews.length,2,'Only successful distinct reviews append history');
+ for(const entry of reviews){const data=entry.detail;assert.equal(data.baseRevision,original.revision);assert.equal(data.sha256,hash(bytes));assert.ok(data.reason);}
+ const backup=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();
+ assert.ok(JSON.parse(backup.split('\n')[0]).objects.some(o=>o.sha256===hash(bytes)),'The reviewed quarantined bytes remain recoverable');
+ await h.json('/documents/'+doc.id+'/erase',{confirm:doc.title,reason:'Erase reviewed original'},h.owner);
+ await h.json(door,{files,requestId},h.owner,404);await complete(404);await review(fresh,404);
+ const expiryDoc=await h.json('/matters/'+m.id+'/documents',{name:'Expiring.txt',mime:'text/plain',visibility:'private',contentBase64:small.toString('base64')},h.owner);
+ const expired=(await h.json(door,{requestId:randomUUID(),files:[manifest(small,'Expiring-next.txt',{mime:'text/plain',documentId:expiryDoc.id,revision:expiryDoc.revision})]},h.owner)).uploads[0];
+ await h.scheduled(Date.parse(expired.expiresAt)+1);
+ await h.json('/document-uploads/'+expired.id+'/review',{revision:expiryDoc.revision,sha256:hash(small),reason:'An expired reservation grants no authority',confirmed:true},h.owner,409);
+ assert.equal((await h.json('/matters/'+m.id+'/documents',undefined,h.owner)).find(d=>d.id===expiryDoc.id).currentVersion,1);
+ console.log('PROBE DOC-001 review: changed target refused until exact-revision and exact-hash human review; stale and unauthorized reviews refused; restart retained all parts; one quarantined version and one quota charge; erased manifest replay refused');
 }
 
 async function proveFolderFormats(h){

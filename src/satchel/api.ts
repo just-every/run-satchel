@@ -1,4 +1,4 @@
-import {beginUploads,uploadState,uploadPart,completeUpload,cancelUpload} from './document-uploads';
+import {beginUploads,uploadState,uploadPart,completeUpload,cancelUpload,reviewUpload as reviewDocumentUpload} from './document-uploads';
 import {invoiceWriteoffHistory,reverseInvoiceWriteoff} from './invoice-writeoff-reversal';
 import {documentTextCitation} from './document-text-index';
 import {bindBusinessAgent} from './team';
@@ -436,6 +436,7 @@ api.get('/api/satchel/matters/:id/document-uploads',as((a,c)=>uploadState(runtim
 api.post('/api/satchel/matters/:id/document-uploads',as(async(a,c)=>beginUploads(runtimeBindings(c.env),a,param(c),await body(c))));
 api.post('/api/satchel/document-uploads/:id/parts/:number',as((a,c)=>uploadPart(runtimeBindings(c.env),a,param(c),Number(param(c,'number')),c.req.raw)));
 api.post('/api/satchel/document-uploads/:id/complete',as((a,c)=>completeUpload(runtimeBindings(c.env),a,param(c))));
+api.post('/api/satchel/document-uploads/:id/review',as(async(a,c)=>reviewDocumentUpload(runtimeBindings(c.env),a,param(c),await body(c))));
 api.post('/api/satchel/document-uploads/:id/cancel',as((a,c)=>cancelUpload(runtimeBindings(c.env),a,param(c))));
 api.get('/api/satchel/matters/:id/documents',as((a,c)=>listDocuments(db(c),a,param(c))));
 api.get('/api/satchel/matters/:id/document-sets',as((a,c)=>documentSetState(db(c),a,param(c))));

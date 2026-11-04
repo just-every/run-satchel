@@ -49,6 +49,12 @@ export function DocumentUploads({matterId,run,tick,target,clearTarget}:{matterId
   {busy&&<button type="button" className="quiet" onClick={()=>{stop.current=true;setProgress('Pausing after the current part…');}}>Pause after part</button>}
   {error&&<p role="alert">{error}</p>}{progress&&<p role="status">{progress}</p>}
   {state?.uploads.map((u:Row)=><article className="record" key={u.id} style={{overflowWrap:'anywhere'}}><strong>{u.path}</strong><p>{mib(u.size)} · {u.state==='complete'?'Quarantined':u.state} · {u.parts.reduce((n:number,p:Row)=>n+p.size,0).toLocaleString()} bytes received</p>
+   {['active','completing'].includes(u.state)&&u.currentRevision&&u.currentRevision!==(u.reviewedRevision??u.baseRevision)&&<form onSubmit={e=>{e.preventDefault();const data=new FormData(e.currentTarget);perform(async()=>{await api('/document-uploads/'+u.id+'/review',{revision:u.currentRevision,sha256:u.sha256,reason:data.get('reason'),confirmed:data.get('confirmed')==='on'});setProgress('Current document revision reviewed. Resume to retain this original in quarantine.');});}}>
+    <p>The document now has version {u.currentVersion}. Review its retained versions before keeping this transfer as the next version. Existing originals remain unchanged.</p>
+    <label>Reason for retaining this transferred version<input name="reason" required maxLength={2000} disabled={busy}/></label>
+    <label><input type="checkbox" name="confirmed" required disabled={busy}/>I reviewed the current document and want these transferred bytes retained as its next quarantined version.</label>
+    <button type="submit" disabled={busy}>Review current version for {u.name}</button>
+   </form>}
    {['active','completing'].includes(u.state)&&<><p>Resume until <time dateTime={u.expiresAt}>{u.expiresAt}</time>. Select the same original files above; verified parts will be reused.</p><button type="button" disabled={busy} onClick={()=>perform(()=>transfer(u))}>Resume {u.name}</button><button type="button" className="quiet" disabled={busy} onClick={()=>perform(async()=>{await api('/document-uploads/'+u.id+'/cancel',{});setProgress('Transfer cancelled; reserved space released.');})}>Cancel {u.name}</button></>}
   </article>)}
  </section>;

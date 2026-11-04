@@ -27,7 +27,7 @@ async function access(env:Store,actor:Actor,uploadId:string){
  return u;
 }
 function targetGuards(env:Store,actor:Actor,u:Data,exact=false){
- return u.target?[...documentGuard(env.DB,actor,{...u.target,revision:u.base_revision},true,exact)]:[];
+ return u.target?[...documentGuard(env.DB,actor,{...u.target,revision:u.reviewed_revision??u.base_revision},true,exact)]:[];
 }
 function sessionGuard(db:D1Database,u:Data,lease?:string){return guard(db,`EXISTS(SELECT 1 FROM s_document_uploads WHERE id=? AND ${live} AND expires_at>? AND (? IS NULL OR lease=?))`,u.id,now(),lease??null,lease??null);}
 async function claim(env:Store,actor:Actor,u:Data){
@@ -39,13 +39,13 @@ async function claim(env:Store,actor:Actor,u:Data){
 async function release(env:Store,u:Data,lease:string){await stmt(env.DB,'UPDATE s_document_uploads SET lease=NULL,lease_until=NULL WHERE id=? AND lease=?',u.id,lease).run();}
 async function describe(env:Store,u:Data){
  const parts=await rows(env.DB,'SELECT part_number,size,sha256 FROM s_document_upload_parts WHERE upload_id=? AND etag IS NOT NULL ORDER BY part_number',u.id);
- return {id:u.id,batchId:u.batch_id,documentId:u.state==='complete'?(u.target_document_id??u.document_id):null,targetDocumentId:u.target_document_id??null,baseRevision:u.base_revision??null,name:u.name,path:u.relative_path,mime:u.declared_mime,size:u.size,sha256:u.sha256,visibility:u.visibility,state:u.state,expiresAt:u.expires_at,parts:parts.map(p=>({number:p.part_number,size:p.size,sha256:p.sha256}))};
+ return {id:u.id,batchId:u.batch_id,documentId:u.state==='complete'?(u.target_document_id??u.document_id):null,targetDocumentId:u.target_document_id??null,baseRevision:u.base_revision??null,reviewedRevision:u.reviewed_revision??null,currentRevision:['active','completing'].includes(u.state)?u.target?.revision??null:null,currentVersion:['active','completing'].includes(u.state)?u.target?.current_version??null:null,name:u.name,path:u.relative_path,mime:u.declared_mime,size:u.size,sha256:u.sha256,visibility:u.visibility,state:u.state,expiresAt:u.expires_at,parts:parts.map(p=>({number:p.part_number,size:p.size,sha256:p.sha256}))};
 }
 export async function uploadState(env:Store,actor:Actor,matterId:string){
  human(actor);await matter(env.DB,actor,matterId);
  await recoverDocumentUploads(env);
  const uploads=await rows(env.DB,'SELECT * FROM s_document_uploads WHERE matter_id=? AND (actor_id=? OR ?=\'owner\') ORDER BY created_at DESC,id',matterId,actor.id,actor.role);
- const permitted=[];for(const u of uploads){try{await access(env,actor,u.id);permitted.push(u);}catch(error){if((error as {status?:number}).status===404||(error as {status?:number}).status===403)continue;throw error;}}
+ const permitted=[];for(const u of uploads){try{permitted.push(await access(env,actor,u.id));}catch(error){if((error as {status?:number}).status===404||(error as {status?:number}).status===403)continue;throw error;}}
  return {limits:uploadLimits,usedAndReservedBytes:actor.role==='owner'?(await stmt(env.DB,usageSql,matterId,matterId,matterId,matterId).first<Data>())!.bytes:null,uploads:await Promise.all(permitted.map(u=>describe(env,u)))};
 }
 export async function beginUploads(env:Store,actor:Actor,matterId:string,body:Data){
@@ -77,7 +77,7 @@ export async function beginUploads(env:Store,actor:Actor,matterId:string,body:Da
   if(!batch)return null;
   insist(batch.matter_id===matterId&&batch.fingerprint===fingerprint,'That manifest identity already describes different files',409);
   const uploads=await rows(env.DB,'SELECT * FROM s_document_uploads WHERE batch_id=? ORDER BY relative_path',batch.id);
-  return {id:batch.id,limits:uploadLimits,uploads:await Promise.all(uploads.map(u=>describe(env,u)))};
+  return {id:batch.id,limits:uploadLimits,uploads:await Promise.all(uploads.map(async u=>describe(env,await access(env,actor,u.id))))};
  };
  const previous=await replay();if(previous)return previous;
  for(const f of files)if(f.targetDocumentId){const d=await visibleDocument(env.DB,actor,f.targetDocumentId);insist(d.revision===f.baseRevision,'The document changed. Select its current revision before reserving a version.',409);}
@@ -120,7 +120,7 @@ export async function uploadPart(env:Store,actor:Actor,uploadId:string,number:nu
 }
 export async function completeUpload(env:Store,actor:Actor,uploadId:string){
  const u=await access(env,actor,uploadId);if(u.state==='complete')return describe(env,u);
- if(u.target)insist(u.target.revision===u.base_revision,'The document changed. Cancel this transfer and reserve its current revision.',409);
+ if(u.target)insist(u.target.revision===(u.reviewed_revision??u.base_revision),'The document changed. Review its current revision before completing this transfer.',409);
  const lease=await claim(env,actor,u);
  try{
   const parts=await rows(env.DB,'SELECT * FROM s_document_upload_parts WHERE upload_id=? ORDER BY part_number',u.id);
@@ -141,8 +141,30 @@ export async function completeUpload(env:Store,actor:Actor,uploadId:string){
    ...(u.target?[]:[stmt(env.DB,'INSERT INTO s_documents(id,matter_id,title,visibility,created_by,created_at,current_version,revision,updated_by,updated_channel,updated_at) VALUES(?,?,?,?,?,?,1,?,?,?,?)',u.document_id,u.matter_id,u.name,u.visibility,u.created_by,at,id(),actor.email,actor.channel,at)]),
    stmt(env.DB,"INSERT INTO s_document_r2_versions(document_id,version,name,relative_path,mime,declared_mime,size,sha256,object_key,created_by,created_channel,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",documentId,version,u.name,u.relative_path,mediaType(prefix),u.declared_mime,u.size,u.sha256,u.object_key,u.created_by,actor.channel,at),
    ...(u.target?[stmt(env.DB,'UPDATE s_documents SET current_version=?,revision=?,updated_by=?,updated_channel=?,updated_at=? WHERE id=?',version,revision,actor.email,actor.channel,at,documentId)]:[]),
-   stmt(env.DB,"UPDATE s_document_uploads SET state='complete' WHERE id=?",u.id),audit(env.DB,actor,'document.upload_quarantined',documentId,JSON.stringify({uploadId:u.id,version,baseRevision:u.base_revision??null,sha256:u.sha256,size:u.size,scanStatus:'quarantined'}))]);
+   stmt(env.DB,"UPDATE s_document_uploads SET state='complete' WHERE id=?",u.id),audit(env.DB,actor,'document.upload_quarantined',documentId,JSON.stringify({uploadId:u.id,version,baseRevision:u.base_revision??null,reviewedRevision:u.reviewed_revision??null,sha256:u.sha256,size:u.size,scanStatus:'quarantined'}))]);
   return describe(env,{...u,state:'complete'});
+ }finally{await release(env,u,lease);}
+}
+// Reviewing a changed target never changes the reserved bytes, original base,
+// visibility or quota. Only an explicit review of the current revision permits
+// those same bytes to become its next quarantined version.
+export async function reviewUpload(env:Store,actor:Actor,uploadId:string,body:Data){
+ const u=await access(env,actor,uploadId);
+ insist(u.target,'Only a version transfer has a document to review');
+ insist(['active','completing'].includes(u.state),'This upload is no longer active',409);
+ const revision=text(body.revision,'Reviewed document revision',100),sha256=hex(body.sha256),reason=text(body.reason,'Review reason',2000);
+ insist(body.confirmed===true,'Confirm that the retained original should follow the reviewed version');
+ insist(sha256===u.sha256,'Review must name the exact reserved original',409);
+ insist(u.target.revision===revision,'The document changed. Review its current revision again.',409);
+ const lease=await claim(env,actor,u);
+ try{
+  if(u.reviewed_revision===revision)return describe(env,u);
+  await atomic(env.DB,actor,[...matterGuard(env.DB,actor,u.matter_id),
+   ...documentGuard(env.DB,actor,{...u.target,revision},true),
+   sessionGuard(env.DB,u,lease),
+   stmt(env.DB,'UPDATE s_document_uploads SET reviewed_revision=? WHERE id=?',revision,u.id),
+   audit(env.DB,actor,'document.upload_revision_reviewed',u.target_document_id,JSON.stringify({uploadId:u.id,baseRevision:u.base_revision,previousReviewedRevision:u.reviewed_revision??null,reviewedRevision:revision,currentVersion:u.target.current_version,sha256:u.sha256,reason}))]);
+  return describe(env,{...u,reviewed_revision:revision});
  }finally{await release(env,u,lease);}
 }
 async function removeTransfer(env:Store,u:Data){

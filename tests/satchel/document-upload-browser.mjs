@@ -34,9 +34,32 @@ export async function exerciseDocumentUploads(page,h,width){
   await legacy.getByRole('button',{name:'Append resumable version',exact:true}).click();
   await panel.getByText('Append a quarantined version to', {exact:false}).waitFor();
   await panel.getByLabel('Files to transfer').setInputFiles({...original,name:'Notice-large.pdf'});
-  await panel.getByRole('button',{name:'Reserve and upload files',exact:true}).click();
-  await legacy.getByText('Version 2 · '+bytes.length+' bytes · Quarantined', {exact:false}).waitFor();
-  assert.equal(await legacy.getByRole('link',{name:/Download version 2/}).count(),0);
+  // An edit committed while transfer completion is in flight must demand
+  // human review of the new revision, then reuse every acknowledged part.
+  let completionArrived,allowCompletion;
+  const intercepted=new Promise(r=>completionArrived=r),proceed=new Promise(r=>allowCompletion=r);
+  await page.route('**/document-uploads/*/complete',async route=>{completionArrived();await proceed;await route.continue();},{times:1});
+  try{
+   await panel.getByRole('button',{name:'Reserve and upload files',exact:true}).click();await intercepted;
+   const data=await page.evaluate(()=>fetch('/api/satchel/state').then(r=>r.json())),matter=data.matters.find(m=>m.title==='Harper lease dispute');
+   const docs=await page.evaluate(id=>fetch('/api/satchel/matters/'+id+'/documents').then(r=>r.json()),matter.id),notice=docs.find(d=>d.title==='Notice.txt');
+   const edited=await page.evaluate(async({matterId,notice})=>{const response=await fetch('/api/satchel/matters/'+matterId+'/documents',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({documentId:notice.id,revision:notice.revision,name:'Notice.txt',mime:'text/plain',visibility:notice.visibility,contentBase64:btoa('synthetic-satchel-34')})});return {status:response.status,body:await response.json()};},{matterId:matter.id,notice});
+   assert.equal(edited.status,200,JSON.stringify(edited.body));allowCompletion();
+   await panel.getByRole('alert').getByText(/Review its current revision/).waitFor();
+   const review=panel.locator('form').filter({has:panel.getByRole('button',{name:'Review current version for Notice-large.pdf',exact:true})});
+   await review.getByText(/document now has version 2/).waitFor();
+   if(process.env.SATCHEL_UPLOAD_PROOF){
+    await mkdir(process.env.SATCHEL_UPLOAD_PROOF,{recursive:true});
+    for(const proofWidth of [1440,390]){await page.setViewportSize({width:proofWidth,height:1000});await review.scrollIntoViewIfNeeded();await page.screenshot({path:join(process.env.SATCHEL_UPLOAD_PROOF,'review-'+proofWidth+'.png'),fullPage:true});}
+    await page.setViewportSize({width,height:1000});
+   }
+   await review.getByLabel('Reason for retaining this transferred version').fill('Reviewed the intervening saved original; keep this transfer next.');
+   await review.getByRole('checkbox').check();await review.getByRole('button').click();
+   await panel.getByText('Current document revision reviewed. Resume to retain this original in quarantine.').waitFor();
+   let retransfers=0;const count=request=>{if(request.url().includes('/parts/'))retransfers++;};page.on('request',count);
+   try{await panel.getByRole('button',{name:'Resume Notice-large.pdf',exact:true}).click();await legacy.getByText('Version 3 · '+bytes.length+' bytes · Quarantined',{exact:false}).waitFor();assert.equal(retransfers,0,'Reviewed completion reuses verified parts');}finally{page.off('request',count);}
+  }finally{allowCompletion();await page.unrouteAll({behavior:'wait'});}
+  assert.equal(await legacy.getByRole('link',{name:/Download version 3/}).count(),0);
   await legacy.getByRole('link',{name:/Download version 1/}).waitFor();
   await panel.getByRole('button',{name:'Cancel version selection',exact:true}).click();
   const folder=await mkdtemp(join(tmpdir(),'satchel-upload-folder-'));
