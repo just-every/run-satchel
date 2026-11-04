@@ -144,7 +144,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "57f40176f47a536c01508b9baa037518074dfcea399b38bc382956c54f860be2",
+      "sha256": "ed701f0e01edfc8f46eb8295ac22732ffe7054a72a25bb202540e2b4c53d8552",
       "executable": false
     },
     "agent-surface.json": {
@@ -156,7 +156,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "4c74f8f295f853ace30c305b871b3d8e5bcecf2a11a3d5aeb57a919b0798286b",
+      "sha256": "f74132f135854f8463c9772faa2b256e0d053df9b3e106e827a56acffe3f6ffd",
       "executable": false
     },
     "base-copies.json": {
@@ -172,7 +172,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "5c73e9a85b177d4603c4940b8349b61a4195671fa3d8238a89152bc132e65624",
+      "sha256": "8bffda2993c1732487ad68086308216d9b5d341648be3f1634b1e7aef2fa8a39",
       "executable": false
     },
     "DEMO.md": {
@@ -795,6 +795,14 @@
       "sha256": "392929b87aec8b3d01343367eac9813166ee24436c74745d9174aefe387c44dd",
       "executable": false
     },
+    "migrations/core/0131_document_upload_versions.sql": {
+      "sha256": "a9cb25c95d53d51cffc771f90a635dc6e9b61ff653f29dde71a5c3275244d55b",
+      "executable": false
+    },
+    "migrations/core/0132_document_upload_reviews.sql": {
+      "sha256": "33c7d369e5b9c90b0ef1416cf8091dd2d27bbf8cfc00cc5f69e93f532b388262",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "31dbf44f24514b9f626261911b9b83c806cacdf00dd23e49f465f3fdfebb715e",
       "executable": false
@@ -808,7 +816,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "74b85b5f7555adae540988553ed391b33dd98393b822f6e79b30952c5e86898f",
+      "sha256": "fb3ec697a71fcddecf62cff43cf11a129494cd051331d104ddef28c7d952cba3",
       "executable": false
     },
     "packaging.json": {
@@ -816,7 +824,7 @@
       "executable": false
     },
     "pnpm-lock.yaml": {
-      "sha256": "be721713b366450baf28d2e1ec074a096470bc02942857baa76b648a85bc300a",
+      "sha256": "f091eb8af06b1e40de9bc162e6cbf084ca18c4f47b24dee189543ef49e78d97f",
       "executable": false
     },
     "public/apple-touch-icon.png": {
@@ -3576,7 +3584,7 @@
       "executable": false
     },
     "src/satchel/api.ts": {
-      "sha256": "9fb3ee3032e815bf8432076b7ac126dde28baeea7d5b6708f100ed90f8454903",
+      "sha256": "00e4d90dcd3be44de2432a62f228f5192440aa1deafb7ff27273d69035440165",
       "executable": false
     },
     "src/satchel/appointments.ts": {
@@ -3768,7 +3776,7 @@
       "executable": false
     },
     "src/satchel/document-uploads.ts": {
-      "sha256": "dc395ea912362a2ad567a2a8a8557f49dd42e16bf40a44076af29127310afaee",
+      "sha256": "9267df6c88ca96e2499fb2bafcf1416a5a363421e44d877b62c3bd92229ec26b",
       "executable": false
     },
     "src/satchel/documents.ts": {
@@ -4224,7 +4232,7 @@
       "executable": false
     },
     "src/satchel/role-areas.ts": {
-      "sha256": "3fa43dc9c4609348e1034b9d0a98c8d20c7d69e91ffccd7563edf44efd1c1ca0",
+      "sha256": "6ec3bcbf842a387651753d3e0a9e454e0922e5c16b968f3d67b85fedac2160c2",
       "executable": false
     },
     "src/satchel/role-doors.ts": {
@@ -4732,11 +4740,11 @@
       "executable": false
     },
     "src/ui/document-uploads.tsx": {
-      "sha256": "871622bb9a4479fd636f532992dcc384e14feeb5773c4ed552c9da0ae4038767",
+      "sha256": "bd7f98d4a52105c8adb78ccd1853019bf26635433c840eac6b8a1796bf28cb5f",
       "executable": false
     },
     "src/ui/documents.tsx": {
-      "sha256": "25d08935140544c9e1f6647e0061b6f2f6b523dff3c8e28db77f7c4a30352b99",
+      "sha256": "672dfbfc7f5d0bbe84bb29f95f71dfe790e5976167985db1333d117c625f2cf6",
       "executable": false
     },
     "src/ui/ethical-walls.tsx": {
@@ -5224,11 +5232,19 @@
       "executable": false
     },
     "tests/satchel/document-upload-browser.mjs": {
-      "sha256": "d4ce76aedd48f3797ffc38f887a931ff5688546a5867c3d1f1cd99a68e086f23",
+      "sha256": "f1924d810de276c61baa72da7cf8b41d724a7230f60671cc3afac16063f50b60",
+      "executable": false
+    },
+    "tests/satchel/document-upload-fixtures.mjs": {
+      "sha256": "1f6dcb44a2b07284d3582e1fe6b10f3f4168089e22a5c889a3087c1f2f8d9f3e",
       "executable": false
     },
     "tests/satchel/document-upload-flow.mjs": {
-      "sha256": "a7cd912a03fab791343b7f4be51bdc78e6fb01201858ae0d7eb86887bd63516d",
+      "sha256": "e0ae8b86312e2b985ffee8f3ab9bbdff1ce8bc20a90b246cbc6be669b66745d0",
+      "executable": false
+    },
+    "tests/satchel/document-upload-scale.mjs": {
+      "sha256": "a9df3abec6431fe554d4f088136b0575429431610ebb013b654c3fc80c9475e3",
       "executable": false
     },
     "tests/satchel/expenses-journey.test.mjs": {
@@ -5245,6 +5261,10 @@
     },
     "tests/satchel/fee-plans.test.mjs": {
       "sha256": "2a3cbd589e029542ed3024833df08abdea4165c6c6a58f0b21ba5fef38e668e7",
+      "executable": false
+    },
+    "tests/satchel/fixtures/synthetic-video.mp4": {
+      "sha256": "7824502e2ef6dca340e286289c0ad2f61a14fb770eca514cf082aada4d7c829b",
       "executable": false
     },
     "tests/satchel/flows.test.mjs": {
