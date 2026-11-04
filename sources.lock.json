@@ -5680,7 +5680,7 @@
       "executable": false
     },
     "tests/site/agent-reference-browser.mjs": {
-      "sha256": "c4a5a5df85ebc3fbb3b6eb60d28075d48e14845e7c56bb419218d9c866aee5bf",
+      "sha256": "5c5378d014b4ee74e1a548eeef7336215a3702ffdc0dcf052dfa332ea039c5a4",
       "executable": false
     },
     "tests/site/navigation.test.mjs": {
@@ -5688,7 +5688,7 @@
       "executable": false
     },
     "tests/site/serve.mjs": {
-      "sha256": "3eeff284cf847a3207de0a0135a34aa0888a5317f335e95d222673bfab9fe61a",
+      "sha256": "0f5ee63dc89be1362b8c684bb351365c636fc08cba41d0bc5bc33d6b0e0fa042",
       "executable": false
     },
     "tsconfig.json": {

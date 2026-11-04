@@ -3,7 +3,7 @@ import {readFile} from 'node:fs/promises';
 import {resolve,extname} from 'node:path';
 
 export async function serveSite(){
- const root=resolve('dist/site');
+ const root=resolve('./dist/site');
  const server=createServer(async(req,res)=>{
   try{
    const path=decodeURIComponent(new URL(req.url,'http://localhost').pathname);
