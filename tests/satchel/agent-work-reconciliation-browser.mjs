@@ -9,15 +9,17 @@ export async function exerciseWorkReconciliation(page,h,width){
  const r=(await h.json('/agent/matters/'+m.id,undefined,'',200,auth)).billing.workReconciliation;
  const proposal=await h.json('/agent/prepare-bill',{matterId:m.id,title:'Reconciled source review',date:'2026-10-17',entryIds:[entry.id],reconciliationId:r.id},'',200,auth);
  await page.reload();await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Preparations',exact:true}).click();
- const card=page.locator('article.record').filter({hasText:'Reconciled source review'}),provenance=card.getByRole('region',{name:'Work reconciliation'});
+ const card=page.locator('article.record').filter({hasText:'Reconciled source review'});
  await card.getByRole('heading',{name:'Confirmed work reconciliation'}).waitFor();
  await card.getByText('Recommendation provenance',{exact:true}).click();
+ await card.getByText('Source history',{exact:true}).click();
  if(width===1440){
   assert.ok((await card.innerText()).includes('Confirmed source for reconciliation review'));
   assert.ok((await card.innerText()).includes(entry.revision));
   assert.ok((await card.innerText()).includes('Omitted from live invoices'));
   assert.ok((await card.innerText()).includes('creates a draft for counsel review'));
   assert.ok((await card.innerText()).includes(r.id));
+  assert.ok((await card.innerText()).includes('$50.00'));
  }
  if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,card,process.env.SATCHEL_SCREENSHOTS,`agent-work-reconciliation-${width}`);
  await card.getByRole('button',{name:'Accept preparation',exact:true}).click();await page.getByRole('status').getByText('Preparation accepted and decision recorded',{exact:true}).waitFor();
