@@ -172,7 +172,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "9a4ffcae09732bb1ad6d2392877f57e221ef37eba50075a57ff429afa97bbfa8",
+      "sha256": "ec2930cbb6aedec1a59e5d87195b11eafc98057294e9edfd3b2eb271d2cf7c99",
       "executable": false
     },
     "DEMO.md": {
@@ -5060,11 +5060,11 @@
       "executable": false
     },
     "tests/agent-door/native-journey.mjs": {
-      "sha256": "8cdfbdfa5146f3d2f140eac96cc13f5a24b09a03a46222d3744546e0eccd35c5",
+      "sha256": "4092ddfabb1217f06e97a8949ce2abaf28962f01245eeb075c91361755781f32",
       "executable": false
     },
     "tests/agent-door/sponsor-fixtures.mjs": {
-      "sha256": "dd98ebd85bd024fc88f3f631030ebf379a67e7d6ee6c04f1030456f4a33af52d",
+      "sha256": "15b2d61a4c4c7a5cd41301480974df87e32d125b22c20ebbc45873f42653d6d9",
       "executable": false
     },
     "tests/email-link.mjs": {
