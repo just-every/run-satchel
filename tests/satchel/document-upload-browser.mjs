@@ -46,7 +46,7 @@ export async function exerciseDocumentUploads(page,h,width){
    const edited=await page.evaluate(async({matterId,notice})=>{const response=await fetch('/api/satchel/matters/'+matterId+'/documents',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({documentId:notice.id,revision:notice.revision,name:'Notice.txt',mime:'text/plain',visibility:notice.visibility,contentBase64:btoa('synthetic-satchel-34')})});return {status:response.status,body:await response.json()};},{matterId:matter.id,notice});
    assert.equal(edited.status,200,JSON.stringify(edited.body));allowCompletion();
    await panel.getByRole('alert').getByText(/Review its current revision/).waitFor();
-   const review=panel.locator('form').filter({has:panel.getByRole('button',{name:'Review current version for Notice-large.pdf',exact:true})});
+   const review=panel.locator('form').filter({has:page.getByRole('button',{name:'Review current version for Notice-large.pdf',exact:true})});
    await review.getByText(/document now has version 2/).waitFor();
    if(process.env.SATCHEL_UPLOAD_PROOF){
     await mkdir(process.env.SATCHEL_UPLOAD_PROOF,{recursive:true});
@@ -56,11 +56,14 @@ export async function exerciseDocumentUploads(page,h,width){
    await review.getByLabel('Reason for retaining this transferred version').fill('Reviewed the intervening saved original; keep this transfer next.');
    await review.getByRole('checkbox').check();await review.getByRole('button').click();
    await panel.getByText('Current document revision reviewed. Resume to retain this original in quarantine.').waitFor();
+   await page.reload();await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Documents',exact:true}).click();
+   await panel.getByRole('button',{name:'Resume Notice-large.pdf',exact:true}).waitFor();
    let retransfers=0;const count=request=>{if(request.url().includes('/parts/'))retransfers++;};page.on('request',count);
    try{await panel.getByRole('button',{name:'Resume Notice-large.pdf',exact:true}).click();await legacy.getByText('Version 3 · '+bytes.length+' bytes · Quarantined',{exact:false}).waitFor();assert.equal(retransfers,0,'Reviewed completion reuses verified parts');}finally{page.off('request',count);}
   }finally{allowCompletion();await page.unrouteAll({behavior:'wait'});}
   assert.equal(await legacy.getByRole('link',{name:/Download version 3/}).count(),0);
   await legacy.getByRole('link',{name:/Download version 1/}).waitFor();
+  await legacy.getByRole('button',{name:'Append resumable version',exact:true}).click();
   await panel.getByRole('button',{name:'Cancel version selection',exact:true}).click();
   const folder=await mkdtemp(join(tmpdir(),'satchel-upload-folder-'));
   try{

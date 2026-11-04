@@ -142,6 +142,15 @@ async function proveResumableVersions(h){
  // A revoked author cannot read a transfer manifest, add parts, finish or cancel it.
  const theirs=await h.json('/matters/'+matter.id+'/documents',{name:'Their.txt',mime:'text/plain',visibility:'private',contentBase64:small.toString('base64')},colleague);
  const their=(await start([manifest(next,'Their-next.txt',{mime:'text/plain',documentId:theirs.id,revision:theirs.revision})],randomUUID(),colleague)).uploads[0];
+ const permissions={rates:'all',bank:'full',reports:'firm',contacts:'write',documents:'read',billing:'write',settings:'write'};
+ const role=await h.json('/roles',{name:'Transfer review ceiling',permissions,reason:'Allow document reads only'},h.owner);
+ await h.json('/team',{email:colleagueAddress,name:'Version colleague',role:'lawyer',customRoleId:role.id},h.owner);
+ const review={revision:theirs.revision,sha256:hash(next),reason:'Explicit author review under current document permissions',confirmed:true};
+ await h.json('/document-uploads/'+their.id+'/review',review,colleague,403);
+ await h.json('/roles',{id:role.id,revision:role.revision,name:role.name,permissions:{...permissions,documents:'write'},reason:'Allow document maintenance within existing author authority'},h.owner);
+ const reviewed=await h.json('/document-uploads/'+their.id+'/review',review,colleague);
+ assert.equal(reviewed.reviewedRevision,theirs.revision,'A currently authorized author with a custom document-write role can review');
+
  await h.json('/matters/'+matter.id+'/access',{email:colleagueAddress,remove:true},h.owner);
  await parts(their,next,colleague,404);await complete(their,404,colleague);await h.json('/document-uploads/'+their.id+'/cancel',{},colleague,404);await h.json('/document-uploads/'+their.id+'/review',{revision:theirs.revision,sha256:hash(next),reason:'Revoked author cannot review',confirmed:true},colleague,404);await h.json(door,undefined,colleague,404);await cancel(their);
  const pending=(await start([manifest(Buffer.from('synthetic-satchel-14'),'Erased.txt',{mime:'text/plain',documentId:doc.id,revision:doc.revision})],randomUUID())).uploads[0];await parts(pending,Buffer.from('synthetic-satchel-14'));

@@ -16,15 +16,17 @@ export function DocumentUploads({matterId,run,tick,target,clearTarget}:{matterId
  useEffect(()=>{setFiles([]);requestId.current=undefined;},[target]);
  const limits=state?.limits;
  const transfer=async(u:Row)=>{
-  const file=files.find(f=>pathOf(f)===u.path);if(!file)throw new Error('Choose the original file or folder again to resume '+u.path);
-  if(file.size!==u.size||await fileSha(file)!==u.sha256)throw new Error('The selected file differs from the reserved original: '+u.path);
-  for(let number=1;number<=Math.ceil(u.size/limits.partBytes);number++){
+  if(u.parts.length!==Math.ceil(u.size/limits.partBytes)){
+   const file=files.find(f=>pathOf(f)===u.path);if(!file)throw new Error('Choose the original file or folder again to resume '+u.path);
+   if(file.size!==u.size||await fileSha(file)!==u.sha256)throw new Error('The selected file differs from the reserved original: '+u.path);
+   for(let number=1;number<=Math.ceil(u.size/limits.partBytes);number++){
    if(stop.current){setProgress('Paused. Choose the same originals to resume after returning.');return;}
    if(u.parts.some((p:Row)=>p.number===number))continue;
    const bytes=await file.slice((number-1)*limits.partBytes,Math.min(number*limits.partBytes,file.size)).arrayBuffer();
    setProgress(u.path+' · sending part '+number+' of '+Math.ceil(u.size/limits.partBytes));
    const response=await fetch('/api/satchel/document-uploads/'+u.id+'/parts/'+number,{method:'POST',credentials:'same-origin',headers:{'content-type':'application/octet-stream','x-part-sha256':await sha(bytes)},body:bytes});
    const result=await response.json() as Row;if(!response.ok)throw new Error(result.error);await refresh();
+  }
   }
   if(stop.current){setProgress('Paused after the last part. Resume to verify the original.');return;}
   setProgress('Verifying '+u.path+' on the server…');await api('/document-uploads/'+u.id+'/complete',{});await refresh();setProgress(u.path+' retained in quarantine.');
@@ -55,7 +57,7 @@ export function DocumentUploads({matterId,run,tick,target,clearTarget}:{matterId
     <label><input type="checkbox" name="confirmed" required disabled={busy}/>I reviewed the current document and want these transferred bytes retained as its next quarantined version.</label>
     <button type="submit" disabled={busy}>Review current version for {u.name}</button>
    </form>}
-   {['active','completing'].includes(u.state)&&<><p>Resume until <time dateTime={u.expiresAt}>{u.expiresAt}</time>. Select the same original files above; verified parts will be reused.</p><button type="button" disabled={busy} onClick={()=>perform(()=>transfer(u))}>Resume {u.name}</button><button type="button" className="quiet" disabled={busy} onClick={()=>perform(async()=>{await api('/document-uploads/'+u.id+'/cancel',{});setProgress('Transfer cancelled; reserved space released.');})}>Cancel {u.name}</button></>}
+   {['active','completing'].includes(u.state)&&<><p>Resume until <time dateTime={u.expiresAt}>{u.expiresAt}</time>. {u.parts.length===Math.ceil(u.size/limits.partBytes)?'All parts are retained. Resume to verify and keep the original.':'Select the same original files above; verified parts will be reused.'}</p><button type="button" disabled={busy} onClick={()=>perform(()=>transfer(u))}>Resume {u.name}</button><button type="button" className="quiet" disabled={busy} onClick={()=>perform(async()=>{await api('/document-uploads/'+u.id+'/cancel',{});setProgress('Transfer cancelled; reserved space released.');})}>Cancel {u.name}</button></>}
   </article>)}
  </section>;
 }
