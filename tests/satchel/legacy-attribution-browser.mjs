@@ -85,7 +85,7 @@ export async function exerciseLegacyAttribution(browser,h,width){
   await navigation.getByRole('button',{name:'Team & safety',exact:true}).click();
   const audit=page.locator('section').filter({has:page.getByRole('heading',{name:'Action audit',exact:true})});
   const filter=audit.locator('form');
-  await filter.getByLabel('Audit matter',{exact:true}).selectOption(matter.id);
+  await filter.locator('select[name="matterId"]').selectOption(matter.id);
   for(const action of ['proposal.prepared','proposal.declined']){
    await filter.getByLabel('Exact action (optional)').fill(action);
    await filter.getByRole('button',{name:'Filter action audit',exact:true}).click();

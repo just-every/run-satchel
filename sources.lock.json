@@ -172,7 +172,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "be423613a9116cdcf0fee5d1bf04174cc8ec3b15e2f17a16bf0023d31ac84303",
+      "sha256": "b914911b3152c43c073f690a8d25eb7d56af18a273257f46f4c8de32f940b33f",
       "executable": false
     },
     "DEMO.md": {
@@ -5340,7 +5340,7 @@
       "executable": false
     },
     "tests/satchel/legacy-attribution-browser.mjs": {
-      "sha256": "6f54bd614eb4f3a147b0e479022786baa60e02854c44cc3f4930cb53a585455b",
+      "sha256": "26cc63cd0d642894c8ad72c857acf7fd3bcc60ed13587fc2ca62e93b29647626",
       "executable": false
     },
     "tests/satchel/lifecycle-journey.test.mjs": {
