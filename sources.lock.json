@@ -156,7 +156,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "76de437b24508574c6238a78c6452e4973a553ff898c9c8ca150dec088c84e38",
+      "sha256": "9bc922f301488e90ba841d610beb00232ad8c19204df45d2c99ffc792008cf06",
       "executable": false
     },
     "base-copies.json": {
@@ -3804,7 +3804,7 @@
       "executable": false
     },
     "src/satchel/economics-history.ts": {
-      "sha256": "19f202c8a6f08e28eb1ebb2094620772544783fc58480aca1152854086f9850e",
+      "sha256": "e557afd677847f1843b909786a70bf0214ca5f733a4292c90b61675922a8eaa2",
       "executable": false
     },
     "src/satchel/economics-retention.ts": {
@@ -3812,7 +3812,7 @@
       "executable": false
     },
     "src/satchel/economics.ts": {
-      "sha256": "e78a1d8c750d637cb7e276029441b54b1e86bcfc61197a235ddf1c1808bf36e6",
+      "sha256": "86e066db43adebc9c9e0db8c949adc8ede8348971a07f5ada421f7f18d8dbd0d",
       "executable": false
     },
     "src/satchel/ethical-walls.ts": {
@@ -4748,7 +4748,7 @@
       "executable": false
     },
     "src/ui/economics.tsx": {
-      "sha256": "78fbe2ffd8480960714f550dc8306307270091067c9a435869e9099143d96bfd",
+      "sha256": "0adb84eee94c3e18706d31d6ffcd66ea581270512dd8a673ce836c66072c1858",
       "executable": false
     },
     "src/ui/ethical-walls.tsx": {
@@ -5492,11 +5492,11 @@
       "executable": false
     },
     "tests/satchel/reports-journey.test.mjs": {
-      "sha256": "6ae47b0e3b7fbac10ea2d8269ace960d3f12e6f89481c6c5efce72520d6ec680",
+      "sha256": "aff876184e7e45fab7a171d05abe973f3d893a352daa90b91e93315d116f4aa8",
       "executable": false
     },
     "tests/satchel/reports.test.mjs": {
-      "sha256": "7a7e6b6dc65313f9b21b95837fd100fe65b8b87debc5bd5dd66077dd19cf4882",
+      "sha256": "01cbc586f138220e3445e74ecd358fda520e732bc45be36e9be52065e75fd8b2",
       "executable": false
     },
     "tests/satchel/roles-journey.test.mjs": {

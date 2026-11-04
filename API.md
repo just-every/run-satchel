@@ -341,6 +341,9 @@ Wider custom reporting grants confer no principal authority. Omit `asOf` for
 current state. A complete ISO UTC `asOf` timestamp reconstructs the retained native
 financial state at that cutoff using current permitted matter filters and the
 current firm timezone. `calculatedAt` records the new calculation time separately.
+`historicalAvailability` identifies the earliest retained financial record in the
+current cohort and whether migrated observations prevent native reconstruction.
+The workspace shows that boundary before the principal requests a cutoff.
 Later entries, approvals, issues, receipts, reversals, voids and rebills are
 excluded; released-entry edits are reconstructed from their exact revision chain.
 Current erasure fences still apply, so a historical read cannot revive disposed
