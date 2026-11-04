@@ -5,9 +5,16 @@ import {accessGuard,guard} from './trust-guards';
 import {matterScope} from './matter-scope';
 
 const permitted=`NOT EXISTS(SELECT 1 FROM json_each(x.matter_ids) covered WHERE NOT ${matterScope('covered.value')})`;
+const currentSourcesPermitted=`NOT EXISTS(SELECT 1 FROM json_each(x.artifact,'$.matters') captured_matter,json_each(captured_matter.value,'$.source.entries') captured_source JOIN s_entries current_work ON current_work.id=json_extract(captured_source.value,'$.sourceId') WHERE NOT ${matterScope('current_work.matter_id')})`;
+export async function economicsCustody(db:D1Database,record:Data){
+ const artifact=JSON.parse(record.artifact),sourceIds=[...new Set(artifact.matters.flatMap((m:Data)=>m.source.entries.map((e:Data)=>e.sourceId)))] as string[];
+ const current=await rows(db,'SELECT DISTINCT matter_id FROM s_entries WHERE id IN(SELECT value FROM json_each(?))',JSON.stringify(sourceIds));
+ return {sourceIds,matterIds:[...new Set([...(JSON.parse(record.matter_ids) as string[]),...current.map(e=>e.matter_id)])] as string[]};
+}
+export function economicsSourceGuard(db:D1Database,actor:Actor,sourceIds:string[]){return guard(db,`NOT EXISTS(SELECT 1 FROM s_entries current_work WHERE current_work.id IN(SELECT value FROM json_each(?)) AND NOT ${matterScope('current_work.matter_id')})`,JSON.stringify(sourceIds),actor.role,actor.email);}
 export async function retainedEconomics(db:D1Database,actor:Actor){
  economicsPrincipal(actor);
- return {exports:await rows(db,`SELECT x.id,x.artifact_sha256,x.generated_by,x.generated_at,x.filters FROM s_economics_exports x WHERE x.artifact IS NOT NULL AND ${permitted} ORDER BY x.generated_at DESC,x.id`,actor.role,actor.email)};
+ return {exports:await rows(db,`SELECT x.id,x.artifact_sha256,x.generated_by,x.generated_at,x.filters FROM s_economics_exports x WHERE x.artifact IS NOT NULL AND ${permitted} AND ${currentSourcesPermitted} ORDER BY x.generated_at DESC,x.id`,actor.role,actor.email,actor.role,actor.email)};
 }
 export async function generateEconomics(db:D1Database,actor:Actor,b:Data){
  economicsPrincipal(actor);insist(b.confirmed===true,'Explicitly request this confidential internal report');
@@ -18,9 +25,9 @@ export async function generateEconomics(db:D1Database,actor:Actor,b:Data){
 export async function downloadEconomics(db:D1Database,actor:Actor,exportId:string){
  economicsPrincipal(actor);
  const record=await stmt(db,'SELECT * FROM s_economics_exports WHERE id=? AND artifact IS NOT NULL',exportId).first<Data>();insist(record,'Retained report not found',404);
- const matterIds=JSON.parse(record.matter_ids) as string[];
+ const {matterIds,sourceIds}=await economicsCustody(db,record);
  for(const matterId of matterIds)await matter(db,actor,matterId);
  insist(await digest(record.artifact)===record.artifact_sha256,'Retained report failed its integrity check',503);
- await atomic(db,actor,[...matterIds.map(m=>accessGuard(db,actor,m)),guard(db,'EXISTS(SELECT 1 FROM s_economics_exports WHERE id=? AND artifact IS NOT NULL AND artifact_sha256=?)',exportId,record.artifact_sha256),audit(db,actor,'report.economics_downloaded',exportId,JSON.stringify({artifactSha256:record.artifact_sha256,matterIds,generatedAt:record.generated_at,requestedAt:now(),delivery:'Explicit authenticated download response; receipt by the reader is not asserted'}))]);
+ await atomic(db,actor,[...matterIds.map(m=>accessGuard(db,actor,m)),economicsSourceGuard(db,actor,sourceIds),guard(db,'EXISTS(SELECT 1 FROM s_economics_exports WHERE id=? AND artifact IS NOT NULL AND artifact_sha256=?)',exportId,record.artifact_sha256),audit(db,actor,'report.economics_downloaded',exportId,JSON.stringify({artifactSha256:record.artifact_sha256,matterIds,generatedAt:record.generated_at,requestedAt:now(),delivery:'Explicit authenticated download response; receipt by the reader is not asserted'}))]);
  return economicsFile(record.artifact,record.artifact_sha256);
 }

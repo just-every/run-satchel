@@ -19,6 +19,8 @@ export async function historicalEconomicsDatabase(db:D1Database,at:string,matter
  const availability=await economicsHistoryAvailability(db,matterIds);
  insist(availability.firstRecordedAt&&at>=availability.firstRecordedAt,'No retained financial timeline covers this historical cutoff',422);
  insist(availability.nativeReconstructionAvailable,availability.reason??'Historical reconstruction is not available',422);
+ const moved=await stmt(db,`SELECT 1 FROM s_entry_edits edit JOIN s_entries current_work ON current_work.id=edit.entry_id WHERE edit.at>? AND current_work.matter_id NOT IN(SELECT value FROM json_each(?)) AND json_extract(edit.before_json,'$.matter_id') IN(SELECT value FROM json_each(?)) LIMIT 1`,at,ids,ids).first();
+ insist(!moved,'Historical economics cannot reconstruct work moved beyond the current permitted cohort',422);
  const unordered=await stmt(db,'SELECT 1 FROM s_entry_edits e JOIN s_entry_edits p ON p.entry_id=e.entry_id AND p.revision=e.previous_revision JOIN s_entries work ON work.id=e.entry_id WHERE work.matter_id IN(SELECT value FROM json_each(?)) AND e.at<p.at LIMIT 1',ids).first();
  insist(!unordered,'The retained entry timeline cannot distinguish this historical boundary',422);
  const ambiguous=await stmt(db,`SELECT 1 FROM s_stripe_checkouts sc JOIN s_bills b ON b.id=sc.bill_id JOIN s_stripe_events e ON e.checkout_id=sc.id WHERE b.matter_id IN(SELECT value FROM json_each(?)) AND sc.updated_at>? AND e.at=(SELECT MAX(last.at) FROM s_stripe_events last WHERE last.checkout_id=sc.id AND last.at<=?) GROUP BY sc.id HAVING COUNT(DISTINCT e.status)>1 LIMIT 1`,ids,at,at).first();
