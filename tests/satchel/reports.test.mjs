@@ -259,7 +259,7 @@ async function proveEconomicsAging(){
   const ordinary=await h.json('/matters/'+f.m.id+'/documents',{name:'Synthetic ordinary text.txt',mime:'text/plain',contentBase64:Buffer.from('Synthetic ordinary client evidence').toString('base64'),visibility:'matter'},h.owner);assert.ok(ordinary.id);
   await h.json('/matters/'+f.m.id+'/threads',{subject:'Synthetic ordinary portal message',body:'The retained client task is ready for review.'},h.owner);
   const beforeDocuments=await h.json('/matters/'+f.m.id+'/documents',undefined,h.owner),beforeThreads=await h.json('/matters/'+f.m.id+'/threads',undefined,h.owner),beforeMails=h.mails.length;
-  for(const text of [...copies,JSON.stringify(costRecord)]){
+  for(const text of [...copies,JSON.stringify(costRecord),'Synthetic confidential report review:\n'+original,'Synthetic cost review:\n'+JSON.stringify(costRecord)]){
    await h.json('/matters/'+f.m.id+'/documents',{name:'Synthetic attempted capture.txt',mime:'text/plain',contentBase64:Buffer.from(text).toString('base64'),visibility:'matter'},h.owner,422);
    await h.json('/matters/'+f.m.id+'/threads',{subject:'Synthetic attempted capture',body:'Review this attached record',attachments:[{name:'Synthetic attempted capture.txt',contentBase64:Buffer.from(text).toString('base64')}]},h.owner,422);
   }

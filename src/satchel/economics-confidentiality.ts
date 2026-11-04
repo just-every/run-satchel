@@ -6,7 +6,9 @@ const refusal='Confidential economics must stay in authenticated internal report
 export async function refuseEconomicsCapture(db:D1Database,bytes:Uint8Array,knownHash?:string,references=new Set<string>()){
  const hash=knownHash??await digest(bytes);
  insist(!await stmt(db,'SELECT 1 FROM s_economics_artifact_fences WHERE artifact_sha256=?',hash).first(),refusal,422);
- let value:unknown;try{value=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));}catch{return;}
+ let decoded:string;try{decoded=new TextDecoder('utf-8',{fatal:true}).decode(bytes);}catch{return;}
+ await refuseEconomicsValue(db,decoded,references);
+ let value:unknown;try{value=JSON.parse(decoded);}catch{return;}
  insist(!value||typeof value!=='object'||Array.isArray(value)||(value as Data).kind!=='satchel.economics',refusal,422);
  const encoded=JSON.stringify(value),payloadHash=await digest(encoded);
  insist(!await stmt(db,'SELECT 1 FROM s_economics_artifact_fences WHERE payload_sha256=?',payloadHash).first(),refusal,422);
@@ -25,6 +27,8 @@ export async function refuseEconomicsValue(db:D1Database,value:unknown,reference
  while(pending.length){
   const item=pending.pop();
   if(typeof item==='string'){
+   insist(!/"kind"\s*:\s*"satchel\.economics"/.test(item)&&!(/"formulas"\s*:\s*\{/.test(item)&&/"totals"\s*:/.test(item)&&/"costCoverage"\s*:/.test(item)&&/"metricBasis"\s*:/.test(item)),refusal,422);
+   if(/"(?:hourly_cents|hourlyCents)"\s*:/.test(item))for(const match of item.matchAll(/"(?:id|revision|approvalId)"\s*:\s*"([^"]{1,100})"/g))references.add(match[1]);
    if(/^[\s]*[\[{]/.test(item)){try{pending.push(JSON.parse(item));}catch{}}
    continue;
   }

@@ -772,6 +772,12 @@
       "name": "0132_economics_firm_retention.sql",
       "sha256": "95d1527a2b92fe6fab9d310ce76c981d351036f711dfd71a594837b9b7996b12",
       "sql": "-- Firm decisions cover cost settings and reports with no matter custody yet.\nCREATE TABLE s_economics_retention (\n id TEXT PRIMARY KEY, dispose_after TEXT NOT NULL, basis TEXT NOT NULL,\n previous_id TEXT UNIQUE REFERENCES s_economics_retention(id),\n created_by TEXT NOT NULL, created_at TEXT NOT NULL\n);\nCREATE TRIGGER s_economics_retention_no_update BEFORE UPDATE ON s_economics_retention BEGIN SELECT RAISE(ABORT,'Economics retention decisions are immutable'); END;\nCREATE TRIGGER s_economics_retention_no_delete BEFORE DELETE ON s_economics_retention BEGIN SELECT RAISE(ABORT,'Economics retention decisions are retained'); END;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0133_economics_bulk_cost_disposal.sql",
+      "sha256": "6181310ed5f27ff9deb454c4c88dc6359ac32baedd5f2fcccd5bbaca890945cb",
+      "sql": "-- Cost snapshots in reviewed work share the approved cost's disposal fence.\nCREATE TABLE s_economics_bulk_redactions (\n row_id TEXT NOT NULL REFERENCES s_bulk_work_rows(id),\n revision_id TEXT NOT NULL REFERENCES s_staff_cost_disposals(revision_id),\n payload_sha256 TEXT NOT NULL,\n PRIMARY KEY(row_id,revision_id)\n);\nCREATE TRIGGER s_economics_bulk_redactions_no_update BEFORE UPDATE ON s_economics_bulk_redactions BEGIN SELECT RAISE(ABORT,'Cost derivative disposal is immutable'); END;\nCREATE TRIGGER s_economics_bulk_redactions_no_delete BEFORE DELETE ON s_economics_bulk_redactions BEGIN SELECT RAISE(ABORT,'Cost derivative disposal is retained'); END;\nDROP TRIGGER s_bulk_work_original;\nCREATE TRIGGER s_bulk_work_original BEFORE UPDATE ON s_bulk_work_rows\n WHEN NEW.original_json<>OLD.original_json OR NEW.id<>OLD.id OR NEW.batch_id<>OLD.batch_id OR NEW.ordinal<>OLD.ordinal\n OR (OLD.entry_id IS NOT NULL AND NOT (\n  NEW.entry_id IS OLD.entry_id AND NEW.matter_id IS OLD.matter_id AND NEW.input_json IS OLD.input_json\n  AND NEW.review_json=json_set(OLD.review_json,'$.value.costBasis',NULL)\n  AND EXISTS(SELECT 1 FROM s_economics_bulk_redactions r\n   WHERE r.row_id=OLD.id AND r.revision_id=json_extract(OLD.review_json,'$.value.costBasis.approvalId'))\n ))\n BEGIN SELECT RAISE(ABORT,'original and posted bulk work are immutable outside approved cost payload disposal'); END;\n"
     }
   ],
   "compatibilityDate": "2026-09-08",

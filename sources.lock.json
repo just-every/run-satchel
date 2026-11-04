@@ -172,7 +172,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "ec0cbe9fbfc7c8adc77fc18b15ff1e8d2115a463e5b1c4e7206f8920cb9009b9",
+      "sha256": "450a9b13bb29e057304e04c461a7324ba6f031594f26d0129cb35af143e79ed5",
       "executable": false
     },
     "DEMO.md": {
@@ -288,7 +288,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "75580db6b1ce6b3609e364ac1ae46833835f628bdd8ce55a98dd65b944efb3d8",
+      "sha256": "496f89a33cbaa33f6d2ffd897e0b681a3640febb75004f85bf01ae1b576da4a1",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -3580,7 +3580,7 @@
       "executable": false
     },
     "src/satchel/api.ts": {
-      "sha256": "a5f9f7a0e81ca844a37aef985663cdd816bae254824d30af6e823abaeb5dac8b",
+      "sha256": "ce658400b5cbce70bb82cba28992cb1aa66872e1deed332063b71334360887b4",
       "executable": false
     },
     "src/satchel/appointments.ts": {
@@ -3800,7 +3800,7 @@
       "executable": false
     },
     "src/satchel/economics-confidentiality.ts": {
-      "sha256": "29deb529d02472c61de7693eab234f406e0e507eb46d82f03483f07549890aa8",
+      "sha256": "81d3900bf4fcad6ba6ea18b9cb47874b3542bfb5ee429f0e1cf9323fd4512854",
       "executable": false
     },
     "src/satchel/economics-exports.ts": {
@@ -4752,7 +4752,7 @@
       "executable": false
     },
     "src/ui/economics.tsx": {
-      "sha256": "4f695316af826565e42789ff6c80fecbd446b59edc29c873015a49521fd2459a",
+      "sha256": "d1490c95cdcc4b15c813a55ef3202d52cf9983ca4e12523438ff551108f486bd",
       "executable": false
     },
     "src/ui/ethical-walls.tsx": {
@@ -5504,11 +5504,11 @@
       "executable": false
     },
     "tests/satchel/reports-journey.test.mjs": {
-      "sha256": "fc0a228bf2d274762e4f91578fb67c35bdb1aa524775a9f8c28d6a3b3b7be777",
+      "sha256": "b2386ca3dc60d331ebcd6dc7931ada6c87b79b3f82a7f1594989d67f857494dc",
       "executable": false
     },
     "tests/satchel/reports.test.mjs": {
-      "sha256": "85c49696eb55b76827ee2cea445f26b5ab12dc0dc8e42812fda73852248a9d2f",
+      "sha256": "48d3fac454f6ed74526a537dd8e375de204d6fd1440614d30eda0e2823be90b6",
       "executable": false
     },
     "tests/satchel/roles-journey.test.mjs": {
