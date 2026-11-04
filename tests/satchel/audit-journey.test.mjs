@@ -6,6 +6,7 @@ import {harness} from './harness.mjs';
 import {auditedTransfer} from './audit-fixture.mjs';
 import {authorizeAgent} from './agent-fixture.mjs';
 import {capturePanel} from './browser-shots.mjs';
+import {exerciseLegacyAttribution} from './legacy-attribution-browser.mjs';
 const form=(p,n)=>p.locator('form',{has:p.getByRole('button',{name:n,exact:true})});
 for(const [width,height] of [[1440,1000],[390,844]])test(`FIRM-005 filter, inspect source/decision and download the transfer action audit at ${width}px`,async()=>{
  const h=await harness(),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});try{
@@ -23,7 +24,8 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`FIRM-005 filter, inspe
   const attributionDownload=page.waitForEvent('download');await audit.getByRole('link',{name:'Download matching audit JSONL'}).click();const attributionStream=await(await attributionDownload).createReadStream(),attributionChunks=[];for await(const chunk of attributionStream)attributionChunks.push(chunk);const attributionRows=Buffer.concat(attributionChunks).toString().trim().split('\n').map(JSON.parse);assert.equal(attributionRows.length,1);assert.deepEqual(attributionRows[0].preparedBy,preparation.preparedBy);assert.equal(attributionRows[0].actor.channel,'agent');
   await filter.getByLabel('Exact action (optional)').fill('proposal.declined');await filter.getByRole('button',{name:'Filter action audit',exact:true}).click();await audit.locator('summary').filter({hasText:'proposal.declined'}).click();await audit.getByText('Original preparation: '+preparation.preparedBy.label,{exact:true}).waitFor();await audit.getByText(/owner · person/).waitFor();
   if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,audit,process.env.SATCHEL_SCREENSHOTS,`agent-decision-audit-${width}`);
-  const actor=await h.json('/me',undefined,h.owner),custodianEmail=['synthetic-satchel-33','example.test'].join('@');
+  await exerciseLegacyAttribution(browser,h,width);
+  const actor=(await h.json('/state',undefined,h.owner)).actor,custodianEmail=['synthetic-satchel-33','example.test'].join('@');
   await h.json('/team',{email:custodianEmail,name:'Separate matter custodian',role:'lawyer'},h.owner);await h.json('/team/invite',{email:custodianEmail},h.owner);await h.login(custodianEmail);
   await h.json('/matters/'+f.m.id+'/wall',{custodianEmail,members:[],reason:'Changed current wall excludes the original sponsor',revision:null},h.owner);
   // The current filter is rechecked on each request and on export.
