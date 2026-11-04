@@ -22,7 +22,7 @@ export async function saveStaffCost(db:D1Database,actor:Actor,b:Data){
 }
 export async function approveSavedStaffCost(db:D1Database,actor:Actor,costId:string,b:Data){
  economicsPrincipal(actor);insist(b.confirmed===true,'Approve this exact staff cost rate');
- const r=await stmt(db,'SELECT * FROM s_staff_cost_revisions WHERE id=?',costId).first<Data>();insist(r,'Cost revision not found',404);
+ const r=await stmt(db,'SELECT * FROM s_staff_cost_revisions WHERE id=? AND NOT EXISTS(SELECT 1 FROM s_staff_cost_disposals d WHERE d.revision_id=s_staff_cost_revisions.id)',costId).first<Data>();insist(r,'Cost revision not found',404);
  insist(b.revision===r.id,'Review the exact saved cost revision',409);
  const previous=await stmt(db,'SELECT * FROM s_staff_cost_approvals WHERE revision_id=?',r.id).first<Data>();if(previous)return result(r,previous);
  const guards=await approvalGuards(db,r),a={approved_by:actor.email,approved_at:now()};
@@ -34,5 +34,5 @@ export async function approveStaffCost(db:D1Database,actor:Actor,b:Data){
  await atomic(db,actor,[...guards,insert(db,r),audit(db,actor,'report.staff_cost_saved',r.id,'Saved exact cost revision',{revision:r.id}),stmt(db,'INSERT INTO s_staff_cost_approvals VALUES(?,?,?)',r.id,a.approved_by,a.approved_at),audit(db,actor,'report.staff_cost_approved',r.id,'Approved exact submitted cost revision',{revision:r.id,supersedesId:r.supersedes_id})]);return result(r,a);
 }
 export async function staffCosts(db:D1Database,actor:Actor){
- economicsPrincipal(actor);return {approved:await rows(db,'SELECT * FROM s_approved_staff_cost_rates ORDER BY email,effective_from,id'),revisions:await rows(db,'SELECT r.*,a.approved_by,a.approved_at FROM s_staff_cost_revisions r LEFT JOIN s_staff_cost_approvals a ON a.revision_id=r.id ORDER BY r.created_at,r.id')};
+ economicsPrincipal(actor);return {approved:await rows(db,'SELECT * FROM s_approved_staff_cost_rates ORDER BY email,effective_from,id'),revisions:await rows(db,'SELECT r.*,a.approved_by,a.approved_at FROM s_staff_cost_revisions r LEFT JOIN s_staff_cost_approvals a ON a.revision_id=r.id WHERE NOT EXISTS(SELECT 1 FROM s_staff_cost_disposals d WHERE d.revision_id=r.id) ORDER BY r.created_at,r.id')};
 }
