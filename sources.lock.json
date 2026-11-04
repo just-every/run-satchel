@@ -172,7 +172,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "3ea4fd3199a2fbaac9df675f66e2c2b7341995793c0bd505fd66ce8e20860a07",
+      "sha256": "d367383bd0e454616aa1a614f78ae9167ccb798d57c594929e68f7e8a06fffb5",
       "executable": false
     },
     "DEMO.md": {
@@ -288,7 +288,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "6adb04545e99d7c6dd62542a458b1ddd6ce81b8c6bbb1f85915ff2f47e0c274e",
+      "sha256": "d51ffe2fa94ce64f161d2e96da4d3e2b5f95e25718bd962be7d79b8e4916c598",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -793,6 +793,10 @@
     },
     "migrations/core/0131_collection_recipient_stops.sql": {
       "sha256": "ebd61a0fa4300883baf20da193530b997e8c05852db1f9673de488a0f7da36d9",
+      "executable": false
+    },
+    "migrations/core/0132_current_representative_evidence.sql": {
+      "sha256": "43f88ed8a59465a22d8b50ff57b066a2249a2cf16e31867d2e11a7e0966eedb9",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -3712,7 +3716,7 @@
       "executable": false
     },
     "src/satchel/contact-representatives.ts": {
-      "sha256": "16212906d68aea8e3d0c2787de0340c2b4c6baf323b8fadae4d971528603ea48",
+      "sha256": "61437388677c22257f75e397d6535bcb81467bf710040877ed97edfa675b079a",
       "executable": false
     },
     "src/satchel/contact-walls.ts": {
@@ -4692,7 +4696,7 @@
       "executable": false
     },
     "src/ui/contact-profile.tsx": {
-      "sha256": "1099ebbd49446f47221cb02cf82d07e526dbb1c986eebbd107a3a1b6ca785ebb",
+      "sha256": "32d34f0a5d32632d08c4e1ef7577e2fe1e3f1c34ee9b5a2386835c1aab387eae",
       "executable": false
     },
     "src/ui/contacts.tsx": {
@@ -5180,11 +5184,11 @@
       "executable": false
     },
     "tests/satchel/contact-representative-flow.mjs": {
-      "sha256": "7f03267d4f96f70f0fa898587e080c52844032c316ad3f13f3a82319c1dfc88e",
+      "sha256": "7939876c2bd8a301c49e51e889c0c1d567bea97065293743338fa05b50738d3c",
       "executable": false
     },
     "tests/satchel/contact-representative-journey.mjs": {
-      "sha256": "4212077ee7de070fac6f6d268eb8bee0d3c94aab23bfe54a0a4222165cec78f7",
+      "sha256": "42880599e3ff0371484f21d1f4716c7d5938c7dc30c9ce78ed50307b08afc82a",
       "executable": false
     },
     "tests/satchel/contacts-journey.test.mjs": {

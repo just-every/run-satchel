@@ -6,8 +6,8 @@ export async function representativeFixture(h,m,{represented,recipient,successor
  const save=async(name,email)=>h.json('/contacts',{revision:(await state()).revision,kind:'person',name,emails:[email]},h.owner);
  const contact=await save('Representative principal '+m.id,represented);
  await h.json('/contacts/'+contact.id+'/matter-role',{revision:(await state()).revision,matterId:m.id,role:'client'},h.owner);
- const record=async(email,previousId=null,cookie=h.owner,expected=200)=>h.json('/contacts/'+contact.id+'/representative',{revision:(await state()).revision,matterId:m.id,previousId,representedEmail:represented,recipient:email,authorityEvidence:'synthetic-satchel-1: practitioner inspected the signed matter-specific instructions',verificationEvidence:'synthetic-satchel-2: practitioner confirmed the exact recipient by an independent callback',withdrawn:false},cookie,expected);
- const review=(id,cookie=h.owner,expected=200)=>h.json('/contacts/'+contact.id+'/representative-review',{evidenceId:id,confirmed:true,reason:'Principal inspected the exact authority and recipient evidence'},cookie,expected);
+ const record=async(email,previousId=null,cookie=h.owner,expected=200,identityId=contact.id)=>h.json('/contacts/'+identityId+'/representative',{revision:(await state()).revision,matterId:m.id,previousId,representedEmail:represented,recipient:email,authorityEvidence:'synthetic-satchel-1: practitioner inspected the signed matter-specific instructions',verificationEvidence:'synthetic-satchel-2: practitioner confirmed the exact recipient by an independent callback',withdrawn:false},cookie,expected);
+ const review=(id,cookie=h.owner,expected=200,identityId=contact.id)=>h.json('/contacts/'+identityId+'/representative-review',{evidenceId:id,confirmed:true,reason:'Principal inspected the exact authority and recipient evidence'},cookie,expected);
  const grant=(email,evidenceId,expected=200)=>h.json(base+'/portal',{email,kind:'delegate',delegateOf:represented,reason:'Fresh exact representative grant',...(evidenceId?{representativeEvidenceId:evidenceId}:{})},h.owner,expected);
  return {base,contact,state,save,record,review,grant,represented,recipient,successor};
 }
@@ -55,6 +55,19 @@ export async function representativePortalFlow(){
  // Losing and surviving identities retain evidence but cannot inherit its reviewed authority.
  const duplicate=await f.save('Representative principal duplicate',representativeAddress('second')),merge=await h.json('/contacts/merge-preview',{survivorId:f.contact.id,duplicateId:duplicate.id,reason:'Practitioner confirms duplicate identity'},h.owner);await h.json('/contacts/merge',{previewId:merge.id},h.owner);
  assert.equal((await h.request(file,undefined,next)).status,404);await f.review(e2.id,h.owner,409);await f.grant(successor,e2.id,409);
+ // After a merge, changing the retained source identity must still replace the current matter authority.
+ const renewed=await f.record(recipient,e2.id);await f.review(renewed.id);await f.grant(recipient,renewed.id);assert.equal((await h.request(file,undefined,old)).status,200);
+ const aliasRequest=(await h.json(base+'/requests',{title:'Merged identity authority review',instructions:'Confirm the new authority',criteria:'Complete signed instructions',clientVisible:true},h.owner)).requests.find(q=>q.title==='Merged identity authority review');await h.json('/portal/requests/'+aliasRequest.id+'/reminder-consent',{consent:true},old);await h.json('/requests/'+aliasRequest.id+'/reminders',{email:recipient,approved:true},h.owner);
+ await f.record(successor,null,h.owner,409,duplicate.id);assert.equal((await h.request(file,undefined,old)).status,200,'Refused stale evidence leaves current authority unchanged');
+ const aliasSuccessor=await f.record(successor,renewed.id,h.owner,200,duplicate.id);
+ const replacedState=await h.json('/contacts/'+f.contact.id+'/representatives',undefined,h.owner);assert.deepEqual(replacedState.evidence.filter(r=>r.current).map(r=>r.id),[aliasSuccessor.id],'Only the newest evidence across all merged identities is current');
+ assert.equal((await h.request(file,undefined,old)).status,404);await f.review(renewed.id,h.owner,409);await f.grant(successor,aliasSuccessor.id,409);
+ await f.review(aliasSuccessor.id,h.owner,200,duplicate.id);await f.grant(successor,aliasSuccessor.id);assert.equal(await(await h.request(file,undefined,next)).text(),original);
+ const mailCount=h.mails.length;await h.restart();await h.scheduled(runAt.getTime());assert.equal(h.mails.length,mailCount,'Changing source identity stops former representative request reminders');
+ const remaining=(await h.json(base+'/requests',undefined,h.owner)).requests.find(q=>q.id===aliasRequest.id).reminders.sequences;assert.ok(remaining.filter(r=>r.email===recipient).every(r=>r.status==='stopped'));
+ // Explicit withdrawal on another retained identity cannot leave an alias active.
+ const withdrawn=await h.json('/contacts/'+f.contact.id+'/representative',{revision:(await f.state()).revision,matterId:m.id,previousId:aliasSuccessor.id,representedEmail:represented,recipient:successor,authorityEvidence:'Practitioner records withdrawal of matter authority',verificationEvidence:'Client withdrawal confirmed by independent callback',withdrawn:true},h.owner);
+ assert.ok(withdrawn.evidence.every(r=>!r.current));assert.equal((await h.request(file,undefined,next)).status,404);await f.review(withdrawn.id,h.owner,409);await f.grant(successor,aliasSuccessor.id,409);
  assert.equal(await(await h.request('/api/satchel/documents/'+doc.id+'/file',undefined,h.owner)).text(),original);
  const shares=await h.json(base+'/client-shares',undefined,h.owner);assert.ok(shares.shares.find(s=>s.id===taskShare.id).acks.some(a=>a.kind==='completed'&&a.by===successor));
  }finally{await h.close();}
@@ -79,6 +92,8 @@ export async function representativeMailFlow(h,s){
  await f.review(second.id);await f.grant(successor,second.id);
  const successorLetter={...letter,recipient:successor},fresh=await h.json(s.base+'/correspondence',successorLetter,s.lawyer);await h.json('/mail-attempts/'+fresh.attemptId+'/send',{},s.lawyer);
  assert.deepEqual(h.mails.at(-1).to,[successor]);assert.equal(h.mails.at(-1).text,letter.body);
+ const appointmentJob=await h.json(s.base+'/client-reminders/schedule',{recipient:successor,appointmentId:s.event.id,dueAt:'2026-11-01T12:02:00.000Z'},s.lawyer),scheduledCount=h.mails.length;
+ await h.restart();await h.scheduled('2026-11-01T12:02:00.000Z');assert.equal(h.mails.length,scheduledCount+1);assert.deepEqual(h.mails.at(-1).to,[successor]);assert.equal((await s.state()).jobs.find(j=>j.id===appointmentJob.id).outcome,'accepted');
  const history=(await h.json(s.base+'/correspondence',undefined,s.lawyer)).messages;
  assert.equal(history.find(m=>m.id===delivered.id).body,letter.body);assert.equal(history.find(m=>m.id===delivered.id).recipient,recipient);assert.equal(history.find(m=>m.id===delivered.id).attempts[0].status,'accepted');assert.equal(history.find(m=>m.id===stale.id).attempts[0].status,'failed');
  // A fresh grant for the same recipient never revives a queued preparation tied to the revoked grant.

@@ -5,7 +5,7 @@ import {accessGuard,guard} from './trust-guards';
 import {atomic,audit,human,id,insist,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
 
 // A merge cannot turn recorded evidence about one identity into authority for another.
-export const currentRepresentative=(alias:string)=>`${alias}.withdrawn=0 AND ${alias}.sequence=(SELECT MAX(latest.sequence) FROM s_contact_representatives latest WHERE latest.party_id=${alias}.party_id AND latest.matter_id=${alias}.matter_id) AND NOT EXISTS(SELECT 1 FROM s_representative_invalidations invalid WHERE invalid.evidence_id=${alias}.id)`;
+export const currentRepresentative=(alias:string)=>`${alias}.id IN(SELECT id FROM s_current_contact_representatives)`;
 export async function representativeState(db:D1Database,actor:Actor,partyId:string){
  human(actor);need(actor,'owner','lawyer');const state=await contactState(db,actor),contact=state.contacts.find(c=>c.identityIds.includes(partyId));insist(contact,'Contact not found',404);
  const evidence=await rows(db,`SELECT r.*,(${currentRepresentative('r')}) current FROM s_contact_representatives r WHERE r.party_id IN(${contact.identityIds.map(()=>'?').join(',')}) ORDER BY r.sequence`,...contact.identityIds);
@@ -27,15 +27,15 @@ export async function recordRepresentative(db:D1Database,actor:Actor,partyId:str
  insist(contact&&(await contactState(db,actor)).contacts.some(c=>c.id===contact.id),'Contact not found',404);
  const matterId=text(b.matterId,'Representative matter',150);await matter(db,actor,matterId);
  insist(contact.matterRoles.some(r=>r.matter_id===matterId&&r.role==='client'),'Record a client matter role for the represented identity first',409);
- const previous=await stmt(db,'SELECT * FROM s_contact_representatives WHERE party_id=? AND matter_id=? ORDER BY sequence DESC LIMIT 1',partyId,matterId).first<Data>();
+ const identityScope=`party_id IN(${contact.identityIds.map(()=>'?').join(',')}) AND matter_id=?`,history=await rows(db,`SELECT * FROM s_contact_representatives WHERE ${identityScope} ORDER BY sequence DESC`,...contact.identityIds,matterId),previous=history[0];
  insist((b.previousId??null)===(previous?.id??null),'Representative evidence changed; review the latest revision',409);
  const recipient=address(b.recipient,'Verified representative recipient'),represented=address(b.representedEmail,'Represented client recipient');insist(recipient!==represented,'A representative acts for a different recipient');
  insist(contact.emails.some(e=>e.toLowerCase()===represented),'Choose an address on the represented contact',409);
  insist(typeof b.withdrawn==='boolean','Explicitly record active or withdrawn authority');
  const authority=text(b.authorityEvidence,'Practitioner-recorded authority evidence',4000),verification=text(b.verificationEvidence,'Recipient verification evidence',4000),evidenceId=id(),at=now();
- await atomic(db,actor,[accessGuard(db,actor,matterId),...contactRevisionGuard(db,b.revision),guard(db,'COALESCE((SELECT id FROM s_contact_representatives WHERE party_id=? AND matter_id=? ORDER BY sequence DESC LIMIT 1),\'\')=?',partyId,matterId,previous?.id??''),
+ await atomic(db,actor,[accessGuard(db,actor,matterId),...contactRevisionGuard(db,b.revision),guard(db,`COALESCE((SELECT id FROM s_contact_representatives WHERE ${identityScope} ORDER BY sequence DESC LIMIT 1),'')=?`,...contact.identityIds,matterId,previous?.id??''),
  stmt(db,'INSERT INTO s_contact_representatives(id,party_id,matter_id,previous_id,recipient,represented_email,authority_evidence,verification_evidence,withdrawn,graph_revision,identity_ids,recorded_by,recorded_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',evidenceId,partyId,matterId,previous?.id??null,recipient,represented,authority,verification,b.withdrawn?1:0,data.revision,JSON.stringify(contact.identityIds),actor.email,at),
- ...stopRepresentative(db,matterId,recipient,actor,at),...(previous&&previous.recipient!==recipient?stopRepresentative(db,matterId,previous.recipient,actor,at):[]),
+ ...[...new Set([recipient,...history.map(r=>r.recipient as string)])].flatMap(email=>stopRepresentative(db,matterId,email,actor,at)),
  audit(db,actor,'contact.representative_recorded',evidenceId,JSON.stringify({partyId,matterId,recipient,representedEmail:represented,previousId:previous?.id??null,withdrawn:b.withdrawn,authorityEvidence:authority,verificationEvidence:verification}),{matterId})]);
  return {id:evidenceId,...await representativeState(db,actor,partyId)};
 }
@@ -47,4 +47,4 @@ export async function reviewRepresentative(db:D1Database,actor:Actor,partyId:str
  return representativeState(db,actor,partyId);
 }
 // Evaluated inside every existing portal reader predicate, including direct file and write doors.
-export function representativePortalAccess(g:string){return `(${g}.email NOT IN(SELECT known.recipient FROM s_contact_representatives known WHERE known.matter_id=${g}.matter_id) OR ${g}.id IN(SELECT binding.grant_id FROM s_representative_grants binding JOIN s_representative_local_reviews local ON local.review_id=binding.review_id JOIN s_portal_grants original ON original.id=binding.represented_grant_id WHERE original.revoked_at IS NULL))`;}
+export function representativePortalAccess(g:string){return `(${g}.email NOT IN(SELECT known.recipient FROM s_contact_representatives known WHERE known.matter_id=${g}.matter_id) OR ${g}.id IN(SELECT binding.grant_id FROM s_representative_grants binding JOIN s_representative_local_reviews local ON local.review_id=binding.review_id JOIN s_portal_grants original ON original.id=binding.represented_grant_id JOIN s_current_contact_representatives evidence ON evidence.id=binding.evidence_id WHERE original.revoked_at IS NULL))`;}
