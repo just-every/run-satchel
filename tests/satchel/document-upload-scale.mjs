@@ -1,12 +1,12 @@
 // Outside push Verify: bounded-memory transport probe of a multi-gigabyte folder.
 // This local R2 receipt grants neither hosted-provider proof nor scanner clearance.
 import assert from 'node:assert/strict';
-import {test} from 'node:test';
 import {createHash,randomUUID} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {harness,open} from './harness.mjs';
+// Run explicitly with: node tests/satchel/document-upload-scale.mjs
+async function proveScale(){
 const head=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
-test('DOC-001 local R2 multi-gigabyte folder survives interruption and retains quarantine',async()=>{
 const h=await harness(),started=Date.now();
 try{
  const m=await open(h,'Synthetic large original folder'),door='/matters/'+m.id+'/document-uploads';
@@ -37,4 +37,5 @@ try{
  await h.json(door,{requestId,files},h.owner);assert.equal((await h.json(door,undefined,h.owner)).usedAndReservedBytes,count*size);
  console.log('PROBE DOC-001 local-scale: '+JSON.stringify({head,files:count,fileBytes:size,totalBytes:count*size,restartAfterParts:4,serverIntegrity:true,replayOnce:true,quarantined:true,durationMs:Date.now()-started,storage:'real local R2 binding',hosted:false,scannerClearance:false}));
 }finally{await h.close();}
-});
+}
+proveScale().catch(error=>{console.error(error);process.exitCode=1;});
