@@ -27,5 +27,6 @@ export async function agentForKey(db:D1Database,keyId:string):Promise<Actor & {l
  insist(record, 'Invalid or revoked agent key', 401);
  const role = record.role === 'owner' ? 'owner' : record.member_role;
  insist(role, 'This agent no longer has firm access', 403);agentSponsor(role);
- return {id:record.id,email:record.email,name:record.display_name,role,channel:'agent',label:record.label,agentKeyId:record.key_id,...(record.role!=='owner'&&record.grants?{grants:parseGrants(record.grants)}:{})};
+ const attribution={agent:{id:'satchel-local:'+record.key_id,name:record.label},for:{id:record.id,name:record.display_name},label:`${record.label} for ${record.display_name}`};
+ return {id:record.id,email:record.email,name:record.display_name,role,channel:'agent',label:attribution.label,agentAttribution:attribution,agentKeyId:record.key_id,...(record.role!=='owner'&&record.grants?{grants:parseGrants(record.grants)}:{})};
 }

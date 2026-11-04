@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import {harness,open} from './harness.mjs';
 import {authorizeAgent} from './agent-fixture.mjs';
+import {provePreparationAttribution} from './preparation-attribution-flow.mjs';
 
 export async function proveAgentExecution(){
+ await provePreparationAttribution();
  const h=await harness();try{
   const m=await open(h,'Reviewed agent scope'),other=await open(h,'Outside delegated scope'),base='/matters/'+m.id,key=await h.json('/keys',{label:'Bounded matter assistant'},h.owner),bare={authorization:'Bearer '+key.key};
   const principal=(await h.json('/me',undefined,h.owner)).email;

@@ -9,4 +9,4 @@ export const contextOutput=object({
  members:{type:'array',items:{type:'object'}},proposals:{type:'array',items:{type:'object'}},redacted:{type:'boolean'},
 })
 export const matterOutput=object({billing:{type:'object'},documents:{type:'array',items:{type:'object'}},deadlines:{type:'array',items:{type:'object'}},sources:{type:'array',items:{type:'object'}},agreement:{type:['object','null']},authority:{type:'object'},redacted:{type:'boolean'},contentRule:string})
-export const proposalOutput=object({id:string,kind:{type:'string',enum:['matter','bill','deadline']},status:{type:'string',enum:['pending']},payload:{type:'object'}})
+export const proposalOutput=object({id:string,kind:{type:'string',enum:['matter','bill','deadline']},status:{type:'string',enum:['pending']},payload:{type:'object'},preparedBy:object({agent:object({id:{type:['string','null']},name:{type:['string','null']}}),for:object({id:{type:['string','null']},name:{type:['string','null']}}),label:{type:['string','null']},legacy:{type:'boolean'}})})

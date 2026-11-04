@@ -19,8 +19,14 @@ export async function exerciseAgentControls(page,h,width){
  let controls=await h.json('/agent-controls',undefined,h.owner);const d=controls.delegations.find(d=>d.key_id===keyId),auth={authorization:'Bearer '+key,'x-satchel-delegation':d.id},payload={matterId:m.id,title:'Preserved source preparation',date:'2027-02-01',timezone:'America/New_York',source:'Exact selected source version 1',documentId:source.id};
  const p=await h.json('/agent/prepare-deadline',payload,'',200,auth),queued=await h.json('/agent/jobs',{action:'prepare-deadline',requestKey:'synthetic-satchel-22',dueAt:new Date(Date.now()+600000).toISOString(),payload:{...payload,title:'Cancelled scheduled preparation'}},'',200,auth);
  await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Preparations',exact:true}).click();await page.getByText('Preserved source preparation',{exact:false}).first().waitFor();
- assert.equal(await page.locator('article.record').filter({hasText:'Preserved source preparation'}).getByRole('button',{name:'Accept preparation',exact:true}).count(),1);
+ const proposal=page.locator('article.record').filter({hasText:'Preserved source preparation'});
+ assert.equal(await proposal.getByRole('button',{name:'Accept preparation',exact:true}).count(),1);
+ assert.equal(p.preparedBy.label,`${p.preparedBy.agent.name} for ${p.preparedBy.for.name}`);await proposal.getByText('Prepared by: '+p.preparedBy.label,{exact:true}).waitFor();
  if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,page.getByRole('heading',{name:'Prepared by your agent'}),process.env.SATCHEL_SCREENSHOTS,`agent-proposal-${width}`);
+ await proposal.getByRole('button',{name:'Accept preparation',exact:true}).click();await page.getByRole('status').getByText('Preparation accepted and decision recorded',{exact:true}).waitFor();
+ await proposal.getByText('Prepared by: '+p.preparedBy.label,{exact:true}).waitFor();await proposal.getByText('Decision:',{exact:false}).waitFor();assert.equal(await proposal.getByRole('button',{name:'Accept preparation',exact:true}).count(),0);
+ assert.deepEqual((await h.json('/state',undefined,h.owner)).proposals.find(v=>v.id===p.id).preparedBy,p.preparedBy);
+ if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,proposal,process.env.SATCHEL_SCREENSHOTS,`agent-proposal-decided-${width}`);
  // Refresh from a real route after the queued work was recorded.
  await page.reload();await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Team & safety',exact:true}).click();
  const active=page.locator('.agent-delegation').filter({has:page.getByRole('button',{name:'Inspect redacted context'})});
@@ -31,6 +37,6 @@ export async function exerciseAgentControls(page,h,width){
  const revocation=active.locator('form',{has:page.getByRole('button',{name:'Revoke agent delegation',exact:true})});await revocation.getByLabel('Revocation reason').fill('Stop scheduled authority before it runs');await revocation.getByRole('button',{name:'Revoke agent delegation'}).click();await page.getByRole('status').getByText('Delegation revoked; queued authority cancelled',{exact:true}).waitFor();
  const stopped=page.locator('.agent-delegation').filter({hasText:'Revoked'});await stopped.getByText('delegation_revoked',{exact:false}).waitFor();assert.equal(await stopped.getByRole('button',{name:'Inspect redacted context'}).count(),0);assert.equal(await stopped.locator('pre').count(),0);
  if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,stopped,process.env.SATCHEL_SCREENSHOTS,`agent-refused-${width}`);
- controls=await h.json('/agent-controls',undefined,h.owner);assert.equal(controls.jobs.find(j=>j.id===queued.id).status,'refused');assert.ok((await h.json('/state',undefined,h.owner)).proposals.some(v=>v.id===p.id&&v.status==='pending'));
+ controls=await h.json('/agent-controls',undefined,h.owner);assert.equal(controls.jobs.find(j=>j.id===queued.id).status,'refused');assert.ok((await h.json('/state',undefined,h.owner)).proposals.some(v=>v.id===p.id&&v.status==='approved'));
  const styleFailures=await panel.evaluate(root=>[...root.querySelectorAll('input,select,button,p,strong,summary,label,pre')].filter(e=>e.getClientRects().length&&parseFloat(getComputedStyle(e).fontSize)<13).map(e=>e.tagName));assert.deepEqual(styleFailures,[],'Agent controls use readable text');
 }

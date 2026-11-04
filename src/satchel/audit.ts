@@ -1,4 +1,5 @@
 import {matterScope,wallAllows} from './matter-scope';
+import {preparationAttribution} from './preparation-attribution';
 import {atomic,audit,authority,date,human,insist,integer,matter,need,rows,stmt,text,type Actor,type Data} from './model';
 type Filters={matterId?:string;from?:string;to?:string;actor?:string;action?:string;offset?:string;limit?:string};
 async function query(db:D1Database,actor:Actor,f:Filters){
@@ -13,7 +14,13 @@ async function query(db:D1Database,actor:Actor,f:Filters){
  if(f.actor){clauses.push('actor=?');values.push(text(f.actor,'Actor',254));}if(f.action){clauses.push('action=?');values.push(text(f.action,'Action',150));}
  return {where:clauses.length?' WHERE '+clauses.join(' AND '):'',values};
 }
-function record(r:Data){let detail:unknown=r.detail;try{detail=JSON.parse(r.detail);}catch{}return {id:r.id,at:r.at,actor:{id:r.actor_id,email:r.actor,role:r.role,channel:r.channel},action:r.action,objectId:r.object_id,matterId:r.matter_id,revision:r.revision,evidence:r.evidence?JSON.parse(r.evidence):null,detail,legacy:r.evidence===null};}
+function record(r:Data){
+ let detail:unknown=r.detail;try{detail=JSON.parse(r.detail);}catch{}
+ const evidence=r.evidence?JSON.parse(r.evidence):null,proposal=evidence?.record?.recordType==='s_proposals'?evidence.record:null;
+ const retained=r.channel==='agent'?evidence?.context?.preparedBy:null;
+ const preparedBy=retained?preparationAttribution({},retained):proposal?preparationAttribution({...proposal,prepared_identity:null},proposal.prepared_identity):r.channel==='agent'?preparationAttribution({}):null;
+ return {id:r.id,at:r.at,actor:{id:r.actor_id,email:r.actor,role:r.role,channel:r.channel},preparedBy,action:r.action,objectId:r.object_id,matterId:r.matter_id,revision:r.revision,evidence,detail,legacy:r.evidence===null};
+}
 export async function actionAudit(db:D1Database,actor:Actor,f:Filters){const q=await query(db,actor,f),offset=f.offset===undefined?0:integer(Number(f.offset),'Audit offset',0,100000000),limit=f.limit===undefined?50:integer(Number(f.limit),'Audit page size',1,200);const count=await stmt(db,'SELECT COUNT(*) total FROM s_audit'+q.where,...q.values).first<Data>();return {records:(await rows(db,'SELECT * FROM s_audit'+q.where+' ORDER BY at,id LIMIT ? OFFSET ?',...q.values,limit,offset)).map(record),total:count!.total,offset,limit};}
 export async function exportActionAudit(db:D1Database,actor:Actor,f:Filters){
  const q=await query(db,actor,f),upper=(await stmt(db,'SELECT COALESCE(MAX(rowid),0) n FROM s_audit').first<Data>())!.n;

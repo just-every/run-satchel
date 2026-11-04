@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {harness} from './harness.mjs';
 import {foundation,earnedBill} from './trust-fixture.mjs';
 import {auditedTransfer} from './audit-fixture.mjs';
+import {authorizeAgent} from './agent-fixture.mjs';
 test('FIRM-005 filters and exports complete native transfer/approval snapshots, immutable roles and provider-policy outcomes; unauthorized readers are refused',async()=>{
  const h=await harness();try{
   const f=await auditedTransfer(h),day=new Date().toISOString().slice(0,10);
@@ -22,12 +23,17 @@ test('FIRM-005 filters and exports complete native transfer/approval snapshots, 
 });
 test('FIRM-005 imported legacy audit keeps every original field byte-exact and labels unrecorded metadata without inventing roles',async()=>{
  const h=await harness();try{
-  await auditedTransfer(h);const original=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),records=original.trim().split('\n').map(JSON.parse),manifest=records[0],legacy=new Map();
+  const f=await auditedTransfer(h),key=await h.json('/keys',{label:'Legacy preparation assistant'},h.owner),{auth}=await authorizeAgent(h,key,f.m.id);
+  const proposal=await h.json('/agent/prepare-deadline',{matterId:f.m.id,title:'Legacy preparation record',date:'2027-01-20',timezone:'America/New_York',source:'Original retained record'},'',200,auth),legacyLabel='Legacy preparation assistant';
+  const original=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),records=original.trim().split('\n').map(JSON.parse),manifest=records[0],legacy=new Map();
   const {makePart,ArchiveVerifier,ContentVerifier}=await import('../../node_modules/@runeditrun/rer/modules/portability/format.mjs');
-  const parts=[];for(const part of records.filter(r=>r.kind==='part')){const items=part.items.map(item=>{if(item.kind!=='row'||item.table!=='s_audit')return item;const row={...item.row};legacy.set(row.id,Object.fromEntries(['id','actor','action','object_id','detail','at'].map(k=>[k,row[k]])));for(const key of ['actor_id','role','channel','matter_id','revision','evidence'])row[key]=null;return {...item,row};});parts.push(await makePart(part.index,items));}
+  const parts=[];for(const part of records.filter(r=>r.kind==='part')){const items=part.items.map(item=>{if(item.kind==='row'&&item.table==='s_proposals'&&item.row.id===proposal.id)return {...item,row:{...item.row,agent_label:legacyLabel,prepared_agent_id:null,prepared_identity:null}};if(item.kind!=='row'||item.table!=='s_audit')return item;const row={...item.row};legacy.set(row.id,Object.fromEntries(['id','actor','action','object_id','detail','at'].map(k=>[k,row[k]])));for(const key of ['actor_id','role','channel','matter_id','revision','evidence'])row[key]=null;return {...item,row};});parts.push(await makePart(part.index,items));}
   const archiveHash=new ArchiveVerifier(manifest),contentHash=new ContentVerifier(manifest);for(const part of parts){archiveHash.add(part);for(const item of part.items)contentHash.add(item);}const closing={kind:'closing',partCount:parts.length,archiveHash:archiveHash.digest(),contentHash:contentHash.digest()},archive=[manifest,...parts,closing].map(r=>JSON.stringify(r)).join('\n')+'\n';
   const target=await harness();try{await target.json('/restore',{archive,confirm:'RESTORE'},target.owner);const exported=await(await target.request('/api/satchel/audit/export',undefined,target.owner)).text(),audit=exported.trim().split('\n').map(JSON.parse);for(const [id,old] of legacy){const r=audit.find(r=>r.id===id);assert.ok(r.legacy);assert.equal(r.actor.role,null);assert.equal(r.actor.channel,null);assert.equal(r.evidence,null);assert.equal(r.actor.email,old.actor);}
-   const restored=await(await target.request('/api/satchel/backup',undefined,target.owner)).text();for(const part of restored.trim().split('\n').map(JSON.parse).filter(r=>r.kind==='part'))for(const item of part.items)if(item.kind==='row'&&item.table==='s_audit'&&legacy.has(item.row.id))assert.deepEqual(Object.fromEntries(['id','actor','action','object_id','detail','at'].map(k=>[k,item.row[k]])),legacy.get(item.row.id));
+   const retained=(await target.json('/state',undefined,target.owner)).proposals.find(p=>p.id===proposal.id);assert.equal(retained.agent_label,legacyLabel);assert.deepEqual(retained.preparedBy,{agent:{id:null,name:null},for:{id:retained.sponsor_id,name:null},label:legacyLabel,legacy:true});
+   await target.json('/proposals/'+proposal.id+'/decide',{decision:'decline',reason:'Human reviews legacy preparation without reconstructing its identity'},target.owner);
+   const decision=(await target.json('/audit?action=proposal.declined',undefined,target.owner)).records.find(r=>r.objectId===proposal.id);assert.deepEqual(decision.preparedBy,retained.preparedBy);assert.equal(decision.actor.channel,'person');assert.equal(decision.preparedBy.for.name,null);
+   const restored=await(await target.request('/api/satchel/backup',undefined,target.owner)).text();for(const part of restored.trim().split('\n').map(JSON.parse).filter(r=>r.kind==='part'))for(const item of part.items){if(item.kind==='row'&&item.table==='s_audit'&&legacy.has(item.row.id))assert.deepEqual(Object.fromEntries(['id','actor','action','object_id','detail','at'].map(k=>[k,item.row[k]])),legacy.get(item.row.id));if(item.kind==='row'&&item.table==='s_proposals'&&item.row.id===proposal.id){assert.equal(item.row.agent_label,legacyLabel);assert.equal(item.row.prepared_identity,null);assert.equal(item.row.prepared_agent_id,null);}}
   }finally{await target.close();}
  }finally{await h.close();}
 });
