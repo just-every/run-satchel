@@ -172,7 +172,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "90234fa9e542a1ecfd352991b7de9e6c2eef95862ae446d5a6074a8305146b95",
+      "sha256": "eb2a0fb99d8ef02220427b44ac2485e13652ea0460149014feec1f9a863722ab",
       "executable": false
     },
     "DEMO.md": {
@@ -3560,7 +3560,7 @@
       "executable": false
     },
     "src/satchel/agent-context.ts": {
-      "sha256": "b4f67198f9f4667d824d3c6e7c0fd3a635648462eaaec0368d35eaebfe5ed6e8",
+      "sha256": "c6f34b48b3d605441ad9c5698fc70c849cd3337887ab2b4738c76d9ce2e00596",
       "executable": false
     },
     "src/satchel/agent-jobs.ts": {
@@ -3572,7 +3572,7 @@
       "executable": false
     },
     "src/satchel/agent-work-reconciliation.ts": {
-      "sha256": "d2bd6def559001f9fe3e84aa94272806d7bfe9807df48978b22e9e935177c975",
+      "sha256": "0de3af8ad93a1f452c79ea3fac7f794599c73c7e26b2280fb6cf503dca8f3a79",
       "executable": false
     },
     "src/satchel/api.ts": {
@@ -4912,7 +4912,7 @@
       "executable": false
     },
     "src/ui/proposals.tsx": {
-      "sha256": "92d27edba80ed531cc6b91556a341305d2f1639009ea49651bdf2f50135525d1",
+      "sha256": "06ac882775d2c6a3c44947ec3afd77637e1fad03ea8728821b59802f060f4914",
       "executable": false
     },
     "src/ui/providers.tsx": {
@@ -5096,11 +5096,11 @@
       "executable": false
     },
     "tests/satchel/agent-work-reconciliation-browser.mjs": {
-      "sha256": "e7717226551a0a349a2c2cc50a00092a7b6b79c08c8a045575089015048866d4",
+      "sha256": "b5fac1d75b87e1e9dc047e78464136b8aa779bf760fdbde7576a157966b87bc3",
       "executable": false
     },
     "tests/satchel/agent-work-reconciliation-flow.mjs": {
-      "sha256": "a3a930326c81d1813b0676cd675b73d08de279c530d624e033f3d5ced643b222",
+      "sha256": "c21921dd7f9c1f81905868429cfdc8aa29827802029fa6ea9f13b4d56c792a73",
       "executable": false
     },
     "tests/satchel/assembly-fixture.mjs": {

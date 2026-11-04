@@ -10,6 +10,25 @@ const scopeKeys=['id','key_id','agreement_id','sponsor_id','matter_id','actions'
 const scope=(d:Data)=>Object.fromEntries(scopeKeys.map(k=>[k,d[k]]));
 const eligible=(s:Data)=>s.state==='omitted'||s.state==='released';
 
+// Use only the invoice snapshots and native balances already in billing context.
+// Recorded receipts are not evidence of bank settlement or books synchronization.
+function reconcileInvoices(billing:Data){
+ const bills:Data[]=billing.bills;
+ const descendants=(parent:string):Data[]=>bills.filter(b=>b.correctsBillId===parent&&b.status!=='void').flatMap(b=>[b,...descendants(b.id)]);
+ return bills.map(b=>{
+  const corrections=descendants(b.id),pending=corrections.filter(c=>c.status==='draft'),f=b.trustPayment;
+  return {id:b.id,revision:b.revision,title:b.snapshot.title,status:b.status,correctsBillId:b.correctsBillId,number:b.issue?.number??null,totalCents:b.snapshot.totalCents,
+   sources:b.snapshot.lines.map((l:Data)=>({sourceId:l.sourceId,sourceRevision:l.sourceRevision,kind:l.kind,amountCents:l.amountCents,...(l.timekeeper?{timekeeperEmail:l.timekeeper}:{})})),
+   feeAgreement:b.snapshot.feePlan?{id:b.snapshot.feePlan.id,kind:b.snapshot.feePlan.kind}:null,
+   correctionIds:corrections.map(c=>c.id),
+   trustPayment:!b.correctsBillId&&['approved','exported'].includes(b.status)?{
+    reviewedCents:f.earned_cents+f.tax_cents,recordedPaidCents:f.paid_cents,writtenOffCents:f.written_off_cents,dueCents:f.due_cents,creditCents:f.credit_cents,reservedCents:f.reserved_cents,
+    state:pending.length?'review_correction':f.credit_cents>0?'review_credit':f.due_cents>0?'payment_gap':f.written_off_cents>0?'resolved_with_writeoff':f.paid_cents>0?'recorded_paid':'no_receivable',
+    pendingCorrectionIds:pending.map(c=>c.id),bankSettlement:'unverified',booksSync:'unknown',
+   }:null};
+ });
+}
+
 // Only posted native entries are confirmed work. Unposted timers and timesheets,
 // document activity and provider observations are never inferred to be billable.
 export async function reconcileAgentWork(db:D1Database,d:Data,billing:Data){
@@ -20,9 +39,10 @@ export async function reconcileAgentWork(db:D1Database,d:Data,billing:Data){
   return {sourceId:e.id,sourceRevision:e.revision,kind:e.kind,date:e.date,description:e.description,timekeeperEmail:e.timekeeperEmail,amountCents:e.amountCents,billable:e.billable,state,invoices,edits:(e.editHistory??[]).map((v:Data)=>({id:v.id,previousRevision:v.previousRevision,revision:v.revision}))};
  });
  const agreement=await stmt(db,'SELECT id,processor,model_revision FROM s_agent_agreements WHERE id=?',d.agreement_id).first<Data>();
- const inputs={policyRevision,scope:scope(d),agreement,sources};
+ const invoices=reconcileInvoices(billing);
+ const inputs={policyRevision,scope:scope(d),agreement,sources,invoices};
  const reconciliationId=await digest(JSON.stringify(inputs));
- return {id:reconciliationId,policyRevision,agreement,sources,inputs};
+ return {id:reconciliationId,policyRevision,agreement,sources,invoices,inputs};
 }
 export function reconciliationWrites(db:D1Database,r:Data){
  return [stmt(db,'INSERT OR IGNORE INTO s_agent_work_reconciliations(id,delegation_id,matter_id,inputs,created_at) VALUES(?,?,?,?,?)',r.id,r.inputs.scope.id,r.inputs.scope.matter_id,JSON.stringify(r.inputs),now())];
@@ -76,5 +96,5 @@ export async function proposalWorkHistory(db:D1Database,proposalId:string){
  const r=await stmt(db,'SELECT r.id,r.inputs,r.created_at,l.selected_sources FROM s_agent_work_proposals l JOIN s_agent_work_reconciliations r ON r.id=l.reconciliation_id WHERE l.proposal_id=?',proposalId).first<Data>();
  if(!r)return null;
  const inputs=JSON.parse(r.inputs);
- return {id:r.id,createdAt:r.created_at,policyRevision:inputs.policyRevision,agreement:inputs.agreement,sources:JSON.parse(r.selected_sources)};
+ return {id:r.id,createdAt:r.created_at,policyRevision:inputs.policyRevision,agreement:inputs.agreement,sources:JSON.parse(r.selected_sources),invoices:inputs.invoices??null};
 }

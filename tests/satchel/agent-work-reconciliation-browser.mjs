@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict';
 import {authorizeAgent} from './agent-fixture.mjs';
+import {exemptTaxReview} from './tax-fixture.mjs';
 import {capturePanel} from './browser-shots.mjs';
 
 export async function exerciseWorkReconciliation(page,h,width){
  const m=(await h.json('/state',undefined,h.owner)).matters.find(m=>m.client==='Harper Bakery LLC'),base='/matters/'+m.id;
  const entry=await h.json(base+'/entries',{kind:'time',date:'2026-10-15',description:'Confirmed source for reconciliation review',minutes:30,rateCents:10000},h.owner);
+ const invoiced=await h.json(base+'/entries',{kind:'time',date:'2026-10-15',description:'Previously reviewed source',minutes:60,rateCents:10000},h.owner);
+ let prior=await h.json(base+'/bills',{title:'Prior invoice with unpaid work',date:'2026-10-15',entryIds:[invoiced.id]},h.owner);
+ prior=await h.json('/bills/'+prior.id+'/approve',{revision:prior.revision,reviewNote:'Counsel reviewed the prior work',taxReviewId:await exemptTaxReview(h,'/bills/'+prior.id+'/approve')},h.owner);
  const key=await h.json('/keys',{label:'Native reconciliation review'},h.owner),{auth}=await authorizeAgent(h,key,m.id);
  const r=(await h.json('/agent/matters/'+m.id,undefined,'',200,auth)).billing.workReconciliation;
  const proposal=await h.json('/agent/prepare-bill',{matterId:m.id,title:'Reconciled source review',date:'2026-10-17',entryIds:[entry.id],reconciliationId:r.id},'',200,auth);
@@ -13,6 +17,7 @@ export async function exerciseWorkReconciliation(page,h,width){
  await card.getByRole('heading',{name:'Confirmed work reconciliation'}).waitFor();
  await card.getByText('Recommendation provenance',{exact:true}).click();
  await card.getByText('Source history',{exact:true}).click();
+ await card.getByText('Recorded invoice reconciliation',{exact:true}).click();
  if(width===1440){
   assert.ok((await card.innerText()).includes('Confirmed source for reconciliation review'));
   assert.ok((await card.innerText()).includes(entry.revision));
@@ -20,6 +25,11 @@ export async function exerciseWorkReconciliation(page,h,width){
   assert.ok((await card.innerText()).includes('creates a draft for counsel review'));
   assert.ok((await card.innerText()).includes(r.id));
   assert.ok((await card.innerText()).includes('$50.00'));
+  assert.ok((await card.innerText()).includes('Prior invoice with unpaid work'));
+  assert.ok((await card.innerText()).includes('Still due $100.00'));
+  assert.ok((await card.innerText()).includes('Payment gap remains'));
+  assert.ok((await card.innerText()).includes('bank settlement is unverified'));
+  assert.ok((await card.innerText()).includes(prior.revision));
  }
  if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,card,process.env.SATCHEL_SCREENSHOTS,`agent-work-reconciliation-${width}`);
  await card.getByRole('button',{name:'Accept preparation',exact:true}).click();await page.getByRole('status').getByText('Preparation accepted and decision recorded',{exact:true}).waitFor();
