@@ -5,19 +5,22 @@ export function economicsCutoff(value:unknown,calculatedAt:string){
  insist(typeof value==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString()===value,'Use a complete ISO UTC timestamp for historical economics',422);
  insist(value<=calculatedAt,'Historical economics cannot read a future state',422);return value;
 }
+export async function economicsHistoryAvailability(db:D1Database,matterIds:string[]){
+ const ids=JSON.stringify(matterIds),result=await stmt(db,`SELECT (SELECT MIN(first_at) FROM (SELECT MIN(created_at) first_at FROM s_entries WHERE matter_id IN(SELECT value FROM json_each(?)) UNION ALL SELECT MIN(created_at) first_at FROM s_bills WHERE matter_id IN(SELECT value FROM json_each(?)))) first_recorded_at,EXISTS(SELECT 1 FROM s_bills b WHERE b.matter_id IN(SELECT value FROM json_each(?)) AND (json_extract(b.snapshot,'$.imported')=1 OR EXISTS(SELECT 1 FROM s_move_invoice_balances i WHERE i.bill_id=b.id))) migrated`,ids,ids,ids).first<Data>();
+ const firstRecordedAt=result?.first_recorded_at??null,reason=result?.migrated?'Historical reconstruction of migrated financial observations is not available':firstRecordedAt?null:'This current cohort has no retained financial timeline';
+ return {firstRecordedAt,nativeReconstructionAvailable:reason===null,reason};
+}
 const quote=(s:string)=>'"'+s.replaceAll('"','""')+'"';
 const editable=new Set(['matter_id','description','rate_cents','amount_cents','utbms_task','utbms_activity','utbms_expense','billed_minutes','discount_bps','rate_rule_id','rate_source']);
 // A read-only projection of native recorded finance. Authority, matter cohorts,
 // ethical walls, erasure and disposal fences remain current, never historical.
 export async function historicalEconomicsDatabase(db:D1Database,at:string,matterIds:string[]){
  const ids=JSON.stringify(matterIds),cut="'"+at+"'";
- const first=await stmt(db,'SELECT MIN(first_at) first_at FROM (SELECT MIN(created_at) first_at FROM s_entries WHERE matter_id IN(SELECT value FROM json_each(?)) UNION ALL SELECT MIN(created_at) first_at FROM s_bills WHERE matter_id IN(SELECT value FROM json_each(?)))',ids,ids).first<Data>();
- insist(first?.first_at&&at>=first.first_at,'No retained financial timeline covers this historical cutoff',422);
+ const availability=await economicsHistoryAvailability(db,matterIds);
+ insist(availability.firstRecordedAt&&at>=availability.firstRecordedAt,'No retained financial timeline covers this historical cutoff',422);
+ insist(availability.nativeReconstructionAvailable,availability.reason??'Historical reconstruction is not available',422);
  const unordered=await stmt(db,'SELECT 1 FROM s_entry_edits e JOIN s_entry_edits p ON p.entry_id=e.entry_id AND p.revision=e.previous_revision JOIN s_entries work ON work.id=e.entry_id WHERE work.matter_id IN(SELECT value FROM json_each(?)) AND e.at<p.at LIMIT 1',ids).first();
  insist(!unordered,'The retained entry timeline cannot distinguish this historical boundary',422);
- // Imported observations lack a complete event timeline before native cutover.
- const migrated=await stmt(db,"SELECT 1 FROM s_bills b WHERE b.matter_id IN(SELECT value FROM json_each(?)) AND (json_extract(b.snapshot,'$.imported')=1 OR EXISTS(SELECT 1 FROM s_move_invoice_balances i WHERE i.bill_id=b.id)) LIMIT 1",ids).first();
- insist(!migrated,'Historical reconstruction of migrated financial observations is not available',422);
  const ambiguous=await stmt(db,`SELECT 1 FROM s_stripe_checkouts sc JOIN s_bills b ON b.id=sc.bill_id JOIN s_stripe_events e ON e.checkout_id=sc.id WHERE b.matter_id IN(SELECT value FROM json_each(?)) AND sc.updated_at>? AND e.at=(SELECT MAX(last.at) FROM s_stripe_events last WHERE last.checkout_id=sc.id AND last.at<=?) GROUP BY sc.id HAVING COUNT(DISTINCT e.status)>1 LIMIT 1`,ids,at,at).first();
  insist(!ambiguous,'The retained processor timeline cannot distinguish this historical boundary',422);
  const [entryColumns,billColumns,checkoutColumns]=await Promise.all(['s_entries','s_bills','s_stripe_checkouts'].map(table=>rows(db,`PRAGMA table_info(${quote(table)})`)));
