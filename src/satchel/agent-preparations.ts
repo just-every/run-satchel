@@ -15,8 +15,8 @@ export function preparationPayload(action:string,b:Data,d:Data){
 export async function prepareAgent(db:D1Database,actor:Actor,delegationId:string,action:string,b:Data){
  let scoped:Actor|undefined;
  try{
-  scoped={...actor,agentExecution:{delegation:await delegationScope(db,actor,delegationId)}};
   if(action==='prepare-bill')requireArea(actor,'billing','write');
+  scoped={...actor,agentExecution:{delegation:await delegationScope(db,actor,delegationId)}};
   const d=await authorizedDelegation(db,actor,delegationId,action);scoped={...actor,agentExecution:{delegation:d}};
   const {kind,payload}=preparationPayload(action,b,d);
   if(payload.documentId){const source=await stmt(db,'SELECT version FROM s_agent_sources WHERE delegation_id=? AND document_id=?',d.id,payload.documentId).first<Data>();insist(source,'Source outside this delegation',403);insist(payload.version===undefined||payload.version===source.version,'Source version outside this delegation',403);payload.version=source.version;}

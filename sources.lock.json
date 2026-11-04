@@ -3580,7 +3580,7 @@
       "executable": false
     },
     "src/satchel/agent-preparations.ts": {
-      "sha256": "cd93456c243c3f799ee34b13223d294d3b164caa64d7c4b555d4f9917621a042",
+      "sha256": "717f8d8a4df60f969873f6ee7de6568fbdd27fbb09e20aec4f59f1797601bd59",
       "executable": false
     },
     "src/satchel/agent-provenance.ts": {
