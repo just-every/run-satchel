@@ -99,6 +99,7 @@ export async function proveDocumentUploads(){
   const recovered=(await state()).uploads.find(f=>f.id===abandoned.uploads[0].id);assert.equal(recovered.state,'expired');await complete(recovered,h.owner,409);
   assert.equal((await state()).usedAndReservedBytes,files[1].size,'Expired and disposed originals release quota without duplicating charges');
   await proveResumableVersions(h);
+  await proveFolderFormats(h);
   console.log('PROBE DOC-001 native: 16 MiB interrupted and resumed in real local R2; altered parts and final hash refused; quota, revocation, replay, quarantine, archive, holds, disposal and expiry passed');
  }finally{await h.close();}
 }
@@ -147,4 +148,26 @@ async function proveResumableVersions(h){
  await complete(pending,404);await parts(pending,Buffer.from('synthetic-satchel-14'),h.owner,404);
  assert.ok(!(await h.json(door,undefined,h.owner)).uploads.some(s=>s.id===pending.id),'Erased originals cannot return through a saved transfer');
  console.log('PROBE DOC-001 versions: legacy predecessor retained byte-identically; 16 MiB R2 version resumed after restart; replay publishes once; concurrent stale completion, unauthorized author, revoked access and erased transfer refused');
+}
+
+async function proveFolderFormats(h){
+ const {uploadOriginals}=await import('./document-upload-fixtures.mjs'),originals=await uploadOriginals(),m=await open(h,'Mixed original folder'),door='/matters/'+m.id+'/document-uploads';
+ const files=originals.map(f=>manifest(f.bytes,f.name,{mime:f.mime,path:'Matter folder/'+f.name,visibility:'matter'})),requestId=randomUUID();
+ await h.json(door,{requestId,files:[{...files[0],path:'../Record.pdf'}]},h.owner,400);
+ await h.json(door,{requestId,files:[files[0],files[0]]},h.owner,400);
+ const batch=await h.json(door,{requestId,files},h.owner),total=originals.reduce((n,f)=>n+f.bytes.length,0);
+ assert.equal((await h.json(door,undefined,h.owner)).usedAndReservedBytes,total);
+ for(const file of originals){
+  const u=batch.uploads.find(u=>u.name===file.name),r=await h.raw('/api/satchel/document-uploads/'+u.id+'/parts/1',{method:'POST',headers:{'content-type':'application/octet-stream','x-part-sha256':hash(file.bytes)},body:file.bytes},h.owner);assert.equal(r.status,200,await r.text());
+  await h.json('/document-uploads/'+u.id+'/complete',{},h.owner);
+ }
+ const docs=await h.json('/matters/'+m.id+'/documents',undefined,h.owner);assert.equal(docs.length,originals.length);
+ for(const file of originals){
+  const doc=docs.find(d=>d.title===file.name),v=doc.versions[0];assert.deepEqual([v.size,v.sha256,v.declaredMime,v.path,v.scanStatus],[file.bytes.length,hash(file.bytes),file.mime,'Matter folder/'+file.name,'quarantined']);
+  assert.equal((await h.request('/api/satchel/documents/'+doc.id+'/file?version=1',undefined,h.owner)).status,423);
+ }
+ assert.equal((await h.json(door,{requestId,files},h.owner)).uploads.length,originals.length);assert.equal((await h.json(door,undefined,h.owner)).usedAndReservedBytes,total);
+ const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),manifestRow=JSON.parse(archive.split('\n')[0]);
+ for(const file of originals)assert.ok(manifestRow.objects.some(o=>o.sha256===hash(file.bytes)&&o.size===file.bytes.length),'The streamed archive includes each exact original format');
+ console.log('PROBE DOC-001 folder: actual PDF, DOCX, PNG, WAV and MP4 originals retained under relative folder paths; every original hash verified, quota reserved once, archive includes every original and quarantine refuses every download');
 }
