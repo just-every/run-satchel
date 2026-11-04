@@ -3,7 +3,7 @@ import {authorizedDelegation} from './agent-authority';
 import {propose} from './proposals';
 import {requireArea} from './role-areas';
 
-const fields:Record<string,string[]>={matter:['title','client','adverse','aliases'],bill:['matterId','title','date','entryIds'],deadline:['matterId','title','date','timezone','source','kind','documentId','version']};
+const fields:Record<string,string[]>={matter:['title','client','adverse','aliases'],bill:['matterId','title','date','entryIds','reconciliationId'],deadline:['matterId','title','date','timezone','source','kind','documentId','version']};
 export function preparationPayload(action:string,b:Data,d:Data){
  const kind=action.replace(/^prepare-/,''),allowed=fields[kind];insist(allowed,'Only native preparation actions are permitted',403);
  insist(b&&typeof b==='object'&&!Array.isArray(b)&&Object.keys(b).every(k=>allowed.includes(k)),'Preparation contains an unsupported action or authority field',403);

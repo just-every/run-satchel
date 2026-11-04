@@ -1,4 +1,5 @@
 import {exerciseDocumentUploads} from './document-upload-browser.mjs';
+import {exerciseWorkReconciliation} from './agent-work-reconciliation-browser.mjs';
 import {exerciseAgentControls} from './agent-execution-browser.mjs';
 // SAT-013: the installed product's own surfaces, driven in a browser at desktop and phone widths.
 import {test} from 'node:test';
@@ -48,6 +49,7 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`SAT-013 sign-in, setup
   await page.getByText('proposed',{exact:true}).waitFor();const confirm=form(page,'Confirm deadline');await confirm.getByLabel('Review note').fill('Checked against the served notice');await confirm.getByRole('button',{name:'Confirm deadline'}).click();await page.getByText('confirmed',{exact:true}).waitFor();
   await tab(page,'Preparations');await page.getByRole('heading',{name:'Prepared by your agent'}).waitFor();
   await exerciseAgentControls(page,h,width);
+  await exerciseWorkReconciliation(page,h,width);
   await tab(page,'Move in');await page.getByRole('heading',{name:'Clio contacts'}).waitFor();
   await tab(page,'Firm');await page.getByRole('heading',{name:'Barton & Lee LLP'}).waitFor();
   // The assistant signs in from the invitation and sees only what the role allows.
