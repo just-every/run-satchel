@@ -5,6 +5,7 @@ import {matterGuard} from './documents';
 import {agentForKey} from './session';
 import {gateGrants,requireArea} from './role-areas';
 import {propose} from './proposals';
+import {preparationProvenance} from './agent-metrics';
 
 export async function queueAgentJob(db:D1Database,actor:Actor,delegationId:string,b:Data){
  if(b.action==='prepare-bill')requireArea(actor,'billing','write');
@@ -14,8 +15,8 @@ export async function queueAgentJob(db:D1Database,actor:Actor,delegationId:strin
  if(existing){insist(existing.fingerprint===fingerprint,'Request identity already used for different work',409);return jobView(existing);}
  if(payload.documentId){const source=await stmt(db,'SELECT version FROM s_agent_sources WHERE delegation_id=? AND document_id=?',d.id,payload.documentId).first<Data>();insist(source,'Source outside this delegation',403);insist(payload.version===undefined||payload.version===source.version,'Source version outside this delegation',403);payload.version=source.version;}
  gateGrants(actor,'POST','/api/satchel/agent/'+b.action);
- const jobId=id();
- await atomic(db,actor,[...guard(db,liveAgentSql,...liveAgentArgs(d)),...matterGuard(db,actor,d.matter_id),...guard(db,'EXISTS(SELECT 1 FROM s_agent_delegations WHERE id=? AND used_jobs<max_jobs)',d.id),stmt(db,'UPDATE s_agent_delegations SET used_jobs=used_jobs+1 WHERE id=?',d.id),stmt(db,'INSERT INTO s_agent_jobs(id,delegation_id,key_id,matter_id,action,request_key,fingerprint,payload,due_at,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)',jobId,d.id,actor.agentKeyId,d.matter_id,b.action,requestKey,fingerprint,JSON.stringify(payload),due,now()),audit(db,actor,'agent.job_queued',jobId,'Finite preparation reserved; no external effect',{matterId:d.matter_id,delegationId:d.id,agreementId:d.agreement_id})]);
+ const jobId=id(),provenance=await preparationProvenance(db,{...actor,agentExecution:{delegation:d}},'job',jobId,b.action,payload);
+ await atomic(db,actor,[...guard(db,liveAgentSql,...liveAgentArgs(d)),...matterGuard(db,actor,d.matter_id),...guard(db,'EXISTS(SELECT 1 FROM s_agent_delegations WHERE id=? AND used_jobs<max_jobs)',d.id),stmt(db,'UPDATE s_agent_delegations SET used_jobs=used_jobs+1 WHERE id=?',d.id),stmt(db,'INSERT INTO s_agent_jobs(id,delegation_id,key_id,matter_id,action,request_key,fingerprint,payload,due_at,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)',jobId,d.id,actor.agentKeyId,d.matter_id,b.action,requestKey,fingerprint,JSON.stringify(payload),due,now()),...provenance,audit(db,actor,'agent.job_queued',jobId,'Finite preparation reserved; no external effect',{matterId:d.matter_id,delegationId:d.id,agreementId:d.agreement_id})]);
  return jobView((await stmt(db,'SELECT * FROM s_agent_jobs WHERE id=?',jobId).first<Data>())!);
 }
 export function jobView(j:Data){return {id:j.id,delegationId:j.delegation_id,action:j.action,dueAt:j.due_at,status:j.status,outcome:j.outcome,proposalId:j.proposal_id,finishedAt:j.finished_at};}

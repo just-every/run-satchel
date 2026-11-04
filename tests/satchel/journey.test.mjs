@@ -1,4 +1,5 @@
 import {exerciseDocumentUploads} from './document-upload-browser.mjs';
+import {exerciseAgentMetrics,inspectRefusedAgentMetrics} from './agent-metrics-browser.mjs';
 import {exerciseAgentControls} from './agent-execution-browser.mjs';
 // SAT-013: the installed product's own surfaces, driven in a browser at desktop and phone widths.
 import {test} from 'node:test';
@@ -48,6 +49,7 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`SAT-013 sign-in, setup
   await page.getByText('proposed',{exact:true}).waitFor();const confirm=form(page,'Confirm deadline');await confirm.getByLabel('Review note').fill('Checked against the served notice');await confirm.getByRole('button',{name:'Confirm deadline'}).click();await page.getByText('confirmed',{exact:true}).waitFor();
   await tab(page,'Preparations');await page.getByRole('heading',{name:'Prepared by your agent'}).waitFor();
   await exerciseAgentControls(page,h,width);
+  await exerciseAgentMetrics(page,h,width);
   await tab(page,'Move in');await page.getByRole('heading',{name:'Clio contacts'}).waitFor();
   await tab(page,'Firm');await page.getByRole('heading',{name:'Barton & Lee LLP'}).waitFor();
   // The assistant signs in from the invitation and sees only what the role allows.
@@ -60,6 +62,7 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`SAT-013 sign-in, setup
   await tab(assistant,'Documents');assert.equal(await assistant.getByRole('heading',{name:'Legal holds & retention'}).count(),0);
   await tab(assistant,'Firm');await assistant.getByRole('heading',{name:'Barton & Lee LLP'}).waitFor();assert.equal(await assistant.getByRole('button',{name:'Save firm settings'}).count(),0);
   await tab(assistant,'Team & safety');assert.equal(await assistant.getByRole('heading',{name:'Firm members'}).count(),0);assert.equal(await assistant.getByRole('heading',{name:'Backup & restore'}).count(),0);
+  await inspectRefusedAgentMetrics(assistant,width);
   assert.equal(await assistant.evaluate(()=>fetch('/api/satchel/conflicts',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({client:'A',adverse:'B'})}).then(r=>r.status)),403);
   assert.deepEqual(errors,[]);
  }finally{await browser.close();await h.close();}
