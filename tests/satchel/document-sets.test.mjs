@@ -1,4 +1,5 @@
 import {medicalPacketPdfs,inviteRecipient} from './document-packet-fixture.mjs';
+import {representativeProductionFlow} from './contact-representative-flow.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {harness,open} from './harness.mjs';
@@ -65,6 +66,7 @@ test('DOC-004 mixed production, exact guarded filing, private-safe counts and du
 
 // Production packets use real PDF originals and the built application.
 test('controlled production pins originals, removes whole-page content, freezes exact Bates and privilege artifacts, and fences approval, export, recall and erasure',async()=>{
+ await representativeProductionFlow();
  const {PDFDocument,StandardFonts}=await import('pdf-lib'),{unzipSync,strFromU8}=await import('fflate'),{createHash}=await import('node:crypto');
  const {getDocument}=await import('pdfjs-dist/legacy/build/pdf.mjs');
  const h=await harness();let restored;

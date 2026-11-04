@@ -51,6 +51,7 @@ async function load(db:D1Database,actor:Actor,attemptId:string){counsel(actor);c
 export async function sendCorrespondence(env:Bindings,actor:Actor,attemptId:string,atMs=Date.now()){
  const db=env.DB,a=await load(db,actor,attemptId);
  if(a.status!=='ready')return correspondenceState(db,actor,a.matter_id);
+ insist(a.recipient_grant_id,'Prepare a new message under a current explicit recipient grant',409);
  const revision=await eligible(db,actor,a);insist(revision===a.contact_revision,'Contact authority changed; make a fresh review decision',409);
  const mail=operatorMail(env);insist(mail&&env.MAIL_FROM,'Configure the firm mail provider and sender; nothing was sent',409);
  const at=new Date(atMs).toISOString(),reminderGuards=await reminderSendGuards(db,actor,a,atMs),updateGuards=await matterUpdateSendGuards(db,actor,a,atMs);
@@ -69,6 +70,7 @@ export async function sendCorrespondence(env:Bindings,actor:Actor,attemptId:stri
 export async function resendCorrespondence(db:D1Database,actor:Actor,attemptId:string,b:Data){
  const a=await load(db,actor,attemptId);insist(!await stmt(db,'SELECT 1 FROM s_collection_attempts WHERE correspondence_id=?',a.correspondence_id).first(),'Use the collection sequence decision; a sent step cannot repeat',409);insist(a.status!=='ready','Use the existing reviewed attempt',409);
  const updateGuards=await matterUpdateSendGuards(db,actor,a,Date.now());
+ insist(a.recipient_grant_id,'Prepare a new message under a current explicit recipient grant',409);
  const revision=await eligible(db,actor,a),note=text(b.reason,'New decision after checking the provider',2000),attempt=id();
  await atomic(db,actor,[...fences(db,actor,a,revision),...updateGuards,guard(db,"NOT EXISTS(SELECT 1 FROM s_correspondence_attempts WHERE correspondence_id=? AND status='ready')",a.correspondence_id),stmt(db,'INSERT INTO s_correspondence_attempts(id,correspondence_id,decision_by,decision_at,decision_note,contact_revision) VALUES(?,?,?,?,?,?)',attempt,a.correspondence_id,actor.email,now(),note,revision),audit(db,actor,'correspondence.resend_reviewed',attempt,JSON.stringify({priorAttempt:a.id,reason:note}),{matterId:a.matter_id})]);
  return {id:a.correspondence_id,attemptId:attempt};

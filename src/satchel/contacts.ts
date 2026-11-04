@@ -1,3 +1,4 @@
+import {stopContactEmail} from './contact-email-stops';
 import {recordRepresentative,reviewRepresentative} from './contact-representatives';
 import {contactChannels,contactData,contactProfile,contactRevisionGuard,contactRoles} from './contact-data';
 import {contactGraph} from './contact-graph';
@@ -48,6 +49,7 @@ export async function contactAction(db:D1Database,actor:Actor,partyId:string,op:
  }else if(op==='consent'){
   insist(contactChannels.includes(body.channel),'Choose a communication channel');insist(['allowed','denied','unknown'].includes(body.decision),'Choose the recorded consent decision');
   const evidenceDate=date(body.evidenceDate),source=text(body.source,'Consent source/reference',2000);
+  if(body.channel==='email'&&body.decision!=='allowed')writes.push(...stopContactEmail(db,contact.emails.map(e=>e.toLowerCase()),actor,at));
   writes.push(stmt(db,'INSERT INTO s_contact_consents VALUES(?,?,?,?,?,?,?,?,?)',objectId,data.revision,partyId,body.channel,body.decision,evidenceDate,source,actor.email,at),stmt(db,'UPDATE s_parties SET revision=? WHERE id=?',id(),partyId),audit(db,actor,'contact.consent_recorded',objectId,JSON.stringify({partyId,channel:body.channel,decision:body.decision,evidenceDate,source})));
  }else insist(false,'Unknown contact action',404);
  await atomic(db,actor,writes);return contactState(db,actor);

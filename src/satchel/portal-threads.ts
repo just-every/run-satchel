@@ -9,6 +9,8 @@ import {portalAccess,readerKinds} from './portal';
 import {guard} from './trust-guards';
 import {matterScope} from './matter-scope';
 import {reviewOf} from './providers';
+import {contactData} from './contact-data';
+import {contactGraph} from './contact-graph';
 const system={id:'portal-notifications',email:'portal',role:'system',channel:'automation'} as any;
 export function scanTextAttachment(name:string,bytes:Uint8Array){
   // This native allowlist accepts inert UTF-8 text only. Binary formats require a separate trusted scanner.
@@ -34,6 +36,7 @@ async function notify(env:Bindings,messageId:string,recipients:string[],subjectK
   let status='not_sent',provider:string|null=null,providerId:string|null=null,detail='No notification was sent: the firm has not recorded its mail provider review';
   const allowed=await stmt(db,`SELECT ${subjectKind==='client'?portalAccess('?',readerKinds):staffAccess()+" AND EXISTS(SELECT 1 FROM s_portal_messages message JOIN s_portal_threads thread ON thread.id=message.thread_id WHERE message.id=? AND thread.assigned_to=?)"} ok`,to,(await stmt(db,'SELECT t.matter_id FROM s_portal_messages m JOIN s_portal_threads t ON t.id=m.thread_id WHERE m.id=?',messageId).first<Data>())?.matter_id,...(subjectKind==='staff'?[messageId,to]:[])).first<Data>();
   if(!allowed?.ok)detail='No notification was sent: the recipient no longer has access to this matter';
+  else if(subjectKind==='client'&&!contactGraph(await contactData(db)).contacts.some(c=>c.emails.some(e=>e.toLowerCase()===to)&&c.effectiveConsent.email==='allowed'))detail='No notification was sent: current affirmative email consent is required';
   else if(authority&&mail&&env.MAIL_FROM){
    try{const r=await mail.send({deliveryId:id(),from:env.MAIL_FROM,to:[to],subject:'A new secure message',text:`You have a new secure message. Sign in to read it: ${env.AUTH_ORIGIN}/app\n\nThis email contains no message content.`,html:'',headers:{}});
     status=r.status==='accepted'||r.status==='development'?'accepted':r.status==='uncertain'?'uncertain':'failed';provider=r.provider;providerId=r.providerMessageId??null;detail=status==='accepted'?'Provider accepted the notification; mailbox delivery is unconfirmed.':`Provider result: ${r.status}`;}

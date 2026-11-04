@@ -1,4 +1,4 @@
-import {representativeMailFlow} from './contact-representative-flow.mjs';
+import {representativeMailFlow,representativeUpdateFlow,representativeAddress} from './contact-representative-flow.mjs';
 import {consolidatedFixture} from './consolidated-statement-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -289,6 +289,10 @@ test('Reviewed invoice delivery retains branded payer artifacts, verifies provid
   await h.json('/portal-grants/'+selectedGrant.id+'/revoke',{reason:'Withdraw one selected matter'},h.owner);
   assert.equal((await h.request(consolidated.pdfUrl,undefined,client)).status,404);assert.ok(!(await h.json('/portal/matters/'+m.id+'/payer-statements',undefined,client)).statements.some(s=>s.id===consolidated.id));
   assert.deepEqual(Buffer.from(await(await h.request(consolidated.pdfUrl,undefined,h.owner)).arrayBuffer()),consolidatedBytes);
+  await h.json('/matters/'+consolidation.other.id+'/portal',{email:representativeAddress('client'),reason:'A fresh grant does not republish an earlier statement'},h.owner);
+  assert.equal((await h.request(consolidated.pdfUrl,undefined,client)).status,404);
+  await h.json('/portal-grants/'+(await h.json('/matters/'+consolidation.other.id+'/portal',undefined,h.owner)).grants.find(g=>!g.revokedAt).id+'/revoke',{reason:'Keep the original consolidation refusal proof'},h.owner);
+
   await h.json(base+'/payer-statements',{recipient:'client@example.test',matterIds:[m.id,consolidation.other.id]},h.owner,409);
   const excludedGrant=(await h.json('/matters/'+consolidation.excluded.id+'/portal',undefined,h.owner)).grants.find(g=>!g.revokedAt);await h.json('/portal-grants/'+excludedGrant.id+'/revoke',{reason:'Finish synthetic consolidation proof'},h.owner);
   const limitedRole=await h.json('/roles',{name:'Invoice operator without banking',permissions:{rates:'all',bank:'none',reports:'own',contacts:'read',documents:'read',billing:'write',settings:'none'},reason:'Separate invoice operations from trust information'},h.owner);
@@ -314,6 +318,10 @@ test('Reviewed invoice delivery retains branded payer artifacts, verifies provid
   assert.equal((await h.request('/api/satchel/invoice-deliveries/'+clientDelivery.id+'/pdf',undefined,client)).status,409);assert.deepEqual(await download(clientDelivery),delivered);
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();restored=await harness();await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);assert.deepEqual(Buffer.from(await(await restored.request('/api/satchel/invoice-deliveries/'+clientDelivery.id+'/pdf',undefined,restored.owner)).arrayBuffer()),delivered);
   const grant=(await h.json(base+'/portal',undefined,h.owner)).grants.find(g=>g.email==='insurer@example.test'&&!g.revokedAt);await h.json('/portal-grants/'+grant.id+'/revoke',{reason:'Payer authority withdrawn'},h.owner);assert.equal((await h.request('/api/satchel/invoice-deliveries/'+insurerDelivery.id+'/pdf',undefined,insurer)).status,404);await h.json('/invoice-deliveries/'+insurerDelivery.id+'/authorize',{notificationTemplateId:notification.id,confirmed:true,priorAttemptId:final.attemptId,reason:'Withdrawn payer cannot receive another notification'},billing,409);
+  await h.json(base+'/portal',{email:representativeAddress('insurer'),kind:'payer',reason:'Fresh explicit payer grant'},h.owner);
+  assert.equal((await h.request('/api/satchel/invoice-deliveries/'+insurerDelivery.id+'/pdf',undefined,insurer)).status,404);
+  await h.json('/invoice-deliveries/'+insurerDelivery.id+'/authorize',{notificationTemplateId:notification.id,confirmed:true,priorAttemptId:final.attemptId,reason:'A new grant cannot revive old notification authority'},billing,409);
+  assert.deepEqual(await download(clientDelivery),delivered);
   await h.json(base+'/wall',{reason:'Counsel restricts invoice matter',custodianEmail:'owner@example.test',members:['owner@example.test'],revision:null},h.owner);assert.equal((await h.request('/api/satchel/invoice-deliveries/'+clientDelivery.id+'/pdf',undefined,client)).status,404);assert.equal((await h.json('/portal',undefined,client)).grants.length,0);
  }finally{await restored?.close();await h.close();}
 });
@@ -389,7 +397,7 @@ test('Invoice defaults resolve firm then client then matter, retirement affects 
 });
 
 import {proveMatterUpdates} from './matter-update-flow.mjs';
-test('Reviewed matter updates preserve exact approval, scheduled delivery, responsible replies and live promises',proveMatterUpdates);
+test('Reviewed matter updates preserve exact approval, scheduled delivery, responsible replies and live promises',async()=>{await proveMatterUpdates();await representativeUpdateFlow();});
 
 async function proveProviderReview(){
  const h=await harness();

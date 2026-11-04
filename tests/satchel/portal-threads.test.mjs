@@ -18,6 +18,10 @@ test('CLIENT-002 a confidential attachment, a client reply, the retained thread,
   // Without the firm's recorded mail review no notification is sent, and that is recorded.
   const quiet=await h.json(base+'/threads',{subject:'Settlement posture',body:'Quiet start',assignedTo:'assistant@example.test'},lawyer);assert.deepEqual(quiet.threads[0].messages[0].notifications.map(n=>n.status),['not_sent','not_sent']);
   await h.json('/providers/mail/review',{termsUrl:'https://resend.com/legal/terms-of-service',confirmed:true},h.owner);
+  const consentContacts=new Map();
+  const consent=async(email,decision)=>h.json('/contacts/'+consentContacts.get(email)+'/consent',{revision:(await h.json('/contacts',undefined,h.owner)).revision,channel:'email',decision,evidenceDate:'2026-11-01',source:'Explicit client notification preference'},h.owner);
+  for(const email of [roster[3][0],roster[4][0],roster[7][0]]){const c=await h.json('/contacts',{revision:(await h.json('/contacts',undefined,h.owner)).revision,kind:'person',name:'Notification recipient '+consentContacts.size,emails:[email]},h.owner);consentContacts.set(email,c.id);await consent(email,'allowed');}
+
   await h.json(base+'/threads',{subject:'x',body:secret},client,403);await h.json('/matters/missing/threads',{subject:'x',body:'x'},lawyer,404);
   for(const attachments of [Array.from({length:4},(_,i)=>file('synthetic-satchel-'+i+'.txt','synthetic-satchel-'+i)),[file('synthetic-satchel-large.txt','x'.repeat(1024*1024+1))]])await h.json(base+'/threads',{subject:'Refused files',body:'Private',attachments},lawyer,400);
   for(const [name,bytes] of [
@@ -98,6 +102,12 @@ test('CLIENT-002 a confidential attachment, a client reply, the retained thread,
   assert.ok(kept.messages[0].notifications.every(n=>n.status==='uncertain'));
   assert.equal(h.mails.length,attempts,'Reading and restarting do not retry an uncertain notification');
   mailOutcome='accepted';
+  await consent(roster[3][0],'denied');const withdrawalMail=h.mails.length;
+  const withdrawal=await h.json('/threads/'+thread.id+'/messages',{body:'Retained portal message after email withdrawal'},lawyer);
+  assert.equal(h.mails.length,withdrawalMail+2);assert.ok(h.mails.slice(withdrawalMail).every(m=>!m.to.includes(roster[3][0])));
+  assert.equal(withdrawal.threads.find(t=>t.id===thread.id).messages.at(-1).notifications.find(n=>n.to===roster[3][0]).status,'not_sent');
+  assert.equal((await h.json('/portal/matters/'+m.id+'/threads',undefined,client)).threads.find(t=>t.id===thread.id).messages.at(-1).body,'Retained portal message after email withdrawal');
+  assert.equal((await get('/attachments/'+attachment,lawyer)).status,200);
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(archive.includes('Settle at 40k'));
   // A withdrawn grant removes the thread from that person's portal at once.
   const grants=(await h.json(base+'/portal',undefined,h.owner)).grants;await h.json('/portal-grants/'+grants.find(g=>g.email==='cocl@example.test').id+'/revoke',{reason:'Left the matter'},h.owner);

@@ -3,7 +3,7 @@ import {portalAccess,readerKinds} from './portal';
 import {guard} from './trust-guards';
 
 function client(actor:Actor){human(actor);need(actor,'client');}
-const published=`u.status='approved' AND EXISTS(SELECT 1 FROM s_matter_update_jobs j WHERE j.update_id=u.id AND j.recipient=? AND j.portal_published_at IS NOT NULL) AND ${portalAccess('u.matter_id',readerKinds)}`;
+const published=`u.status='approved' AND EXISTS(SELECT 1 FROM s_matter_update_jobs j WHERE j.update_id=u.id AND j.recipient=? AND j.portal_published_at IS NOT NULL AND ${portalAccess('u.matter_id',readerKinds,'j.recipient_grant_id').replace('g.email=?','g.email=j.recipient')}) AND ${portalAccess('u.matter_id',readerKinds)}`;
 export async function listPortalMatterUpdates(db:D1Database,actor:Actor,matterId:string){
  client(actor);insist((await stmt(db,`SELECT ${portalAccess('?',readerKinds)} ok`,actor.email,matterId).first<Data>())?.ok,'Matter not found',404);
  const updates=await rows(db,`SELECT u.id,u.title,u.body,u.source_citation,u.previous_date,u.new_date,(SELECT portal_published_at FROM s_matter_update_jobs j WHERE j.update_id=u.id AND j.recipient=?) published_at FROM s_matter_updates u WHERE u.matter_id=? AND ${published} ORDER BY u.approved_at,u.id`,actor.email,matterId,actor.email,actor.email);

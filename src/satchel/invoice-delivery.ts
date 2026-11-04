@@ -22,7 +22,7 @@ export async function prepareInvoiceDelivery(db:D1Database,actor:Actor,billId:st
  const pdf=snapshot.imported?Uint8Array.from(atob(bill.issue_pdf_base64),c=>c.charCodeAt(0)):await invoicePdf({...bill,snapshot},bill.number,bill.issued_at,branding),hash=await digest(pdf),at=now();
  if(snapshot.imported)insist(hash===bill.issue_digest,'Historic invoice original failed its integrity check',503);
  // Delivery freezes the exact issue's reviewed data under an approved template. The issued original is untouched.
- await atomic(db,actor,[...prior.guards,guard(db,'NOT EXISTS(SELECT 1 FROM s_invoice_template_retirements WHERE template_id=?)',templateId),...deliveryFences(db,actor,d,revision),stmt(db,'INSERT INTO s_invoice_deliveries VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',d.id,bill.id,templateId,recipient,payerName,branding.dueDate,JSON.stringify({number:bill.number,invoice:snapshot,branding}),bill.issue_digest,encodePdf(pdf),hash,actor.email,at),audit(db,actor,'invoice.portal_delivered',d.id,JSON.stringify({billId:bill.id,templateId,pdfDigest:hash,recipient,reviewedIssueDigest:bill.issue_digest}),{matterId:bill.matter_id})]);
+ await atomic(db,actor,[...prior.guards,guard(db,'NOT EXISTS(SELECT 1 FROM s_invoice_template_retirements WHERE template_id=?)',templateId),...deliveryFences(db,actor,d,revision),stmt(db,'INSERT INTO s_invoice_deliveries VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',d.id,bill.id,templateId,recipient,payerName,branding.dueDate,JSON.stringify({number:bill.number,invoice:snapshot,branding}),bill.issue_digest,encodePdf(pdf),hash,actor.email,at),stmt(db,'INSERT INTO s_invoice_delivery_grants VALUES(?,?)',d.id,d.recipient_grant_id),audit(db,actor,'invoice.portal_delivered',d.id,JSON.stringify({billId:bill.id,templateId,pdfDigest:hash,recipient,reviewedIssueDigest:bill.issue_digest}),{matterId:bill.matter_id})]);
  return {id:d.id,billId:bill.id,pdfDigest:hash,paymentUrl:branding.paymentUrl,dueDate:branding.dueDate};
 }
 async function deliveryJson(db:D1Database,d:Data){
@@ -38,7 +38,7 @@ export async function invoiceDeliveryState(db:D1Database,actor:Actor,matterId:st
 export async function deliveredInvoice(db:D1Database,billId:string,actor:Actor){
  human(actor);const bill=await stmt(db,'SELECT matter_id FROM s_bills WHERE id=?',billId).first<Data>();insist(bill,'Invoice not found',404);
  if(actor.role==='client')insist((await stmt(db,`SELECT ${portalAccess('?',invoiceReaders)} ok`,actor.email,bill.matter_id).first<Data>())?.ok,'Invoice not found',404);else{invoiceStaff(actor);await matter(db,actor,bill.matter_id);}
- const d=await stmt(db,`SELECT * FROM s_invoice_deliveries WHERE bill_id=? ${actor.role==='client'?'AND recipient=?':''} ORDER BY created_at DESC,id DESC LIMIT 1`,billId,...(actor.role==='client'?[actor.email]:[])).first<Data>();
+ const d=await stmt(db,`SELECT * FROM s_invoice_deliveries WHERE bill_id=? ${actor.role==='client'?"AND recipient=? AND EXISTS(SELECT 1 FROM s_invoice_delivery_grants binding JOIN s_portal_grants original ON original.id=binding.grant_id WHERE binding.delivery_id=s_invoice_deliveries.id AND original.revoked_at IS NULL)":''} ORDER BY created_at DESC,id DESC LIMIT 1`,billId,...(actor.role==='client'?[actor.email]:[])).first<Data>();
  return d?{id:d.id,pdfUrl:'/api/satchel/invoice-deliveries/'+d.id+'/pdf',pdfDigest:d.pdf_digest,payerName:d.payer_name,dueDate:d.due_date}:null;
 }
 export async function deliveredInvoiceFile(db:D1Database,actor:Actor,deliveryId:string){

@@ -1,9 +1,15 @@
 import {operatorAuth,runtimeBindings,type Bindings} from '../auth.server';
 import type {Session} from '../modules/operator-auth/index.mjs';
 import {decode,documentGuard,matterGuard,visibleDocument} from './documents';
+import {portalAccess,readerKinds} from './portal';
 import {matterScope} from './matter-scope';
 import {atomic,audit,digest,Fault,human,id,insist,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
 
+async function representativeGrant(db:D1Database,matterId:string,recipient:string){
+ if(!await stmt(db,'SELECT 1 FROM s_contact_representatives WHERE matter_id=? AND recipient=?',matterId,recipient).first())return null;
+ const grant=await stmt(db,`SELECT candidate.id FROM s_portal_grants candidate WHERE candidate.email=? AND candidate.matter_id=? AND ${portalAccess('candidate.matter_id',readerKinds,'candidate.id')} ORDER BY candidate.granted_at DESC,candidate.id DESC LIMIT 1`,recipient,matterId,recipient).first<Data>();
+ insist(grant,'Review current representative evidence and grant access before a new release or invitation',409);return grant;
+}
 function principal(actor:Actor){human(actor);need(actor,'owner');}
 function fence(db:D1Database,sql:string,...args:any[]){const key=id();return [stmt(db,`INSERT INTO s_guard(id,ok) SELECT ?,CASE WHEN (${sql}) THEN 1 ELSE 0 END`,key,...args),stmt(db,'DELETE FROM s_guard WHERE id=?',key)];}
 // All active labels must already travel inside the immutable packet. A later
@@ -34,6 +40,7 @@ export async function releaseProduction(db:D1Database,actor:Actor,productionId:s
  insist(body.sha256===p.sha256,'Authorize the exact approved packet hash',409);
  const recipientEmail=text(body.recipientEmail,'Authenticated recipient email',240).toLowerCase(),snapshot=JSON.parse(p.snapshot);
  insist(recipientEmail===snapshot.recipient.email,'Release only to the recipient named in this packet',409);
+ const binding=await representativeGrant(db,p.matter_id,recipientEmail);
  const recipient=await stmt(db,"SELECT id,email,status,version FROM oa_operators WHERE email=? AND status IN ('active','invited')",recipientEmail).first<Data>();
  insist(recipient,'The principal must invite this recipient through account invitations before release',409);
  const owner=await stmt(db,"SELECT version FROM oa_operators WHERE id=? AND email=? AND role='owner' AND status='active'",actor.id,actor.email).first<Data>();
@@ -48,13 +55,13 @@ export async function releaseProduction(db:D1Database,actor:Actor,productionId:s
   ...fence(db,`EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND email=? AND status IN ('active','invited') AND version=?)`,recipient.id,recipientEmail,recipient.version),
   ...fence(db,`EXISTS(SELECT 1 FROM s_document_productions p WHERE p.id=? AND p.status='approved' AND p.sha256=? AND p.artifact_base64=? AND p.snapshot=? AND ? > strftime('%Y-%m-%dT%H:%M:%fZ','now') AND ${holdsMatch})`,p.id,p.sha256,p.artifact_base64,p.snapshot,expiresAt),
   stmt(db,'INSERT INTO s_production_shares(id,production_id,packet_sha256,recipient_id,recipient_email,authorized_by_id,authorized_by,authorizer_version,authorized_at,expires_at,reason) VALUES(?,?,?,?,?,?,?,?,?,?,?)',shareId,p.id,p.sha256,recipient.id,recipientEmail,actor.id,actor.email,owner.version,at,expiresAt,reason),
-  audit(db,actor,'production.share_released',p.id,JSON.stringify({matterId:p.matter_id,shareId,sha256:p.sha256,recipientId:recipient.id,recipientEmail,expiresAt,reason}),{matterId:p.matter_id,shareId,sha256:p.sha256})]);
+  ...(binding?[...fence(db,portalAccess('?',readerKinds,'?'),recipientEmail,binding.id,p.matter_id),stmt(db,'INSERT INTO s_production_recipient_grants VALUES(?,?)',shareId,binding.id)]:[]),audit(db,actor,'production.share_released',p.id,JSON.stringify({matterId:p.matter_id,shareId,sha256:p.sha256,recipientId:recipient.id,recipientEmail,expiresAt,reason}),{matterId:p.matter_id,shareId,sha256:p.sha256})]);
  return shareJson((await stmt(db,'SELECT * FROM s_production_shares WHERE id=?',shareId).first<Data>())!);
 }
 export async function inviteProductionRecipient(request:Request,original:Bindings,actor:Actor,productionId:string){
  principal(actor);const env=runtimeBindings(original),db=env.DB,{p,documents}=await packet(db,actor,productionId);
  insist(p.status==='approved'&&p.snapshot&&p.artifact_base64,'Approve the packet before inviting its recipient',409);
- const recipient=JSON.parse(p.snapshot).recipient;
+ const recipient=JSON.parse(p.snapshot).recipient;await representativeGrant(db,p.matter_id,recipient.email);
  const existing=await stmt(db,'SELECT status FROM oa_operators WHERE email=?',recipient.email).first<Data>();
  if(existing?.status==='active')return {status:'already-active'};
  const writes=[...matterGuard(db,actor,p.matter_id),...documents.flatMap(d=>documentGuard(db,actor,d)),
@@ -93,7 +100,7 @@ async function recipientSession(request:Request,original:Bindings){
  const session=await operatorAuth(env).getSession(request);insist(session,'Sign in as the named recipient to continue',401);
  return {env,session};
 }
-const available=`s.recalled_at IS NULL AND s.expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now') AND p.status='approved' AND p.artifact_base64 IS NOT NULL AND p.snapshot IS NOT NULL AND p.sha256=s.packet_sha256
+const available=`NOT EXISTS(SELECT 1 FROM s_production_access_stops stop WHERE stop.share_id=s.id) AND (NOT EXISTS(SELECT 1 FROM s_contact_representatives known WHERE known.matter_id=p.matter_id AND known.recipient=s.recipient_email) OR EXISTS(SELECT 1 FROM s_production_recipient_grants binding WHERE binding.share_id=s.id AND ${portalAccess('p.matter_id',readerKinds,'binding.grant_id').replace('g.email=?','g.email=s.recipient_email')})) AND s.recalled_at IS NULL AND s.expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now') AND p.status='approved' AND p.artifact_base64 IS NOT NULL AND p.snapshot IS NOT NULL AND p.sha256=s.packet_sha256
  AND EXISTS(SELECT 1 FROM oa_operators authorizer WHERE authorizer.id=s.authorized_by_id AND authorizer.email=s.authorized_by AND authorizer.role='owner' AND authorizer.status='active' AND authorizer.version=s.authorizer_version)
  AND EXISTS(SELECT 1 FROM s_matters WHERE id=p.matter_id AND ${matterScope('p.matter_id')})
  AND NOT EXISTS(SELECT 1 FROM s_production_sources ps LEFT JOIN s_documents d ON d.id=ps.document_id WHERE ps.production_id=p.id AND (d.id IS NULL OR d.erased_at IS NOT NULL)) AND ${holdsMatch}`;

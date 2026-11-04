@@ -10,6 +10,7 @@ import {disclosureVersion} from './providers';
 
 export type InvoiceDeliveryEnv=Bindings&{SENDGRID_EVENT_PUBLIC_KEY?:string;SENDGRID_SANDBOX?:string};
 async function notificationEligibility(db:D1Database,actor:Actor,d:Data){
+ insist(d.recipient_grant_id,'Prepare a new delivery under the current explicit grant',409);
  const revision=await invoiceRecipient(db,actor,d,true);
  insist(!await stmt(db,"SELECT 1 FROM s_invoice_delivery_events e JOIN s_invoice_delivery_attempts a ON a.id=e.attempt_id JOIN s_invoice_deliveries d ON d.id=a.delivery_id WHERE d.recipient=? AND e.status IN('complained','unsubscribed')",d.recipient).first(),'The provider recorded an opt-out or complaint. Do not send another invoice notification.',409);
  return revision;
