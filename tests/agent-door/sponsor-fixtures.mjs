@@ -110,6 +110,17 @@ export async function proveSponsorLifecycle(context, matterId) {
   const prepareMcp = args => context.tool('satchel.proposal.prepare_matter', args, {token: member.key.key, track: false});
   const preparation = () => ({delegationId: grant.id, payload: preparationPayload(), idempotency_key: crypto.randomUUID()});
   const witness = () => nativeState(context);
+  const membership = async (role, active, status) => {
+   const roster = await (await native('/api/satchel/state')).json();
+   const current = roster.members.find(person => person.email === member.email);
+   assert.equal(current?.role, role, 'The public firm roster retains the assigned native role');
+   assert.equal(current?.active, active, 'The public firm roster shows the intended membership state');
+   const operators = await (await native('/auth/operators')).json();
+   assert.equal(operators.find(person => person.id === member.operatorId)?.status, status, 'Operator state is independent of firm membership');
+   const db = await context.database('DB');
+   const binding = await db.prepare('SELECT email,business_id,state FROM bs_team WHERE operator_id=?').bind(member.operatorId).first();
+   assert.deepEqual(binding, {email: member.email, business_id: member.sub, state: 'active'}, 'Membership changes preserve the original active Business binding');
+  };
   const allowedPreparation = async () => {
    const allowed = await prepare();
    assert.equal(allowed.status, 200, 'Current counsel can prepare within the principal-approved grant');
@@ -136,12 +147,14 @@ export async function proveSponsorLifecycle(context, matterId) {
   };
   const beforeSuspension = await allowedPreparation();
   await native('/auth/operator/status', {operatorId: member.operatorId, status: 'inactive'});
+  await membership('lawyer', 1, 'inactive');
   await refusedPreparation(beforeSuspension, 401, 'operator suspension');
   await native('/auth/operator/status', {operatorId: member.operatorId, status: 'active'});
   for (const role of label === 'inactive' ? ['lawyer'] : ['billing', 'accountant', 'client']) {
    await native('/api/satchel/team', memberBody(member));
    const args = await allowedPreparation();
    await native('/api/satchel/team', memberBody(member, role, label !== 'inactive'));
+   await membership(role, label === 'inactive' ? 0 : 1, 'active');
    await refusedPreparation(args, 403, label === 'inactive' ? 'inactive firm membership' : role);
   }
  }

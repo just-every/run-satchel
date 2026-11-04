@@ -5064,7 +5064,7 @@
       "executable": false
     },
     "tests/agent-door/sponsor-fixtures.mjs": {
-      "sha256": "15b2d61a4c4c7a5cd41301480974df87e32d125b22c20ebbc45873f42653d6d9",
+      "sha256": "4bd2fb76b21318f2993a3793b1f0453c8acbf28de203e13265387ab086f9f1b7",
       "executable": false
     },
     "tests/email-link.mjs": {
