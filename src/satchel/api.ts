@@ -13,6 +13,7 @@ import {reconciliationState,reconcileCollection,inspectSettlement,matchSettlemen
 import {settlements,saveContingency,prepareSettlement,approveSettlement,checkSettlementFunds} from './settlements';
 import {trustStatePreview,saveTrustStateMetadata,reviewTrustState,getTrustStateReview} from './trust-state-records';
 import {setRetainerPolicy,retainerAlert,deliverReplenishment,portalReplenishments} from './trust-retainers';
+import {trustClientReview} from './trust-client-review';
 import {listTrustStatementReleases,releaseTrustStatement,withdrawTrustStatement,portalTrustStatements} from './trust-statement-releases';
 import {matterUpdateState,generateMatterUpdate,editMatterUpdate,approveMatterUpdate,fulfilMatterUpdatePromise,completeMatterUpdateReply} from './matter-updates';
 import {listPortalMatterUpdates,replyToMatterUpdate} from './matter-update-portal';
@@ -619,3 +620,4 @@ api.post('/api/satchel/trust/packets/:id/record-reviews',as(async(a,c)=>reviewTr
 api.get('/api/satchel/trust/record-reviews/:id',as(async(a,c)=>new Response(JSON.stringify(await getTrustStateReview(db(c),a,param(c))),{headers:{'content-type':'application/json','content-disposition':'attachment; filename="satchel-firm-trust-review.json"','cache-control':'private, no-store'}})));
 
 api.get('/api/satchel/trust/ledgers/:id/releases',as((a,c)=>listTrustStatementReleases(db(c),a,param(c))));
+api.get('/api/satchel/trust/ledgers/:id/client-review',as((a,c)=>trustClientReview(db(c),a,param(c))));

@@ -42,6 +42,11 @@ test('TRUST-008: exact signed statements require principal release and current n
  for(const [name,kind] of [['client','client'],['co','co_client'],['payer','payer'],['delegate','delegate']])await h.json(base+'/portal',{email:name+'@example.test',kind,delegateOf:kind==='delegate'?'client@example.test':undefined,reason:'Named current portal recipient'},h.owner);
  const releaseBody={packetId:packet.id,packetDigest:packet.digest,confirmed:true,recipient:'client@example.test',reason:'Reviewed exact monthly client statement for authenticated delivery'};
  const release=(body=releaseBody,cookie=h.owner,expected=200,ledger=f.ledger.id)=>h.json('/trust/ledgers/'+ledger+'/releases',body,cookie,expected);
+ const inspector='/trust/ledgers/'+f.ledger.id+'/client-review',initial=await h.json(inspector,undefined,h.owner);
+ assert.deepEqual(initial.recipients.map(g=>g.kind).sort(),['client','co_client']);assert.equal(initial.alert,null);assert.deepEqual(initial.requests,[]);
+ assert.equal(initial.packets[0].id,packet.id);assert.equal(initial.packets[0].digest,packet.digest);assert.equal(initial.packets[0].statement.closingBalanceCents,101250);
+ assert.ok(!JSON.stringify(initial.packets[0].statement).includes(f.otherLedger.id));
+ for(const cookie of [client,officer,lawyer])await h.json(inspector,undefined,cookie,403);
  const view=async(cookie=client)=>h.json(door,undefined,cookie);
  assert.deepEqual((await view()).statements,[],'A matter grant does not publish a statement');
  await release(releaseBody,officer,403);await release(releaseBody,lawyer,403);await release(releaseBody,client,403);
@@ -91,6 +96,7 @@ test('TRUST-008: a posted threshold crossing produces an exact approved portal r
  const policy={thresholdCents:90000,targetCents:150000,reason:'Reviewed retainer terms; no collection authority',confirmed:true};
  await h.json(base+'/retainer-policy',policy,officer,403);await h.json(base+'/retainer-policy',policy,client,403);
  await h.json(base+'/retainer-policy',{...policy,targetCents:50000},h.owner,400);await h.json(base+'/retainer-policy',policy,h.owner);
+ const reviewDoor=base+'/client-review';assert.equal((await h.json(reviewDoor,undefined,h.owner)).policies[0].threshold_cents,90000);
  const normal=await h.json(base+'/balance-alert',undefined,h.owner);assert.deepEqual([normal.low,normal.balanceCents,normal.requestedCents,normal.crossingEntryId],[false,100000,50000,null]);
  const approval={recipient:'client@example.test',confirmed:true,reviewDigest:normal.reviewDigest,reason:'Approve exact replenishment request'};
  await h.json(base+'/replenishments',approval,h.owner,409);assert.deepEqual((await h.json(portal,undefined,client)).requests,[]);
@@ -104,6 +110,7 @@ test('TRUST-008: a posted threshold crossing produces an exact approved portal r
  await h.json(base+'/replenishments',approval,h.owner,409);await h.json(base+'/replenishments',{...approval,reviewDigest:alert.reviewDigest,confirmed:false},h.owner,409);
  const before=await h.json('/trust',undefined,h.owner),mailCount=h.mails.length;
  const delivered=await h.json(base+'/replenishments',{...approval,reviewDigest:alert.reviewDigest},h.owner);
+ const deliveredReview=await h.json(reviewDoor,undefined,h.owner);assert.equal(deliveredReview.requests[0].id,delivered.id);assert.equal(deliveredReview.requests[0].snapshot.requestedCents,62500);assert.equal(deliveredReview.alert.reviewDigest,alert.reviewDigest);
  assert.equal(delivered.requestedCents,62500);assert.equal(h.mails.length,mailCount,'Publication sends no email or provider request');
  assert.deepEqual((await h.json('/trust',undefined,h.owner)).entries,before.entries,'Approval creates neither a bank entry nor a debit');
  const requests=(await h.json(portal,undefined,client)).requests;assert.deepEqual(requests,[{id:delivered.id,deliveredAt:delivered.deliveredAt,balanceCents:87500,targetCents:150000,requestedCents:62500,moneyMovement:false}]);assert.deepEqual((await h.json(portal,undefined,co)).requests,[]);
@@ -117,6 +124,7 @@ test('TRUST-008: a posted threshold crossing produces an exact approved portal r
 
  await transaction(h,f,{cents:5000,day:'2026-09-17',reference:'restored-above-threshold'});assert.equal((await h.json(base+'/balance-alert',undefined,h.owner)).low,false);await h.json(base+'/replenishments',{...approval,reviewDigest:alert.reviewDigest},h.owner,409);
  const grant=(await h.json('/matters/'+f.m.id+'/portal',undefined,h.owner)).grants.find(g=>g.email==='client@example.test');await h.json('/portal-grants/'+grant.id+'/revoke',{reason:'Authority ended'},h.owner);assert.deepEqual((await h.json(portal,undefined,client)).requests,[]);
+ assert.ok(!(await h.json(reviewDoor,undefined,h.owner)).recipients.some(g=>g.id===grant.id));
  const audit=await h.json('/audit',undefined,h.owner);assert.ok(audit.records.some(r=>r.action==='trust.replenishment_delivered'&&r.objectId===delivered.id));
  }finally{await h.close();}
 });
