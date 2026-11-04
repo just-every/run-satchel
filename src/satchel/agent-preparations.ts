@@ -1,4 +1,5 @@
 import {atomic,audit,id,insist,matter,now,rows,stmt,text,type Actor,type Data} from './model';
+import {preparationProvenance} from './agent-metrics';
 import {authorizedDelegation} from './agent-authority';
 import {propose} from './proposals';
 import {requireArea} from './role-areas';
@@ -12,10 +13,15 @@ export function preparationPayload(action:string,b:Data,d:Data){
  return {kind,payload:b};
 }
 export async function prepareAgent(db:D1Database,actor:Actor,delegationId:string,action:string,b:Data){
+ let scoped:Actor|undefined;
  try{
   if(action==='prepare-bill')requireArea(actor,'billing','write');
-  const d=await authorizedDelegation(db,actor,delegationId,action),{kind,payload}=preparationPayload(action,b,d);
+  const d=await authorizedDelegation(db,actor,delegationId,action);scoped={...actor,agentExecution:{delegation:d}};
+  const {kind,payload}=preparationPayload(action,b,d);
   if(payload.documentId){const source=await stmt(db,'SELECT version FROM s_agent_sources WHERE delegation_id=? AND document_id=?',d.id,payload.documentId).first<Data>();insist(source,'Source outside this delegation',403);insist(payload.version===undefined||payload.version===source.version,'Source version outside this delegation',403);payload.version=source.version;}
   return await propose(db,{...actor,agentExecution:{delegation:d}},kind,payload);
- }catch(error){if([400,403,404,409].includes((error as {status?:number}).status??0))await atomic(db,actor,[audit(db,actor,'agent.preparation_refused',actor.agentKeyId!,'Preparation refused; inspect principal-approved scope and limits')]);throw error;}
+ }catch(error){if([400,403,404,409].includes((error as {status?:number}).status??0)){
+  const refusalId=id(),inputs={matterId:scoped?.agentExecution?.delegation.matter_id,title:typeof b.title==='string'?b.title.slice(0,500):'Refused preparation'},provenance=scoped?await preparationProvenance(db,scoped,'refusal',refusalId,action,inputs):[];
+  await atomic(db,actor,[...provenance,audit(db,actor,'agent.preparation_refused',actor.agentKeyId!,'Preparation refused; inspect principal-approved scope and limits',{matterId:inputs.matterId??null,refusalId:scoped?refusalId:null})]);
+ }throw error;}
 }

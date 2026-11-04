@@ -1,5 +1,6 @@
 import {proveDocumentUploads} from './document-upload-flow.mjs';
 import {authorizeAgent} from './agent-fixture.mjs';
+import {proveAgentMetrics} from './agent-metrics-flow.mjs';
 import {proveAgentExecution} from './agent-execution-flow.mjs';
 import {proveMicrosoftSecurity} from './microsoft-security-flow.mjs';
 import {secureSessions} from './security-flow.mjs';
@@ -133,6 +134,7 @@ test('agent keys only prepare; human decisions are atomic and cannot be replayed
  await h.json('/bills/'+prepared.id+'/export',undefined,h.owner,409);
  await h.json('/keys/'+key.id+'/revoke',{},h.owner);await h.json('/agent/context',undefined,'',401,auth);
  await proveAgentExecution();
+ await proveAgentMetrics();
 });
 test('Clio dry-run, exact commit, provenance, replay and undo preserve linked parties',async()=>{
  const csv=await readFile(new URL('../../fixtures/clio-contacts.csv',import.meta.url),'utf8');

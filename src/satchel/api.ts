@@ -1,4 +1,5 @@
 import {beginUploads,uploadState,uploadPart,completeUpload,cancelUpload} from './document-uploads';
+import {agentMetrics,reviewAgentSource,attributeRecoveredWork,compareAgentCohorts} from './agent-metrics';
 import {invoiceWriteoffHistory,reverseInvoiceWriteoff} from './invoice-writeoff-reversal';
 import {documentTextCitation} from './document-text-index';
 import {bindBusinessAgent} from './team';
@@ -504,6 +505,10 @@ api.post('/api/satchel/keys/:id/revoke',as((a,c)=>revokeAgentKey(db(c),a,param(c
 api.post('/api/satchel/proposals/:id/decide',as(async(a,c)=>decideProposal(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/agent-keys/:id/business',as(async(a,c)=>bindBusinessAgent(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/agent-controls',as((a,c)=>agentControls(db(c),a)));
+api.get('/api/satchel/agent-metrics',as((a,c)=>agentMetrics(db(c),a)));
+api.post('/api/satchel/agent-metrics/:id/source-review',as(async(a,c)=>reviewAgentSource(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/agent-metrics/:id/recovery',as(async(a,c)=>attributeRecoveredWork(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/agent-metrics/comparisons',as(async(a,c)=>compareAgentCohorts(db(c),a,await body(c))));
 api.post('/api/satchel/agent-agreements',as(async(a,c)=>approveAgentAgreement(db(c),a,await body(c))));
 api.post('/api/satchel/agent-agreements/:id/withdraw',as(async(a,c)=>withdrawAgreement(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/agent-delegations/:id/context',as((a,c)=>previewAgentContext(db(c),a,param(c))));
