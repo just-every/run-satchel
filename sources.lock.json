@@ -5456,7 +5456,7 @@
       "executable": false
     },
     "tests/satchel/recovery-connector-flow.mjs": {
-      "sha256": "9e4f05280862923e4a2d606e191ebf745f1d3214b548d431b10668ca3d725d42",
+      "sha256": "3c46e360b07e815d518d3449cf60b1ecff5951a5083e56e9bae0cb84a8409480",
       "executable": false
     },
     "tests/satchel/recovery-diagnostics-browser.mjs": {

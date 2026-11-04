@@ -16,11 +16,14 @@ export async function proveRecoveryConnectors(h,edge,matter){
  await task('Resolve receiver outage');edge.webhookStatus=503;await h.json(path+'/dispatch',{},h.owner);
  data=await diagnostics();journal=await h.json(path+'/journal',undefined,h.owner);
  assert.equal(queue(data).uncertain,journal.health.uncertain);assert.equal(queue(data).uncertain,1);assert.equal(connector(data).lastAcceptedAt,accepted);assert.equal(connector(data).lastHttpStatus,503);
- await task('Keep this source work queued');await h.json(path+'/rotate',{},h.owner);data=await diagnostics();
+ await task('Keep this source work queued');const rotated=await h.json(path+'/rotate',{},h.owner);data=await diagnostics();
  assert.equal(connector(data).authorization,'authorized','Pausing delivery does not revoke API reads');assert.equal(connector(data).deliveryPaused,true);assert.ok(connector(data).nextAction);
+ await h.json('/v1/matters/'+matter.id+'/tasks',undefined,'',200,{authorization:'Bearer '+rotated.key});
  await h.json(path+'/revoke',{},h.owner);data=await diagnostics();
  assert.equal(connector(data).authorization,'revoked');assert.equal(connector(data).lastAcceptedAt,accepted);assert.equal(connector(data).lastSuccessfulReadAt,null);
  await h.json('/v1/matters',undefined,'',401,{authorization:'Bearer '+integration.key});
+ await h.json('/v1/matters/'+matter.id+'/tasks',undefined,'',401,{authorization:'Bearer '+rotated.key});
+ assert.ok(!JSON.stringify(data).includes(rotated.key));assert.ok(!JSON.stringify(data).includes(rotated.signingSecret));
  assert.ok(!JSON.stringify(data).includes(integration.key));assert.ok(!JSON.stringify(data).includes(integration.signingSecret));assert.ok(!JSON.stringify(data).includes('https://receiver.example.com/events'));
  console.log('PROBE FIRM-007 connector diagnostics: native queued event and receiver replies -> unclaimed queue counted; acceptance retained through uncertainty and revocation; credential refused and absent from diagnostics');
 }
