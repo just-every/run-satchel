@@ -438,6 +438,38 @@
     "journey": "tests/agent-door/native-journey.mjs",
     "agent": {
       "initializer": "tests/agent-door/initialize-agent.mjs"
+    },
+    "sponsors": [
+      {
+        "label": "owner"
+      },
+      {
+        "label": "inactive",
+        "email": "synthetic-satchel-inactive\u0040example.invalid",
+        "initializer": "tests/agent-door/sponsor-fixtures.mjs",
+        "negativeOnly": true
+      },
+      {
+        "label": "excluded",
+        "email": "synthetic-satchel-excluded\u0040example.invalid",
+        "initializer": "tests/agent-door/sponsor-fixtures.mjs",
+        "negativeOnly": true
+      }
+    ],
+    "reviewers": [
+      {
+        "label": "inactive",
+        "email": "synthetic-satchel-inactive\u0040example.invalid",
+        "initializer": "tests/agent-door/sponsor-fixtures.mjs"
+      },
+      {
+        "label": "excluded",
+        "email": "synthetic-satchel-excluded\u0040example.invalid",
+        "initializer": "tests/agent-door/sponsor-fixtures.mjs"
+      }
+    ],
+    "fixtures": {
+      "module": "tests/agent-door/sponsor-fixtures.mjs"
     }
   }
 }
