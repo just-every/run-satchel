@@ -172,7 +172,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "ce38280dcab712658fc36d432d57fc27654f7d180168a246ecdf670f5a4ac392",
+      "sha256": "88f6c49c44cbf91cf90eee27ec4e3ecc4a161cedbea980206000253c9e771ce6",
       "executable": false
     },
     "DEMO.md": {
@@ -4060,7 +4060,7 @@
       "executable": false
     },
     "src/satchel/matters.ts": {
-      "sha256": "5ef39c0891a2170448430a31efc5005c0beadffee9c5c21bd635d9cb9c3d3d94",
+      "sha256": "555658050605f60f4e797f92b27249799f8a8ece08297d9c536407b7142b948b",
       "executable": false
     },
     "src/satchel/microsoft-authority.ts": {
@@ -5104,11 +5104,11 @@
       "executable": false
     },
     "tests/satchel/agent-work-reconciliation-browser.mjs": {
-      "sha256": "e7717226551a0a349a2c2cc50a00092a7b6b79c08c8a045575089015048866d4",
+      "sha256": "fdc9a73a138e959fc897c8aff7ed2bc1b948ca931549488ad54a50aba9ed5ed7",
       "executable": false
     },
     "tests/satchel/agent-work-reconciliation-flow.mjs": {
-      "sha256": "a3a930326c81d1813b0676cd675b73d08de279c530d624e033f3d5ced643b222",
+      "sha256": "8542b96a66c559e89782ff6f345996b7d61b9ebaee7fb6bd39727d35860cf2b1",
       "executable": false
     },
     "tests/satchel/assembly-fixture.mjs": {
