@@ -1,3 +1,4 @@
+import {refuseEconomicsCapture} from './economics-confidentiality';
 import {canonicalJson,sha256} from '../modules/import-kit/src/d1/index';
 import {atomic,audit,human,id,insist,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
 import {requireWholeFirmWallAccess} from './wall-doors';
@@ -82,6 +83,7 @@ export async function migrationAction(db:D1Database,actor:Actor,op:string,b:Data
  await principal(db,actor);
  if(op==='preview'||op==='commit'){
   const plan=await review(db,b.package),p=plan.package;
+  for(const file of plan.files.values())await refuseEconomicsCapture(db,Uint8Array.from(atob(file.contentBase64),c=>c.charCodeAt(0)),file.sha256);
   // Type mappings are checked before the first write, using the ordinary
   // matter-field validator rather than accepting untyped custom history.
   for(const r of plan.records.filter(r=>r.kind==='matters'))try{await importedMatterProfile(db,actor,targetId(p.account,'matters',r.id),r.value.practice_code??'',r.value.fields?JSON.parse(r.value.fields):{caseNumber:r.value.case_number},{account:p.account,sourceId:r.id});}catch(e){plan.errors.push(`Matter ${r.id}: ${(e as Error).message}`);}

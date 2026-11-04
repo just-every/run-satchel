@@ -1,3 +1,4 @@
+import {refuseEconomicsText} from './economics-confidentiality';
 import {serializeSendGridMessage} from '../modules/mail/src/sendgrid-email/index.mjs';
 import {collectionSendGuards} from './collection-state';
 import {matterUpdateSendGuards} from './matter-update-delivery';
@@ -42,6 +43,7 @@ export async function reviewCorrespondence(db:D1Database,actor:Actor,matterId:st
  m.subject=billId?'An invoice is available':text(b.subject,'Subject',200);
  m.body=billId?'An invoice is available. Sign in to the secure portal to review it.':text(b.body,'Reviewed letter',20000);
  insist(!/[\r\n]/.test(m.subject),'Use a single-line subject');
+ await refuseEconomicsText(db,m.body);
  const revision=await eligible(db,actor,m),at=now(),note=text(b.reviewNote,'Review and sending authority',2000),attempt=id();
  await atomic(db,actor,[...fences(db,actor,m,revision),stmt(db,'INSERT INTO s_correspondence VALUES(?,?,?,?,?,?,?,?,?,?,?)',m.id,matterId,m.recipient,m.subject,m.body,billId,m.bill_digest,revision,actor.email,at,note),stmt(db,'INSERT INTO s_correspondence_attempts(id,correspondence_id,decision_by,decision_at,decision_note,contact_revision) VALUES(?,?,?,?,?,?)',attempt,m.id,actor.email,at,note,revision),audit(db,actor,'correspondence.reviewed',m.id,JSON.stringify({recipient:m.recipient,billId,attempt}),{matterId})]);
  return {id:m.id,attemptId:attempt};
@@ -50,6 +52,7 @@ async function load(db:D1Database,actor:Actor,attemptId:string){counsel(actor);c
 export async function sendCorrespondence(env:Bindings,actor:Actor,attemptId:string,atMs=Date.now()){
  const db=env.DB,a=await load(db,actor,attemptId);
  if(a.status!=='ready')return correspondenceState(db,actor,a.matter_id);
+ await refuseEconomicsText(db,a.body);
  const revision=await eligible(db,actor,a);insist(revision===a.contact_revision,'Contact authority changed; make a fresh review decision',409);
  const mail=operatorMail(env);insist(mail&&env.MAIL_FROM,'Configure the firm mail provider and sender; nothing was sent',409);
  const at=new Date(atMs).toISOString(),reminderGuards=await reminderSendGuards(db,actor,a,atMs),updateGuards=await matterUpdateSendGuards(db,actor,a,atMs);

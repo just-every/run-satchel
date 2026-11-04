@@ -1,4 +1,5 @@
 import {matterStorageGuard} from './document-uploads';
+import {refuseEconomicsCapture} from './economics-confidentiality';
 import {matterScope} from './matter-scope';
 /* Adapted from just-every/run-chest access.ts, documents.ts and blobs.ts,
  * commit 7bf6e3eff153323fedfdd2ef6abb7bfd0222419a.
@@ -103,6 +104,7 @@ export async function saveDocument(db: D1Database, actor: Actor, matterId: strin
  insist(/^[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+-]+$/i.test(declaredMime), 'Use a MIME type without parameters');
  insist(body.visibility === 'matter' || body.visibility === 'private', 'Choose matter or private visibility');
  const bytes = decode(body.contentBase64), sha256 = await digest(bytes), mime = mediaType(bytes);
+ await refuseEconomicsCapture(db,bytes,sha256);
  const existing = body.documentId ? await visibleDocument(db, actor, text(body.documentId, 'Document ID', 100)) : null;
  if (existing) {
   insist(existing.matter_id === matterId, 'Document not found', 404);
