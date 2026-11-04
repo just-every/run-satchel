@@ -1,5 +1,75 @@
 # Company preparation agents
 
+<!-- agent-reference:start -->
+
+## Tools by job
+
+The specialist is **legal-practice coordinator**. These are the registry's possible classes, not a permission grant. An authenticated listing also requires current policy answers; an unset or paused policy can hide the tools. On narrow screens, scroll tables sideways, or focus a table and use the arrow keys.
+
+| Job | Tool | Scope | Read only | Possible classes |
+| --- | --- | --- | --- | --- |
+| Read admitted identity | `satchel.agent.identity` | `satchel:identity` | Yes | `standard` |
+| List delegated preparation work | `satchel.agent.context` | `satchel:context` | Yes | `standard` |
+| Read delegated matter evidence | `satchel.matter.context` | `satchel:context` | Yes | `standard`, `sensitive` |
+| Prepare matter proposal | `satchel.proposal.prepare_matter` | `satchel:prepare` | No | `standard`, `sensitive` |
+| Prepare bill proposal | `satchel.proposal.prepare_bill` | `satchel:prepare` | No | `standard`, `sensitive` |
+| Prepare deadline proposal | `satchel.proposal.prepare_deadline` | `satchel:prepare` | No | `standard`, `sensitive` |
+
+Every tool carries input and output schemas in the authenticated MCP listing. Mutating calls require an idempotency key; a replay returns the retained outcome. These jobs prepare native records for a person's review and never grant external execution.
+
+## Computed class fixtures
+
+`standard` describes an internal preparation with measure 1. Approved selected health-source versions add `sensitive` with their native record count and kind `health`. Caller risk flags and instructions embedded in source text cannot remove it. The fixture calls below independently declare their expected classes in [agent-surface.json](../agent-surface.json); [tests/agent-door/native-journey.mjs](../tests/agent-door/native-journey.mjs) executes them through MCP and the maintained conformance journey checks the actual decisions under autonomous and held policies.
+
+| Fixture call | Tool | Expected classes and facts |
+| --- | --- | --- |
+| `read-matter1` | `satchel.matter.context` | `standard` `{"measure":1}`; `sensitive` `{"measure":1,"kind":"health"}` |
+| `matter1` | `satchel.proposal.prepare_matter` | `standard` `{"measure":1}`; `sensitive` `{"measure":1,"kind":"health"}` |
+| `bill1` | `satchel.proposal.prepare_bill` | `standard` `{"measure":1}`; `sensitive` `{"measure":1,"kind":"health"}` |
+| `deadline1` | `satchel.proposal.prepare_deadline` | `standard` `{"measure":1}`; `sensitive` `{"measure":1,"kind":"health"}` |
+
+The paired calls without health sources are `identity`, `context`, `read-matter0`, `matter0`, `bill0`, `deadline0`. Read the descriptor for their exact argument references and injected caller flags; fixture expectations are proof targets, not classification input.
+
+## Declared capability families
+
+Declared: `tools`, `policy`, `pause`, `audit`, `idempotency`. Undeclared and refused: `events`, `resources`, `prompts`, `subscriptions`.
+
+| Public surface | Current behavior |
+| --- | --- |
+| Resource templates | None. The resource-template listing is empty; resource reads return `capability_not_declared`. |
+| Event types | None published. The event-list tool is absent and calls return `capability_not_declared`. |
+| Specialist prompts | None published. The prompt listing is empty and retrieval returns `capability_not_declared`. |
+| Subscriptions | Undeclared. Listening returns `capability_not_declared`; discovery advertises no change subscription. |
+
+Internal pending-proposal adapters and internal event records do not declare a public resource or event family. The current descriptor enables only the families above; it does not narrow the full contract.
+
+## Capacity and refusals
+
+The installation admits 600 requests per minute per agent and at most 1048576 request-body bytes. Capacity protects the installation; it is not a daily business allowance, a provider-spend budget or execution authority. Overrun returns HTTP 429 with `Retry-After`; an oversized body returns HTTP 413. Transport and policy errors are described in [the door protocol reference](../src/modules/agent-door/README.md).
+
+| Common code | Meaning and next step |
+| --- | --- |
+| `capability_not_declared` | This public family is not enabled; a different credential does not enable it. |
+| `policy_unset` | A person must complete current company policy setup. |
+| `policy_blocked` | The current policy refuses the classified call. |
+| `approval_required` | The named person must decide at the supplied approval URL. |
+| `agents_paused` | A person must resume agents before another call. |
+| `native_delegation_required` | The sponsor must review the exact native key and agent binding. |
+| `native_authority_required` | Current native role, matter access or delegation refuses the call. |
+| `native_conflict` | Current native state conflicts with the requested preparation. |
+| `resource_unavailable` | The selected native record is unavailable to this authority. |
+| `idempotency_conflict` | That identity was already used for different arguments; reconcile the original outcome. |
+
+## Outstanding contract obligations
+
+This reference documents the declared preparation subset. Registry-derived discovery instructions, public specialist prompt delivery, the complete stranger-agent specialist journey and every remaining full-contract conformance point under autonomous and held policies remain required by BASE-AGENT-013. Resource refresh, successful multi-sponsor isolation, provider mail, timed and queued lifecycle, dual-host operation, owner-native administration, broader ct workflow parity and client custody and redaction remain unproved. See [the contract and its Status gaps](../CONTRACT.md).
+
+AGENT-010 retains the principal-approved native-preparation, sponsor-recipient, zero-spend, no-training and no-outbound-execution floor. Full scoped delegation and provider boundaries await ct approval; canonical generated contract documents await ct cleanup. This guide enables no capability or authority and releases no other lane hold.
+
+<!-- agent-reference:end -->
+
+## Preparation authority
+
 Satchel's legal-practice coordinator is available through `/mcp` in both supported
 MCP eras. Discovery publishes the native tool schemas, scopes and classes.
 `/agents` is the person's policy, Pause, review, approval and audit door. A company

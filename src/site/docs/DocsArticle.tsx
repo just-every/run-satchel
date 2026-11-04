@@ -19,7 +19,7 @@ export function DocsArticle({ slug }: { slug: string }) {
       <DocsSidebar current={slug} />
       <main id="main" className="docs-main">
         <DocsMenu current={slug} />
-        <article aria-labelledby="docs-title">
+        <article aria-labelledby="docs-title" className={slug === 'agents' ? 'agent-reference' : undefined}>
           <header className="docs-page-head"><p className="docs-eyebrow">{sectionOf(slug)}</p><h1 id="docs-title">{page.title}</h1><p className="docs-summary">{page.summary}</p></header>
           <div className="docs-prose" dangerouslySetInnerHTML={{ __html: page.html }} />
         </article>

@@ -1,3 +1,4 @@
+import {exerciseAgentReference} from '../site/agent-reference-browser.mjs';
 import {exerciseDocumentUploads} from './document-upload-browser.mjs';
 import {exerciseAgentControls} from './agent-execution-browser.mjs';
 // SAT-013: the installed product's own surfaces, driven in a browser at desktop and phone widths.
@@ -21,6 +22,7 @@ async function done(page,notice){await page.getByRole('status').getByText(notice
 for(const [width,height] of [[1440,1000],[390,844]])test(`SAT-013 sign-in, setup and every workspace tab with real records at ${width}px`,async()=>{
  const h=await harness(),browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,args:['--no-sandbox','--use-mock-keychain','--password-store=basic']});
  try{
+  await exerciseAgentReference(browser,width);
   const context=await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(String(e)));
   // The installed root stays the Lobby: one door into sign-in or setup.
   await page.goto(h.origin+'/');const door=page.locator('a.btn');assert.match(await door.innerText(),/Sign in|Finish setup/);await door.click();

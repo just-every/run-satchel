@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {readAgentReference,assertFixtureReference,assertRuntimeReference} from './reference.mjs';
 import surface from '../../agent-surface.json' with {type:'json'};
 import {resolveArgs} from '../../src/modules/agent-door/conformance/protocol.mjs';
 
@@ -6,6 +8,26 @@ import {resolveArgs} from '../../src/modules/agent-door/conformance/protocol.mjs
 export default async function journey({request,origin,cookie,tool}) {
  const native=async(path,body)=>{const r=await request(origin+'/api/satchel'+path,{method:body===undefined?'GET':'POST',headers:{Origin:origin,Cookie:cookie,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});assert.equal(r.ok,true,'Native person lifecycle');return r.json();};
  console.log('Native door journey: start');
+ const guide=readAgentReference(await readFile('dist/site/docs/agents.html','utf8'));
+ assertFixtureReference(guide,surface);
+ // A fresh native key authenticates real MCP listings; it is revoked before preparation.
+ const referenceKey=await native('/keys',{label:'Reference catalogue probe'});
+ const rpc=async(method,params={})=>{
+  const version='2026-07-28';
+  const response=await request(origin+'/mcp',{method:'POST',headers:{Origin:origin,Authorization:'Bearer '+referenceKey.key,'Content-Type':'application/json','MCP-Protocol-Version':version,'Mcp-Method':method,...(params.name?{'Mcp-Name':params.name}:{}),...(params.uri?{'Mcp-Name':params.uri}:{})},body:JSON.stringify({jsonrpc:'2.0',id:crypto.randomUUID(),method,params:{...params,_meta:{'io.modelcontextprotocol/protocolVersion':version}}})});
+  assert.equal(response.status,200,'Authenticated reference probe '+method);return response.json();
+ };
+ try{
+  const listed=await rpc('tools/list'),templates=await rpc('resources/templates/list'),discovery=await rpc('server/discover');
+  assertRuntimeReference(guide,listed.result.tools,templates.result.resourceTemplates);
+  assert.deepEqual(discovery.result._meta['com.runeditrun/capabilities'].declared,surface.capabilities);
+  const prompts=await rpc('prompts/list');assert.deepEqual(prompts.result.prompts,[],'Undeclared prompts remain empty');
+  for(const [method,args] of [['resources/read',{uri:'satchel://proposals/unavailable'}],['prompts/get',{name:'legal-practice-coordinator'}],['subscriptions/listen',{}]]){
+   const answer=await rpc(method,args);assert.equal(answer.error?.data?.code,'capability_not_declared','The documented undeclared surface refuses '+method);
+  }
+  console.log('Native door journey: published guide matches authenticated tools, templates and refused families');
+ }finally{await native('/keys/'+referenceKey.id+'/revoke',{});}
+
  const identity=(await tool('satchel.agent.identity',{})).result.structuredContent;
  const {keys}=await native('/team'),key=keys.find(k=>k.label==='Declared company preparation');
  await native('/agent-keys/'+key.id+'/business',{agentId:identity.agentId,confirmed:true});
@@ -16,6 +38,8 @@ export default async function journey({request,origin,cookie,tool}) {
   if(!surface.tools.find(t=>t.name===step.tool).readOnly)args.idempotency_key=crypto.randomUUID();
   console.log('Native door journey: '+step.id);
   const answer=await tool(step.tool,args);assert.equal(answer.result?.isError,false,step.tool);assert.ok(answer.result?.structuredContent,step.tool);
+  assert.deepEqual(answer.decision.classes.map(({class:kind,facts})=>({class:kind,facts})),step.expect,'Actual classifier matches independently declared fixture '+step.id);
+  if(guide.fixtures.some(f=>f.id===step.id))assert.deepEqual(guide.fixtures.find(f=>f.id===step.id).expect,step.expect,'Published fixture '+step.id);
   outputs.set(step.id,answer.result.structuredContent);
   if(args.idempotency_key){const replay=await tool(step.tool,args);assert.deepEqual(replay.result.structuredContent,answer.result.structuredContent,'Native proposal replay');}
  }
