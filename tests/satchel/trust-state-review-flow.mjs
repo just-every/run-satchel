@@ -25,6 +25,7 @@ export async function exerciseStateReview(h,f,p,packet){
  const x=await recordStateEvidence(h,f,p,packet),metadataDoor='/trust/periods/'+p.id+'/state-metadata',reviewDoor='/trust/packets/'+packet.id+'/record-reviews';
  const staleBody=stateReviewBody(x.ca);
  assert.equal((await h.json(reviewDoor,staleBody,h.owner)).id,x.review.id,'Replay retains one attributable review');
+ await h.json(reviewDoor,{...staleBody,note:'Changed review note cannot overwrite retained inspection'},h.owner,409);
  assert.equal((await h.json(metadataDoor,{...x.body,baseRevision:x.saved.id},h.owner)).id,x.saved.id,'Identical recording does not duplicate revisions');
  await h.json(metadataDoor,{...x.body,baseRevision:x.saved.id,fields:{...x.fields,barNumber:{value:'654321',evidence:[{...x.ref,digest:'0'.repeat(64)}]}}},h.owner,409);
  await h.json(metadataDoor,{...x.body,baseRevision:x.saved.id,fields:{barNumber:{value:'654321',evidence:[]}}},h.owner,400);
@@ -44,6 +45,10 @@ export async function exerciseStateReview(h,f,p,packet){
  assert.equal(manifest.requiredRecordManifest.find(m=>m.category==='bank_statements').originals[0].documentId,packet.snapshot.sourceDocument.id);
  assert.ok(manifest.requiredRecordManifest.find(m=>m.category==='cancelled_checks').missing);assert.ok(manifest.missing.some(s=>s.includes('Cancelled checks')));assert.ok(manifest.missing.some(s=>s.includes('seven-year')));assert.equal(manifest.complete,false);
  const nyReview=await h.json(reviewDoor,stateReviewBody(manifest),h.owner);assert.equal(nyReview.metadata_id,ny.id);assert.ok(nyReview.snapshot.missing.some(s=>s.includes('Cancelled checks')));
+ const nyReviewBytes=await(await h.request('/api/satchel/trust/record-reviews/'+nyReview.id,undefined,h.owner)).text();
+ await h.json(metadataDoor,{state:'NY',baseRevision:ny.id,manifest:[{category:'retainer_agreements',evidence:[{...ref,citation:'Retained signed agreement, page 1, checked again'}]},{category:'compensation_agreements',evidence:[ref]}]},h.owner);
+ await h.json(reviewDoor,stateReviewBody(manifest),h.owner,409);
+ assert.equal((await statePreview(h,packet,'NY')).firmReview,null);assert.equal(await(await h.request('/api/satchel/trust/record-reviews/'+nyReview.id,undefined,h.owner)).text(),nyReviewBytes);
  const staffAddress=['restricted-trust-review','example.test'].join('@');
  await h.json('/team',{email:staffAddress,name:'Restricted trust officer',role:'trust_officer'},h.owner);await h.json('/team/invite',{email:staffAddress},h.owner);const staff=await h.login(staffAddress);
  for(const door of ['/trust/packets/'+packet.id+'/records?state=CA','/trust/record-reviews/'+x.review.id])await h.json(door,undefined,staff,403);
@@ -53,6 +58,8 @@ export async function exerciseStateReview(h,f,p,packet){
  await h.json('/matters/'+f.other.id+'/access',{email:staffAddress},h.owner);
  assert.equal((await statePreview(h,packet,'NY',staff)).packetDigest,packet.digest);
  await h.json(reviewDoor,stateReviewBody(changed),staff,403);
+ await h.json('/team',{email:staffAddress,name:'Restricted trust officer',role:'trust_officer',active:false},h.owner);await h.json('/trust/packets/'+packet.id+'/records?state=CA',undefined,staff,403);
+ await h.json('/team',{email:staffAddress,name:'Restricted trust officer',role:'trust_officer'},h.owner);
  const outsider=await h.json('/conflicts',{client:'Registration custodian',adverse:'Unrelated'},h.owner);
  const m=await h.json('/matters',{title:'Separate private registration evidence',conflictId:outsider.id,reviewNote:'Reviewed separate source custody',confirmed:true},h.owner);
  const other=await h.json('/matters/'+m.id+'/documents',{name:'Private registration evidence.txt',mime:'text/plain',visibility:'private',contentBase64:Buffer.from('Institution registration source held by principal only').toString('base64')},h.owner);

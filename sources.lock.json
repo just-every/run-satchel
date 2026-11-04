@@ -4396,7 +4396,7 @@
       "executable": false
     },
     "src/satchel/trust-state-records.ts": {
-      "sha256": "6a5a488f14146b9798be713ba01cea8a467a5e48ff3b3287d90b4af2f77c344e",
+      "sha256": "2d91f8d43708c4798de17e36ed99d35cf9945b2acc2f3c0bc3db980deece53f1",
       "executable": false
     },
     "src/satchel/trust-statement-releases.ts": {
@@ -5016,7 +5016,7 @@
       "executable": false
     },
     "src/ui/trust-periods.tsx": {
-      "sha256": "07520b81770353b25671e8895a6d2f939594af49e8d57912127f1c88a0a2be01",
+      "sha256": "9f9c7d601b921efd7501a0b6da3604b7099c79bc5ecbefdd2a3d6a3edb6d3cbc",
       "executable": false
     },
     "src/ui/trust-reversal.tsx": {
@@ -5632,7 +5632,7 @@
       "executable": false
     },
     "tests/satchel/trust-period-journey.test.mjs": {
-      "sha256": "46c3b46ca3c5b90cc891f977fdb04952840669b4e11ad9c3d1dd7f33afbbca35",
+      "sha256": "d17f8a355ec1b3e7eb64e46cd03994d59807d0a82c810faaa5d7a8b65ff393b3",
       "executable": false
     },
     "tests/satchel/trust-period.test.mjs": {
@@ -5640,7 +5640,7 @@
       "executable": false
     },
     "tests/satchel/trust-state-review-flow.mjs": {
-      "sha256": "7f016d05fc5cb4970bfaa4fba9b6b1ea03b69788f009ec2cb39d9fa7f356e33d",
+      "sha256": "ab076c947c5b6b3974a226e04dc083d648bec7beae9972a685d4daeabb1ffaea",
       "executable": false
     },
     "tests/satchel/trust-transfer-journey.test.mjs": {

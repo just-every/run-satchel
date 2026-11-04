@@ -96,7 +96,7 @@ export async function saveTrustStateMetadata(db:D1Database,actor:Actor,periodId:
 async function stateBundle(db:D1Database,actor:Actor,packet:Data,state:string){
  const metadata=await latestMetadata(db,packet.period_id,state),content=metadata?.content??{fields:{},manifest:[]};
  const preview=stateTrustRecords(packet.snapshot,state),missing:string[]=[],annualFields:Data[]=[],manifest:Data[]=[];
- async function annotate(refs:Data[]){return Promise.all(refs.map(async e=>({...e,available:await availableEvidence(db,actor,e)})));}
+ async function annotate(refs:Data[]){return Promise.all(refs.map(async e=>{const available=await availableEvidence(db,actor,e);return {...e,citation:available?e.citation:'Original unavailable',available};}));}
  if(state==='CA'){
   for(const [name,label] of californiaTrustFields){
    const f=content.fields[name],evidence=await annotate(f?.evidence??[]),present=!!f&&evidence.length>0&&evidence.every(e=>e.available);
@@ -139,8 +139,9 @@ export async function reviewTrustState(db:D1Database,actor:Actor,packetId:string
  const refs=await rows(db,'SELECT * FROM s_trust_state_evidence WHERE metadata_id=?',built.metadata.id);
  for(const r of refs)insist(await availableEvidence(db,actor,{documentId:r.source_document_id,version:r.source_version,digest:r.source_digest}),'A referenced original is unavailable; update the metadata before review',409);
  const prior=await stmt(db,'SELECT * FROM s_trust_state_reviews WHERE packet_id=? AND state=? AND metadata_id=? AND bundle_digest=?',packet.id,state,built.metadata.id,built.bundleDigest).first<Data>();
- if(prior)return getTrustStateReview(db,actor,prior.id);
- const reviewId=id(),at=now(),note=text(b.note,'Firm review note',2000),snapshot=JSON.stringify(built.bundle),hash=await digest(snapshot);
+ const note=text(b.note,'Firm review note',2000);
+ if(prior){insist(prior.note===note,'This exact bundle already has a different retained review note',409);return getTrustStateReview(db,actor,prior.id);}
+ const reviewId=id(),at=now(),snapshot=JSON.stringify(built.bundle),hash=await digest(snapshot);
  await atomic(db,actor,[officerGuard(db,actor),guard(db,principalSql,actor.id,actor.email),accountTrustGuard(db,actor,packet.snapshot.account.id),
   guard(db,currentPacketSql,packet.period_id,packet.id),metadataGuard(db,packet.period_id,state,built.metadata.id),
   sourceGuard(db,packet.snapshot.sourceDocument,actor),...refs.map(r=>sourceGuard(db,{id:r.source_document_id,version:r.source_version,digest:r.source_digest},actor)),
