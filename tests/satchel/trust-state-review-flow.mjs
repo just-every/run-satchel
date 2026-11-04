@@ -1,0 +1,67 @@
+import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+export const statePreview=(h,packet,state='CA',cookie=h.owner)=>h.json('/trust/packets/'+packet.id+'/records?state='+state,undefined,cookie);
+export const stateReviewBody=p=>({state:p.state,packetDigest:p.packetDigest,metadataRevision:p.metadataRevision,bundleDigest:p.bundleDigest,confirmed:true,note:'Principal inspected the exact sources and recorded every remaining coverage gap'});
+export async function recordStateEvidence(h,f,p,packet){
+ const text='2026 CTAPP practitioner record. Licensee Avery Barton, bar 654321. Held client funds: yes. Self-assessment completed. Annual response: practitioner reports compliance, subject to counsel review. Community Bank, 100 Main Street, Albany NY. Routing 021000021, trust account 12344821, IOLTA in California, opened 2020-01-02, still open.';
+ const original=await h.json('/matters/'+f.m.id+'/documents',{name:'Practitioner annual and registration record.txt',mime:'text/plain',contentBase64:Buffer.from(text).toString('base64'),visibility:'matter'},h.owner);
+ const ref={documentId:original.id,version:1,digest:createHash('sha256').update(text).digest('hex'),citation:'Practitioner annual answers and bank registration, page 1'};
+ const values={reportingYear:'2026',licenseeName:'Avery Barton',barNumber:'654321',heldClientFunds:'yes',selfAssessment:'completed',complianceResponse:'Practitioner reports compliance; counsel review required',institutionName:'Community Bank',institutionAddress:'100 Main Street, Albany NY',routingNumber:'021000021',accountNumber:'12344821',accountType:'IOLTA',accountJurisdiction:'California',openedDate:'2020-01-02',closedDate:'Still open'};
+ const fields=Object.fromEntries(Object.entries(values).map(([key,value])=>[key,{value,evidence:[ref]}]));
+ const body={state:'CA',baseRevision:null,fields};
+ const saved=await h.json('/trust/periods/'+p.id+'/state-metadata',body,h.owner);
+ const ca=await statePreview(h,packet);assert.deepEqual(ca.annualReporting.fields.map(x=>[x.name,x.value]),Object.entries(values));
+ assert.ok(ca.annualReporting.fields.every(x=>!x.missing&&x.evidence[0].documentId===original.id&&x.evidence[0].version===1&&x.evidence[0].digest===ref.digest&&x.evidence[0].available));
+ const downloaded=await h.request('/api/satchel/documents/'+original.id+'/file?version=1',undefined,h.owner);assert.equal(await downloaded.text(),text);
+ assert.equal(ca.metadataRevision,saved.id);assert.equal(ca.complete,false);assert.equal(ca.firmReview,null);
+ const review=await h.json('/trust/packets/'+packet.id+'/record-reviews',stateReviewBody(ca),h.owner);
+ assert.equal(review.packet_digest,packet.digest);assert.equal(review.metadata_id,saved.id);assert.equal(review.bundle_digest,ca.bundleDigest);assert.ok(review.reviewer_id&&review.reviewer_name&&review.reviewer_email&&review.reviewed_at);
+ assert.equal(createHash('sha256').update(JSON.stringify(review.snapshot)).digest('hex'),review.digest);
+ assert.equal((await statePreview(h,packet)).firmReview.id,review.id);
+ const bytes=await(await h.request('/api/satchel/trust/record-reviews/'+review.id,undefined,h.owner)).text();
+ return {original,ref,fields,review,bytes,ca,body,saved};
+}
+export async function exerciseStateReview(h,f,p,packet){
+ const x=await recordStateEvidence(h,f,p,packet),metadataDoor='/trust/periods/'+p.id+'/state-metadata',reviewDoor='/trust/packets/'+packet.id+'/record-reviews';
+ const staleBody=stateReviewBody(x.ca);
+ assert.equal((await h.json(reviewDoor,staleBody,h.owner)).id,x.review.id,'Replay retains one attributable review');
+ assert.equal((await h.json(metadataDoor,{...x.body,baseRevision:x.saved.id},h.owner)).id,x.saved.id,'Identical recording does not duplicate revisions');
+ await h.json(metadataDoor,{...x.body,baseRevision:x.saved.id,fields:{...x.fields,barNumber:{value:'654321',evidence:[{...x.ref,digest:'0'.repeat(64)}]}}},h.owner,409);
+ await h.json(metadataDoor,{...x.body,baseRevision:x.saved.id,fields:{barNumber:{value:'654321',evidence:[]}}},h.owner,400);
+ const update={...x.body,baseRevision:x.saved.id,fields:{...x.fields,selfAssessment:{value:'Completed; reviewed again by practitioner',evidence:[x.ref]}}};
+ const newer=await h.json(metadataDoor,update,h.owner);assert.equal(newer.version,2);
+ await h.json(metadataDoor,{...update,fields:x.fields},h.owner,409);
+ await h.json(reviewDoor,staleBody,h.owner,409);
+ const changed=await statePreview(h,packet);assert.equal(changed.firmReview,null);assert.ok(changed.missing.some(s=>s.includes('Firm review')));assert.notEqual(changed.bundleDigest,x.ca.bundleDigest);
+ assert.equal(await(await h.request('/api/satchel/trust/record-reviews/'+x.review.id,undefined,h.owner)).text(),x.bytes);
+ const nyBefore=await statePreview(h,packet,'NY');assert.ok(nyBefore.requiredRecordManifest.find(m=>m.category==='retainer_agreements').missing);
+ const text='Barton retained agreement: compensation hourly, client account statement and disbursement bill attached for practitioner inspection.';
+ const original=await h.json('/matters/'+f.m.id+'/documents',{name:'Client retainer and compensation agreement.txt',mime:'text/plain',contentBase64:Buffer.from(text).toString('base64'),visibility:'matter'},h.owner);
+ const ref={documentId:original.id,version:1,digest:createHash('sha256').update(text).digest('hex'),citation:'Retained signed client agreement, page 1'};
+ const ny=await h.json(metadataDoor,{state:'NY',baseRevision:null,manifest:[{category:'retainer_agreements',evidence:[ref]},{category:'compensation_agreements',evidence:[ref]}]},h.owner);
+ const manifest=await statePreview(h,packet,'NY'),retainer=manifest.requiredRecordManifest.find(m=>m.category==='retainer_agreements');assert.equal(retainer.missing,false);assert.deepEqual(retainer.originals,[{...ref,available:true}]);
+ assert.equal(await(await h.request('/api/satchel/documents/'+ref.documentId+'/file?version='+ref.version,undefined,h.owner)).text(),text);
+ assert.equal(manifest.requiredRecordManifest.find(m=>m.category==='bank_statements').originals[0].documentId,packet.snapshot.sourceDocument.id);
+ assert.ok(manifest.requiredRecordManifest.find(m=>m.category==='cancelled_checks').missing);assert.ok(manifest.missing.some(s=>s.includes('Cancelled checks')));assert.ok(manifest.missing.some(s=>s.includes('seven-year')));assert.equal(manifest.complete,false);
+ const nyReview=await h.json(reviewDoor,stateReviewBody(manifest),h.owner);assert.equal(nyReview.metadata_id,ny.id);assert.ok(nyReview.snapshot.missing.some(s=>s.includes('Cancelled checks')));
+ const staffAddress=['restricted-trust-review','example.test'].join('@');
+ await h.json('/team',{email:staffAddress,name:'Restricted trust officer',role:'trust_officer'},h.owner);await h.json('/team/invite',{email:staffAddress},h.owner);const staff=await h.login(staffAddress);
+ for(const door of ['/trust/packets/'+packet.id+'/records?state=CA','/trust/record-reviews/'+x.review.id])await h.json(door,undefined,staff,403);
+ await h.json(metadataDoor,update,staff,403);await h.json(reviewDoor,stateReviewBody(changed),staff,403);
+ await h.json('/matters/'+f.m.id+'/access',{email:staffAddress},h.owner);
+ await h.json('/trust/packets/'+packet.id+'/records?state=NY',undefined,staff,403);
+ await h.json('/matters/'+f.other.id+'/access',{email:staffAddress},h.owner);
+ assert.equal((await statePreview(h,packet,'NY',staff)).packetDigest,packet.digest);
+ await h.json(reviewDoor,stateReviewBody(changed),staff,403);
+ const outsider=await h.json('/conflicts',{client:'Registration custodian',adverse:'Unrelated'},h.owner);
+ const m=await h.json('/matters',{title:'Separate private registration evidence',conflictId:outsider.id,reviewNote:'Reviewed separate source custody',confirmed:true},h.owner);
+ const other=await h.json('/matters/'+m.id+'/documents',{name:'Private registration evidence.txt',mime:'text/plain',visibility:'private',contentBase64:Buffer.from('Institution registration source held by principal only').toString('base64')},h.owner);
+ await h.json(metadataDoor,{...update,baseRevision:newer.id,fields:{...x.fields,institutionName:{value:'Community Bank',evidence:[{documentId:other.id,version:1,digest:other.versions[0].sha256,citation:'Registration source'}]}}},h.owner);
+ await h.json('/trust/packets/'+packet.id+'/records?state=NY',undefined,staff,403);
+ assert.equal(await(await h.request('/api/satchel/trust/record-reviews/'+x.review.id,undefined,h.owner)).text(),x.bytes);
+ // Erasure makes a field unavailable and fences retained review downloads.
+ await h.json('/documents/'+x.original.id+'/erase',{confirm:x.original.title,reason:'Approved disposal of superseded practitioner source'},h.owner);
+ const erased=await statePreview(h,packet);assert.equal(erased.annualReporting.fields.find(f=>f.name==='barNumber').value,null);assert.equal(JSON.stringify(erased).includes('12344821'),false);
+ await h.json('/trust/record-reviews/'+x.review.id,undefined,h.owner,409);
+ await h.json(reviewDoor,stateReviewBody(erased),h.owner,409);
+}

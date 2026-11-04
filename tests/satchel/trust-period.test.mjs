@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {harness} from './harness.mjs';
+import {exerciseStateReview} from './trust-state-review-flow.mjs';
 import {periodFoundation,transaction,correction,createPeriod,sign} from './trust-period-fixture.mjs';
 test('TRUST-005: import original statements, drill $12.50 suspense and outstanding check, correct by journal, sign exact consecutive monthly packets',async()=>{
  const h=await harness();try{
@@ -21,6 +22,7 @@ test('TRUST-005: import original statements, drill $12.50 suspense and outstandi
  assert.equal(ca.fields.find(f=>f.name==='outstandingCheckCents').sources[0].id,check.id);assert.equal(ca.statementOriginal.id,packet.snapshot.sourceDocument.id);
  const nyCheck=ny.journal.find(e=>e.entryId===check.id);assert.deepEqual([nyCheck.cents,nyCheck.transaction.counterparty,nyCheck.transaction.bankReference,nyCheck.transaction.receivedDate],[-20000,'County filing office','CHECK-1042','2026-08-15']);assert.equal(nyCheck.transaction.sourceDocumentId,packet.snapshot.entries.find(e=>e.id===check.id).transaction.sourceDocumentId);
  assert.deepEqual(ny.ledgers.map(l=>[l.ledgerId,l.balanceCents]),[[f.ledger.id,81250],[f.otherLedger.id,0]]);assert.equal(ny.recordIndex.bankStatement.id,packet.snapshot.sourceDocument.id);assert.ok(ny.missing.length>0&&ca.missing.length>0);
+ await exerciseStateReview(h,f,p,packet);
  await h.json('/trust/packets/'+packet.id+'/records?state=XX',undefined,h.owner,400);
  const cutoff=await h.json('/trust/ledgers/'+f.ledger.id+'/statement?cutoffDate=2026-08-31',undefined,h.owner);assert.equal(cutoff.closingBalanceCents,81250);assert.ok(cutoff.entries.every(e=>e.effective_date<='2026-08-31'));
  await h.json('/team',{email:'assistant@example.test',name:'Case assistant',role:'assistant'},h.owner);await h.json('/team/invite',{email:'assistant@example.test'},h.owner);const assistant=await h.login('assistant@example.test');await h.json('/trust/periods/'+p.id,undefined,assistant,403);await h.json('/trust/periods/'+p.id+'/sign',{reportDigest:r.reportDigest},assistant,403);

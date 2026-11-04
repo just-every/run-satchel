@@ -11,7 +11,7 @@ import {paymentPlans,paymentPlan,savePaymentPlan,paymentPlanAction,startPlanMand
 import {approveRefund} from './stripe-refunds';
 import {reconciliationState,reconcileCollection,inspectSettlement,matchSettlement,reverseBankMatch} from './stripe-reconciliation';
 import {settlements,saveContingency,prepareSettlement,approveSettlement,checkSettlementFunds} from './settlements';
-import {stateTrustRecords} from './trust-state-records';
+import {trustStatePreview,saveTrustStateMetadata,reviewTrustState,getTrustStateReview} from './trust-state-records';
 import {setRetainerPolicy,retainerAlert,deliverReplenishment,portalReplenishments} from './trust-retainers';
 import {listTrustStatementReleases,releaseTrustStatement,withdrawTrustStatement,portalTrustStatements} from './trust-statement-releases';
 import {matterUpdateState,generateMatterUpdate,editMatterUpdate,approveMatterUpdate,fulfilMatterUpdatePromise,completeMatterUpdateReply} from './matter-updates';
@@ -613,6 +613,9 @@ api.get('/api/satchel/trust/ledgers/:id/balance-alert',as((a,c)=>retainerAlert(d
 api.post('/api/satchel/trust/ledgers/:id/replenishments',as(async(a,c)=>deliverReplenishment(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/portal/matters/:id/replenishments',as((a,c)=>portalReplenishments(db(c),a,param(c))));
 
-api.get('/api/satchel/trust/packets/:id/records',as(async(a,c)=>{const packet=await getTrustPacket(db(c),a,param(c));return new Response(JSON.stringify({...stateTrustRecords(packet.snapshot,c.req.query('state')??''),packetId:packet.id,packetDigest:packet.digest}),{headers:{'content-type':'application/json','content-disposition':'attachment; filename="satchel-state-trust-records.json"','cache-control':'private, no-store'}});}));
+api.get('/api/satchel/trust/packets/:id/records',as(async(a,c)=>new Response(JSON.stringify(await trustStatePreview(db(c),a,param(c),c.req.query('state'))),{headers:{'content-type':'application/json','content-disposition':'attachment; filename="satchel-state-trust-records.json"','cache-control':'private, no-store'}})));
+api.post('/api/satchel/trust/periods/:id/state-metadata',as(async(a,c)=>saveTrustStateMetadata(db(c),a,param(c),await body(c))));
+api.post('/api/satchel/trust/packets/:id/record-reviews',as(async(a,c)=>reviewTrustState(db(c),a,param(c),await body(c))));
+api.get('/api/satchel/trust/record-reviews/:id',as(async(a,c)=>new Response(JSON.stringify(await getTrustStateReview(db(c),a,param(c))),{headers:{'content-type':'application/json','content-disposition':'attachment; filename="satchel-firm-trust-review.json"','cache-control':'private, no-store'}})));
 
 api.get('/api/satchel/trust/ledgers/:id/releases',as((a,c)=>listTrustStatementReleases(db(c),a,param(c))));
