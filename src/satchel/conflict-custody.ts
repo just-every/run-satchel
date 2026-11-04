@@ -14,7 +14,7 @@ export async function disposeConflictWaiver(db:D1Database,actor:Actor,waiverId:s
   const r=await stmt(db,'SELECT * FROM s_retention WHERE matter_id=? AND document_id IS NULL AND superseded_at IS NULL',s.matter_id).first<Data>();insist(r&&r.dispose_after<=today,'The affected matter needs an expired retention schedule',409);
   const fence=id();guards.push(stmt(db,'INSERT INTO s_guard VALUES(?,CASE WHEN EXISTS(SELECT 1 FROM s_retention WHERE id=? AND superseded_at IS NULL AND dispose_after<=?) AND NOT EXISTS(SELECT 1 FROM s_holds WHERE matter_id=? AND document_id IS NULL AND released_at IS NULL) THEN 1 ELSE 0 END)',fence,r.id,today,s.matter_id),stmt(db,'DELETE FROM s_guard WHERE id=?',fence));
  }
- const service=await createPortability({db,buckets:{originals},policy}),journal={originals:[{id:f.id,size:f.size,sha256:f.sha256}],conflictOriginals:1,writtenConfirmations:1,scopes:scopes.map(s=>s.matter_id)};
+ const service=await createPortability({db,buckets:{originals,matterOriginals:originals},policy}),journal={originals:[{id:f.id,size:f.size,sha256:f.sha256}],conflictOriginals:1,writtenConfirmations:1,scopes:scopes.map(s=>s.matter_id)};
  await atomic(db,actor,[...guards,stmt(db,'INSERT INTO s_conflict_disposals VALUES(?,?,?,?,?,?)',id(),f.id,reason,JSON.stringify(journal),actor.email,at),stmt(db,"UPDATE s_conflict_waiver_chunks SET content_base64='' WHERE waiver_id=?",f.id),stmt(db,"UPDATE s_conflict_waiver_details SET confirmation='' WHERE waiver_id=?",f.id),...await service.redactionStatements(),...await service.invalidateTransfersStatements(),audit(db,actor,'conflict.original_disposed',f.id,JSON.stringify({reason,journal}),{matterId:scopes[0].matter_id})]);return {id:f.id,erasedAt:at,journal};
 }
 
@@ -47,7 +47,7 @@ export async function disposeConflictPayload(db:D1Database,actor:Actor,searchId:
  const objectIds=[...reviews,...decisions,...legacy,...screenWalls].map(r=>r.id);
  const auditRows=await rows(db,`SELECT * FROM s_audit WHERE object_id IN (SELECT value FROM json_each(?)) OR (action='conflict.restriction_removed' AND object_id IN (SELECT id FROM s_matters WHERE conflict_id=?))`,JSON.stringify(objectIds),searchId);
  const journal={restrictionRecords:reviews.length+decisions.length+legacy.length,matterAcknowledgments:(await rows(db,'SELECT id FROM s_matters WHERE conflict_id=?',searchId)).length,auditPayloads:auditRows.length,scopes:[...scopes],retained:'ids, decisions, attribution and times; original audit payload digests; staff exclusions and walls remain enforced'};
- const service=await createPortability({db,buckets:{originals},policy});
+ const service=await createPortability({db,buckets:{originals,matterOriginals:originals},policy});
  const writes:D1PreparedStatement[]=[...guards,stmt(db,'INSERT INTO s_conflict_policy_disposals VALUES(?,?,?,?,?)',searchId,reason,JSON.stringify(journal),actor.email,at)];
  for(const a of auditRows){
   const sha256=await digest(JSON.stringify({detail:a.detail,evidence:a.evidence}));

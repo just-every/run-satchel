@@ -1,3 +1,4 @@
+import {eraseR2Versions,recoverDocumentUploads} from './document-uploads';
 import {eraseDocumentText} from './document-text-index';
 import {eraseChronologies} from './document-chronologies';
 import {eraseProductions} from './document-productions';
@@ -73,7 +74,8 @@ export async function disposeDocument(db: D1Database, actor: Actor, documentId: 
  insist(r.dispose_after <= await firmToday(db), `Its retention runs until ${r.dispose_after}`, 409);
  const guards = await refuseHeld(db, d);
  const versions = await rows(db, 'SELECT version,size,sha256 FROM s_document_versions WHERE document_id=? AND content_base64 IS NOT NULL ORDER BY version', d.id);
- const at = now(), service = await createPortability({ db, buckets:{originals}, policy });
+ versions.push(...await rows(db,'SELECT version,size,sha256 FROM s_document_r2_versions WHERE document_id=? AND object_key IS NOT NULL ORDER BY version',d.id));
+ const at = now(), service = await createPortability({ db, buckets:{originals,matterOriginals:originals}, policy });
  const reviewCounts=await stmt(db,'SELECT (SELECT COUNT(*) FROM s_document_annotations WHERE document_id=? AND note IS NOT NULL) annotations,(SELECT COUNT(*) FROM s_document_conflicts WHERE document_id=? AND content_base64 IS NOT NULL) conflicts',d.id,d.id).first<Data>();
  const productionCount=await stmt(db,'SELECT COUNT(*) count FROM s_document_productions WHERE artifact_base64 IS NOT NULL AND id IN (SELECT production_id FROM s_production_sources WHERE document_id=?)',d.id).first<Data>();
  const chronologyCount=await stmt(db,'SELECT COUNT(*) count FROM s_document_chronologies WHERE snapshot IS NOT NULL AND id IN (SELECT chronology_id FROM s_chronology_sources WHERE document_id=?)',d.id).first<Data>();
@@ -82,10 +84,11 @@ export async function disposeDocument(db: D1Database, actor: Actor, documentId: 
  const scheduleGuard = id();
  await atomic(db, actor, [...documentGuard(db, actor, d, true), ...guards,
   stmt(db, `INSERT INTO s_guard(id,ok) SELECT ?,CASE WHEN ${schedule()}=? THEN 1 ELSE 0 END FROM s_documents d WHERE d.id=?`, scheduleGuard, r.id, d.id), stmt(db, 'DELETE FROM s_guard WHERE id=?', scheduleGuard),
-  stmt(db, 'UPDATE s_document_versions SET content_base64=NULL WHERE document_id=?', d.id), ...eraseDocumentText(db,d.id),...eraseDocumentReview(db,d.id),...eraseProductions(db,d.id),...eraseChronologies(db,d.id),
+  ...eraseR2Versions(db,d.id),stmt(db, 'UPDATE s_document_versions SET content_base64=NULL WHERE document_id=?', d.id), ...eraseDocumentText(db,d.id),...eraseDocumentReview(db,d.id),...eraseProductions(db,d.id),...eraseChronologies(db,d.id),
   stmt(db, 'UPDATE s_documents SET erased_at=?,revision=?,updated_by=?,updated_channel=?,updated_at=? WHERE id=?', at, id(), actor.email, actor.channel, at, d.id),
   ...await service.redactionStatements(), ...await service.invalidateTransfersStatements(),
   stmt(db, 'INSERT INTO s_disposals VALUES(?,?,?,?,?,?,?,?)', id(), d.id, d.matter_id, r.id, reason, JSON.stringify(journal), actor.email, at),
   audit(db, actor, 'document.disposed', d.id, reason)]);
+ await recoverDocumentUploads({DB:db,ORIGINALS:originals});
  return { id: d.id, erasedAt: at, journal };
 }

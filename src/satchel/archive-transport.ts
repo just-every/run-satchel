@@ -1,4 +1,5 @@
 import {refuseEconomicsValue} from './economics-confidentiality';
+import {recoverDocumentUploads} from './document-uploads';
 import {restoredProposalSponsorLinks} from './proposal-sponsors.ts'
 import {requireWholeFirmWallAccess} from './wall-doors';
 // Stream native archives, including R2 intake originals, without a total-byte ceiling.
@@ -8,9 +9,11 @@ import {createHash} from 'node:crypto';
 import {createPortability,readArchive,type LaterJournal} from '@runeditrun/rer/modules/portability';
 import policy from './archive-policy.mjs';
 import {atomic,audit,human,insist,need,text,type Actor,type Data} from './model';
-const serviceFor=(db:D1Database,originals:R2Bucket)=>createPortability({db,buckets:{originals},policy});
+const serviceFor=(db:D1Database,originals:R2Bucket)=>createPortability({db,buckets:{originals,matterOriginals:originals},policy});
 export async function backup(db:D1Database,actor:Actor,originals:R2Bucket) {
  human(actor);need(actor,'owner');await requireWholeFirmWallAccess(db,actor);
+ await recoverDocumentUploads({DB:db,ORIGINALS:originals});
+ insist(!(await stmt(db,"SELECT 1 FROM s_document_uploads WHERE state IN ('active','completing') LIMIT 1").first()),'A matter upload is in progress. Finish or cancel it before archiving.',409);
  await recoverIntakeUploads({DB:db,ORIGINALS:originals});
  insist(!(await stmt(db,'SELECT 1 FROM s_intake_uploads LIMIT 1').first()),'An intake upload is in progress. Retry the archive after it finishes.',409);
  const service=await serviceFor(db,originals),job=await service.exports.create(actor.id);

@@ -1,0 +1,103 @@
+import assert from 'node:assert/strict';
+import {createHash,randomUUID} from 'node:crypto';
+import {harness,open} from './harness.mjs';
+const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
+const manifest=(bytes,name='Record.pdf',extra={})=>({name,mime:'application/pdf',size:bytes.length,sha256:hash(bytes),visibility:'private',...extra});
+export async function proveDocumentUploads(){
+ const h=await harness();try{
+  const colleagueAddress=['synthetic-satchel-3','example.test'].join('@');
+  const m=await open(h,'Resumable original matter'),door='/matters/'+m.id+'/document-uploads';
+  const bytes=Buffer.alloc(16*1024*1024,65);bytes.write('%PDF-1.7\nsynthetic-satchel-1\n');
+  const start=(files,requestId=randomUUID(),cookie=h.owner,expected=200)=>h.json(door,{requestId,files},cookie,expected);
+  const state=()=>h.json(door,undefined,h.owner);
+  const part=async(u,number,data,expected=200,claimed=hash(data),cookie=h.owner)=>{
+   const r=await h.raw('/api/satchel/document-uploads/'+u.id+'/parts/'+number,{method:'POST',headers:{'content-type':'application/octet-stream','x-part-sha256':claimed},body:data},cookie);
+   const result=await r.json();assert.equal(r.status,expected,JSON.stringify(result));return result;
+  };
+  const complete=(u,cookie=h.owner,expected=200)=>h.json('/document-uploads/'+u.id+'/complete',{},cookie,expected);
+  const cancel=u=>h.json('/document-uploads/'+u.id+'/cancel',{},h.owner);
+  const key=randomUUID(),files=[manifest(bytes,'Record.pdf',{path:'Matter folder/Record.pdf'}),manifest(Buffer.from('synthetic-satchel-2'),'Notes.txt',{mime:'text/plain',path:'Matter folder/Notes.txt'})];
+  const batch=await start(files,key),u=batch.uploads.find(f=>f.name==='Record.pdf'),notes=batch.uploads.find(f=>f.name==='Notes.txt'),limit=batch.limits;
+  assert.equal((await state()).usedAndReservedBytes,bytes.length+files[1].size,'Every manifest original reserves bytes before storage');
+  assert.deepEqual((await start(files,key)).uploads.map(f=>f.id),batch.uploads.map(f=>f.id),'Replayed manifests retain each original identity');
+  await start([{...files[0],name:'Different.pdf',path:'Different.pdf'}],key,h.owner,409);
+  await complete(u,h.owner,409);
+  const first=bytes.subarray(0,limit.partBytes),second=bytes.subarray(limit.partBytes);
+  await part(u,1,first,409,'0'.repeat(64));
+  await part(u,1,first);await part(u,1,first);
+  const altered=Buffer.from(first);altered[100]=66;await part(u,1,altered,409);
+  await h.restart();
+  const resumed=(await state()).uploads.find(f=>f.id===u.id);assert.deepEqual(resumed.parts.map(p=>[p.number,p.size,p.sha256]),[[1,first.length,hash(first)]],'Restart recovers the verified part manifest from the real local R2 binding');
+  await h.json('/team',{email:colleagueAddress,name:'Upload colleague',role:'lawyer'},h.owner);
+  await h.json('/team/invite',{email:colleagueAddress},h.owner);const colleague=await h.login(colleagueAddress);
+  await h.json('/matters/'+m.id+'/access',{email:colleagueAddress},h.owner);
+  await h.json('/document-uploads/'+u.id+'/complete',{},colleague,404);
+  const colleagueView=await h.json(door,undefined,colleague);assert.equal(colleagueView.usedAndReservedBytes,null);assert.equal(colleagueView.uploads.length,0,'Another uploader receives neither private filenames nor storage counts');
+  const their=await start([manifest(Buffer.from('synthetic-satchel-4'),'Colleague.txt',{mime:'text/plain',visibility:'matter'})],randomUUID(),colleague);
+  await h.json('/matters/'+m.id+'/access',{email:colleagueAddress,remove:true},h.owner);
+  await part(their.uploads[0],1,Buffer.from('synthetic-satchel-4'),404,hash(Buffer.from('synthetic-satchel-4')),colleague);
+  await complete(their.uploads[0],colleague,404);
+  await h.json(door,undefined,colleague,404);
+  const session=(await h.json('/security/devices',undefined,colleague)).currentSessionId;
+  await h.json('/security/devices/'+session+'/revoke',{},colleague);
+  await complete(their.uploads[0],colleague,401);
+  await part(their.uploads[0],1,Buffer.from('synthetic-satchel-4'),401,hash(Buffer.from('synthetic-satchel-4')),colleague);
+  await cancel(their.uploads[0]);
+  await part(u,2,second);const done=await complete(u);assert.equal(done.state,'complete');
+  assert.deepEqual(await complete(u),done,'Repeated completion publishes exactly one version');
+  const docs=await h.json('/matters/'+m.id+'/documents',undefined,h.owner),doc=docs.find(d=>d.id===done.documentId);
+  assert.equal(doc.currentVersion,1);assert.equal(doc.versions.length,1);assert.equal(doc.versions[0].sha256,hash(bytes));assert.equal(doc.versions[0].scanStatus,'quarantined');assert.equal(doc.versions[0].path,'Matter folder/Record.pdf');
+  assert.equal((await state()).usedAndReservedBytes,bytes.length+files[1].size,'Completion converts a reservation to retained storage once');
+  for(const suffix of ['/file','/file?version=1','/file?version=1&sha256='+hash(bytes)])assert.equal((await h.request('/api/satchel/documents/'+doc.id+suffix,undefined,h.owner)).status,423,'No quarantined download or preview bytes');
+  const activeColleague=await h.login(colleagueAddress);await h.json('/matters/'+m.id+'/access',{email:colleagueAddress},h.owner);
+  assert.equal((await h.request('/api/satchel/documents/'+doc.id+'/file',undefined,activeColleague)).status,404);
+  await h.json('/documents/'+doc.id+'/text?version=1&sha256='+hash(bytes)+'&page=1&format=json',undefined,h.owner,409);
+  await h.json('/documents/'+doc.id+'/annotations',{version:1,page:1,note:'Cannot process quarantined bytes'},h.owner,404);
+  const search=await h.json('/search?q=synthetic-satchel-1',undefined,h.owner);assert.equal(search.total,0,'No body text derivative of a quarantined original');
+  await h.json('/matters/'+m.id+'/productions',{batesPrefix:'S',batesStart:1,recipientName:'Synthetic recipient',recipientEmail:colleagueAddress,items:[{documentId:doc.id,revision:doc.revision,version:1,privilege:'Reviewed',redactedPages:[]}]},h.owner,404);
+  await h.json('/matters/'+m.id+'/chronologies/setup',{confirmed:true,authorizationReference:'synthetic-satchel-6',agreementReference:'synthetic-satchel-7'},h.owner);
+  await h.json('/matters/'+m.id+'/chronologies',{sources:[{documentId:doc.id,version:1}],gapDays:30,reportedTotalCents:0},h.owner,404);
+  const wrong=await start([manifest(Buffer.from('synthetic-satchel-5'),'Wrong.txt',{mime:'text/plain',sha256:'0'.repeat(64)})]);await part(wrong.uploads[0],1,Buffer.from('synthetic-satchel-5'));await complete(wrong.uploads[0],h.owner,409);
+  assert.equal((await state()).uploads.find(f=>f.id===wrong.uploads[0].id).state,'invalid');
+  const before=(await state()).usedAndReservedBytes;
+  const quotaFiles=Array.from({length:21},(_,i)=>manifest(bytes,'Quota-'+i+'.pdf',{size:i===20?limit.matterBytes-20*limit.fileBytes:limit.fileBytes}));
+  await start(quotaFiles,randomUUID(),h.owner,409);
+  assert.equal((await state()).usedAndReservedBytes,before,'A rejected quota reservation changes nothing');
+  await start([manifest(bytes,'Too-big.pdf',{size:limit.fileBytes+1})],randomUUID(),h.owner,400);
+  assert.equal((await state()).usedAndReservedBytes,before);
+  // Concurrent reservations cannot both consume the final available space.
+  const reserve=()=>start(Array.from({length:11},(_,i)=>manifest(bytes,'Concurrent-'+i+'.pdf',{size:limit.fileBytes})));
+  const race=await Promise.allSettled([reserve(),reserve()]);assert.equal(race.filter(r=>r.status==='fulfilled').length,1);
+  const winning=race.find(r=>r.status==='fulfilled').value;
+  let remaining=limit.matterBytes-(await state()).usedAndReservedBytes;const fill=[];
+  while(remaining){const size=Math.min(remaining,limit.fileBytes);fill.push(manifest(bytes,'Remaining-'+fill.length+'.pdf',{size}));remaining-=size;}
+  const filled=await start(fill);assert.equal((await state()).usedAndReservedBytes,limit.matterBytes);
+  await h.json('/matters/'+m.id+'/documents',{name:'Quota-bypass.txt',mime:'text/plain',contentBase64:Buffer.from('synthetic-satchel-9').toString('base64'),visibility:'matter'},h.owner,409);
+  assert.equal((await state()).usedAndReservedBytes,limit.matterBytes,'The legacy small-original door cannot bypass reserved quota');
+  for(const file of [...winning.uploads,...filled.uploads])await cancel(file);
+  await part(notes,1,Buffer.from('synthetic-satchel-2'));await complete(notes);
+  const backup=await h.request('/api/satchel/backup',undefined,h.owner);assert.equal(backup.status,200);
+  const archive=await backup.text();assert.ok(JSON.parse(archive.split('\n')[0]).objects.some(o=>o.sha256===hash(bytes)),'Streamed archive retains the exact completed original');
+  const target=await harness();try{
+   const response=await target.raw('/api/satchel/restore',{method:'POST',headers:{'content-type':'application/x-ndjson','x-satchel-confirm':'RESTORE'},body:archive},target.owner);assert.equal(response.status,200,await response.text());
+   const restored=(await target.json('/matters/'+m.id+'/documents',undefined,target.owner)).find(d=>d.id===doc.id);
+   assert.equal(restored.versions[0].sha256,hash(bytes));assert.equal(restored.versions[0].scanStatus,'quarantined');
+   assert.equal((await target.request('/api/satchel/documents/'+doc.id+'/file',undefined,target.owner)).status,423);
+   assert.deepEqual((await target.json(door,undefined,target.owner)).uploads,[],'Archive restores originals without transfer credentials or reservations');
+  }finally{await target.close();}
+  const hold=await h.json('/holds',{matterId:m.id,documentId:doc.id,reason:'Retain original'},h.owner);
+  await h.json('/documents/'+doc.id+'/erase',{confirm:doc.title,reason:'Must refuse held bytes'},h.owner,409);
+  await h.json('/holds/'+hold.id+'/release',{reason:'Authorized release'},h.owner);
+  await h.json('/retention',{matterId:m.id,documentId:doc.id,disposeAfter:'2020-01-01',basis:'Expired synthetic record'},h.owner);
+  const disposed=await h.json('/documents/'+doc.id+'/dispose',{confirm:doc.title,reason:'Approved disposal'},h.owner);
+  assert.deepEqual(disposed.journal.originals.map(v=>[v.version,v.size,v.sha256]),[[1,bytes.length,hash(bytes)]]);
+  await complete(u,h.owner,404);assert.equal((await h.request('/api/satchel/documents/'+doc.id+'/file',undefined,h.owner)).status,404);
+  const afterArchive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(!JSON.parse(afterArchive.split('\n')[0]).objects.some(o=>o.sha256===hash(bytes)),'Disposed original bytes are absent from the archive');
+  const abandoned=await start([manifest(first,'Abandoned.pdf')]);await part(abandoned.uploads[0],1,first);
+  assert.equal((await h.request('/api/satchel/backup',undefined,h.owner)).status,409,'Active reservations block incomplete archives');
+  await h.scheduled(Date.parse(abandoned.uploads[0].expiresAt)+1);
+  const recovered=(await state()).uploads.find(f=>f.id===abandoned.uploads[0].id);assert.equal(recovered.state,'expired');await complete(recovered,h.owner,409);
+  assert.equal((await state()).usedAndReservedBytes,files[1].size,'Expired and disposed originals release quota without duplicating charges');
+  console.log('PROBE DOC-001 native: 16 MiB interrupted and resumed in real local R2; altered parts and final hash refused; quota, revocation, replay, quarantine, archive, holds, disposal and expiry passed');
+ }finally{await h.close();}
+}

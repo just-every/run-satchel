@@ -53,7 +53,7 @@ export async function searchFirm(db:D1Database,actor:Actor,query:string,filters:
    const version=d.versions.find((v:Data)=>v.version===d.currentVersion),day=version?.createdAt.slice(0,10);
    if((from&&day<from)||(to&&day>to)||(documentType&&d.documentType!==documentType))continue;
    const email=/\.eml$/i.test(d.title)||d.versions.some((v:Data)=>v.declaredMime==='message/rfc822');
-   const readable=permitted(actor,'/documents/'+d.id+'/file');
+   const readable=version?.scanStatus!=='quarantined'&&permitted(actor,'/documents/'+d.id+'/file');
    const extracted=readable?await documentText(db,actor,d.id):null;
    if(extracted)freshness.push({documentId:d.id,title:d.title,...extracted.index});
    if(matches(context,d.title,d.documentType,d.tags.join(' ')))add(email?'Email':'Documents',d.id,d.title,context+' · version '+d.currentVersion,'/documents/'+d.id+'/file?version='+d.currentVersion,m.id,'Documents',{freshness:extracted?.index});

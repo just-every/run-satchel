@@ -1,4 +1,5 @@
 import {refuseEconomicsCapture} from './economics-confidentiality';
+import {matterStorageGuard} from './document-uploads';
 import {matterScope} from './matter-scope';
 /* Adapted from just-every/run-chest access.ts, documents.ts and blobs.ts,
  * commit 7bf6e3eff153323fedfdd2ef6abb7bfd0222419a.
@@ -56,7 +57,7 @@ export function mediaType(bytes: Uint8Array) {
 }
 
 function versionJson(v: Data) {
- return { version: v.version, name: v.name, mime: v.mime, declaredMime: v.declared_mime, size: v.size, sha256: v.sha256, createdBy: v.created_by, channel: v.created_channel, createdAt: v.created_at };
+ return { version: v.version, name: v.name, mime: v.mime, declaredMime: v.declared_mime, size: v.size, sha256: v.sha256, createdBy: v.created_by, channel: v.created_channel, createdAt: v.created_at, scanStatus:v.scan_status??'legacy', path:v.relative_path??v.name };
 }
 
 function documentJson(d: Data, versions: Data[], duplicates: Data[] = []) {
@@ -68,6 +69,8 @@ export async function listDocuments(db: D1Database, actor: Actor, matterId: stri
  const access = documentAccess(actor);
  const documents = await rows(db, `SELECT d.*,(SELECT matter_number FROM s_matters WHERE id=d.matter_id) AS matter_number FROM s_documents d WHERE d.matter_id=? AND ${access.sql} ORDER BY d.updated_at DESC,d.id`, matterId, ...access.params);
  const versions = await rows(db, `SELECT ${metadata.split(',').map(c => `v.${c}`).join(',')} FROM s_document_versions v JOIN s_documents d ON d.id=v.document_id WHERE d.matter_id=? AND ${access.sql} ORDER BY v.version`, matterId, ...access.params);
+ const large=await rows(db, `SELECT v.* FROM s_document_r2_versions v JOIN s_documents d ON d.id=v.document_id WHERE d.matter_id=? AND ${access.sql} ORDER BY v.version`,matterId,...access.params);
+ versions.push(...large);versions.sort((a,b)=>a.version-b.version);
  const duplicates=duplicateIndex(documents,versions);
  return documents.map(d => documentJson(d, versions, duplicates.get(d.id)??[]));
 }
@@ -112,7 +115,7 @@ export async function saveDocument(db: D1Database, actor: Actor, matterId: strin
  }
  const documentId = existing?.id ?? id(), revision = id(), at = now(), attemptId=id();
  const baseRevision=existing?text(body.revision,'Base document revision',100):null;
- const writes = [...matterGuard(db, actor, matterId)];
+ const writes = [...matterGuard(db, actor, matterId),matterStorageGuard(db,matterId,bytes.length)];
  if (existing) {
   writes.push(...documentGuard(db, actor, existing, true, Boolean(resolving)));
   if(resolving){
@@ -140,6 +143,8 @@ export async function saveDocument(db: D1Database, actor: Actor, matterId: strin
 export async function documentFile(db: D1Database, actor: Actor, documentId: string, version?: number, expectedDigest?:string): Promise<Response> {
  if (version !== undefined) integer(version, 'Version', 1);
  const access = documentAccess(actor);
+ const quarantined=await stmt(db,`SELECT 1 FROM s_document_r2_versions v JOIN s_documents d ON d.id=v.document_id WHERE d.id=? AND d.erased_at IS NULL AND v.object_key IS NOT NULL AND v.version=COALESCE(?,d.current_version) AND ${access.sql}`,documentId,version??null,...access.params).first();
+ insist(!quarantined,'This original is quarantined pending a malware scanner verdict. Downloads and previews are unavailable.',423);
  const stored = await stmt(db, `SELECT v.* FROM s_document_versions v JOIN s_documents d ON d.id=v.document_id WHERE d.id=? AND d.erased_at IS NULL AND v.content_base64 IS NOT NULL AND v.version=COALESCE(?,d.current_version) AND ${access.sql}`, documentId, version ?? null, ...access.params).first<Data>();
  insist(stored, 'Document version not found', 404);
  insist(!expectedDigest||stored.sha256===expectedDigest,'This original does not match the cited hash',409);

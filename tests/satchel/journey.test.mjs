@@ -1,3 +1,4 @@
+import {exerciseDocumentUploads} from './document-upload-browser.mjs';
 import {exerciseAgentControls} from './agent-execution-browser.mjs';
 // SAT-013: the installed product's own surfaces, driven in a browser at desktop and phone widths.
 import {test} from 'node:test';
@@ -18,7 +19,7 @@ async function tab(page,name){
 }
 async function done(page,notice){await page.getByRole('status').getByText(notice).waitFor();}
 for(const [width,height] of [[1440,1000],[390,844]])test(`SAT-013 sign-in, setup and every workspace tab with real records at ${width}px`,async()=>{
- const h=await harness(),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});
+ const h=await harness(),browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,args:['--no-sandbox','--use-mock-keychain','--password-store=basic']});
  try{
   const context=await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(String(e)));
   // The installed root stays the Lobby: one door into sign-in or setup.
@@ -42,6 +43,7 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`SAT-013 sign-in, setup
   await work.getByLabel('Description').fill('Review lease and notice');await work.getByLabel('Minutes').fill('90');await work.getByRole('button',{name:'Record entry'}).click();await done(page,'Entry recorded');await page.getByRole('cell',{name:'$450.00'}).waitFor();
   await tab(page,'Documents');await page.getByLabel('Original file').setInputFiles({name:'Notice.txt',mimeType:'text/plain',buffer:Buffer.from('Notice to cure, served 2026-10-01.')});await form(page,'Save original').getByRole('button',{name:'Save original'}).click();
   await done(page,'Original saved');await page.getByRole('link',{name:/Download version 1/}).waitFor();await page.getByRole('heading',{name:'Legal holds & retention'}).waitFor();
+  await exerciseDocumentUploads(page,h,width);
   await tab(page,'Deadlines');const deadline=form(page,'Propose deadline');await deadline.getByLabel('Deadline title').fill('Cure period ends');await deadline.getByLabel('Date').fill('2026-10-31');assert.equal(await deadline.getByLabel('Timezone').inputValue(),'America/New_York');await deadline.getByLabel('Source and citation').fill('Notice to cure, paragraph 2');await deadline.getByRole('button',{name:'Propose deadline'}).click();
   await page.getByText('proposed',{exact:true}).waitFor();const confirm=form(page,'Confirm deadline');await confirm.getByLabel('Review note').fill('Checked against the served notice');await confirm.getByRole('button',{name:'Confirm deadline'}).click();await page.getByText('confirmed',{exact:true}).waitFor();
   await tab(page,'Preparations');await page.getByRole('heading',{name:'Prepared by your agent'}).waitFor();

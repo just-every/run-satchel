@@ -1,3 +1,4 @@
+import {proveDocumentUploads} from './document-upload-flow.mjs';
 import {authorizeAgent} from './agent-fixture.mjs';
 import {proveAgentExecution} from './agent-execution-flow.mjs';
 import {proveMicrosoftSecurity} from './microsoft-security-flow.mjs';
@@ -98,6 +99,7 @@ test('corrections add a separately reviewed delta and preserve original exports'
  assert.equal(await(await h.request('/api/satchel/bills/'+bill.id+'/export',undefined,h.owner)).text(),originalCsv);
 });
 test('private original versions and source-confirmed deadlines keep access and history',async()=>{
+ await proveDocumentUploads();
  const upload={name:'Lease-notes.txt',mime:'text/plain',contentBase64:Buffer.from('Review notice clause 7. Due 2026-11-15.').toString('base64'),visibility:'private'};
  privateDoc=await h.json('/matters/'+m.id+'/documents',upload,h.owner);
  await h.json('/documents/'+privateDoc.id+'/file',undefined,assistant,404);
