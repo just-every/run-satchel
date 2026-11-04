@@ -19,12 +19,14 @@ export default async function journey({request,origin,cookie,tool}) {
  };
  try{
   const listed=await rpc('tools/list'),templates=await rpc('resources/templates/list'),discovery=await rpc('server/discover');
-  assertRuntimeReference(guide,listed.result.tools,templates.result.resourceTemplates);
+  assertRuntimeReference(guide,listed.result.tools,templates.result.resourceTemplates,discovery.result._meta['com.runeditrun/capabilities']);
   assert.deepEqual(discovery.result._meta['com.runeditrun/capabilities'].declared,surface.capabilities);
   const prompts=await rpc('prompts/list');assert.deepEqual(prompts.result.prompts,[],'Undeclared prompts remain empty');
-  for(const [method,args] of [['resources/read',{uri:'satchel://proposals/unavailable'}],['prompts/get',{name:'legal-practice-coordinator'}],['subscriptions/listen',{}]]){
-   const answer=await rpc(method,args);assert.equal(answer.error?.data?.code,'capability_not_declared','The documented undeclared surface refuses '+method);
+  const witness=await rpc('tools/call',{name:'satchel.agent.identity',arguments:{}});
+  for(const [method,args] of [['resources/read',{uri:'satchel://proposals/unavailable'}],['prompts/get',{name:'legal-practice-coordinator'}],['subscriptions/listen',{}],['tools/call',{name:'satchel.events.list',arguments:{limit:1}}]]){
+   const answer=await rpc(method,args);assert.equal(answer.error?.data?.code??answer.result?._meta?.['com.runeditrun/error']?.code,'capability_not_declared','The documented undeclared surface refuses '+method);
   }
+  assert.deepEqual((await rpc('tools/call',{name:'satchel.agent.identity',arguments:{}})).result.structuredContent,witness.result.structuredContent,'Undeclared surface probes leave native preparations unchanged');
   console.log('Native door journey: published guide matches authenticated tools, templates and refused families');
  }finally{await native('/keys/'+referenceKey.id+'/revoke',{});}
 
@@ -34,7 +36,8 @@ export default async function journey({request,origin,cookie,tool}) {
  console.log('Native door journey: binding saved');
  const outputs=new Map();
  for(const step of surface.journey){
-  const args=resolveArgs(step.args,outputs);
+  const published=guide.fixtures.find(f=>f.id===step.id);
+  const args=resolveArgs(published?.args??step.args,outputs);
   if(!surface.tools.find(t=>t.name===step.tool).readOnly)args.idempotency_key=crypto.randomUUID();
   console.log('Native door journey: '+step.id);
   const answer=await tool(step.tool,args);assert.equal(answer.result?.isError,false,step.tool);assert.ok(answer.result?.structuredContent,step.tool);

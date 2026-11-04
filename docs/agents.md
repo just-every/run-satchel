@@ -23,16 +23,114 @@ Every tool carries input and output schemas in the authenticated MCP listing. Mu
 
 | Fixture call | Tool | Expected classes and facts |
 | --- | --- | --- |
-| `read-matter1` | `satchel.matter.context` | `standard` `{"measure":1}`; `sensitive` `{"measure":1,"kind":"health"}` |
-| `matter1` | `satchel.proposal.prepare_matter` | `standard` `{"measure":1}`; `sensitive` `{"measure":1,"kind":"health"}` |
-| `bill1` | `satchel.proposal.prepare_bill` | `standard` `{"measure":1}`; `sensitive` `{"measure":1,"kind":"health"}` |
-| `deadline1` | `satchel.proposal.prepare_deadline` | `standard` `{"measure":1}`; `sensitive` `{"measure":1,"kind":"health"}` |
+| [`read-matter1`](#fixture-read-matter1) | `satchel.matter.context` | `standard` `{"measure":1}`; `sensitive` `{"measure":1,"kind":"health"}` |
+| [`matter1`](#fixture-matter1) | `satchel.proposal.prepare_matter` | `standard` `{"measure":1}`; `sensitive` `{"measure":1,"kind":"health"}` |
+| [`bill1`](#fixture-bill1) | `satchel.proposal.prepare_bill` | `standard` `{"measure":1}`; `sensitive` `{"measure":1,"kind":"health"}` |
+| [`deadline1`](#fixture-deadline1) | `satchel.proposal.prepare_deadline` | `standard` `{"measure":1}`; `sensitive` `{"measure":1,"kind":"health"}` |
 
 The paired calls without health sources are `identity`, `context`, `read-matter0`, `matter0`, `bill0`, `deadline0`. Read the descriptor for their exact argument references and injected caller flags; fixture expectations are proof targets, not classification input.
+
+## Fixture call reference
+
+These are the named calls executed by [the native MCP journey](../tests/agent-door/native-journey.mjs). Each `$from` reference selects a prior call's structured output at its JSON pointer; it is resolved before sending the call. A mutating call also needs a fresh `idempotency_key`. The conformance journey repeats these calls with the descriptor's injected caller flags to prove that those flags grant no authority and cannot lower a computed class. The fixture setup uses disposable native records and principal-approved source versions, never production records.
+
+### Fixture read-matter1
+
+`read-matter1` calls `satchel.matter.context` with these arguments:
+
+```json
+{
+  "delegationId": {
+    "$from": "context",
+    "pointer": "/delegations/1/id"
+  },
+  "matterId": {
+    "$from": "context",
+    "pointer": "/delegations/1/matterId"
+  }
+}
+```
+
+### Fixture matter1
+
+`matter1` calls `satchel.proposal.prepare_matter` with these arguments:
+
+```json
+{
+  "delegationId": {
+    "$from": "context",
+    "pointer": "/delegations/1/id"
+  },
+  "payload": {
+    "title": "Native matter proposal",
+    "client": "Synthetic client",
+    "adverse": "Synthetic counterparty"
+  }
+}
+```
+
+### Fixture bill1
+
+`bill1` calls `satchel.proposal.prepare_bill` with these arguments:
+
+```json
+{
+  "delegationId": {
+    "$from": "context",
+    "pointer": "/delegations/1/id"
+  },
+  "payload": {
+    "title": "Native bill proposal",
+    "matterId": {
+      "$from": "context",
+      "pointer": "/delegations/1/matterId"
+    },
+    "date": "2027-01-15",
+    "entryIds": []
+  }
+}
+```
+
+### Fixture deadline1
+
+`deadline1` calls `satchel.proposal.prepare_deadline` with these arguments:
+
+```json
+{
+  "delegationId": {
+    "$from": "context",
+    "pointer": "/delegations/1/id"
+  },
+  "payload": {
+    "title": "Native deadline proposal",
+    "matterId": {
+      "$from": "context",
+      "pointer": "/delegations/1/matterId"
+    },
+    "date": "2027-01-15",
+    "timezone": "America/New_York",
+    "source": "Counsel-selected native evidence",
+    "kind": "court"
+  }
+}
+```
+
 
 ## Declared capability families
 
 Declared: `tools`, `policy`, `pause`, `audit`, `idempotency`. Undeclared and refused: `events`, `resources`, `prompts`, `subscriptions`.
+
+| Capability family | Declaration |
+| --- | --- |
+| `tools` | Declared |
+| `policy` | Declared |
+| `pause` | Declared |
+| `audit` | Declared |
+| `idempotency` | Declared |
+| `events` | Undeclared and refused |
+| `resources` | Undeclared and refused |
+| `prompts` | Undeclared and refused |
+| `subscriptions` | Undeclared and refused |
 
 | Public surface | Current behavior |
 | --- | --- |
@@ -62,7 +160,7 @@ The installation admits 600 requests per minute per agent and at most 1048576 re
 
 ## Outstanding contract obligations
 
-This reference documents the declared preparation subset. Registry-derived discovery instructions, public specialist prompt delivery, the complete stranger-agent specialist journey and every remaining full-contract conformance point under autonomous and held policies remain required by BASE-AGENT-013. Resource refresh, successful multi-sponsor isolation, provider mail, timed and queued lifecycle, dual-host operation, owner-native administration, broader ct workflow parity and client custody and redaction remain unproved. See [the contract and its Status gaps](../CONTRACT.md).
+This reference documents the declared preparation subset. Registry-derived discovery instructions, public specialist prompt delivery, the complete stranger-agent specialist journey and every remaining full-contract conformance point under autonomous and held policies remain required by BASE-AGENT-013. The current Base door supplies generic discovery instructions and exposes no seed instruction hook; this guide does not claim that discovery is registry-derived. Resource refresh, successful multi-sponsor isolation, provider mail, timed and queued lifecycle, dual-host operation, owner-native administration, broader ct workflow parity and client custody and redaction remain unproved. See [the contract and its Status gaps](../CONTRACT.md).
 
 AGENT-010 retains the principal-approved native-preparation, sponsor-recipient, zero-spend, no-training and no-outbound-execution floor. Full scoped delegation and provider boundaries await ct approval; canonical generated contract documents await ct cleanup. This guide enables no capability or authority and releases no other lane hold.
 
