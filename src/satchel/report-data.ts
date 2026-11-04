@@ -5,12 +5,12 @@ import {date,human,insist,need,now,rows,stmt,type Actor,type Data} from './model
 import {documentAccess} from './documents';
 import {visibility} from './deadlines';
 const same=(filter:string|undefined,value:unknown)=>!filter||(filter==='__none__'?!value:filter===value);
-export async function readReportData(db:D1Database,actor:Actor,input:Data={}){
+export async function readReportData(db:D1Database,actor:Actor,input:Data={},asOfOverride?:string){
  human(actor);need(actor,'owner','lawyer');
  const filters:Record<string,string>={};for(const key of ['practice','owner','from','to','status']){if(input[key]){insist(typeof input[key]==='string'&&input[key].length<=254,'Use valid report filters');filters[key]=input[key];}}
  if(filters.from)date(filters.from);if(filters.to)date(filters.to);insist(!filters.from||!filters.to||filters.from<=filters.to,'Opened from must be on or before Opened through');
  insist(!filters.status||['open','closed'].includes(filters.status),'Choose open, closed or all case statuses');
- const asOf=now(),timezone=(await stmt(db,'SELECT timezone FROM s_firm WHERE id=1').first<Data>())?.timezone??'UTC';
+ const asOf=asOfOverride??now(),timezone=(await stmt(db,'SELECT timezone FROM s_firm WHERE id=1').first<Data>())?.timezone??'UTC';
  const calendar=new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit'}),localDay=(at:string)=>calendar.format(new Date(at)),today=localDay(asOf);
  const [grantedMatters,allLeads,practices,people,stages,wholeFirmWallAccess]=await Promise.all([
   rows(db,`SELECT m.*,p.stage_id,p.lawyer_email FROM s_matters m LEFT JOIN s_matter_stage_profiles p ON p.matter_id=m.id WHERE ${matterScope('m.id', actor.channel === 'agent' ? "'agent'" : "'person'")} ORDER BY m.matter_number,m.id`,actor.role,actor.email),

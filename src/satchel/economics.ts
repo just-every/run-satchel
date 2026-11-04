@@ -1,4 +1,5 @@
-import {atomic,audit,digest,id,insist,rows,stmt,type Actor,type Data} from './model';
+import {economicsCutoff,historicalEconomicsDatabase,historicalEconomicsBasis} from './economics-history';
+import {atomic,audit,digest,id,insist,now,rows,stmt,type Actor,type Data} from './model';
 import {accessGuard,guard} from './trust-guards';
 import {economicsPrincipal as principal} from './staff-costs';
 import {readReportData} from './report-data';
@@ -19,15 +20,16 @@ export const economicsFormulas={
  asOf:'Current retained state read at the returned UTC timestamp; no historical reconstruction or period accounting is claimed.'
 };
 export async function economics(db:D1Database,actor:Actor,filters:Data={}){
- principal(actor);insist(filters.asOf===undefined,'Historical as-of reconstruction is not available',422);
- const report=await readReportData(db,actor,filters),costs=await rows(db,'SELECT * FROM s_approved_staff_cost_rates ORDER BY effective_from,approved_at,id'),disposedCosts=await rows(db,'SELECT * FROM s_staff_cost_disposals WHERE was_approved=1 ORDER BY effective_from,approved_at,revision_id'),matterRows:Data[]=[];
+ principal(actor);const calculatedAt=now(),cutoff=economicsCutoff(filters.asOf,calculatedAt),report=await readReportData(db,actor,filters,cutoff??calculatedAt);
+ if(cutoff)db=await historicalEconomicsDatabase(db,cutoff,report.cohort.map(m=>m.id));
+ const costs=await rows(db,'SELECT * FROM s_approved_staff_cost_rates ORDER BY effective_from,approved_at,id'),disposedCosts=await rows(db,'SELECT * FROM s_staff_cost_disposals WHERE was_approved=1 ORDER BY effective_from,approved_at,revision_id'),matterRows:Data[]=[];
  for(const m of report.cohort){
   const entries=await rows(db,'SELECT * FROM s_entries WHERE matter_id=? ORDER BY date,id',m.id),bills=await rows(db,"SELECT b.*,i.number,t.snapshot tax_snapshot FROM s_bills b JOIN s_invoice_issues i ON i.bill_id=b.id LEFT JOIN s_bill_tax_approvals t ON t.bill_id=b.id WHERE b.matter_id=? AND b.status<>'void' ORDER BY i.issued_at,b.id",m.id);
   const invoices:Data[]=[],lines:Data[]=[];
   for(const b of bills){const snapshot=JSON.parse(b.tax_snapshot??b.snapshot),funds=b.corrects_bill_id?null:await invoiceFunds(db,b.id),delivery=await stmt(db,'SELECT due_date FROM s_invoice_deliveries WHERE bill_id=? ORDER BY created_at DESC,id DESC LIMIT 1',b.id).first<Data>();
    const selected=snapshot.lines.map((l:Data)=>({...l,billId:b.id,number:b.number,correction:Boolean(b.corrects_bill_id)}));lines.push(...selected);
    const overdueDays=delivery?Math.floor((Date.parse(report.today+'T12:00:00Z')-Date.parse(delivery.due_date+'T12:00:00Z'))/86400000):null;
-   invoices.push({billId:b.id,number:b.number,correctsBillId:b.corrects_bill_id,totalCents:snapshot.totalCents,earnedCents:snapshot.feePlan?Number((await stmt(db,'SELECT earned_cents FROM s_fee_earning_reviews WHERE bill_id=?',b.id).first<Data>())?.earned_cents??0):sum(selected,'amountCents'),paidCents:funds?.paid_cents??0,pendingCents:funds?.reserved_cents??0,dueCents:funds?.due_cents??0,dueDate:delivery?.due_date??null,agingBucket:overdueDays===null?'unknown':overdueDays<=0?'current':overdueDays<=30?'1–30':overdueDays<=60?'31–60':overdueDays<=90?'61–90':'91+'});
+   invoices.push({billId:b.id,number:b.number,issuedRevision:b.issue_revision,issuedAt:b.issued_at,correctsBillId:b.corrects_bill_id,totalCents:snapshot.totalCents,earnedCents:snapshot.feePlan?Number((await stmt(db,'SELECT earned_cents FROM s_fee_earning_reviews WHERE bill_id=?',b.id).first<Data>())?.earned_cents??0):sum(selected,'amountCents'),paidCents:funds?.paid_cents??0,pendingCents:funds?.reserved_cents??0,dueCents:funds?.due_cents??0,dueDate:delivery?.due_date??null,agingBucket:overdueDays===null?'unknown':overdueDays<=0?'current':overdueDays<=30?'1–30':overdueDays<=60?'31–60':overdueDays<=90?'61–90':'91+'});
   }
   const sourceIds=new Set(lines.filter(l=>!l.correction).map(l=>l.sourceId)),time=entries.filter(e=>e.kind==='time'),billableTime=time.filter(e=>e.billable===1),billedTime=time.filter(e=>sourceIds.has(e.id)),timeLines=lines.filter(l=>l.kind==='time'),unbilled=entries.filter(e=>e.billable===1&&!sourceIds.has(e.id));
   const timekeeperHashes=new Map(await Promise.all([...new Set(time.map(e=>e.timekeeper_email??e.created_by))].map(async email=>[email,await digest(email)] as const)));
@@ -42,12 +44,12 @@ export async function economics(db:D1Database,actor:Actor,filters:Data={}){
  const totals={matterCount:matterRows.length,billedCents:sum(matterRows,'billedCents'),earnedCents:sum(matterRows,'earnedCents'),paidCents:sum(matterRows,'paidCents'),pendingCents:sum(matterRows,'pendingCents'),trustCashCents:sum(matterRows,'trustCashCents'),unbilledCents:sum(matterRows,'unbilledCents'),wipCents:sum(matterRows,'wipCents'),expenseCents:sum(matterRows,'expenseCents'),staffCostCents:complete?sum(matterRows,'staffCostCents'):null,profitCents:complete?sum(matterRows,'profitCents'):null,costCoverage};
  const metricBasis=Object.fromEntries(['utilization','realization','collectionRate','effectiveHourlyCents'].map(metric=>[metric,{numerator:sum(matterRows.map(m=>m.metricBasis[metric]),'numerator'),denominator:sum(matterRows.map(m=>m.metricBasis[metric]),'denominator')}]));
  const ratios=Object.fromEntries(Object.entries(metricBasis).map(([metric,basis])=>[metric,ratio(basis.numerator,basis.denominator)]));
- return {kind:'satchel.economics',asOf:report.asOf,timezone:report.timezone,filters:report.filters,units:{money:'USD cents',time:'Recorded minutes',effectiveHourlyCents:'USD cents per hour',utilization:'Billable recorded minutes divided by all recorded minutes',realization:'Live billed time cents divided by recorded billed-source cents',collectionRate:'Net cleared operating cents divided by invoice cents including tax',aging:'Unpaid USD cents by firm-local calendar days after the frozen due date'},formulas:economicsFormulas,matters:matterRows,totals:{...totals,...ratios,metricBasis,aging:Object.fromEntries(['current','1–30','31–60','61–90','91+','unknown'].map(bucket=>[bucket,sum(matterRows.map(m=>m.aging),bucket)]))}};
+ return {kind:'satchel.economics',asOf:report.asOf,calculatedAt,basis:cutoff?'historical-recorded-state':'current-state',timezone:report.timezone,filters:{...report.filters,...(cutoff?{asOf:cutoff}:{})},units:{money:'USD cents',time:'Recorded minutes',effectiveHourlyCents:'USD cents per hour',utilization:'Billable recorded minutes divided by all recorded minutes',realization:'Live billed time cents divided by recorded billed-source cents',collectionRate:'Net cleared operating cents divided by invoice cents including tax',aging:'Unpaid USD cents by firm-local calendar days after the frozen due date'},formulas:{...economicsFormulas,...(cutoff?{asOf:historicalEconomicsBasis}:{})},matters:matterRows,totals:{...totals,...ratios,metricBasis,aging:Object.fromEntries(['current','1–30','31–60','61–90','91+','unknown'].map(bucket=>[bucket,sum(matterRows.map(m=>m.aging),bucket)]))}};
 }
 export async function economicsArtifact(db:D1Database,actor:Actor,filters:Data){
  const report=await economics(db,actor,filters),firm=await stmt(db,'SELECT name FROM s_firm WHERE id=1').first<Data>();
  insist(firm?.name,'Enter firm settings before exporting economics',422);
- const manifest={marking:'CONFIDENTIAL — INTERNAL USE ONLY',firm:{name:firm.name},requestedBy:{id:actor.id,email:actor.email},generatedAt:report.asOf,filters:report.filters,asOfBasis:report.formulas.asOf,payloadSha256:await digest(JSON.stringify(report)),hashBasis:'SHA-256 of UTF-8 JSON.stringify(report), excluding this manifest',missingCostSourceIds:report.matters.flatMap(m=>m.source.costBasis.filter((c:Data)=>c.approvalId===null).map((c:Data)=>c.sourceId))};
+ const manifest={marking:'CONFIDENTIAL — INTERNAL USE ONLY',firm:{name:firm.name},requestedBy:{id:actor.id,email:actor.email},generatedAt:report.calculatedAt,filters:report.filters,asOfBasis:report.formulas.asOf,payloadSha256:await digest(JSON.stringify(report)),hashBasis:'SHA-256 of UTF-8 JSON.stringify(report), excluding this manifest',missingCostSourceIds:report.matters.flatMap(m=>m.source.costBasis.filter((c:Data)=>c.approvalId===null).map((c:Data)=>c.sourceId))};
  const artifact=JSON.stringify({...report,manifest},null,2),artifactSha256=await digest(artifact);
  return {report,manifest,artifact,artifactSha256};
 }

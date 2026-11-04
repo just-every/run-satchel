@@ -94,6 +94,7 @@ test('Firm economics reconciles current source values, approved staff cost, void
   let bill=await h.json('/bills/'+run.bills[0].id+'/review',{revision:run.bills[0].revision,action:'revise',note:'Reviewed courtesy write-down',lines:[{sourceId:entry.id,amountCents:15000}]},h.owner);
   bill=await h.json('/bills/'+bill.id+'/approve',{revision:bill.revision,taxReviewId:await exemptTaxReview(h,'/bills/'+bill.id+'/approve'),reviewNote:'Approve exact economics prebill'},h.owner);await h.json('/invoices/issue',{bills:[{id:bill.id,revision:bill.revision}]},h.owner);
   r=await read();assert.equal(r.billedCents,16000);assert.equal(r.realization,0.75);assert.equal(r.effectiveHourlyCents,15000);assert.equal(r.unbilledCents,0);assert.equal(r.profitCents,6000);assert.equal(r.source.invoices[0].agingBucket,'unknown');
+  const issuedAsOf=(await h.json('/reports/economics',undefined,h.owner)).asOf;
   const opening=await h.json('/trust/openings',{accountId:f.account.id,ledgerId:f.ledger.id,cents:5000,statementDate:'2026-10-01',documentId:f.source.id,note:'Synthetic cleared funds'},h.owner);await h.json('/trust/openings/'+opening.id+'/approve',{revision:opening.revision,reviewNote:'Reviewed exact opening'},h.owner);
   const transfer=await h.json('/trust/transfers',{billId:bill.id,ledgerId:f.ledger.id,operatingAccountId:f.operating.id,requestKey:'synthetic-satchel-economics',allocation:{earnedCents:5000,taxCents:0,reference:'Reviewed partial operating allocation'}},h.owner);
   r=await read();assert.equal(r.pendingCents,5000);assert.equal(r.paidCents,0);assert.equal(r.trustCashCents,5000);assert.equal(r.collectionRate,0);
@@ -101,6 +102,7 @@ test('Firm economics reconciles current source values, approved staff cost, void
   const bank={revision:transfer.revision,bankDate:'2026-10-02',bankReference:'synthetic-satchel-economics-bank',documentId:f.source.id,evidence:'Synthetic bank evidence'};
   for(const outcome of ['submitted','cleared'])await h.json('/trust/transfers/'+transfer.id+'/bank-result',{...bank,outcome},h.owner);
   r=await read();assert.equal(r.paidCents,5000);assert.equal(r.pendingCents,0);assert.equal(r.trustCashCents,0);assert.equal(r.collectionRate,5000/16000);assert.equal(r.billedCents,16000);
+  const clearedAsOf=(await h.json('/reports/economics',undefined,h.owner)).asOf;
   const reversal=await h.json('/trust/transfers/'+transfer.id+'/reversal',{reason:'Reverse exact partial settlement before correction'},h.owner);
   for(const kind of ['approved','submitted','cleared'])await h.json('/trust/transfers/'+transfer.id+'/reversal/action',{revision:reversal.revision,kind,note:'Reviewed append-only return of funds',bankDate:'2026-10-03',bankReference:'synthetic-satchel-economics-return',documentId:f.source.id},h.owner);
   r=await read();assert.equal(r.paidCents,0);assert.equal(r.collectionRate,0);assert.equal(r.trustCashCents,5000);
@@ -128,6 +130,9 @@ test('Firm economics reconciles current source values, approved staff cost, void
   const retro=await h.json('/reports/staff-costs',{...costInput,effectiveFrom:'2026-10-01',hourlyCents:4000,supersedesId:replacement.id,confirmed:true},h.owner);
   r=await read();assert.equal(r.staffCostCents,6000);assert.equal(r.profitCents,14000);assert.ok(r.source.costBasis.every(c=>c.approvalId===retro.id));assert.equal(JSON.parse(artifact).matters.find(x=>x.matterId===m.id).profitCents,11000,'A retroactive cost does not rewrite an earlier downloaded artifact');
   await h.restart();assert.equal(await(await h.request(retained.downloadPath,undefined,h.owner)).text(),retainedBytes,'A restarted download preserves the original approved cost basis');
+  const issuedHistory=(await h.json('/reports/economics?asOf='+encodeURIComponent(issuedAsOf),undefined,h.owner)).matters.find(x=>x.matterId===m.id),clearedHistory=(await h.json('/reports/economics?asOf='+encodeURIComponent(clearedAsOf),undefined,h.owner)).matters.find(x=>x.matterId===m.id);
+  assert.equal(issuedHistory.billedCents,16000);assert.equal(issuedHistory.realization,0.75);assert.equal(issuedHistory.profitCents,6000);assert.equal(issuedHistory.paidCents,0);assert.equal(issuedHistory.pendingCents,0);assert.equal(issuedHistory.trustCashCents,0);assert.equal(issuedHistory.source.entries.find(e=>e.sourceId===entry.id).recordedCents,20000);
+  assert.equal(clearedHistory.billedCents,16000);assert.equal(clearedHistory.paidCents,5000);assert.equal(clearedHistory.collectionRate,5000/16000);assert.equal(clearedHistory.trustCashCents,0);assert.equal(clearedHistory.source.invoices.length,1);
   const costAudit=(await h.json('/audit?action=report.staff_cost_approved',undefined,h.owner)).records.find(e=>e.objectId===retro.id);assert.equal(costAudit.revision,retro.id);assert.equal(costAudit.evidence.record.hourly_cents,4000);assert.equal(costAudit.evidence.record.approval.approvedBy,'owner@example.test');
 assert.match(basis.formulas.realization,/Void invoices contribute zero/);assert.ok(basis.asOf);
   await h.json('/reports/economics?asOf=2026-01-01',undefined,h.owner,422);
@@ -135,7 +140,7 @@ assert.match(basis.formulas.realization,/Void invoices contribute zero/);assert.
   const nonPrincipals={};
   for(const role of ['lawyer','assistant','trust_officer','billing','accountant','client']){
    const email='cost-'+role+'@example.test';await h.json('/team',{email,name:'Synthetic '+role,role},h.owner);await h.json('/team/invite',{email},h.owner);const member=await h.login(email);nonPrincipals[role]=member;
-   for(const path of ['/reports/economics','/reports/economics/export','/reports/staff-costs','/reports/economics/exports','/reports/economics/exports/'+retained.id+'/file'])await h.json(path,undefined,member,403);
+   for(const path of ['/reports/economics','/reports/economics/export','/reports/economics?asOf='+encodeURIComponent(issuedAsOf),'/reports/staff-costs','/reports/economics/exports','/reports/economics/exports/'+retained.id+'/file'])await h.json(path,undefined,member,403);
    await h.json('/reports/economics/exports',{confirmed:true,filters:{}},member,403);
    await h.json('/reports/staff-costs/drafts',costInput,member,403);await h.json('/reports/staff-costs/'+draft.id+'/approve',{revision:draft.id,confirmed:true},member,403);
   }
@@ -201,6 +206,7 @@ assert.match(basis.formulas.realization,/Void invoices contribute zero/);assert.
   assert.equal((await restored.request(retained.downloadPath,undefined,restored.owner)).status,404,'A changed ethical wall refuses a separately retained artifact');
   assert.ok(!(await restored.json('/reports/economics/exports',undefined,restored.owner)).exports.some(e=>e.id===retained.id));
   const excluded=await restored.json('/reports/economics',undefined,restored.owner);assert.ok(!JSON.stringify(excluded).includes(m.id));assert.ok(!JSON.stringify(excluded).includes(entry.id));assert.equal(excluded.totals.billedCents,0);assert.equal(excluded.totals.costCoverage.coveredCostCents,0);assert.deepEqual(excluded.totals.costCoverage.missingSourceIds,[missing.id]);
+  const excludedHistorical=await restored.json('/reports/economics?asOf='+encodeURIComponent(excluded.asOf),undefined,restored.owner);assert.ok(!JSON.stringify(excludedHistorical).includes(m.id));assert.ok(!JSON.stringify(excludedHistorical).includes(entry.id));assert.equal(excludedHistorical.totals.billedCents,0);
   const excludedExport=await(await restored.request('/api/satchel/reports/economics/export',undefined,restored.owner)).text();assert.ok(!excludedExport.includes(m.id));assert.ok(!excludedExport.includes(entry.id));
  }finally{await restored?.close();await h.close();}
  await proveEconomicsAging();
@@ -212,6 +218,9 @@ async function proveEconomicsAging(){
  const h=await harness({clock:'2030-06-01T16:00:00Z'});try{
   const f=await economicsFoundation(h),report=await h.json('/reports/economics',undefined,h.owner),m=report.matters.find(m=>m.matterId===f.m.id);
   await h.json('/matters/'+f.m.id+'/documents',{name:'Synthetic current economics capture.txt',mime:'text/plain',contentBase64:Buffer.from(JSON.stringify(report)).toString('base64'),visibility:'matter'},h.owner,422);
+  const historicalCut='2030-09-01T16:00:00.000Z',historical=await h.json('/reports/economics?asOf='+encodeURIComponent(historicalCut),undefined,h.owner);
+  assert.equal(historical.asOf,historicalCut);assert.equal(historical.calculatedAt,economicsClock);assert.equal(historical.totals.billedCents,87000);assert.equal(historical.totals.paidCents,0);assert.equal(historical.totals.pendingCents,0);assert.equal(historical.totals.trustCashCents,0);assert.equal(historical.totals.profitCents,null);assert.deepEqual(historical.totals.aging,{current:12000,'1–30':27000,'31–60':31000,'61–90':17000,'91+':0,unknown:0});assert.equal(historical.matters.find(m=>m.matterId===f.m.id).source.invoices.length,6);
+  await h.json('/reports/economics?asOf=1999-01-01T00:00:00.000Z',undefined,h.owner,422);await h.json('/reports/economics?asOf=2031-01-01T00:00:00.000Z',undefined,h.owner,422);
   assert.equal(report.asOf,economicsClock);assert.deepEqual(m.aging,f.expectedAging);assert.deepEqual(report.totals.aging,f.expectedAging);
   assert.deepEqual(m.source.invoices.map(i=>i.agingBucket).sort(),['current','1–30','1–30','31–60','31–60','61–90','61–90','91+','unknown'].sort());
   assert.equal(m.billedCents,126000);assert.equal(m.earnedCents,126000);assert.equal(m.paidCents,500);assert.equal(m.pendingCents,200);assert.equal(m.trustCashCents,4500);assert.equal(m.collectionRate,500/126000);assert.equal(m.profitCents,null);assert.equal(m.costCoverage.approvedTimeEntries,0);
@@ -245,6 +254,7 @@ async function proveEconomicsAging(){
   const {movePackage}=await import('./migration-fixture.mjs'),source=await movePackage(costRecord.email,f.account.id);await h.json('/migration/preview',{package:source},h.owner);
   const bytes=Buffer.from(original),{createHash}=await import('node:crypto');source.files[1]={...source.files[1],contentBase64:bytes.toString('base64'),sha256:createHash('sha256').update(bytes).digest('hex')};await h.json('/migration/preview',{package:source},h.owner,422);assert.equal((await h.json('/migration',undefined,h.owner)).jobs.length,0);
   const beforeDisposal=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();
+  const disposalClock='2030-10-01T17:00:00.000Z';await h.setClock(disposalClock);assert.equal((await h.json('/reports/economics?asOf='+encodeURIComponent(economicsClock),undefined,h.owner)).totals.profitCents,72000);
   const disposeCost={confirm:f.draft.id,reason:'Principal approved expired cost payload disposal'},disposeReport={confirm:retained.id,reason:'Principal approved expired report disposal'};
   const unused=(await h.json('/reports/staff-costs',undefined,h.owner)).approved.find(c=>c.effective_from==='2031-01-01'),emptyExport=await h.json('/reports/economics/exports',{confirmed:true,filters:{status:'closed'}},h.owner),disposeUnused={confirm:unused.id,reason:'Principal approved unused cost setting disposal'},disposeEmpty={confirm:emptyExport.id,reason:'Principal approved empty report disposal'};
   await h.json('/reports/economics/retention',undefined,lawyer,403);await h.json('/reports/economics/retention',{disposeAfter:'2030-09-30',basis:'Refused non-principal setting'},lawyer,403);
@@ -272,13 +282,14 @@ async function proveEconomicsAging(){
   const disposed=await h.json('/reports/staff-costs/'+f.draft.id+'/dispose',disposeCost,h.owner);assert.equal(disposed.journal.costVersions,1);assert.equal(disposed.journal.approvedCostVersions,1);assert.equal(disposed.journal.auditPayloads,2);assert.equal(disposed.journal.reportArtifacts,1);
   assert.equal((await h.request(dependent.downloadPath,undefined,h.owner)).status,404);assert.equal((await h.json('/reports/economics/exports',undefined,h.owner)).exports.length,0);
   const costsAfter=await h.json('/reports/staff-costs',undefined,h.owner);assert.ok(!JSON.stringify(costsAfter).includes(f.costInput.reason));assert.ok(costsAfter.approved.some(c=>c.id===earlier.id));
+  assert.equal((await h.json('/reports/economics?asOf='+encodeURIComponent(economicsClock),undefined,h.owner)).totals.profitCents,null,'Historical reads cannot revive a disposed cost basis');
   const after=await h.json('/reports/economics',undefined,h.owner);assert.equal(after.totals.staffCostCents,null,'Disposal cannot fall back to an older approved cost');assert.equal(after.totals.profitCents,null);assert.equal(after.totals.costCoverage.approvedTimeEntries,0);assert.deepEqual(after.totals.aging,f.expectedAging);
   await h.json('/reports/staff-costs/'+f.draft.id+'/approve',{revision:f.draft.id,confirmed:true},h.owner,404);await h.json('/reports/staff-costs/'+f.draft.id+'/dispose',disposeCost,h.owner,404);
   const disposedAudit=(await h.json('/audit?action=report.staff_cost_approved',undefined,h.owner)).records.find(r=>r.objectId===f.draft.id);assert.equal(disposedAudit.evidence.disposedStaffCostPayload,true);assert.ok(!JSON.stringify(disposedAudit).includes(f.costInput.reason));
   await h.json('/matters/'+f.m.id+'/documents',{name:'Synthetic erased report replay.txt',mime:'text/plain',contentBase64:Buffer.from(original).toString('base64'),visibility:'matter'},h.owner,422);
   await h.restart();assert.equal((await h.json('/reports/economics',undefined,h.owner)).totals.profitCents,null);assert.equal((await h.request(dependent.downloadPath,undefined,h.owner)).status,404);
   const afterDisposal=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(!afterDisposal.includes(f.costInput.reason),'Current archives contain no disposed cost payload or report derivative');
-  const restored=await harness({clock:economicsClock});try{
+  const restored=await harness({clock:disposalClock});try{
    await restored.json('/restore',{archive:beforeDisposal,journal:afterDisposal,confirm:'RESTORE'},restored.owner,409);
    await restored.json('/restore',{archive:afterDisposal,confirm:'RESTORE'},restored.owner);
    assert.equal((await restored.json('/reports/economics/retention',undefined,restored.owner)).current.id,expiredPolicy.id,'Recovery preserves the latest explicit retention revision, independent of row order');
