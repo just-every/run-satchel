@@ -56,6 +56,48 @@ matter, reserve bill sources or activate a deadline. The person opens
 identity, decision time and result ID in the same transaction as acceptance.
 Agent credentials cannot reach human approval, export, import, backup or erasure.
 
+### Inspect agent results
+
+The principal opens **Agent results** in Team & safety. All routes below require
+a current human principal session; an agent key and matter membership grant no
+metrics access. Current ethical walls and document access apply to records,
+source drilldowns, cohort studies and every aggregate before they are returned.
+
+| Route under `/api/satchel` | Purpose |
+| --- | --- |
+| `GET /agent-metrics` | Independently reconcilable pending, accepted, declined and refused preparations; native result and audit links; original inputs, source identities, versions, hashes, agreement, model and preparation-policy revision |
+| `POST /agent-metrics/:id/source-review` | Append a practitioner accuracy review with `verdict` (`accurate` or `inaccurate`), evidence in `reason` and the current `supersedesId` when correcting a review |
+| `POST /agent-metrics/:id/recovery` | Confirm attribution of previously unbilled native work with exact `entryId`, `revision` and `reason`; the accepted bill must already have counsel approval |
+| `POST /agent-metrics/comparisons` | Record a measured comparison with `requestKey`, `label`, `basis`, `baseline` and `assisted` cohorts |
+
+Each cohort unit names a completed native `deadlineId`, its exact `revision`,
+and `entries: [{id, revision}]` for the actual posted time spent completing it.
+Baseline milestones have no accepted agent preparation; assisted milestones
+have one. A milestone or time entry cannot occur twice within a comparison.
+The same request identity and contents returns the retained study; changed
+contents under that identity refuse. Cohort selection and the rationale in
+`basis`, source revisions, native completion evidence and measured durations
+remain inspectable. Include preparation and human review time in assisted work.
+
+Observed minutes saved equals baseline minutes per completed milestone times
+assisted completed milestones, less assisted recorded minutes. Negative results
+remain negative. Overdue reduction compares the cohorts' proportions completed
+after their native due dates, using each milestone's recorded timezone. These
+are disclosed observational comparisons, not a claim of causation. Without a
+recorded measured comparison, time saved and overdue reduction remain unknown.
+
+Acceptance is a review decision: a proposed deadline is not completed work, and
+a draft bill is not recovered work or revenue. Recovered work requires explicit
+principal attribution, a source that was unbilled when recommended and a current
+counsel-approved bill at that source revision. Draft, void and corrected bills
+are excluded. Billable value is separate from collected revenue. Source accuracy
+is a practitioner judgment; unreviewed recommendations are outside its denominator.
+Original provenance survives agreement changes, withdrawal, key revocation,
+restart and archive recovery. No document bytes are copied into provenance.
+Legacy preparations retain their inputs and decisions with unavailable provenance
+labeled unknown; present-day membership or agreement state never fills it in.
+This inspection authorizes no new preparation, provider access or outbound action.
+
 Human routes are under `/api/satchel`: `state`, `conflicts`, `matters`,
 `matters/:id/access`, `matters/:id/entries`, `matters/:id/bills`,
 `bills/:id/approve`, `bills/:id/export`, `bills/:id/correct`, `bills/:id/void`,
