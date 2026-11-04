@@ -1,15 +1,28 @@
 import {createPortability} from '@runeditrun/rer/modules/portability';
 import policy from './archive-policy.mjs';
+import {matterScope} from './matter-scope';
+import {allWallsAllow,requireWholeFirmWallAccess} from './wall-doors';
 import {firmToday} from './retention';
-import {atomic,audit,digest,id,insist,matter,now,rows,stmt,text,type Actor,type Data} from './model';
+import {atomic,audit,date,digest,id,insist,matter,now,rows,stmt,text,type Actor,type Data} from './model';
 import {economicsPrincipal} from './staff-costs';
 import {accessGuard,guard} from './trust-guards';
+
+const retentionHead='FROM s_economics_retention current_policy WHERE NOT EXISTS(SELECT 1 FROM s_economics_retention successor WHERE successor.previous_id=current_policy.id)';
 
 // Reuse FIRM-006's whole-matter retention decisions. A cost also affects every
 // retained report that cites it, so all those matters must permit disposal.
 async function custodyGuards(db:D1Database,actor:Actor,matterIds:string[]){
- insist(matterIds.length,'Classify the affected matter custody before disposing this payload',409);
  const today=await firmToday(db),guards:D1PreparedStatement[]=[];
+ if(!matterIds.length){
+  await requireWholeFirmWallAccess(db,actor);
+  const wholeFirm=`NOT EXISTS(SELECT 1 FROM s_matters current_matter WHERE NOT ${matterScope('current_matter.id')})`;
+  insist(await stmt(db,`SELECT 1 WHERE ${wholeFirm}`,actor.role,actor.email).first(),'This firm-wide operation requires current access to every matter',403);
+  const retention=await stmt(db,`SELECT current_policy.* ${retentionHead}`).first<Data>();
+  insist(retention&&retention.dispose_after<=today,'An expired firm economics retention decision is required for unassigned custody',409);
+  insist(!await stmt(db,'SELECT 1 FROM s_holds WHERE released_at IS NULL').first(),'An affected matter has a legal hold',409);
+  guards.push(guard(db,wholeFirm,actor.role,actor.email),guard(db,`EXISTS(SELECT 1 FROM (SELECT ? email) viewer WHERE ${allWallsAllow('viewer.email')})`,actor.email),guard(db,`(SELECT current_policy.id ${retentionHead})=? AND NOT EXISTS(SELECT 1 FROM s_holds WHERE released_at IS NULL)`,retention.id));
+  return guards;
+ }
  for(const matterId of matterIds){
   await matter(db,actor,matterId);
   const retention=await stmt(db,'SELECT id FROM s_retention WHERE matter_id=? AND document_id IS NULL AND superseded_at IS NULL AND dispose_after<=?',matterId,today).first<Data>();
@@ -48,4 +61,14 @@ export async function disposeStaffCost(db:D1Database,actor:Actor,costId:string,b
  for(const row of auditRows){const sha256=await digest(JSON.stringify({detail:row.detail,evidence:row.evidence})),detail='Staff cost payload disposed under an approved retention decision',evidence=JSON.stringify({disposedStaffCostPayload:true,sha256,revision:costId});writes.push(stmt(db,'INSERT INTO s_economics_audit_redactions VALUES(?,?,?,?,?)',row.id,costId,sha256,detail,evidence),stmt(db,'UPDATE s_audit SET detail=?,evidence=? WHERE id=?',detail,evidence,row.id));}
  writes.push(...await service.redactionStatements(),...await service.invalidateTransfersStatements(),audit(db,actor,'report.staff_cost_disposed',costId,JSON.stringify({reason,journal})));
  await atomic(db,actor,writes);return {id:costId,erasedAt:at,journal};
+}
+
+export async function economicsRetention(db:D1Database,actor:Actor){
+ economicsPrincipal(actor);return {current:await stmt(db,`SELECT current_policy.* ${retentionHead}`).first<Data>()};
+}
+export async function saveEconomicsRetention(db:D1Database,actor:Actor,b:Data){
+ economicsPrincipal(actor);const previous=await stmt(db,`SELECT current_policy.id ${retentionHead}`).first<Data>();
+ insist((b.revision??null)===(previous?.id??null),'Review the current firm economics retention decision',409);
+ const record={id:id(),disposeAfter:date(b.disposeAfter),basis:text(b.basis,'Firm retention basis',2000),createdBy:actor.email,createdAt:now()};
+ await atomic(db,actor,[guard(db,`COALESCE((SELECT current_policy.id ${retentionHead}),'')=?`,previous?.id??''),stmt(db,'INSERT INTO s_economics_retention VALUES(?,?,?,?,?,?)',record.id,record.disposeAfter,record.basis,previous?.id??null,record.createdBy,record.createdAt),audit(db,actor,'report.economics_retention_saved',record.id,JSON.stringify({disposeAfter:record.disposeAfter,basis:record.basis,previousId:previous?.id??null}))]);return record;
 }

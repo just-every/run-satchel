@@ -1,3 +1,4 @@
+import {refuseEconomicsCapture,refuseEconomicsText} from './economics-confidentiality';
 // CLIENT-002: retained two-way messages between the firm and a matter's portal readers. A client reads only threads of a
 // matter they hold a reader grant on (client, co-client, delegate; never a payer), opens content only inside the
 // authenticated portal, and the notification email carries no message content.
@@ -17,10 +18,10 @@ export function scanTextAttachment(name:string,bytes:Uint8Array){
   let plain:string;try{plain=new TextDecoder('utf-8',{fatal:true}).decode(bytes);}catch{insist(false,'Unscanned or unparseable attachments are refused');}
   insist(!/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\u202a-\u202e\u2066-\u2069]/u.test(plain)&&!/<[!/?a-z]/i.test(plain),'Attachment failed the server text safety scan');
 }
-async function attachments(body:Data) {
+async function attachments(db:D1Database,body:Data) {
  const list=body.attachments===undefined?[]:body.attachments;insist(Array.isArray(list)&&list.length<=3,'Attach at most three files');
  return Promise.all(list.map(async(a:Data)=>{insist(a&&typeof a==='object'&&!Array.isArray(a),'Supply an attachment object');const bytes=decode(a.contentBase64),name=text(a.name,'File name',200);
-  scanTextAttachment(name,bytes);
+  scanTextAttachment(name,bytes);await refuseEconomicsCapture(db,bytes);
   return {id:id(),name,mime:'text/plain',size:bytes.length,sha256:await digest(bytes),content:a.contentBase64 as string};}));
 }
 // Assignments and notifications require current staff authority, including ethical walls and exclusions.
@@ -53,7 +54,8 @@ async function threadsFor(db:D1Database,where:string,...params:unknown[]) {
  return {threads:threads.map(t=>({id:t.id,matterId:t.matter_id,subject:t.subject,assignedTo:t.assigned_to,createdBy:t.created_by,createdAt:t.created_at,messages:data.messages.filter(m=>m.thread_id===t.id).map(m=>messageJson(m,data.files,data.reads,data.notes))}))};
 }
 async function post(env:Bindings,actor:Actor,threadId:string|null,matterId:string,subject:string|null,assignedTo:string|null,body:Data,side:'staff'|'client') {
- const text_=text(body.body,'Message',20000),files=await attachments(body),at=now(),messageId=id(),thread=threadId??id();
+ const text_=text(body.body,'Message',20000),files=await attachments(env.DB,body),at=now(),messageId=id(),thread=threadId??id();
+ await refuseEconomicsText(env.DB,text_);
  const writes=[...(threadId?[]:[stmt(env.DB,'INSERT INTO s_portal_threads(id,matter_id,subject,assigned_to,created_by,created_at) VALUES(?,?,?,?,?,?)',thread,matterId,subject!,assignedTo!,actor.email,at)]),
   stmt(env.DB,'INSERT INTO s_portal_messages(id,thread_id,sender_email,sender_side,body,created_at) VALUES(?,?,?,?,?,?)',messageId,thread,actor.email,side,text_,at),
   ...files.map(f=>stmt(env.DB,'INSERT INTO s_portal_attachments(id,message_id,name,mime,size,sha256,content_base64) VALUES(?,?,?,?,?,?,?)',f.id,messageId,f.name,f.mime,f.size,f.sha256,f.content)),
