@@ -1,3 +1,4 @@
+import {recoveryPaused} from './recovery-authority';
 import {wallAllows} from './matter-scope';
 import type {Bindings} from '../auth.server';
 import {audit,human,id,insist,need,matter,now,rows,stmt,text,type Actor,type Data} from './model';
@@ -30,6 +31,7 @@ export async function integrationEventPage(db:D1Database,i:Integration,query:Dat
  for(const e of all)if(await visible(db,i,e))events.push({...payload(e),id:e.id});return page(events,query);
 }
 export async function dispatchWebhooks(env:Bindings,only?:string,replayEvent?:string) {
+ if(await recoveryPaused(env.DB,'sending'))return {paused:true};
  // Only the principal can enter a destination. The current ct-approved boundary
  // is literal/name public-host validation plus HTTPS and no redirects. Resolved-
  // address pinning remains CONNECT-001's explicit Base egress-door gap.

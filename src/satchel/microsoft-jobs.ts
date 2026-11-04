@@ -75,6 +75,7 @@ export async function executeMicrosoftRead(env:MicrosoftBindings,actor:Actor,job
   return {job:microsoftJobView(current.status==='sending'?{...current,status:'uncertain',outcome:'authority_changed_during_read'}:current)};
  }
  const current=(await jobRecord(env.DB,j.id))!;
+ if(current.status==='succeeded')await stmt(env.DB,"UPDATE s_microsoft_connector SET last_success_at=? WHERE id='installation' AND generation=?",current.finished_at,j.generation).run();
  // Directory data exists only in this authorized response. A lost response is
  // represented by the durable counts and requires an explicitly new read job.
  return {job:microsoftJobView(current),...(result.ok&&current.status==='succeeded'?{users:result.users,hasMore:result.hasMore}:{})};

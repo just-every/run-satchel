@@ -4,8 +4,10 @@
 // Identity, sessions, outboxes and private configuration stay in Base's exclusions.
 export default {
  product: 'legal/satchel',
- excludeTables: ['s_document_upload_batches','s_document_uploads','s_document_upload_parts','s_document_upload_gc','s_proposal_sponsor_links','bs_settings','bs_overrides','bs_logo','bs_team','bs_audit','bs_assert','agent_door_state','agent_door_agents','agent_door_audit','agent_door_calls','agent_door_approvals','agent_door_reviews','agent_door_events','agent_door_usage','s_mfa','s_mfa_sessions','s_microsoft_connector','s_microsoft_jobs','s_settlement_authority','s_retainer_requests','s_trust_statement_releases','s_production_shares','s_production_delivery_receipts','s_agent_keys','s_guard','s_intake_tokens','s_intake_rate_limits','s_intake_uploads','s_integrations','s_integration_requests','s_integration_events','s_webhook_deliveries','s_webhook_attempts','s_consult_rate_limits'],
+ importSafety: {s_recovery_state: {sending_paused:[1],charging_paused:[1]}},
+ importRow(table,row) { return table==='s_recovery_state'?{...row,sending_paused:1,charging_paused:1}:row; },
+ excludeTables: ['s_document_upload_batches','s_document_uploads','s_document_upload_parts','s_document_upload_gc','s_recovery_receipts','s_recovery_authority','s_scheduler_observation','s_proposal_sponsor_links','bs_settings','bs_overrides','bs_logo','bs_team','bs_audit','bs_assert','agent_door_state','agent_door_agents','agent_door_audit','agent_door_calls','agent_door_approvals','agent_door_reviews','agent_door_events','agent_door_usage','s_mfa','s_mfa_sessions','s_microsoft_connector','s_microsoft_jobs','s_settlement_authority','s_retainer_requests','s_trust_statement_releases','s_production_shares','s_production_delivery_receipts','s_agent_keys','s_guard','s_intake_tokens','s_intake_rate_limits','s_intake_uploads','s_integrations','s_integration_requests','s_integration_events','s_webhook_deliveries','s_webhook_attempts','s_consult_rate_limits'],
  buckets: { matterOriginals: { prefix: 'matter/', objectReferences: { table: 's_document_r2_versions', keyColumn: 'object_key' } }, originals: { prefix: 'intake/', objectReferences: { table: 's_intake_files', keyColumn: 'object_key' } } },
- replaceableTables: ['s_meta','s_number_settings','s_trust_transfer_policy'],
+ replaceableTables: ['s_recovery_state','s_meta','s_number_settings','s_trust_transfer_policy'],
  requiredConfiguration: ['OWNER_EMAIL','SESSION_SECRET','SETUP_TOKEN','AUTH_ORIGIN','MAIL_PROVIDER','MAIL_FROM'],
 };

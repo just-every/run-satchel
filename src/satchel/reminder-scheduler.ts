@@ -1,3 +1,4 @@
+import {recoveryPaused} from './recovery-authority';
 import {wallAllows} from './matter-scope';
 import type {Bindings} from '../auth.server';
 import {operatorMail} from '../mail.server.mjs';
@@ -9,6 +10,7 @@ async function outcome(db:D1Database,d:Data,claim:string,status:string,provider:
  await db.batch([stmt(db,"UPDATE s_reminder_deliveries SET status=?,provider=?,provider_id=?,detail=? WHERE id=? AND claim=? AND status='sending'",status,provider,providerId,detail,d.id,claim),audit(db,{id:'scheduled-reminders',email:'scheduler',role:'system',channel:'automation'},'deadline.reminder_result',d.id,JSON.stringify({recipient:d.recipient,status,provider,providerId,detail}))]);
 }
 export async function runReminders(env:Bindings,at=Date.now()){
+ if(await recoveryPaused(env.DB,'sending'))return {paused:true};
  const db=env.DB;
  // A claimed send interrupted by a Worker restart is uncertain, never retried.
  await stmt(db,"UPDATE s_reminder_deliveries SET status='uncertain',detail='Worker stopped before recording the provider outcome. Reconcile before any new send.' WHERE status='sending' AND claimed_at<=?",at-600000).run();
@@ -26,6 +28,7 @@ export async function runReminders(env:Bindings,at=Date.now()){
  }
  const pending=await rows(db,`SELECT d.*,r.quiet_start,r.quiet_end,t.timezone FROM s_reminder_deliveries d JOIN s_reminder_rules r ON r.id=d.rule_id JOIN s_deadlines t ON t.id=r.deadline_id WHERE d.status='queued' AND d.scheduled_for<=? AND ${live} ORDER BY d.scheduled_for,d.stage,d.id LIMIT 100`,at);
  for(const d of pending){
+  if(await recoveryPaused(env.DB,'sending'))return {paused:true};
   if(isQuiet(at,d.timezone,d.quiet_start,d.quiet_end))continue;
   const claim=id(),attempted=new Date(at).toISOString();
   const result=await stmt(db,`UPDATE s_reminder_deliveries SET status='sending',claim=?,claimed_at=?,attempted_at=? WHERE id=? AND status='queued' AND EXISTS(SELECT 1 FROM s_reminder_rules r JOIN s_deadlines t ON t.id=r.deadline_id WHERE r.id=rule_id AND ${live} AND ${eligible('s_reminder_deliveries.recipient','t')} AND (s_reminder_deliveries.stage='reminder' OR NOT EXISTS(SELECT 1 FROM s_reminder_deliveries p WHERE p.rule_id=r.id AND p.stage='reminder' AND p.acknowledged_at IS NOT NULL)))`,claim,at,attempted,d.id).run();

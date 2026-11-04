@@ -1,3 +1,4 @@
+import {recoveryPaused} from './recovery-authority';
 import {updateContactCapGuard} from './matter-update-delivery';
 import type {Bindings} from '../auth.server';
 import {atomic,audit,human,id,insist,integer,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
@@ -64,8 +65,10 @@ export async function reminderSendGuards(db:D1Database,actor:Actor,attempt:Data,
  return [...(job.appointment_id?[guard(db,'(SELECT COUNT(*) FROM s_appointment_changes WHERE appointment_id=?)=?',job.appointment_id,JSON.parse(job.source_revision).changes.length)]:[]),responsible(db,actor,job.matter_id),guard(db,'EXISTS(SELECT 1 FROM s_client_reminder_authorizations WHERE id=? AND enabled=1 AND sequence=(SELECT MAX(sequence) FROM s_client_reminder_authorizations WHERE matter_id=?))',job.authorization_id,job.matter_id),updateContactCapGuard(db,job.recipient,job.max_contacts,atMs)];
 }
 export async function runClientReminders(env:Bindings,atMs:number){
+ if(await recoveryPaused(env.DB,'sending'))return {paused:true};
  const db=env.DB,due=await rows(db,"SELECT * FROM s_client_reminder_jobs WHERE status IN ('queued','prepared') AND due_at<=? ORDER BY due_at,id LIMIT 100",new Date(atMs).toISOString());
  for(const j of due){
+  if(await recoveryPaused(env.DB,'sending'))return {paused:true};
   try{
    const u=await stmt(db,'SELECT * FROM s_client_reminder_authorizations WHERE id=?',j.authorization_id).first<Data>();
    const o=await stmt(db,'SELECT o.*,m.role member_role,m.active,r.permissions FROM oa_operators o LEFT JOIN s_members m ON m.email=o.email LEFT JOIN s_custom_roles r ON r.id=m.custom_role_id WHERE o.id=?',u!.counsel_id).first<Data>();

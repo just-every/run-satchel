@@ -1,4 +1,5 @@
 import {exerciseDocumentUploads} from './document-upload-browser.mjs';
+import {exerciseRecoveryDiagnostics} from './recovery-diagnostics-browser.mjs';
 import {exerciseAgentControls} from './agent-execution-browser.mjs';
 // SAT-013: the installed product's own surfaces, driven in a browser at desktop and phone widths.
 import {test} from 'node:test';
@@ -50,6 +51,7 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`SAT-013 sign-in, setup
   await exerciseAgentControls(page,h,width);
   await tab(page,'Move in');await page.getByRole('heading',{name:'Clio contacts'}).waitFor();
   await tab(page,'Firm');await page.getByRole('heading',{name:'Barton & Lee LLP'}).waitFor();
+  await exerciseRecoveryDiagnostics(browser,width,height);
   // The assistant signs in from the invitation and sees only what the role allows.
   const staff=await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true}),assistant=await staff.newPage();assistant.on('pageerror',e=>errors.push(String(e)));
   const invite=h.mails.toReversed().find(m=>m.to.includes('assistant@example.test')),link=(invite.text??invite.html).match(/https:\/\/[^\s"<]+\/auth\/[^\s"<]+/)[0];
@@ -59,7 +61,7 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`SAT-013 sign-in, setup
   await tab(assistant,'Deadlines');await assistant.getByText('Cure period ends',{exact:true}).waitFor();assert.equal(await assistant.getByRole('button',{name:'Mark complete'}).count(),0);
   await tab(assistant,'Documents');assert.equal(await assistant.getByRole('heading',{name:'Legal holds & retention'}).count(),0);
   await tab(assistant,'Firm');await assistant.getByRole('heading',{name:'Barton & Lee LLP'}).waitFor();assert.equal(await assistant.getByRole('button',{name:'Save firm settings'}).count(),0);
-  await tab(assistant,'Team & safety');assert.equal(await assistant.getByRole('heading',{name:'Firm members'}).count(),0);assert.equal(await assistant.getByRole('heading',{name:'Backup & restore'}).count(),0);
+  await tab(assistant,'Team & safety');assert.equal(await assistant.getByRole('heading',{name:'Firm members'}).count(),0);assert.equal(await assistant.getByRole('heading',{name:'Backup & restore'}).count(),0);assert.equal(await assistant.getByRole('heading',{name:'Operational diagnostics'}).count(),0);
   assert.equal(await assistant.evaluate(()=>fetch('/api/satchel/conflicts',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({client:'A',adverse:'B'})}).then(r=>r.status)),403);
   assert.deepEqual(errors,[]);
  }finally{await browser.close();await h.close();}

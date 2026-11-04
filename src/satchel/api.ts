@@ -1,4 +1,6 @@
 import {beginUploads,uploadState,uploadPart,completeUpload,cancelUpload} from './document-uploads';
+import {operationalDiagnostics} from './operational-diagnostics';
+import {authorizeRecovery} from './recovery-authority';
 import {invoiceWriteoffHistory,reverseInvoiceWriteoff} from './invoice-writeoff-reversal';
 import {documentTextCitation} from './document-text-index';
 import {bindBusinessAgent} from './team';
@@ -521,6 +523,8 @@ api.get('/api/satchel/matter-import',as((a,c)=>matterImportState(db(c),a)));
 api.post('/api/satchel/matter-import/:op',as(async(a,c)=>matterImport(db(c),a,param(c,'op'),await body(c))));
 api.get('/api/satchel/import',as((a,c)=>importState(db(c),a)));
 api.post('/api/satchel/import/:op',as(async(a,c)=>importAction(db(c),a,param(c,'op'),await body(c))));
+api.get('/api/satchel/diagnostics',as((a,c)=>operationalDiagnostics(runtimeBindings(c.env),a)));
+api.post('/api/satchel/recovery/authorize',as(async(a,c)=>authorizeRecovery(runtimeBindings(c.env),a,await body(c))));
 api.get('/api/satchel/backup',as((a,c)=>backup(db(c),a,c.env.ORIGINALS)));
 api.post('/api/satchel/restore',as(async(a,c)=>c.req.header('content-type')?.includes('application/x-ndjson') ? restoreStream(db(c),a,c.req.raw.body!,c.req.header('x-satchel-confirm')??'',c.env.ORIGINALS) : restore(db(c),a,await body(c),c.env.ORIGINALS)));
 

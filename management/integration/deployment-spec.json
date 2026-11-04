@@ -748,6 +748,30 @@
       "name": "0128_proposal_sponsor_links.sql",
       "sha256": "871277ac5b1374ebe10808bb0bf6f4158431009949e9dc35c753878f8025169a",
       "sql": "-- Destination-local admission links for explicitly restored proposals. Historical\n-- source rows and their sponsor/preparer attribution remain byte-identical.\nCREATE TABLE s_proposal_sponsor_links (\n proposal_id TEXT PRIMARY KEY,\n operator_id TEXT NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0129_document_uploads.sql",
+      "sha256": "f68a62126c89bbfc4378b722d28414877ef965805b308bcc84629c78f61bb296",
+      "sql": "-- Transfer credentials and reservations stay installation-local, outside archives.\nCREATE TABLE s_document_upload_batches (\n id TEXT PRIMARY KEY, matter_id TEXT NOT NULL, actor_id TEXT NOT NULL,\n request_key TEXT NOT NULL, fingerprint TEXT NOT NULL, created_at TEXT NOT NULL,\n UNIQUE(actor_id,request_key)\n);\nCREATE TABLE s_document_uploads (\n id TEXT PRIMARY KEY, batch_id TEXT NOT NULL REFERENCES s_document_upload_batches(id),\n matter_id TEXT NOT NULL, actor_id TEXT NOT NULL, created_by TEXT NOT NULL,\n document_id TEXT NOT NULL UNIQUE, name TEXT NOT NULL, relative_path TEXT NOT NULL,\n declared_mime TEXT NOT NULL, size INTEGER NOT NULL CHECK(size BETWEEN 1 AND 524288000),\n sha256 TEXT NOT NULL, visibility TEXT NOT NULL CHECK(visibility IN ('matter','private')),\n object_key TEXT NOT NULL UNIQUE, multipart_id TEXT,\n state TEXT NOT NULL CHECK(state IN ('active','completing','complete','cancelled','expired','invalid')),\n lease TEXT, lease_until TEXT, expires_at TEXT NOT NULL, created_at TEXT NOT NULL,\n UNIQUE(batch_id,relative_path)\n);\nCREATE INDEX s_document_upload_expiry ON s_document_uploads(state,expires_at);\nCREATE TABLE s_document_upload_parts (\n upload_id TEXT NOT NULL REFERENCES s_document_uploads(id), part_number INTEGER NOT NULL,\n size INTEGER NOT NULL, sha256 TEXT NOT NULL, etag TEXT,\n PRIMARY KEY(upload_id,part_number)\n);\n-- R2 originals have their own immutable provenance; legacy D1 versions retain\n-- their original size constraint and schema for existing callers and archives.\nCREATE TABLE s_document_r2_versions (\n document_id TEXT NOT NULL REFERENCES s_documents(id), version INTEGER NOT NULL CHECK(version>0),\n name TEXT NOT NULL, relative_path TEXT NOT NULL, mime TEXT NOT NULL, declared_mime TEXT NOT NULL,\n size INTEGER NOT NULL CHECK(size BETWEEN 1 AND 524288000), sha256 TEXT NOT NULL,\n object_key TEXT UNIQUE, scan_status TEXT NOT NULL DEFAULT 'quarantined' CHECK(scan_status='quarantined'),\n created_by TEXT NOT NULL, created_channel TEXT NOT NULL CHECK(created_channel IN ('person','agent')), created_at TEXT NOT NULL,\n PRIMARY KEY(document_id,version), UNIQUE(document_id,sha256)\n);\nCREATE TRIGGER s_document_r2_immutable_update BEFORE UPDATE ON s_document_r2_versions\n WHEN NEW.document_id IS NOT OLD.document_id OR NEW.version IS NOT OLD.version\n OR NEW.name IS NOT OLD.name OR NEW.relative_path IS NOT OLD.relative_path\n OR NEW.mime IS NOT OLD.mime OR NEW.declared_mime IS NOT OLD.declared_mime\n OR NEW.size IS NOT OLD.size OR NEW.sha256 IS NOT OLD.sha256\n OR NEW.scan_status IS NOT OLD.scan_status OR NEW.created_by IS NOT OLD.created_by\n OR NEW.created_channel IS NOT OLD.created_channel OR NEW.created_at IS NOT OLD.created_at\n OR NEW.object_key IS NOT NULL\n BEGIN SELECT RAISE(ABORT,'immutable R2 original'); END;\nCREATE TRIGGER s_document_r2_immutable_delete BEFORE DELETE ON s_document_r2_versions\n BEGIN SELECT RAISE(ABORT,'immutable R2 original'); END;\n\nCREATE TABLE s_document_upload_gc (object_key TEXT PRIMARY KEY);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0129_operational_diagnostics.sql",
+      "sha256": "5a0cb23e7ca54746a426830ac565f15535254487ce9c337fa4c4d1a79dff387d",
+      "sql": "-- Installation observations and restore authority never travel in archives.\nALTER TABLE s_microsoft_connector ADD COLUMN last_success_at TEXT;\nALTER TABLE s_microsoft_connector ADD COLUMN observed_token_expires_at INTEGER;\nUPDATE s_microsoft_connector SET observed_token_expires_at=token_expires_at;\nCREATE TABLE s_recovery_receipts(\n id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN('backup','restore')),\n sha256 TEXT NOT NULL, archive_hash TEXT, content_hash TEXT,\n bytes INTEGER NOT NULL CHECK(bytes>=0), verified_at TEXT NOT NULL\n);\nCREATE TABLE s_recovery_authority(\n channel TEXT PRIMARY KEY CHECK(channel IN('sending','charging')),\n restore_id TEXT NOT NULL, restored_at TEXT NOT NULL,\n authorized_by TEXT, authorized_at TEXT, reason TEXT\n);\nCREATE TABLE s_scheduler_observation(\n id INTEGER PRIMARY KEY CHECK(id=1), scheduled_at TEXT NOT NULL,\n started_at TEXT NOT NULL, completed_at TEXT, outcome TEXT NOT NULL CHECK(outcome IN('running','succeeded','failed'))\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0130_document_upload_cleanup.sql",
+      "sha256": "47609159dced8eed32649d3900673e5bd90509d29b473ebdc57b04c70851297b",
+      "sql": "-- Keep retired handles as replay evidence without repeatedly deleting storage.\nALTER TABLE s_document_uploads ADD COLUMN cleaned_at TEXT;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0130_restored_automation_policy.sql",
+      "sha256": "e7ec28e1ea8d4a2db36e7d3cc067f29e0cf415a37fd834fb42f6776e5fbbf2e3",
+      "sql": "-- The archive policy normalizes this bootstrap row in the atomic import itself,\n-- including imports through the installation recovery command.\nCREATE TABLE s_recovery_state(\n id INTEGER PRIMARY KEY CHECK(id=1),\n sending_paused INTEGER NOT NULL DEFAULT 0 CHECK(sending_paused IN(0,1)),\n charging_paused INTEGER NOT NULL DEFAULT 0 CHECK(charging_paused IN(0,1))\n);\nINSERT INTO s_recovery_state VALUES(1,0,0);\n"
     }
   ],
   "compatibilityDate": "2026-09-08",
