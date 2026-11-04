@@ -4,7 +4,7 @@ import {resolveArgs} from '../../src/modules/agent-door/conformance/protocol.mjs
 
 /** A person binds the random harness actor through the actual native door. */
 export default async function journey({request,origin,cookie,tool}) {
- const personRequest=async(path,body)=>{const r=await request(origin+path,{method:body===undefined?'GET':'POST',headers:{Origin:origin,Cookie:cookie,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});assert.equal(r.ok,true,'Native person lifecycle');return r;};
+ const personRequest=async(path,body)=>{const r=await request(origin+path,{method:body===undefined?'GET':'POST',headers:{Origin:origin,Cookie:cookie,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});if(!r.ok)console.log('Native door lifecycle refused: '+(path.endsWith('/decide')?'proposal decision':path.startsWith('/auth/')?'person identity':'native record')+' status='+r.status);assert.equal(r.ok,true,'Native person lifecycle');return r;};
  const native=async(path,body)=>(await personRequest('/api/satchel'+path,body)).json();
  console.log('Native door journey: start');
  const identity=(await tool('satchel.agent.identity',{})).result.structuredContent;
@@ -32,6 +32,7 @@ export default async function journey({request,origin,cookie,tool}) {
   }
  }
  assert.equal((await native('/state')).proposals.length,initial.length+preparations.length,'One native preparation per mutating call');
+ console.log('Native door journey: preparation replay reconciled');
  const decisions=new Map();
  const retainedHistory=async()=>{
   const state=await native('/state');
@@ -56,12 +57,15 @@ export default async function journey({request,origin,cookie,tool}) {
   }
  };
  await retainedHistory();
+ console.log('Native door journey: initial attribution reconciled');
  await personRequest('/auth/display-name',{displayName:person.name+' renamed'});
  try{
   assert.equal((await native('/me')).name,person.name+' renamed','The signed-in sponsor name actually changed');
   await retainedHistory();
+  console.log('Native door journey: renamed sponsor history retained');
   const approved=preparations.find(p=>p.kind==='deadline'),declined=preparations.find(p=>p.kind==='matter');
   assert.ok(approved);assert.ok(declined);
+  console.log('Native door journey: person accepts prepared deadline');
   await native('/proposals/'+approved.id+'/decide',{decision:'approve'});decisions.set(approved.id,'approved');
   await native('/proposals/'+declined.id+'/decide',{decision:'decline',reason:'Counsel declined this preparation'});decisions.set(declined.id,'declined');
   await retainedHistory();

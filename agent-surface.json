@@ -256,7 +256,7 @@
           "date": "2027-01-15",
           "timezone": "America/New_York",
           "source": "Counsel-selected native evidence",
-          "kind": "court"
+          "kind": "hearing"
         }
       },
       "expect": [
@@ -398,7 +398,7 @@
           "date": "2027-01-15",
           "timezone": "America/New_York",
           "source": "Counsel-selected native evidence",
-          "kind": "court"
+          "kind": "hearing"
         }
       },
       "expect": [

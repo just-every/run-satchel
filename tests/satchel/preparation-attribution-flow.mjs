@@ -6,7 +6,9 @@ import {earnedBill} from './trust-fixture.mjs';
 export async function provePreparationAttribution(){
  const h=await harness();try{
   const m=await open(h,'Attribution custody'),person=(await h.json('/state',undefined,h.owner)).actor,bill=await earnedBill(h,m,12000,'Retained issued services');
-  const billBytes=await(await h.request('/api/satchel/bills/'+bill.id+'/export',undefined,h.owner)).text(),billApproval=bill.approved_by;
+  const approval=b=>({person:b.approvedBy,at:b.approvedAt,note:b.reviewNote,artifact:b.artifact,digest:b.artifactDigest});
+  const billBytes=await(await h.request('/api/satchel/bills/'+bill.id+'/export',undefined,h.owner)).text(),billApproval=approval(bill);
+  assert.equal(billApproval.person,person.email);assert.ok(billApproval.at);assert.ok(billApproval.artifact);
   const key=await h.json('/keys',{label:'Matter preparation assistant'},h.owner),{auth}=await authorizeAgent(h,key,m.id);
   const payload={matterId:m.id,title:'Attributed deadline',date:'2027-02-15',timezone:'America/New_York',source:'Reviewed instructions'};
   const accepted=await h.json('/agent/prepare-deadline',payload,'',200,auth),declined=await h.json('/agent/prepare-deadline',{...payload,title:'Declined preparation'},'',200,auth);
@@ -19,6 +21,7 @@ export async function provePreparationAttribution(){
   const exportRows=async target=>(await(await target.request('/api/satchel/audit/export?matterId='+m.id,undefined,target.owner)).text()).trim().split('\n').map(JSON.parse).filter(r=>[accepted.id,declined.id].includes(r.objectId));
   assert.ok((await read(h)).every(p=>JSON.parse(p.prepared_identity).label===expected.label));
   await h.raw('/auth/display-name',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({displayName:'Renamed principal'})},h.owner).then(r=>assert.equal(r.status,200));
+  assert.equal((await h.json('/me',undefined,h.owner)).name,'Renamed principal','The native sponsor identity actually changed');
   await h.json('/proposals/'+accepted.id+'/decide',{decision:'approve'},h.owner);
   await h.json('/proposals/'+declined.id+'/decide',{decision:'decline',reason:'Person declined the prepared suggestion'},h.owner);
   await h.json('/keys/'+key.id+'/revoke',{},h.owner);await h.json('/agent/context',undefined,'',401,auth);
@@ -29,7 +32,7 @@ export async function provePreparationAttribution(){
   assert.deepEqual(await exportRows(h),trail);
   console.log('PROBE BASE-AGENT-008 decision: approve and decline routes after rename and key revocation -> original preparer and separate person decision in state, audit and JSONL');
   assert.equal(await(await h.request('/api/satchel/bills/'+bill.id+'/export',undefined,h.owner)).text(),billBytes);
-  assert.equal((await h.json('/matters/'+m.id+'/billing',undefined,h.owner)).bills.find(b=>b.id===bill.id).approved_by,billApproval);
+  assert.deepEqual(approval((await h.json('/matters/'+m.id+'/billing',undefined,h.owner)).bills.find(b=>b.id===bill.id)),billApproval);
   console.log('PROBE BASE-AGENT-008 artifacts: issued bill export after attribution and decisions -> original bytes and approval unchanged');
   // Native sponsor lifecycle changes stop authority without rewriting history.
   const sponsorEmail=['synthetic-satchel-31','example.test'].join('@');
@@ -46,6 +49,7 @@ export async function provePreparationAttribution(){
    await target.json('/restore',{archive,confirm:'RESTORE'},target.owner);
    assert.deepEqual(await read(target),history);assert.deepEqual(await audit(target),trail);assert.deepEqual(await exportRows(target),trail);
    assert.equal(await(await target.request('/api/satchel/bills/'+bill.id+'/export',undefined,target.owner)).text(),billBytes);
+   assert.deepEqual(approval((await target.json('/matters/'+m.id+'/billing',undefined,target.owner)).bills.find(b=>b.id===bill.id)),billApproval);
    await target.json('/agent/context',undefined,'',401,auth);
    const restored=(await target.json('/audit?matterId='+m.id+'&action=proposal.prepared',undefined,target.owner)).records.find(r=>r.objectId===sponsored.id);assert.deepEqual(restored.preparedBy,sponsored.preparedBy);
    console.log('PROBE BASE-AGENT-008 recovery: native backup and restore -> identical proposal and audit identities, byte-identical bill, old key refused');
