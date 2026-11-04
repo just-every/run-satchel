@@ -172,7 +172,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "fe133cd2758c113787eb1f4c406a7281c9f265ba61676199a91972d36359bcd0",
+      "sha256": "582debe6c3f8c520642450801d91f8f7732c63c29106dee649ad342142dd4360",
       "executable": false
     },
     "DEMO.md": {
@@ -3616,11 +3616,11 @@
       "executable": false
     },
     "src/satchel/audit-record.ts": {
-      "sha256": "4f3b324c658494bbc48098e0c10242b9877e6653de213ff6039ad2bb958c6759",
+      "sha256": "bc5c5ad1c4a079bf4a03ec0af7c6c8984a76bfc8ee9fecfe17fdc4c8a53b8ca4",
       "executable": false
     },
     "src/satchel/audit.ts": {
-      "sha256": "47c8fd0f0a19309679fb796e97b2bdcd14fc69c7f00bf87eeadc6d4a058adea8",
+      "sha256": "e1de18b81435475ece5aae4ee6357226fb09de9f11540bd26fc3826d38484e3d",
       "executable": false
     },
     "src/satchel/billing-corrections.ts": {
@@ -4072,7 +4072,7 @@
       "executable": false
     },
     "src/satchel/model.ts": {
-      "sha256": "2b65421308c777d75daf829fc0d402fbea85f87721a4e998ce3d98e6e4a91705",
+      "sha256": "58b8bb1ed58eb6625afb6f6e961ac84bd4feae97a565948e5cce2ec1894b4a04",
       "executable": false
     },
     "src/satchel/numbering.ts": {
@@ -4152,7 +4152,7 @@
       "executable": false
     },
     "src/satchel/proposals.ts": {
-      "sha256": "031d51cc3ea3c7f44f0a1db71295de99a5b01c046afd20c55515235e814f66e9",
+      "sha256": "1d6395c0be2284b68d9d62cc573617b71a59cef86cba5f067204854cccfbfe79",
       "executable": false
     },
     "src/satchel/providers.ts": {
@@ -5072,7 +5072,7 @@
       "executable": false
     },
     "tests/agent-door/native-journey.mjs": {
-      "sha256": "96e15e1ef900089d4db46f3b7cede139b2f4ae032a192f4f74451d2b6bc1dc9d",
+      "sha256": "db2f480b85842b74e32365c336f2f8b7697a5c415a19f237a3b5975770ac2b0b",
       "executable": false
     },
     "tests/email-link.mjs": {
@@ -5116,11 +5116,11 @@
       "executable": false
     },
     "tests/satchel/audit-journey.test.mjs": {
-      "sha256": "c892a6676bc3300956c3a02ecc52505b388ba498315de57a2fe5d0f7368a0ee3",
+      "sha256": "3f8722449358305fe20853b019c54b4b9ad8e07cf12c1cd05d0653a30e0901c7",
       "executable": false
     },
     "tests/satchel/audit.test.mjs": {
-      "sha256": "8b42bbc6c48b45db9fc9087098d8602faf35ce8ff393ca229a96f803f9aa6eea",
+      "sha256": "a1c00046548c518d151b5e5eee8101f2fbd758486cab1676062f34c63a34c340",
       "executable": false
     },
     "tests/satchel/browser-shots.mjs": {
@@ -5244,7 +5244,7 @@
       "executable": false
     },
     "tests/satchel/flows.test.mjs": {
-      "sha256": "272b6c2a871d5b79c36519c7f19d15ee68653c4bb7de2ec4cf5aa09b2c66e078",
+      "sha256": "22e83eda3340c7363defbbb32300e4cf9c253b409902468f00b23bbe3c6a547e",
       "executable": false
     },
     "tests/satchel/followups.test.mjs": {
@@ -5276,7 +5276,7 @@
       "executable": false
     },
     "tests/satchel/integrations.test.mjs": {
-      "sha256": "ac42671e29692f98649515c8e08b0f1cdd7ea47f97caa3b6f28d834034481824",
+      "sha256": "16e0bc8cd5b3752cc03b4637f8a8a23ad0bcf2588680b2e31146cb715b868024",
       "executable": false
     },
     "tests/satchel/invoice-delivery-fixture.mjs": {
@@ -5456,7 +5456,7 @@
       "executable": false
     },
     "tests/satchel/preparation-attribution-flow.mjs": {
-      "sha256": "350cb7a2d3859412580dfe5988a720cb5c1643f6c52ac4b9bf3d5bbcc96b4683",
+      "sha256": "06eb8a46ba60b41f2f98efcd0a60353ac6076f7ecb2e4f9b1f8d0aa0ad91de25",
       "executable": false
     },
     "tests/satchel/providers-journey.test.mjs": {

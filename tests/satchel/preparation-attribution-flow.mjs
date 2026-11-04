@@ -22,7 +22,7 @@ export async function provePreparationAttribution(){
   assert.ok((await read(h)).every(p=>JSON.parse(p.prepared_identity).label===expected.label));
   await h.raw('/auth/display-name',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({displayName:'Renamed principal'})},h.owner).then(r=>assert.equal(r.status,200));
   assert.equal((await h.json('/me',undefined,h.owner)).name,'Renamed principal','The native sponsor identity actually changed');
-  await h.json('/proposals/'+accepted.id+'/decide',{decision:'approve'},h.owner);
+  const acceptedResult=await h.json('/proposals/'+accepted.id+'/decide',{decision:'approve'},h.owner);
   await h.json('/proposals/'+declined.id+'/decide',{decision:'decline',reason:'Person declined the prepared suggestion'},h.owner);
   await h.json('/keys/'+key.id+'/revoke',{},h.owner);await h.json('/agent/context',undefined,'',401,auth);
   await h.json('/agent/prepare-deadline',payload,'',401,auth);
@@ -31,6 +31,12 @@ export async function provePreparationAttribution(){
   for(const row of trail){assert.deepEqual(row.preparedBy,expected);assert.equal(row.actor.channel,row.action==='proposal.prepared'?'agent':'person');assert.equal(row.actor.id,person.id);}
   assert.deepEqual(await exportRows(h),trail);
   console.log('PROBE BASE-AGENT-008 decision: approve and decline routes after rename and key revocation -> original preparer and separate person decision in state, audit and JSONL');
+  const resultingAudit=async target=>(await target.json('/audit?matterId='+m.id+'&action=deadline.proposed',undefined,target.owner)).records.filter(r=>r.objectId===acceptedResult.id);
+  const resultingTrail=await resultingAudit(h);assert.equal(resultingTrail.length,1);
+  assert.deepEqual(resultingTrail[0].preparedBy,expected);assert.equal(resultingTrail[0].actor.channel,'person');assert.equal(resultingTrail[0].actor.id,person.id);assert.equal(resultingTrail[0].evidence.decision.id,accepted.id);
+  const resultingExport=(await(await h.request('/api/satchel/audit/export?matterId='+m.id+'&action=deadline.proposed',undefined,h.owner)).text()).trim().split('\n').map(JSON.parse);
+  assert.deepEqual(resultingExport,resultingTrail);
+  console.log('PROBE BASE-AGENT-008 resulting action: accepted deadline audit and JSONL -> signed-in person actor plus original immutable preparer');
   assert.equal(await(await h.request('/api/satchel/bills/'+bill.id+'/export',undefined,h.owner)).text(),billBytes);
   assert.deepEqual(approval((await h.json('/matters/'+m.id+'/billing',undefined,h.owner)).bills.find(b=>b.id===bill.id)),billApproval);
   console.log('PROBE BASE-AGENT-008 artifacts: issued bill export after attribution and decisions -> original bytes and approval unchanged');
@@ -48,6 +54,7 @@ export async function provePreparationAttribution(){
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),target=await harness();try{
    await target.json('/restore',{archive,confirm:'RESTORE'},target.owner);
    assert.deepEqual(await read(target),history);assert.deepEqual(await audit(target),trail);assert.deepEqual(await exportRows(target),trail);
+   assert.deepEqual(await resultingAudit(target),resultingTrail);
    assert.equal(await(await target.request('/api/satchel/bills/'+bill.id+'/export',undefined,target.owner)).text(),billBytes);
    assert.deepEqual(approval((await target.json('/matters/'+m.id+'/billing',undefined,target.owner)).bills.find(b=>b.id===bill.id)),billApproval);
    await target.json('/agent/context',undefined,'',401,auth);

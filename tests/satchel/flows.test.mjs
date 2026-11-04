@@ -125,11 +125,17 @@ test('agent keys only prepare; human decisions are atomic and cannot be replayed
  assert.equal((await h.json('/state',undefined,h.owner)).proposals.find(v=>v.id===p.id).decided_by,'owner@example.test');
  const proposedMatter=await h.json('/agent/prepare-matter',{title:'Seabrook advice',client:'Seabrook Studio',adverse:'Oak Street LLC'},'',200,auth);
  const search=await h.json('/conflicts',proposedMatter.payload,h.owner);
- await h.json('/proposals/'+proposedMatter.id+'/decide',{decision:'approve',conflictId:search.id,reviewNote:'Conflicts cleared by principal',confirmed:true},h.owner);
+ const opened=await h.json('/proposals/'+proposedMatter.id+'/decide',{decision:'approve',conflictId:search.id,reviewNote:'Conflicts cleared by principal',confirmed:true},h.owner);
  const entry=await h.json('/matters/'+m.id+'/entries',{kind:'time',date:'2026-10-15',description:'Client update',minutes:15,rateCents:25000},h.owner);
  const context=await h.json('/agent/matters/'+m.id,undefined,'',200,auth);assert.ok(context.billing.entries.some(e=>e.id===entry.id));
  const proposedBill=await h.json('/agent/prepare-bill',{matterId:m.id,title:'Prepared update bill',date:'2026-10-15',entryIds:[entry.id]},'',200,auth);
  const prepared=await h.json('/proposals/'+proposedBill.id+'/decide',{decision:'approve'},h.owner);assert.equal(prepared.status,'draft');
+ const resultingActions=[['deadline.proposed',p,accepted],['matter.opened',proposedMatter,opened],['bill.prepared',proposedBill,prepared]];
+ for(const [action,proposal,result] of resultingActions){
+  const records=(await h.json('/audit?action='+action+'&limit=200',undefined,h.owner)).records.filter(r=>r.objectId===result.id);assert.equal(records.length,1);
+  const record=records[0];assert.deepEqual(record.preparedBy,proposal.preparedBy);assert.equal(record.actor.channel,'person');assert.equal(record.actor.id,proposal.preparedBy.for.id);assert.equal(record.evidence.decision.id,proposal.id);
+  const exported=(await(await h.request('/api/satchel/audit/export?action='+action,undefined,h.owner)).text()).trim().split('\n').map(JSON.parse).filter(r=>r.objectId===result.id);assert.deepEqual(exported,records);
+ }
  await h.json('/bills/'+prepared.id+'/export',undefined,h.owner,409);
  await h.json('/keys/'+key.id+'/revoke',{},h.owner);await h.json('/agent/context',undefined,'',401,auth);
  await proveAgentExecution();

@@ -17,7 +17,7 @@ async function query(db:D1Database,actor:Actor,f:Filters){
 function record(r:Data){
  let detail:unknown=r.detail;try{detail=JSON.parse(r.detail);}catch{}
  const evidence=r.evidence?JSON.parse(r.evidence):null,proposal=evidence?.record?.recordType==='s_proposals'?evidence.record:null;
- const retained=r.channel==='agent'?evidence?.context?.preparedBy:null;
+ const retained=r.channel==='agent'?evidence?.context?.preparedBy:evidence?.decision?.preparedBy;
  const preparedBy=retained?preparationAttribution({},retained):proposal?preparationAttribution({...proposal,prepared_identity:null},proposal.prepared_identity):r.channel==='agent'?preparationAttribution({}):null;
  return {id:r.id,at:r.at,actor:{id:r.actor_id,email:r.actor,role:r.role,channel:r.channel},preparedBy,action:r.action,objectId:r.object_id,matterId:r.matter_id,revision:r.revision,evidence,detail,legacy:r.evidence===null};
 }

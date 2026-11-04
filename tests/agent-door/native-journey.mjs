@@ -33,7 +33,7 @@ export default async function journey({request,origin,cookie,tool}) {
  }
  assert.equal((await native('/state')).proposals.length,initial.length+preparations.length,'One native preparation per mutating call');
  console.log('Native door journey: preparation replay reconciled');
- const decisions=new Map();
+ const decisions=new Map(),results=new Map();
  const retainedHistory=async()=>{
   const state=await native('/state');
   for(const proposal of preparations){
@@ -55,6 +55,13 @@ export default async function journey({request,origin,cookie,tool}) {
     }
    }
   }
+  for(const [proposalId,resultId] of results){
+   const proposal=preparations.find(p=>p.id===proposalId),action='deadline.proposed';
+   const records=(await native('/audit?action='+action+'&limit=200')).records.filter(r=>r.objectId===resultId);
+   assert.equal(records.length,1,'Accepted company preparation has one native result action');
+   const record=records[0];assert.equal(record.actor.channel,'person');assert.equal(record.actor.id,person.id);assert.equal(record.evidence.decision.id,proposalId);assert.deepEqual(record.preparedBy,proposal.preparedBy);
+   const exported=(await(await personRequest('/api/satchel/audit/export?action='+action)).text()).trim().split('\n').map(JSON.parse).filter(r=>r.objectId===resultId);assert.deepEqual(exported,records);
+  }
  };
  await retainedHistory();
  console.log('Native door journey: initial attribution reconciled');
@@ -66,7 +73,7 @@ export default async function journey({request,origin,cookie,tool}) {
   const approved=preparations.find(p=>p.kind==='deadline'),declined=preparations.find(p=>p.kind==='matter');
   assert.ok(approved);assert.ok(declined);
   console.log('Native door journey: person accepts prepared deadline');
-  await native('/proposals/'+approved.id+'/decide',{decision:'approve'});decisions.set(approved.id,'approved');
+  const result=await native('/proposals/'+approved.id+'/decide',{decision:'approve'});decisions.set(approved.id,'approved');results.set(approved.id,result.id);
   await native('/proposals/'+declined.id+'/decide',{decision:'decline',reason:'Counsel declined this preparation'});decisions.set(declined.id,'declined');
   await retainedHistory();
   const controls=await native('/agent-controls');

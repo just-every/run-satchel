@@ -127,7 +127,7 @@ const contexts=[
  record('s_trust_transfer_policy',['id','dual_authorization'],'NULL','x.revision',"i.object_id='1' AND i.action='trust.transfer_policy_changed'"),
  record('ik_jobs',['id','namespace','mapping_version','fingerprint','state','checkpoint','total','error']),
 ];
-export type AuditActor={id:string;email:string;role:string;channel:string;approval?:{id:string;resultId:string};agentAttribution?:unknown;agentApprovers?:unknown};
+export type AuditActor={id:string;email:string;role:string;channel:string;approval?:{id:string;resultId:string;preparedBy?:import('./preparation-attribution').PreparationAttribution};agentAttribution?:unknown;agentApprovers?:unknown};
 export function auditQuery(actor:AuditActor,action:string,objectId:string,detail='',evidence:Record<string,unknown>={}){
  const selected=contexts.filter(context=>{
   const table=context.match(/'recordType','([^']+)'/)![1];
