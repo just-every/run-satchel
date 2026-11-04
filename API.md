@@ -350,6 +350,8 @@ Current erasure fences still apply, so a historical read cannot revive disposed
 costs. Future cutoffs, cutoffs before retained financial history, migrated balance
 observations and ambiguous event boundaries are refused. This does not reconstruct
 historical membership, cohort settings or unretained pre-installation activity.
+Cutoffs before work moved beyond the current permitted cohort are also refused;
+the former matter never restores access to the work's current source record.
 Pending applications and trust cash stay separate from cleared operating receipts.
 The workspace exposes Firm economics under Reports and Staff cost settings under
 Firm. A saved revision is shown with its exact basis, date, author and approval
@@ -361,7 +363,9 @@ separate authenticated download path. `GET /api/satchel/reports/economics/export
 lists only reports whose entire matter custody is currently permitted.
 `GET /api/satchel/reports/economics/exports/:id/file` checks the current native
 principal, every covered matter and the artifact hash again. The ID grants no
-access. Supersession never rewrites these bytes; restart and native restore keep
+access. Current ownership of every captured work source is checked as well: a later
+move cannot retain authority through its former matter. The same custody applies
+to listing and disposal. Supersession never rewrites these bytes; restart and native restore keep
 them unchanged without restoring the requesting person's credentials.
 
 `POST /api/satchel/reports/staff-costs/:id/dispose` and
