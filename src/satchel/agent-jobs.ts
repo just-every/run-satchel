@@ -5,7 +5,7 @@ import {matterGuard} from './documents';
 import {agentForKey} from './session';
 import {gateGrants,requireArea} from './role-areas';
 import {propose} from './proposals';
-import {preparationProvenance} from './agent-metrics';
+import {preparationProvenance} from './agent-provenance';
 
 export async function queueAgentJob(db:D1Database,actor:Actor,delegationId:string,b:Data){
  if(b.action==='prepare-bill')requireArea(actor,'billing','write');

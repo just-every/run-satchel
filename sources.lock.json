@@ -172,7 +172,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "443a966a70e56a80e9a1c13043161f9c2ad2faac4fbb8c30b69056e2d921fd51",
+      "sha256": "2e11d3195e1dca1391f65c253670ead9d15bc7f6d7703c9997a9b931b895a751",
       "executable": false
     },
     "DEMO.md": {
@@ -3564,7 +3564,7 @@
       "executable": false
     },
     "src/satchel/agent-authority.ts": {
-      "sha256": "6b398733109e69cbf996705c3ef37adaeba9629ea0c90236f559fbf120d1b3b1",
+      "sha256": "9a37abcf22a46b899c6c268208ade4755ac4b08c73a4c412c8797565fa76ac02",
       "executable": false
     },
     "src/satchel/agent-context.ts": {
@@ -3572,15 +3572,19 @@
       "executable": false
     },
     "src/satchel/agent-jobs.ts": {
-      "sha256": "fe20d9e0b9bc636ce40c753d78391179bc7fd48233286097234438f995819d18",
+      "sha256": "387c50f92140a38d525b26355ee463d46eeb08a3bbc3ec17b1423f5c559fb6bc",
       "executable": false
     },
     "src/satchel/agent-metrics.ts": {
-      "sha256": "418751435ef46440c4615f184b162f2d142ade43f259548901213c4e883a8a76",
+      "sha256": "3c1e051449b0092dce8d1bd6213f48994ace42bf51cbf97503d7287b5316df26",
       "executable": false
     },
     "src/satchel/agent-preparations.ts": {
-      "sha256": "e741199811c1c52bf31938bb730ab27e390db0a7a7f5f248e463d58f6626de5c",
+      "sha256": "cd93456c243c3f799ee34b13223d294d3b164caa64d7c4b555d4f9917621a042",
+      "executable": false
+    },
+    "src/satchel/agent-provenance.ts": {
+      "sha256": "6519323440e5812c44cc8e83f42f256879738fbbb834cb6a3f5594cb1e43d499",
       "executable": false
     },
     "src/satchel/api.ts": {
@@ -3628,7 +3632,7 @@
       "executable": false
     },
     "src/satchel/audit-record.ts": {
-      "sha256": "1ff23ae8d3da76adf78bb877cce280bab668c44ae4cb9efda884349c2087fe9e",
+      "sha256": "12d8f73219d838c03bae5fd7b7589028bd53d32b4bef4354cc57b09ecd8df846",
       "executable": false
     },
     "src/satchel/audit.ts": {
@@ -4160,7 +4164,7 @@
       "executable": false
     },
     "src/satchel/proposals.ts": {
-      "sha256": "587d095ca83df5316b611251d7f1b97ff3ef98c3819fce67dfa8d1c6d73255df",
+      "sha256": "d204705c9cbf9162c0dd31e8f1851777e8073c31501ccb1fcc49ffd764a31889",
       "executable": false
     },
     "src/satchel/providers.ts": {
@@ -5108,11 +5112,15 @@
       "executable": false
     },
     "tests/satchel/agent-metrics-browser.mjs": {
-      "sha256": "633b010156f7d9ae3909caae3cf52b158b74c7f69cebe62cb45c570f283f1a5b",
+      "sha256": "7809e3e286a5b37d3c25d9d7582a3cfda983754650b18ea3af7e570e874d1907",
       "executable": false
     },
     "tests/satchel/agent-metrics-flow.mjs": {
-      "sha256": "53019cf9bf8fdd6612c7e336ea98a66ecb67f548cee46f69f3ca43910787a5a3",
+      "sha256": "b909628a61829911acb1731d1728c46da8b1b5566d6bf16336d61554f25a334b",
+      "executable": false
+    },
+    "tests/satchel/agent-metrics-repairs.mjs": {
+      "sha256": "ac0536f0385e66280a6a7dbb89fb43c21e837c862b20827d070e9dede8744ac8",
       "executable": false
     },
     "tests/satchel/assembly-fixture.mjs": {

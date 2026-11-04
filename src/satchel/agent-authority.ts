@@ -60,9 +60,14 @@ export async function withdrawAgreement(db:D1Database,actor:Actor,agreementId:st
 
 export const liveAgentSql=`EXISTS(SELECT 1 FROM s_agent_delegations d JOIN s_agent_keys k ON k.id=d.key_id JOIN s_agent_agreements a ON a.id=d.agreement_id JOIN oa_operators sponsor ON sponsor.id=d.sponsor_id JOIN oa_operators approver ON approver.email=d.approved_by WHERE d.id=? AND k.id=? AND k.revoked=0 AND sponsor.status='active' AND approver.status='active' AND approver.role='owner' AND d.revoked_at IS NULL AND a.withdrawn_at IS NULL AND a.expires_at>? AND d.expires_at>? AND d.spend_cents=0 AND NOT EXISTS(SELECT 1 FROM s_agent_sources s LEFT JOIN s_documents doc ON doc.id=s.document_id LEFT JOIN s_document_versions v ON v.document_id=s.document_id AND v.version=s.version WHERE s.delegation_id=d.id AND (doc.id IS NULL OR doc.erased_at IS NOT NULL OR v.content_base64 IS NULL OR v.sha256<>s.sha256 OR (s.kind='research' AND s.license_expires_at<=?))))`;
 export function liveAgentArgs(d:Data,at=now()){return [d.id,d.key_id,at,at,at];}
-export async function authorizedDelegation(db:D1Database,actor:Actor,delegationId:string,action:string,at=now()){
+// Identity and current matter access remain required even when execution has
+// been revoked; a refusal can retain its scope without granting authority.
+export async function delegationScope(db:D1Database,actor:Actor,delegationId:string){
  const d=await stmt(db,'SELECT * FROM s_agent_delegations WHERE id=? AND key_id=? AND sponsor_id=?',delegationId,actor.agentKeyId??'',actor.id).first<Data>();insist(d,'Delegation not found',404);
- await matter(db,actor,d.matter_id);insist(JSON.parse(d.actions).includes(action),'Action outside this delegation',403);
+ await matter(db,actor,d.matter_id);return d;
+}
+export async function authorizedDelegation(db:D1Database,actor:Actor,delegationId:string,action:string,at=now()){
+ const d=await delegationScope(db,actor,delegationId);insist(JSON.parse(d.actions).includes(action),'Action outside this delegation',403);
  insist(await stmt(db,`SELECT 1 WHERE ${liveAgentSql}`,...liveAgentArgs(d,at)).first(),'Delegation or processing agreement is no longer authorized',403);
  for(const s of await rows(db,'SELECT * FROM s_agent_sources WHERE delegation_id=?',d.id))await visibleDocument(db,actor,s.document_id);
  return d;

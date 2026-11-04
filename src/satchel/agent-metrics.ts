@@ -4,21 +4,9 @@ import {matterScope} from './matter-scope';
 import {visibleDeadline} from './deadlines';
 import {guard} from './agent-authority';
 
-// This identifies the preparation semantics, separately from the agreed model.
-export const preparationPolicyRevision='native-preparation-1';
 const principal=(actor:Actor)=>{human(actor);need(actor,'owner');};
 const parse=(value:string|null|undefined)=>value?JSON.parse(value):null;
 const sum=(list:Data[],key:string)=>list.reduce((n,r)=>n+(r[key]??0),0);
-
-export async function preparationProvenance(db:D1Database,actor:Actor,originKind:string,originId:string,action:string,inputs:Data){
- const d=actor.agentExecution?.delegation,matterId=d?.matter_id??inputs.matterId;
- if(!matterId)return [];
- const agreement=d?await stmt(db,'SELECT id,processor,model_revision,agreement_reference,retention_terms,training_terms,health_reference,expires_at,approved_by,approved_at FROM s_agent_agreements WHERE id=?',d.agreement_id).first<Data>():null;
- const documents=d?await rows(db,'SELECT s.document_id documentId,s.version,s.sha256,s.kind,s.license_reference licenseReference,s.license_expires_at licenseExpiresAt,s.permitted_use permittedUse,doc.revision documentRevision,v.name,v.mime,v.size FROM s_agent_sources s JOIN s_documents doc ON doc.id=s.document_id LEFT JOIN s_document_versions v ON v.document_id=s.document_id AND v.version=s.version WHERE s.delegation_id=? ORDER BY s.document_id',d.id):[];
- const entries=Array.isArray(inputs.entryIds)?await rows(db,'SELECT e.id,e.matter_id matterId,e.revision,e.kind,e.minutes,e.amount_cents amountCents,e.billable,COALESCE(e.timekeeper_email,e.created_by) timekeeper,(SELECT bill_id FROM s_billing_sources WHERE entry_id=e.id) reservedBy FROM s_entries e WHERE e.matter_id=? AND e.id IN (SELECT value FROM json_each(?)) ORDER BY e.id',matterId,JSON.stringify(inputs.entryIds)):[];
- const snapshot={action,inputs,documents,entries,agreement,policy:{revision:preparationPolicyRevision,delegationId:d?.id??null,approvedAt:d?.approved_at??null,approvedBy:d?.approved_by??null,actions:parse(d?.actions),recipients:parse(d?.recipients),maxJobs:d?.max_jobs??null,spendCents:d?.spend_cents??null,expiresAt:d?.expires_at??null,stopRule:d?.stop_rule??null},preparer:{id:actor.agentKeyId??actor.id,name:(actor as Actor&{label?:string}).label??actor.name,channel:actor.channel},sponsor:{id:actor.id,name:actor.name},jobId:actor.agentExecution?.jobId??null};
- return [stmt(db,'INSERT INTO s_agent_provenance VALUES(?,?,?,?,?)',originKind,originId,matterId,JSON.stringify(snapshot),now())];
-}
 
 // A row and its contribution to all totals have exactly the same access test.
 // Legacy provenance is not reconstructed from today's agreement or membership.
@@ -87,7 +75,7 @@ async function studies(db:D1Database,actor:Actor){
 export async function agentMetrics(db:D1Database,actor:Actor){
  principal(actor);const items=await preparations(db,actor),counts={pending:0,accepted:0,declined:0,refused:0};
  const reviews=await rows(db,'SELECT r.* FROM s_agent_metric_reviews r WHERE NOT EXISTS(SELECT 1 FROM s_agent_metric_reviews n WHERE n.supersedes_id=r.id) ORDER BY r.reviewed_at,r.id');
- for(const item of items){counts[item.status as keyof typeof counts]++;item.reviews=await rows(db,'SELECT * FROM s_agent_metric_reviews WHERE proposal_id=? ORDER BY reviewed_at,id',item.id);item.sourceReview=reviews.find(r=>r.proposal_id===item.id)??null;item.audit=await rows(db,"SELECT id,action,at,actor,detail FROM s_audit WHERE object_id=? AND action LIKE 'proposal.%' ORDER BY at,id",item.id);}
+ for(const item of items){counts[item.status as keyof typeof counts]++;item.reviews=await rows(db,'SELECT * FROM s_agent_metric_reviews WHERE proposal_id=? ORDER BY reviewed_at,id',item.id);item.sourceReview=reviews.find(r=>r.proposal_id===item.id)??null;item.audit=await rows(db,"SELECT id,action,at,actor,detail FROM s_audit WHERE object_id=? AND (action LIKE 'proposal.%' OR action='agent.preparation_refused') ORDER BY at,id",item.id);}
  const accuracy={accurate:items.filter(p=>p.sourceReview?.verdict==='accurate').length,inaccurate:items.filter(p=>p.sourceReview?.verdict==='inaccurate').length,unreviewed:items.filter(p=>p.origin==='proposal'&&!p.sourceReview).length};
  const milestones=await completedMilestones(db,actor,items),recovered=await recoveredWork(db,actor,items),measurementCandidates:Data[]=[];
  for(const d of await rows(db,`SELECT id FROM s_deadlines WHERE status='done' AND ${matterScope('s_deadlines.matter_id')}`,actor.role,actor.email)){

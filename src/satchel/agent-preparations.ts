@@ -1,6 +1,6 @@
 import {atomic,audit,id,insist,matter,now,rows,stmt,text,type Actor,type Data} from './model';
-import {preparationProvenance} from './agent-metrics';
-import {authorizedDelegation} from './agent-authority';
+import {preparationProvenance} from './agent-provenance';
+import {authorizedDelegation,delegationScope} from './agent-authority';
 import {propose} from './proposals';
 import {requireArea} from './role-areas';
 
@@ -15,6 +15,7 @@ export function preparationPayload(action:string,b:Data,d:Data){
 export async function prepareAgent(db:D1Database,actor:Actor,delegationId:string,action:string,b:Data){
  let scoped:Actor|undefined;
  try{
+  scoped={...actor,agentExecution:{delegation:await delegationScope(db,actor,delegationId)}};
   if(action==='prepare-bill')requireArea(actor,'billing','write');
   const d=await authorizedDelegation(db,actor,delegationId,action);scoped={...actor,agentExecution:{delegation:d}};
   const {kind,payload}=preparationPayload(action,b,d);
@@ -22,6 +23,6 @@ export async function prepareAgent(db:D1Database,actor:Actor,delegationId:string
   return await propose(db,{...actor,agentExecution:{delegation:d}},kind,payload);
  }catch(error){if([400,403,404,409].includes((error as {status?:number}).status??0)){
   const refusalId=id(),inputs={matterId:scoped?.agentExecution?.delegation.matter_id,title:typeof b.title==='string'?b.title.slice(0,500):'Refused preparation'},provenance=scoped?await preparationProvenance(db,scoped,'refusal',refusalId,action,inputs):[];
-  await atomic(db,actor,[...provenance,audit(db,actor,'agent.preparation_refused',actor.agentKeyId!,'Preparation refused; inspect principal-approved scope and limits',{matterId:inputs.matterId??null,refusalId:scoped?refusalId:null})]);
+  await atomic(db,actor,[...provenance,audit(db,actor,'agent.preparation_refused',scoped?refusalId:actor.agentKeyId!,'Preparation refused; inspect principal-approved scope and limits',{matterId:inputs.matterId??null,refusalId:scoped?refusalId:null})]);
  }throw error;}
 }

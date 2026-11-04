@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {harness,open} from './harness.mjs';
 import {authorizeAgent} from './agent-fixture.mjs';
+import {proveAgentMetricRepairs} from './agent-metrics-repairs.mjs';
 import {exemptTaxReview} from './tax-fixture.mjs';
 
 const address=n=>['synthetic-satchel-'+n,'example.test'].join('@');
@@ -25,6 +26,7 @@ export async function agentMetricsFixture(h,matterId){
 }
 
 export async function proveAgentMetrics(){
+ const repair=await harness();try{await proveAgentMetricRepairs(repair,await agentMetricsFixture(repair));}finally{await repair.close();}
  const h=await harness();try{
   const f=await agentMetricsFixture(h),get=()=>h.json('/agent-metrics',undefined,h.owner),before=await get();
   assert.deepEqual(before.counts,{pending:2,accepted:2,declined:1,refused:1});
