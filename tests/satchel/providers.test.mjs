@@ -1,3 +1,4 @@
+import {representativeMailFlow} from './contact-representative-flow.mjs';
 import {consolidatedFixture} from './consolidated-statement-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -156,6 +157,7 @@ test('Scheduled invoice and appointment reminders survive restart, share a recip
 });
 test('Client reminder withdrawal and merged consent, portal revocation, permission and matter walls are rechecked before scheduled sends',async()=>{
  const h=await harness();try{
+  const representativeHarness=await harness();try{await representativeMailFlow(representativeHarness,await reminderSetup(representativeHarness));}finally{await representativeHarness.close();}
   const s=await reminderSetup(h),count=h.mails.length;await s.schedule();await s.consent(s.contact.id,'denied');await h.scheduled(reminderAt);assert.equal(h.mails.length,count,'Withdrawal stops the next send');
   await s.consent(s.contact.id,'allowed');await s.schedule('appointment');const graph=await h.json('/contacts',undefined,h.owner),duplicate=await h.json('/contacts',{revision:graph.revision,kind:'person',name:'Reminder duplicate',emails:['duplicate@example.test']},h.owner);
   const preview=await h.json('/contacts/merge-preview',{survivorId:s.contact.id,duplicateId:duplicate.id,reason:'Reviewed same identity'},h.owner);await h.json('/contacts/merge',{previewId:preview.id},h.owner);await h.scheduled(reminderAt);assert.equal(h.mails.length,count,'One unconsented merged identity stops scheduled mail');

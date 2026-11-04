@@ -1,3 +1,4 @@
+import {recordRepresentative,reviewRepresentative} from './contact-representatives';
 import {contactChannels,contactData,contactProfile,contactRevisionGuard,contactRoles} from './contact-data';
 import {contactGraph} from './contact-graph';
 import {contactState} from './contact-read';
@@ -16,6 +17,8 @@ export async function saveContact(db:D1Database,actor:Actor,body:Data){
  await atomic(db,actor,writes);return (await contactState(db,actor)).contacts.find(c=>c.id===partyId)!;
 }
 export async function contactAction(db:D1Database,actor:Actor,partyId:string,op:string,body:Data){
+ if(op==='representative')return recordRepresentative(db,actor,partyId,body);
+ if(op==='representative-review')return reviewRepresentative(db,actor,partyId,body);
  contactAuthority(actor);const data=await contactData(db),graph=contactGraph(data),contact=graph.contacts.find(c=>c.identityIds.includes(partyId));
  insist(contact&&(await contactState(db,actor)).contacts.some(c=>c.id===contact.id),'Contact not found',404);const at=now(),objectId=id(),writes=contactRevisionGuard(db,body.revision);
  if(op==='relationship'){

@@ -1,3 +1,4 @@
+import {representativeState} from './contact-representatives';
 import {invoiceWriteoffHistory,reverseInvoiceWriteoff} from './invoice-writeoff-reversal';
 import {documentTextCitation} from './document-text-index';
 import {bindBusinessAgent} from './team';
@@ -337,6 +338,7 @@ api.get('/api/satchel/matters/:id/stage',as((a,c)=>matterStageState(db(c),a,para
 api.post('/api/satchel/matters/:id/stage-profile',as(async(a,c)=>saveStageProfile(db(c),a,param(c),await body(c))));
 api.post('/api/satchel/matters/:id/stage-transition',as(async(a,c)=>transitionMatterStage(db(c),a,param(c),await body(c))));
 api.get('/api/satchel/contacts',as((a,c)=>contactState(db(c),a,(c.req.query('q')??'').slice(0,500))));
+api.get('/api/satchel/contacts/:id/representatives',as((a,c)=>representativeState(db(c),a,param(c))));
 api.get('/api/satchel/contacts/:id',as((a,c)=>contactDetail(db(c),a,param(c))));
 api.post('/api/satchel/contacts',as(async(a,c)=>saveContact(db(c),a,await body(c))));
 api.post('/api/satchel/contacts/merge-preview',as(async(a,c)=>previewContactMerge(db(c),a,await body(c))));

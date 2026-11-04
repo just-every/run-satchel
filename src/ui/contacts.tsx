@@ -1,7 +1,7 @@
 import {ContactConflictClassifications} from './contact-conflict-classifications';
 import {useEffect,useState} from 'react';
 import {api,Empty,Field,Form,today,type Row,type Run} from './common';
-import {ContactProfile} from './contact-profile';
+import {ContactProfile,ContactRepresentatives} from './contact-profile';
 export function Contacts({run,tick}:{run:Run;tick:number}){
  const [loadedTick,setLoadedTick]=useState(-1),[state,setState]=useState<Row>(),[selected,setSelected]=useState(''),[query,setQuery]=useState(''),[matches,setMatches]=useState<string[]>(),[preview,setPreview]=useState<Row>();
  useEffect(()=>{let active=true;api('/contacts').then(s=>{if(active){setState(s);setLoadedTick(tick);}}).catch(e=>{if(active)void run(async()=>{throw e;});});return()=>{active=false;};},[tick]);
@@ -23,7 +23,7 @@ export function Contacts({run,tick}:{run:Run;tick:number}){
    <details><summary>Preference history</summary>{contact.preferences.map((p:Row)=><p key={p.id}>{p.language} · {p.accessibility} · {p.source} · {p.recorded_by} · {p.recorded_at}</p>)}</details>
    <details><summary>Consent evidence history</summary>{contact.consents.map((c:Row)=><p key={c.id}>{c.channel} · {c.decision} · evidence {c.effective_date}: {c.source} · recorded by {c.recorded_by} at {c.recorded_at}</p>)}</details>
    {state.canManage&&<>
-    <ContactConflictClassifications contact={contact} revision={state.revision} run={run}/><details><summary>Edit contact profile</summary><ContactProfile key={contact.id+':'+state.revision} contact={contact} revision={state.revision} run={run} saved={setSelected}/></details>
+    <ContactRepresentatives contact={contact} matters={state.matters} revision={state.revision} tick={tick} run={run}/><ContactConflictClassifications contact={contact} revision={state.revision} run={run}/><details><summary>Edit contact profile</summary><ContactProfile key={contact.id+':'+state.revision} contact={contact} revision={state.revision} run={run} saved={setSelected}/></details>
     <Form label="Add matter role" submit={d=>action('matter-role',d,'Matter role recorded')}><Field label="Contact matter" name="matterId"><select name="matterId" required>{state.matters.map((m:Row)=><option key={m.id} value={m.id}>{m.matter_number} · {m.title}</option>)}</select></Field><Field label="Matter role" name="role"><select name="role">{['client','adverse','insurer','witness','expert','counsel'].map(r=><option key={r}>{r}</option>)}</select></Field></Form>
     <Form label="Add relationship" submit={d=>action('relationship',d,'Contact relationship recorded')}><Field label="Related contact" name="otherId"><select name="otherId" required>{state.contacts.filter((c:Row)=>c.id!==contact.id).map((c:Row)=><option key={c.id} value={c.id}>{c.name}</option>)}</select></Field><Field name="relationship" label="Relationship description"/></Form>
     <Form key={'preferences:'+state.revision} label="Record communication preferences" submit={d=>run(()=>api('/contacts/'+d.identityId+'/preferences',{...d,revision:state.revision}),'Communication preferences recorded')}><Field label="Preference source identity" name="identityId"><select name="identityId">{contact.identities.map((i:Row)=><option key={i.id} value={i.id}>{i.name} · {i.id}</option>)}</select></Field><Field label="Preferred language" name="language"/><Field label="Accessibility instructions" name="accessibility"/><Field label="Preference source" name="source"/></Form>
