@@ -204,10 +204,12 @@ test('Hosted invoice collection allocates exact card and ACH funds once, preserv
   invoice=await h.json(base(s.ach.id)+'/payment',undefined,s.client);assert.equal(invoice.status,'pending');assert.equal(invoice.paidCents,0);assert.equal(invoice.reservedCents,37500);
   const economics=(await h.json('/reports/economics',undefined,h.owner)).matters.find(m=>m.matterId===s.m.id);
   assert.equal(economics.pendingCents,37500);assert.equal(economics.paidCents,37500);assert.equal(economics.trustCashCents,0);assert.equal(economics.earnedCents,75000);assert.equal(economics.collectionRate,0.5);
+  const pendingEconomicsAsOf=(await h.json('/reports/economics',undefined,h.owner)).asOf;
   const pendingInvoice=economics.source.invoices.find(i=>i.billId===s.ach.id);assert.equal(pendingInvoice.pendingCents,37500);assert.equal(pendingInvoice.paidCents,0);assert.equal(pendingInvoice.dueCents,37500);
   assert.equal((await h.json('/matters/'+s.m.id+'/revenue',undefined,h.owner)).totals.collectedCents,37500,'Pending ACH is excluded');
   const paid=edge.event(ach,'checkout.session.async_payment_succeeded','paid');await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(paid)});
   assert.equal((await h.json('/matters/'+s.m.id+'/revenue',undefined,h.owner)).totals.collectedCents,75000);
+  const paidEconomicsAsOf=(await h.json('/reports/economics',undefined,h.owner)).asOf;
   const returned=edge.event(ach,'charge.failed','returned',{status:'failed',amount_refunded:0});await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(returned)});await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(returned)});
   invoice=await h.json(base(s.ach.id)+'/payment',undefined,s.client);assert.equal(invoice.status,'returned');assert.equal(invoice.paidCents,0);assert.equal(invoice.dueCents,37500);
   await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(paid)});assert.equal((await h.json(base(s.ach.id)+'/payment',undefined,s.client)).status,'returned');
@@ -229,6 +231,9 @@ test('Hosted invoice collection allocates exact card and ACH funds once, preserv
   revenue=await h.json(revenuePath,undefined,h.owner);assert.equal(revenue.totals.collectedCents,36266);const collectedCard=revenue.sources.find(x=>x.netCents>0);await h.json(revenuePath+'/allocations',{requestKey:'synthetic-satchel-provider-allocation',sourceKey:collectedCard.key,ruleId:rule.id,reviewDigest:collectedCard.preview.reviewDigest,approve:true},h.owner);
   const refund=edge.event(card,'charge.refunded','paid',{amount_refunded:2234});await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(refund)});await h.raw('/api/satchel/stripe/events',{method:'POST',body:JSON.stringify(refund)});
   revenue=await h.json(revenuePath,undefined,h.owner);assert.equal(revenue.totals.collectedCents,35266);assert.equal(revenue.allocations[0].original.feeCents,36266);assert.equal(revenue.allocations[0].current.feeCents,35266);assert.equal(revenue.allocations[0].reversals.length,1);assert.equal(revenue.allocations[0].reversals[0].calculation.feeCents,-1000);
+  const pastPending=(await h.json('/reports/economics?asOf='+encodeURIComponent(pendingEconomicsAsOf),undefined,h.owner)).matters.find(m=>m.matterId===s.m.id),pastPaid=(await h.json('/reports/economics?asOf='+encodeURIComponent(paidEconomicsAsOf),undefined,h.owner)).matters.find(m=>m.matterId===s.m.id);
+  assert.equal(pastPending.billedCents,75000);assert.equal(pastPending.paidCents,37500);assert.equal(pastPending.pendingCents,37500);assert.equal(pastPending.trustCashCents,0);assert.equal(pastPending.collectionRate,0.5);
+  assert.equal(pastPaid.paidCents,75000);assert.equal(pastPaid.pendingCents,0);assert.equal(pastPaid.trustCashCents,0);assert.equal(pastPaid.collectionRate,1);
   await h.json('/matters/'+s.m.id+'/portal',undefined,h.owner);const grants=(await h.json('/matters/'+s.m.id+'/portal',undefined,h.owner)).grants;await h.json('/portal-grants/'+grants[0].id+'/revoke',{reason:'Payment authority withdrawn'},h.owner);await h.json(base(s.ach.id)+'/payment',undefined,s.client,404);
  }finally{await h.close();}
 });

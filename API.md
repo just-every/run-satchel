@@ -337,8 +337,16 @@ creation does not prove receipt by the reader. Cost decisions and economics
 custody payloads are excluded from non-principal audit rows, counts and exports.
 
 All cost and economics doors require the current native principal session.
-Wider custom reporting grants confer no principal authority. An `asOf` input is
-refused: the read timestamp describes current state, not historical accounting.
+Wider custom reporting grants confer no principal authority. Omit `asOf` for
+current state. A complete ISO UTC `asOf` timestamp reconstructs the retained native
+financial state at that cutoff using current permitted matter filters and the
+current firm timezone. `calculatedAt` records the new calculation time separately.
+Later entries, approvals, issues, receipts, reversals, voids and rebills are
+excluded; released-entry edits are reconstructed from their exact revision chain.
+Current erasure fences still apply, so a historical read cannot revive disposed
+costs. Future cutoffs, cutoffs before retained financial history, migrated balance
+observations and ambiguous event boundaries are refused. This does not reconstruct
+historical membership, cohort settings or unretained pre-installation activity.
 Pending applications and trust cash stay separate from cleared operating receipts.
 The workspace exposes Firm economics under Reports and Staff cost settings under
 Firm. A saved revision is shown with its exact basis, date, author and approval
