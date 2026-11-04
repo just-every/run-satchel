@@ -3828,7 +3828,7 @@
       "executable": false
     },
     "src/satchel/economics-retention.ts": {
-      "sha256": "1af71b36624cb70f8fa3cfa24686ce3529d899a3b1b50f562143b18bf41fa1cd",
+      "sha256": "871437a026e28a64b941c4b3ec46a05c270edb2877a7b4207fd7c02c3b0045ee",
       "executable": false
     },
     "src/satchel/economics.ts": {
@@ -5536,7 +5536,7 @@
       "executable": false
     },
     "tests/satchel/reports-journey.test.mjs": {
-      "sha256": "aff876184e7e45fab7a171d05abe973f3d893a352daa90b91e93315d116f4aa8",
+      "sha256": "db93214ad37040022eeb5f91100a34986a1906e466511d49725cd027e416a105",
       "executable": false
     },
     "tests/satchel/reports.test.mjs": {
