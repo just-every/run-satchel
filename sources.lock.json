@@ -3700,7 +3700,7 @@
       "executable": false
     },
     "src/satchel/contact-representatives.ts": {
-      "sha256": "31d85ac24157096ae5bd1eab41a575a1c76ad96fa9e491d0dfeb7fb07b953509",
+      "sha256": "8bfe8c8b4bf82072f770d4ff6ee6f6d991663818fc088ec0dd650d6b5feb9c15",
       "executable": false
     },
     "src/satchel/contact-walls.ts": {
@@ -5168,7 +5168,7 @@
       "executable": false
     },
     "tests/satchel/contact-representative-flow.mjs": {
-      "sha256": "30182760c67a680efda2af253b0d131ead485aa8925e4f5fbe3dd5ad22f9bec2",
+      "sha256": "fbbf567ea64c5ac98b5e217a53e380ea0e851c0a45edfa39b539ef22b5bc836c",
       "executable": false
     },
     "tests/satchel/contact-representative-journey.mjs": {

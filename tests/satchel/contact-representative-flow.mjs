@@ -13,21 +13,34 @@ export async function representativeFixture(h,m,{represented,recipient,successor
 }
 export async function representativePortalFlow(){
  const h=await harness();try{
- for(const [email,role] of [[representativeAddress('client'),'client'],[representativeAddress('deleg'),'client'],[representativeAddress('stranger'),'client'],[representativeAddress('lawyer'),'lawyer'],[representativeAddress('assistant'),'assistant']]){await h.json('/team',{email,name:'Representative journey member',role},h.owner);await h.json('/team/invite',{email},h.owner);}
+ for(const [email,role] of [[representativeAddress('client'),'client'],[representativeAddress('deleg'),'client'],[representativeAddress('stranger'),'client'],[representativeAddress('legacy'),'client'],[representativeAddress('lawyer'),'lawyer'],[representativeAddress('assistant'),'assistant']]){await h.json('/team',{email,name:'Representative journey member',role},h.owner);await h.json('/team/invite',{email},h.owner);}
  const m=await open(h,'Representative replacement review','Representative Client','Representative Adverse'),base='/matters/'+m.id;
  const represented=representativeAddress('client'),recipient=representativeAddress('deleg'),successor=representativeAddress('stranger'),f=await representativeFixture(h,m,{represented,recipient,successor});
  const old=await h.login(recipient),next=await h.login(successor),lawyer=await h.login(representativeAddress('lawyer')),assistant=await h.login(representativeAddress('assistant'));
  await h.json(base+'/access',{email:representativeAddress('lawyer')},h.owner);
  await h.json(base+'/portal',{email:represented,reason:'Original represented client grant'},h.owner);
- const e1=await f.record(recipient,null,lawyer);await f.review(e1.id,lawyer,403);
- await h.json('/contacts/'+f.contact.id+'/representative',{revision:(await f.state()).revision,matterId:m.id},assistant,403);
- await f.grant(recipient,e1.id,409);await f.review(e1.id);await f.grant(recipient,e1.id);
+ // A delegate may already hold access before any representative evidence is recorded.
+ const legacyEmail=representativeAddress('legacy'),legacy=await h.login(legacyEmail);
+ const legacyGrant=(await f.grant(legacyEmail)).grants.find(g=>g.email===legacyEmail&&!g.revokedAt);
+ const other=await open(h,'Separate representative matter','Separate Client','Separate Adverse'),otherBase='/matters/'+other.id;
+ await h.json(otherBase+'/portal',{email:represented,reason:'Independent client grant'},h.owner);
+ await h.json(otherBase+'/portal',{email:legacyEmail,kind:'delegate',delegateOf:represented,reason:'Independent delegate grant'},h.owner);
  const original='synthetic-satchel-3: retained original bytes',doc=await h.json(base+'/documents',{name:'Representative instructions.txt',mime:'text/plain',visibility:'matter',contentBase64:Buffer.from(original).toString('base64')},h.owner);
  await h.json(base+'/client-shares',{kind:'document',recordId:doc.id,instructions:'Review the retained original'},h.owner);
  const task=await h.json(base+'/tasks',{title:'Return signed instructions',dueDate:'2026-11-12',owner:representativeAddress('owner')},h.owner);
  await h.json(base+'/client-shares',{kind:'task',recordId:task.id,instructions:'Return the signed instructions'},h.owner);
- const items=(await h.json('/portal/matters/'+m.id+'/shares',undefined,old)).items,documentShare=items.find(i=>i.kind==='document'),taskShare=items.find(i=>i.kind==='task');
- const file='/api/satchel/portal/shares/'+documentShare.id+'/file';assert.equal(await(await h.request(file,undefined,old)).text(),original);
+ const items=(await h.json('/portal/matters/'+m.id+'/shares',undefined,legacy)).items,documentShare=items.find(i=>i.kind==='document'),taskShare=items.find(i=>i.kind==='task');
+ const file='/api/satchel/portal/shares/'+documentShare.id+'/file';
+ const beforeReplacement=await h.request(file,undefined,legacy);assert.equal(beforeReplacement.status,200);assert.equal(await beforeReplacement.text(),original);
+ const e1=await f.record(recipient,null,lawyer);await f.review(e1.id,lawyer,403);
+ await h.json('/contacts/'+f.contact.id+'/representative',{revision:(await f.state()).revision,matterId:m.id},assistant,403);
+ await f.grant(recipient,e1.id,409);await f.review(e1.id);
+ assert.equal((await h.request(file,undefined,legacy)).status,404,'Recording and approving a successor closes a pre-existing delegate document URL');
+ const replaced=(await h.json(base+'/portal',undefined,h.owner)).grants.find(g=>g.id===legacyGrant.id);
+ assert.ok(replaced.revokedAt,'The former delegate grant is retained as revoked history');assert.equal(replaced.revokedBy,representativeAddress('lawyer'));
+ assert.deepEqual((await h.json('/portal',undefined,legacy)).grants.map(g=>g.matterId),[other.id],'Replacement leaves the delegate grant on another matter active');
+ await f.grant(legacyEmail,e1.id,409);await f.grant(recipient,e1.id);
+ assert.equal(await(await h.request(file,undefined,old)).text(),original);
  await h.json('/portal/shares/'+taskShare.id+'/acknowledge',{note:'Reviewed with the client'},old);
  const request=(await h.json(base+'/requests',{title:'Evidence of authority',instructions:'Send the signed instructions',criteria:'Complete and signed',clientVisible:true},h.owner)).requests[0];
  assert.equal((await h.json('/portal/matters/'+m.id+'/requests',undefined,old)).requests[0].id,request.id);
