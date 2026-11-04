@@ -26,7 +26,7 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`FIRM-005 filter, inspe
   if(process.env.SATCHEL_SCREENSHOTS)await capturePanel(page,audit,process.env.SATCHEL_SCREENSHOTS,`agent-decision-audit-${width}`);
   const accepted=await h.json('/agent/prepare-deadline',{matterId:f.m.id,title:'Accepted result retains original preparer',date:'2027-03-16',timezone:'America/New_York',source:'Reviewed original instruction'},'',200,auth);
   const result=await h.json('/proposals/'+accepted.id+'/decide',{decision:'approve'},h.owner);
-  await filter.getByLabel('Exact action (optional)').fill('deadline.proposed');await filter.getByRole('button',{name:'Filter action audit',exact:true}).click();
+  await filter.getByLabel('Exact action (optional)').fill('deadline.propose');await filter.getByRole('button',{name:'Filter action audit',exact:true}).click();
   const resultRow=audit.locator('details.record').filter({hasText:result.id});await resultRow.locator('summary').click();
   await resultRow.getByText('Original preparation: '+accepted.preparedBy.label,{exact:true}).waitFor();await resultRow.getByText(/owner · person/).waitFor();
   const actor=(await h.json('/state',undefined,h.owner)).actor;assert.ok((await resultRow.locator('summary').innerText()).includes(actor.email));

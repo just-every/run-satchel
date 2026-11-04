@@ -56,11 +56,12 @@ export default async function journey({request,origin,cookie,tool}) {
    }
   }
   for(const [proposalId,resultId] of results){
-   const proposal=preparations.find(p=>p.id===proposalId),action='deadline.proposed';
+   const proposal=preparations.find(p=>p.id===proposalId),action='deadline.propose';
    const records=(await native('/audit?action='+action+'&limit=200')).records.filter(r=>r.objectId===resultId);
    assert.equal(records.length,1,'Accepted company preparation has one native result action');
-   const record=records[0];assert.equal(record.actor.channel,'person');assert.equal(record.actor.id,person.id);assert.equal(record.evidence.decision.id,proposalId);assert.deepEqual(record.preparedBy,proposal.preparedBy);
+   const record=records[0];assert.equal(record.actor.channel,'person');assert.equal(record.actor.id,identity.personId);assert.equal(record.evidence.decision.id,proposalId);assert.deepEqual(record.preparedBy,proposal.preparedBy);
    const exported=(await(await personRequest('/api/satchel/audit/export?action='+action)).text()).trim().split('\n').map(JSON.parse).filter(r=>r.objectId===resultId);assert.deepEqual(exported,records);
+   console.log('PROBE BASE-AGENT-008 company result: accepted native deadline -> human actor and original preparer match audit and JSONL');
   }
  };
  await retainedHistory();

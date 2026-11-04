@@ -5072,7 +5072,7 @@
       "executable": false
     },
     "tests/agent-door/native-journey.mjs": {
-      "sha256": "db2f480b85842b74e32365c336f2f8b7697a5c415a19f237a3b5975770ac2b0b",
+      "sha256": "0d5f50ddf810aa7ecdd2d5c629af5afc21aec6b07cb3bd760e1cfe3a4c68be79",
       "executable": false
     },
     "tests/email-link.mjs": {
@@ -5116,11 +5116,11 @@
       "executable": false
     },
     "tests/satchel/audit-journey.test.mjs": {
-      "sha256": "3f8722449358305fe20853b019c54b4b9ad8e07cf12c1cd05d0653a30e0901c7",
+      "sha256": "d9f0fcab56b4ae10f868bf56b855cac985eaa1cd363dc28ffddc1987930b6b51",
       "executable": false
     },
     "tests/satchel/audit.test.mjs": {
-      "sha256": "a1c00046548c518d151b5e5eee8101f2fbd758486cab1676062f34c63a34c340",
+      "sha256": "03b2dbe3f8e25aa00d95c22e803f665fd5dfc227e0ae17c4ad35c096b169d50a",
       "executable": false
     },
     "tests/satchel/browser-shots.mjs": {
@@ -5244,7 +5244,7 @@
       "executable": false
     },
     "tests/satchel/flows.test.mjs": {
-      "sha256": "22e83eda3340c7363defbbb32300e4cf9c253b409902468f00b23bbe3c6a547e",
+      "sha256": "3708e54915a9004a0a22c25f6affb931210692d65945c82b85a1f5c8fe78b356",
       "executable": false
     },
     "tests/satchel/followups.test.mjs": {
@@ -5276,7 +5276,7 @@
       "executable": false
     },
     "tests/satchel/integrations.test.mjs": {
-      "sha256": "16e0bc8cd5b3752cc03b4637f8a8a23ad0bcf2588680b2e31146cb715b868024",
+      "sha256": "496c4560639c5c5f70fcea3a1d355a2f8eb09cdc5017180c7afcea8947194738",
       "executable": false
     },
     "tests/satchel/invoice-delivery-fixture.mjs": {
@@ -5456,7 +5456,7 @@
       "executable": false
     },
     "tests/satchel/preparation-attribution-flow.mjs": {
-      "sha256": "06eb8a46ba60b41f2f98efcd0a60353ac6076f7ecb2e4f9b1f8d0aa0ad91de25",
+      "sha256": "1046dc215192e0f61e1db75ea303570a0761c022bc2a39058b2db8f20dfde041",
       "executable": false
     },
     "tests/satchel/providers-journey.test.mjs": {

@@ -130,7 +130,7 @@ test('agent keys only prepare; human decisions are atomic and cannot be replayed
  const context=await h.json('/agent/matters/'+m.id,undefined,'',200,auth);assert.ok(context.billing.entries.some(e=>e.id===entry.id));
  const proposedBill=await h.json('/agent/prepare-bill',{matterId:m.id,title:'Prepared update bill',date:'2026-10-15',entryIds:[entry.id]},'',200,auth);
  const prepared=await h.json('/proposals/'+proposedBill.id+'/decide',{decision:'approve'},h.owner);assert.equal(prepared.status,'draft');
- const resultingActions=[['deadline.proposed',p,accepted],['matter.opened',proposedMatter,opened],['bill.prepared',proposedBill,prepared]];
+ const resultingActions=[['deadline.propose',p,accepted],['matter.opened',proposedMatter,opened],['bill.prepared',proposedBill,prepared]];
  for(const [action,proposal,result] of resultingActions){
   const records=(await h.json('/audit?action='+action+'&limit=200',undefined,h.owner)).records.filter(r=>r.objectId===result.id);assert.equal(records.length,1);
   const record=records[0];assert.deepEqual(record.preparedBy,proposal.preparedBy);assert.equal(record.actor.channel,'person');assert.equal(record.actor.id,proposal.preparedBy.for.id);assert.equal(record.evidence.decision.id,proposal.id);
