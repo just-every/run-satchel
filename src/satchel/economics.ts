@@ -1,5 +1,5 @@
 import {atomic,audit,digest,id,insist,rows,stmt,type Actor,type Data} from './model';
-import {accessGuard} from './trust-guards';
+import {accessGuard,guard} from './trust-guards';
 import {economicsPrincipal as principal} from './staff-costs';
 import {readReportData} from './report-data';
 import {invoiceFunds} from './trust-transfers';
@@ -20,7 +20,7 @@ export const economicsFormulas={
 };
 export async function economics(db:D1Database,actor:Actor,filters:Data={}){
  principal(actor);insist(filters.asOf===undefined,'Historical as-of reconstruction is not available',422);
- const report=await readReportData(db,actor,filters),costs=await rows(db,'SELECT * FROM s_approved_staff_cost_rates ORDER BY effective_from,approved_at,id'),matterRows:Data[]=[];
+ const report=await readReportData(db,actor,filters),costs=await rows(db,'SELECT * FROM s_approved_staff_cost_rates ORDER BY effective_from,approved_at,id'),disposedCosts=await rows(db,'SELECT * FROM s_staff_cost_disposals WHERE was_approved=1 ORDER BY effective_from,approved_at,revision_id'),matterRows:Data[]=[];
  for(const m of report.cohort){
   const entries=await rows(db,'SELECT * FROM s_entries WHERE matter_id=? ORDER BY date,id',m.id),bills=await rows(db,"SELECT b.*,i.number,t.snapshot tax_snapshot FROM s_bills b JOIN s_invoice_issues i ON i.bill_id=b.id LEFT JOIN s_bill_tax_approvals t ON t.bill_id=b.id WHERE b.matter_id=? AND b.status<>'void' ORDER BY i.issued_at,b.id",m.id);
   const invoices:Data[]=[],lines:Data[]=[];
@@ -30,7 +30,8 @@ export async function economics(db:D1Database,actor:Actor,filters:Data={}){
    invoices.push({billId:b.id,number:b.number,correctsBillId:b.corrects_bill_id,totalCents:snapshot.totalCents,earnedCents:snapshot.feePlan?Number((await stmt(db,'SELECT earned_cents FROM s_fee_earning_reviews WHERE bill_id=?',b.id).first<Data>())?.earned_cents??0):sum(selected,'amountCents'),paidCents:funds?.paid_cents??0,pendingCents:funds?.reserved_cents??0,dueCents:funds?.due_cents??0,dueDate:delivery?.due_date??null,agingBucket:overdueDays===null?'unknown':overdueDays<=0?'current':overdueDays<=30?'1–30':overdueDays<=60?'31–60':overdueDays<=90?'61–90':'91+'});
   }
   const sourceIds=new Set(lines.filter(l=>!l.correction).map(l=>l.sourceId)),time=entries.filter(e=>e.kind==='time'),billableTime=time.filter(e=>e.billable===1),billedTime=time.filter(e=>sourceIds.has(e.id)),timeLines=lines.filter(l=>l.kind==='time'),unbilled=entries.filter(e=>e.billable===1&&!sourceIds.has(e.id));
-  const costBasis=time.map(e=>{const c=costs.filter(c=>c.email===(e.timekeeper_email??e.created_by)&&c.effective_from<=e.date).at(-1);return {sourceId:e.id,timekeeper:e.timekeeper_email??e.created_by,minutes:e.minutes,approvalId:c?.id??null,effectiveFrom:c?.effective_from??null,approvedBy:c?.approved_by??null,approvedAt:c?.approved_at??null,createdBy:c?.created_by??null,createdAt:c?.created_at??null,basis:c?.reason??null,hourlyCents:c?.hourly_cents??null,costCents:c?Number((BigInt(e.minutes)*BigInt(c.hourly_cents)+30n)/60n):null};});
+  const timekeeperHashes=new Map(await Promise.all([...new Set(time.map(e=>e.timekeeper_email??e.created_by))].map(async email=>[email,await digest(email)] as const)));
+  const costBasis=time.map(e=>{let c=costs.filter(c=>c.email===(e.timekeeper_email??e.created_by)&&c.effective_from<=e.date).at(-1);const removed=disposedCosts.filter(d=>d.timekeeper_sha256===timekeeperHashes.get(e.timekeeper_email??e.created_by)&&d.effective_from<=e.date).at(-1);if(removed&&(!c||removed.effective_from>c.effective_from))c=undefined;return {sourceId:e.id,timekeeper:e.timekeeper_email??e.created_by,minutes:e.minutes,approvalId:c?.id??null,effectiveFrom:c?.effective_from??null,approvedBy:c?.approved_by??null,approvedAt:c?.approved_at??null,createdBy:c?.created_by??null,createdAt:c?.created_at??null,basis:c?.reason??null,hourlyCents:c?.hourly_cents??null,costCents:c?Number((BigInt(e.minutes)*BigInt(c.hourly_cents)+30n)/60n):null};});
   const billedCents=sum(lines,'amountCents'),earnedCents=sum(invoices,'earnedCents'),paidCents=sum(invoices,'paidCents'),pendingCents=sum(invoices,'pendingCents'),staffCostCents=costBasis.some(c=>c.costCents===null)?null:sum(costBasis,'costCents'),expenseCents=sum(entries.filter(e=>e.kind==='disbursement'),'amount_cents');
   const trustCashCents=Number((await stmt(db,'SELECT COALESCE(SUM(e.cents),0) cents FROM s_trust_entries e JOIN s_trust_ledgers l ON l.id=e.ledger_id WHERE l.matter_id=?',m.id).first<Data>())!.cents);
   const metricBasis={utilization:{numerator:sum(billableTime,'minutes'),denominator:sum(time,'minutes')},realization:{numerator:sum(timeLines,'amountCents'),denominator:sum(billedTime,'amount_cents')},collectionRate:{numerator:paidCents,denominator:sum(invoices,'totalCents')},effectiveHourlyCents:{numerator:sum(timeLines,'amountCents')*60,denominator:sum(billedTime,'minutes')}};
@@ -43,11 +44,18 @@ export async function economics(db:D1Database,actor:Actor,filters:Data={}){
  const ratios=Object.fromEntries(Object.entries(metricBasis).map(([metric,basis])=>[metric,ratio(basis.numerator,basis.denominator)]));
  return {asOf:report.asOf,timezone:report.timezone,filters:report.filters,units:{money:'USD cents',time:'Recorded minutes',effectiveHourlyCents:'USD cents per hour',utilization:'Billable recorded minutes divided by all recorded minutes',realization:'Live billed time cents divided by recorded billed-source cents',collectionRate:'Net cleared operating cents divided by invoice cents including tax',aging:'Unpaid USD cents by firm-local calendar days after the frozen due date'},formulas:economicsFormulas,matters:matterRows,totals:{...totals,...ratios,metricBasis,aging:Object.fromEntries(['current','1–30','31–60','61–90','91+','unknown'].map(bucket=>[bucket,sum(matterRows.map(m=>m.aging),bucket)]))}};
 }
-export async function exportEconomics(db:D1Database,actor:Actor,filters:Data){
+export async function economicsArtifact(db:D1Database,actor:Actor,filters:Data){
  const report=await economics(db,actor,filters),firm=await stmt(db,'SELECT name FROM s_firm WHERE id=1').first<Data>();
  insist(firm?.name,'Enter firm settings before exporting economics',422);
  const manifest={marking:'CONFIDENTIAL — INTERNAL USE ONLY',firm:{name:firm.name},requestedBy:{id:actor.id,email:actor.email},generatedAt:report.asOf,filters:report.filters,asOfBasis:report.formulas.asOf,payloadSha256:await digest(JSON.stringify(report)),hashBasis:'SHA-256 of UTF-8 JSON.stringify(report), excluding this manifest',missingCostSourceIds:report.matters.flatMap(m=>m.source.costBasis.filter((c:Data)=>c.approvalId===null).map((c:Data)=>c.sourceId))};
  const artifact=JSON.stringify({...report,manifest},null,2),artifactSha256=await digest(artifact);
- await atomic(db,actor,[...report.matters.map(m=>accessGuard(db,actor,m.matterId)),audit(db,actor,'report.economics_exported',id(),JSON.stringify({asOf:report.asOf,matterIds:report.matters.map(m=>m.matterId),artifactSha256,payloadSha256:manifest.payloadSha256,marking:manifest.marking,delivery:'Explicit authenticated download response; receipt by the reader is not asserted'}))]);
- return new Response(artifact,{headers:{'content-type':'application/json','content-disposition':'attachment; filename="satchel-economics.json"','cache-control':'private, no-store','x-content-type-options':'nosniff','x-satchel-sha256':artifactSha256}});
+ return {report,manifest,artifact,artifactSha256};
+}
+export function economicsFile(artifact:string,artifactSha256:string){
+ return new Response(artifact,{headers:{'content-type':'application/json','content-disposition':'attachment; filename="satchel-economics.json"','cache-control':'private, no-store','x-content-type-options':'nosniff','x-satchel-sha256':artifactSha256,'referrer-policy':'no-referrer'}});
+}
+export async function exportEconomics(db:D1Database,actor:Actor,filters:Data){
+ const {report,manifest,artifact,artifactSha256}=await economicsArtifact(db,actor,filters),costIds=report.matters.flatMap(m=>m.source.costBasis.map((c:Data)=>c.approvalId).filter(Boolean));
+ await atomic(db,actor,[...report.matters.map(m=>accessGuard(db,actor,m.matterId)),guard(db,'NOT EXISTS(SELECT 1 FROM s_staff_cost_disposals WHERE revision_id IN(SELECT value FROM json_each(?)))',JSON.stringify(costIds)),audit(db,actor,'report.economics_exported',id(),JSON.stringify({asOf:report.asOf,matterIds:report.matters.map(m=>m.matterId),artifactSha256,payloadSha256:manifest.payloadSha256,marking:manifest.marking,delivery:'Explicit authenticated download response; receipt by the reader is not asserted'}))]);
+ return economicsFile(artifact,artifactSha256);
 }
