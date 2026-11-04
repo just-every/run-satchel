@@ -791,6 +791,10 @@
       "sha256": "e7ec28e1ea8d4a2db36e7d3cc067f29e0cf415a37fd834fb42f6776e5fbbf2e3",
       "executable": false
     },
+    "migrations/core/0131_microsoft_read_history.sql": {
+      "sha256": "95b36bcf89c0fc57d60b2ca0377b1855b794d770468b0fdcfaeba9c87fc451b7",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "31dbf44f24514b9f626261911b9b83c806cacdf00dd23e49f465f3fdfebb715e",
       "executable": false
@@ -4084,7 +4088,7 @@
       "executable": false
     },
     "src/satchel/operational-diagnostics.ts": {
-      "sha256": "6b987b35735d7c19bea68498763776c7862061d24b1708d7bac20980df187bcf",
+      "sha256": "54d43b1bef3edfcc9bc4d05bade271bc82d3925ca416b729b4f440ac11dba32e",
       "executable": false
     },
     "src/satchel/payer-statements.ts": {
@@ -5084,7 +5088,7 @@
       "executable": false
     },
     "tests/satchel/agent-execution-flow.mjs": {
-      "sha256": "d8ca96f294b6355cdac77a49496a7bd89ed82eb134bda0386840259414cfad2d",
+      "sha256": "34dbb6f6bad97a1e44a9080f5094aa3fd5de178c660fb2ec628eb622234b070c",
       "executable": false
     },
     "tests/satchel/agent-fixture.mjs": {
@@ -5240,7 +5244,7 @@
       "executable": false
     },
     "tests/satchel/harness.mjs": {
-      "sha256": "2493acf6f663dac5395b3625e6c7137eef15e877283efd83ee00e6da9d940d78",
+      "sha256": "b4a8e7b3132a78f225d3532c9ffb476c0e28e54ef0374e80b8c038a154431799",
       "executable": false
     },
     "tests/satchel/intake-fixture.mjs": {
@@ -5440,7 +5444,7 @@
       "executable": false
     },
     "tests/satchel/providers.test.mjs": {
-      "sha256": "f70bb481d57156a64cfe299d74568dad27475a3577250e814840f05a8ce54450",
+      "sha256": "9e40e84b1aa90550327b5a587971ac53e7908b6e0f831a179ffed1a6631bfd56",
       "executable": false
     },
     "tests/satchel/rates-journey.test.mjs": {
@@ -5456,7 +5460,7 @@
       "executable": false
     },
     "tests/satchel/recovery-diagnostics-flow.mjs": {
-      "sha256": "32a48a8072d8953dd1bf695547aeb2cca6c7275d6b901daf59f4c82e35eaaa85",
+      "sha256": "37865bb4bc92ec7bea43dc87d78ae0f12a1e9df9f584170ee67a8e07c81e0c36",
       "executable": false
     },
     "tests/satchel/reminder-journey.test.mjs": {

@@ -45,6 +45,8 @@ export async function proveAgentExecution(){
   assert.equal((await h.json('/agent/jobs',jobBody,'',200,auth)).id,job.id);
   await h.json('/agent/jobs',{...jobBody,payload:{...payload,title:'Changed replay'}},'',409,auth);
   await h.json('/agent/jobs',{...jobBody,requestKey:'synthetic-satchel-10'},'',409,auth);
+  let diagnosticQueue=(await h.json('/diagnostics',undefined,h.owner)).jobs.find(j=>j.id==='agent');
+  assert.equal(diagnosticQueue.total,2);assert.equal(diagnosticQueue.queued,2);assert.equal(diagnosticQueue.oldestDueAt,dueAt);assert.ok(diagnosticQueue.lagSeconds>=60);
   await h.restart();await h.scheduled(Date.now());
   let controls=await h.json('/agent-controls',undefined,h.owner),prepared=controls.jobs.find(j=>j.id===job.id);
   assert.equal(prepared.status,'prepared');assert.equal(prepared.outcome,'human_review_required');assert.ok(prepared.proposal_id);
@@ -52,6 +54,9 @@ export async function proveAgentExecution(){
   await h.scheduled(Date.now());assert.equal((await h.json('/state',undefined,h.owner)).proposals.filter(p=>p.id===prepared.proposal_id).length,1);
   await h.json('/agent-delegations/'+delegation.id+'/revoke',{reason:'Principal withdrew queued authority'},h.owner);
   controls=await h.json('/agent-controls',undefined,h.owner);const refused=controls.jobs.find(j=>j.id===cancelled.id);
+  diagnosticQueue=(await h.json('/diagnostics',undefined,h.owner)).jobs.find(j=>j.id==='agent');
+  assert.equal(diagnosticQueue.total,2);assert.equal(diagnosticQueue.queued,0);assert.equal(diagnosticQueue.failed,1);assert.equal(diagnosticQueue.lagSeconds,0);
+  console.log('PROBE FIRM-007 A agent: queued preparations, run and revoke -> total=2, queued=0, refused=1, lag=0');
   assert.equal(refused.status,'refused');assert.equal(refused.outcome,'delegation_revoked');assert.equal(refused.proposal_id,null);assert.ok(refused.finished_at);
   await h.scheduled(Date.parse(futureAt)+1);await h.json('/agent/matters/'+m.id,undefined,'',403,auth);assert.deepEqual((await h.json('/agent/context',undefined,'',200,auth)).matters,[]);
   const history=(await h.json('/state',undefined,h.owner)).proposals;assert.deepEqual(history.map(v=>v.id).sort(),[p.id,prepared.proposal_id].sort());assert.ok(history.every(v=>v.status==='pending'&&v.delegation_id===delegation.id&&v.agreement_id===agreement.id));

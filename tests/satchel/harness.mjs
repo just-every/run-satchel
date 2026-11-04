@@ -34,7 +34,10 @@ export async function harness(options={}){
  }
  try{
   await mf.ready;const db=await mf.getD1Database('DB');
-  for(const file of (await readdir('migrations/core')).filter(f=>f.endsWith('.sql')).sort())for(const sql of splitSql(await readFile(join('migrations/core',file),'utf8')))await db.prepare(sql).run();
+  for(const file of (await readdir('migrations/core')).filter(f=>f.endsWith('.sql')).sort()){
+   await options.beforeMigration?.(db,file);
+   for(const sql of splitSql(await readFile(join('migrations/core',file),'utf8')))await db.prepare(sql).run();
+  }
   assert.equal((await request('/health')).status,200);
   const boot=await request('/auth/bootstrap',{token:vars.SETUP_TOKEN,displayName:'Principal'});assert.equal(boot.status,303,await boot.text());
   const owner=await login(vars.OWNER_EMAIL);

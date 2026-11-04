@@ -8,11 +8,14 @@ import type {MicrosoftBindings} from './microsoft-authority';
 
 const scalar=async(db:D1Database,sql:string)=>(await stmt(db,sql).first<Data>())?.value??0;
 // A row is counted from the native queue, not from an inferred provider outcome.
+// Prepared schedule parents retain history; the reviewed email queue owns their attempts.
 const queues=[
  {id:'microsoft',name:'Microsoft directory reads',sql:"SELECT status,created_at due_at FROM s_microsoft_jobs"},
  {id:'correspondence',name:'Reviewed email',sql:"SELECT CASE status WHEN 'ready' THEN 'queued' ELSE status END status,decision_at due_at FROM s_correspondence_attempts"},
- {id:'client-reminders',name:'Client reminders',sql:"SELECT CASE status WHEN 'prepared' THEN 'queued' ELSE status END status,due_at FROM s_client_reminder_jobs"},
- {id:'matter-updates',name:'Matter updates',sql:"SELECT CASE status WHEN 'prepared' THEN 'queued' ELSE status END status,due_at FROM s_matter_update_jobs"},
+ {id:'invoice-notifications',name:'Invoice notifications',sql:"SELECT CASE status WHEN 'ready' THEN 'queued' ELSE status END status,authorized_at due_at FROM s_invoice_delivery_attempts"},
+ {id:'agent',name:'Agent preparations',sql:"SELECT status,due_at FROM s_agent_jobs"},
+ {id:'client-reminders',name:'Client reminders',sql:"SELECT status,due_at FROM s_client_reminder_jobs"},
+ {id:'matter-updates',name:'Matter updates',sql:"SELECT status,due_at FROM s_matter_update_jobs"},
  {id:'followups',name:'Lead follow-ups',sql:"SELECT status,due_at FROM s_followup_sends"},
  {id:'requests',name:'Request reminders',sql:"SELECT status,due_at FROM s_request_reminder_sends"},
  {id:'deadlines',name:'Deadline reminders',sql:"SELECT status,strftime('%Y-%m-%dT%H:%M:%fZ',scheduled_for/1000.0,'unixepoch') due_at FROM s_reminder_deliveries"},
@@ -30,7 +33,7 @@ export async function operationalDiagnostics(env:MicrosoftBindings&{ORIGINALS:R2
   let oldest=counts.oldest as string|null,lagUnknown=false;
   if(oldest&&q.id==='payment-plans')try{oldest=new Date(localInstant(oldest,'00:00',timezone)).toISOString();}catch{oldest=null;lagUnknown=true;}
   if(oldest&&oldest>observedAt)oldest=null;
-  const paused=q.id==='payment-plans'?recovery.some(r=>r.channel==='charging'&&!r.authorized_at):!['microsoft','payments'].includes(q.id)&&recovery.some(r=>r.channel==='sending'&&!r.authorized_at);
+  const paused=q.id==='payment-plans'?recovery.some(r=>r.channel==='charging'&&!r.authorized_at):!['microsoft','payments','agent'].includes(q.id)&&recovery.some(r=>r.channel==='sending'&&!r.authorized_at);
   jobs.push({id:q.id,name:q.name,total:counts.total,queued:counts.queued,failed:counts.failed,uncertain:counts.uncertain,paused:counts.paused,restorePaused:paused,oldestDueAt:oldest,lagSeconds:lagUnknown?null:oldest?Math.max(0,Math.floor((Date.parse(observedAt)-Date.parse(oldest))/1000)):0,nextAction:paused?'Review restored schedules and fresh provider authority in Recovery settings.':q.id==='microsoft'?'Open Microsoft directory connection; reconcile uncertain reads before requesting another.':'Open the source schedule or attempt; reconcile failures and uncertainty before any new attempt.'});
  }
  let bucketBytes=0,bucketObjects=0,cursor:string|undefined;

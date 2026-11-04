@@ -139,6 +139,10 @@ async function assertReminderTemplateVersions(){
   assert.notEqual(newer.id,s.invoice.id);await h.restart();const before=await s.state();assert.equal(before.jobs.find(j=>j.id===job.id).template_id,s.invoice.id);
   assert.equal(before.templates.find(t=>t.id===s.invoice.id).body,s.invoice.body);assert.equal(newer.body,s.invoice.body,'Unapproved supplied content cannot change confidential template bytes');
   await h.scheduled(reminderAt);assert.equal((await s.state()).jobs.find(j=>j.id===job.id).outcome,'accepted');assert.equal(h.mails.at(-1).text,s.invoice.body+' '+h.origin+'/app');
+  const diagnostics=await h.json('/diagnostics',undefined,h.owner),queue=diagnostics.jobs.find(j=>j.id==='client-reminders');
+  assert.equal(queue.total,1);assert.equal(queue.queued,0);assert.equal(queue.lagSeconds,0);assert.equal(queue.oldestDueAt,null);
+  assert.equal(diagnostics.jobs.find(j=>j.id==='correspondence').queued,0);
+  console.log('PROBE FIRM-007 B: scheduled accepted reminder -> retained parent total=1, queued=0, lag=0');
  }finally{await h.close();}
 }
 
@@ -293,8 +297,13 @@ test('Reviewed invoice delivery retains branded payer artifacts, verifies provid
   await h.json('/team',{email:'limited@example.test',name:'Synthetic Satchel Limited Counsel',role:'lawyer',customRoleId:limitedRole.id},h.owner);await h.json('/team/invite',{email:'limited@example.test'},h.owner);const limited=await h.login('limited@example.test');await h.json(base+'/access',{email:'limited@example.test'},h.owner);
   assert.equal((await h.request('/api/satchel/invoice-deliveries/'+clientDelivery.id+'/pdf',undefined,limited)).status,403);assert.equal((await h.request('/api/satchel/payer-statements/'+statement.id+'/pdf',undefined,limited)).status,403);await h.json('/bills/'+bill.id+'/deliveries',{recipient:'client@example.test',payerName:'Synthetic Satchel Client',templateId:template.id},limited,403);
   const authorize=(delivery,priorAttemptId,actor=billing)=>h.json('/invoice-deliveries/'+delivery.id+'/authorize',{notificationTemplateId:notification.id,confirmed:true,priorAttemptId,reason:'Reviewed current consent, recipient and provider history; authorize exactly one sign-in notification'},actor);
-  const unused=await authorize(clientDelivery);await payers.consent(payers.client.id,'denied');await h.json('/invoice-notification-attempts/'+unused.attemptId+'/send',{},billing,409);await payers.consent(payers.client.id);
+  const unused=await authorize(clientDelivery);
+  let invoiceQueue=(await h.json('/diagnostics',undefined,h.owner)).jobs.find(j=>j.id==='invoice-notifications');
+  assert.equal(invoiceQueue.total,1);assert.equal(invoiceQueue.queued,1);assert.equal(invoiceQueue.uncertain,0);assert.ok(invoiceQueue.lagSeconds>=0);
+  await payers.consent(payers.client.id,'denied');await h.json('/invoice-notification-attempts/'+unused.attemptId+'/send',{},billing,409);await payers.consent(payers.client.id);
   const fresh=await authorize(clientDelivery,unused.attemptId);let refreshed=(await h.json(base+'/invoice-deliveries',undefined,billing)).deliveries.find(d=>d.id===clientDelivery.id);assert.equal(refreshed.attempts.find(a=>a.id===unused.attemptId).status,'withdrawn');await h.json('/invoice-notification-attempts/'+fresh.attemptId+'/send',{},billing);
+  invoiceQueue=(await h.json('/diagnostics',undefined,h.owner)).jobs.find(j=>j.id==='invoice-notifications');
+  assert.equal(invoiceQueue.total,2);assert.equal(invoiceQueue.queued,0);assert.equal(invoiceQueue.uncertain,0);
   // A source merge supplies no email consent for the retained duplicate identity.
   const g=await h.json('/contacts',undefined,h.owner),duplicate=await h.json('/contacts',{revision:g.revision,kind:'organization',name:'Synthetic Satchel Insurer duplicate',emails:['duplicate@example.test']},h.owner),preview=await h.json('/contacts/merge-preview',{survivorId:payers.insurer.id,duplicateId:duplicate.id,reason:'Counsel reviewed retained insurer identities'},h.owner);await h.json('/contacts/merge',{previewId:preview.id},h.owner);
   await h.json('/invoice-deliveries/'+insurerDelivery.id+'/authorize',{notificationTemplateId:notification.id,confirmed:true,reason:'Missing merged consent refused'},billing,409);await payers.consent(duplicate.id);
@@ -305,6 +314,9 @@ test('Reviewed invoice delivery retains branded payer artifacts, verifies provid
   assert.equal((await webhook(event,false)).status,401);assert.equal((await webhook()).status,200);assert.equal((await webhook()).status,200);
   let state=await h.json(base+'/invoice-deliveries',undefined,billing),record=state.deliveries.find(d=>d.id===insurerDelivery.id);assert.equal(record.attempts[0].outcome,'bounced');assert.equal(record.attempts[0].events.length,1);
   const resend=await authorize(insurerDelivery,attempt.attemptId);uncertain=true;await h.json('/invoice-notification-attempts/'+resend.attemptId+'/send',{},billing);const count=wire.length;await h.restart();await h.json('/invoice-notification-attempts/'+resend.attemptId+'/send',{},billing);assert.equal(wire.length,count);state=await h.json(base+'/invoice-deliveries',undefined,billing);assert.equal(state.deliveries.find(d=>d.id===insurerDelivery.id).attempts.at(-1).outcome,'uncertain');uncertain=false;
+  invoiceQueue=(await h.json('/diagnostics',undefined,h.owner)).jobs.find(j=>j.id==='invoice-notifications');
+  assert.equal(invoiceQueue.total,4);assert.equal(invoiceQueue.queued,0);assert.equal(invoiceQueue.uncertain,1);
+  console.log('PROBE FIRM-007 A invoice: authorize, accepted send and uncertain resend -> native totals=4, queued=0, uncertain=1');
   const final=await authorize(insurerDelivery,resend.attemptId);await h.json('/invoice-notification-attempts/'+final.attemptId+'/send',{},billing);assert.equal(wire.length,count+1);
   const current=(await h.json(base+'/billing',undefined,h.owner)).bills.find(b=>b.id===bill.id);await h.json('/invoices/'+bill.id+'/void',{revision:current.revision,reason:'Counsel reviewed replacing the delivered invoice'},h.owner);
   let replacement=await h.json(base+'/bills',{title:'Reviewed replacement invoice',date:'2026-10-02',entryIds:bill.snapshot.lines.map(l=>l.sourceId)},h.owner);replacement=await approvedInvoice(h,m,replacement);const replacementIssue=(await h.json('/invoices/issue',{bills:[{id:replacement.id,revision:replacement.revision}]},h.owner)).issues[0];

@@ -31,7 +31,24 @@ export async function recoveryFixture(){
   return {h,edge,microsoft,finance,trust,document,bytes,plan,outstanding,closed,owner,slot,bucketOriginal,bucketFile};
  }catch(error){await h.close();throw error;}
 }
+async function proveUpgradedMicrosoftHistory(){
+ const latest='2026-01-03T12:00:00.000Z';
+ const h=await harness({beforeMigration:async(db,file)=>{
+  if(file!=='0129_operational_diagnostics.sql')return;
+  // Seed the schema shipped before diagnostics, without usable installation authority.
+  await db.prepare("INSERT INTO s_microsoft_connector(id,generation,status,sponsor_id,sponsor_version,session_id,configuration_digest,capability,updated_at,outcome) VALUES('installation',3,'revoked','synthetic-satchel-1',1,'synthetic-satchel-2','synthetic-satchel-3','directory:read',?,'owner_revoked')").bind(latest).run();
+  for(const [id,generation,status,at] of [['synthetic-satchel-4',1,'succeeded','2026-01-01T12:00:00.000Z'],['synthetic-satchel-5',2,'succeeded',latest],['synthetic-satchel-6',2,'uncertain','2026-01-04T12:00:00.000Z']])
+   await db.prepare("INSERT INTO s_microsoft_jobs(id,generation,sponsor_id,sponsor_version,session_id,capability,status,outcome,created_at,finished_at) VALUES(?,?,'synthetic-satchel-1',1,'synthetic-satchel-2','directory:read',?,'retained_history',?,?)").bind(id,generation,status,at,at).run();
+ }});
+ try{
+  const connection=(await h.json('/diagnostics',undefined,h.owner)).connectors.find(c=>c.id==='microsoft');
+  assert.equal(connection.authorization,'revoked');assert.equal(connection.tokenExpiresAt,null);assert.equal(connection.lastSuccessfulReadAt,latest);
+  await h.restart();assert.equal((await h.json('/security/microsoft',undefined,h.owner)).lastSuccessfulReadAt,latest);
+  console.log('PROBE FIRM-007 C: upgrade pre-diagnostics Microsoft history -> latest succeeded time retained across revoked authority and restart; newer uncertain job excluded');
+ }finally{await h.close();}
+}
 export async function proveRecoveryDiagnostics(){
+ await proveUpgradedMicrosoftHistory();
  const f=await recoveryFixture(),{h,edge,microsoft}=f;let target;
  try{
   const base='/security/microsoft',approve={approved:true,capability:'directory:read'};
