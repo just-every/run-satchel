@@ -222,7 +222,16 @@
             "pointer": "/delegations/0/matterId"
           },
           "date": "2027-01-15",
-          "entryIds": []
+          "entryIds": [
+            {
+              "$from": "read-matter0",
+              "pointer": "/billing/entries/0/id"
+            }
+          ],
+          "reconciliationId": {
+            "$from": "read-matter0",
+            "pointer": "/billing/workReconciliation/id"
+          }
         }
       },
       "expect": [
@@ -357,7 +366,16 @@
             "pointer": "/delegations/1/matterId"
           },
           "date": "2027-01-15",
-          "entryIds": []
+          "entryIds": [
+            {
+              "$from": "read-matter1",
+              "pointer": "/billing/entries/0/id"
+            }
+          ],
+          "reconciliationId": {
+            "$from": "read-matter1",
+            "pointer": "/billing/workReconciliation/id"
+          }
         }
       },
       "expect": [
