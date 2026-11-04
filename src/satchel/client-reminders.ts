@@ -68,6 +68,7 @@ export async function runClientReminders(env:Bindings,atMs:number){
  if(await recoveryPaused(env.DB,'sending'))return {paused:true};
  const db=env.DB,due=await rows(db,"SELECT * FROM s_client_reminder_jobs WHERE status IN ('queued','prepared') AND due_at<=? ORDER BY due_at,id LIMIT 100",new Date(atMs).toISOString());
  for(const j of due){
+  if(await recoveryPaused(env.DB,'sending'))return {paused:true};
   try{
    const u=await stmt(db,'SELECT * FROM s_client_reminder_authorizations WHERE id=?',j.authorization_id).first<Data>();
    const o=await stmt(db,'SELECT o.*,m.role member_role,m.active,r.permissions FROM oa_operators o LEFT JOIN s_members m ON m.email=o.email LEFT JOIN s_custom_roles r ON r.id=m.custom_role_id WHERE o.id=?',u!.counsel_id).first<Data>();

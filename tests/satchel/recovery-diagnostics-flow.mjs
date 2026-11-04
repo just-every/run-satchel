@@ -57,7 +57,6 @@ export async function proveRecoveryDiagnostics(){
   assert.equal(diagnostics.storage.measuredOriginalBytes,diagnostics.storage.documentBytes+diagnostics.storage.conflictBytes+diagnostics.storage.bucketBytes);assert.ok(diagnostics.storage.documentBytes>=f.bytes.length);assert.equal(diagnostics.storage.bucketBytes,f.bucketOriginal.bytes.length);assert.equal(diagnostics.storage.bucketObjects,1);
   assert.equal(diagnostics.backup.lastVerified.sha256,sha256(archive));assert.equal(diagnostics.backup.lastVerified.bytes,Buffer.byteLength(archive));
   assert.ok(!records.some(r=>['s_recovery_authority','s_recovery_receipts','s_microsoft_connector','s_microsoft_jobs','s_scheduler_observation'].includes(r.table)));
-  await h.json('/restore',{archive,confirm:'RESTORE'},h.owner,409);assert.deepEqual((await h.json('/diagnostics',undefined,h.owner)).recovery,[],'A refused nonempty restore never pauses the existing installation');
   const beforeTrust=await h.json('/trust',undefined,h.owner);target=await harness(edge);
   await target.json('/restore',{archive,confirm:'RESTORE'},target.owner);
   let restored=await target.json('/diagnostics',undefined,target.owner);assert.equal(restored.restore.lastVerified.sha256,sha256(archive));assert.ok(restored.restore.lastVerified.content_hash);assert.equal(restored.backup.lastVerified,null,'The destination cannot inherit source backup verification');assert.ok(restored.recovery.every(r=>r.authorized_at===null));
@@ -72,6 +71,7 @@ export async function proveRecoveryDiagnostics(){
   assert.equal(edge.chargeCalls,requests);assert.equal(target.mails.length,mailBefore);assert.deepEqual(await target.json('/payment-plans/'+f.plan.id,undefined,target.owner),beforePlan,'Paused recovery preserves the complete active plan and creates no attempt or stop task');
   assert.equal((await target.json('/report-schedules',undefined,target.owner)).deliveries.length,0,'Paused reports do not even create an outbound attempt');
   restored=await target.json('/diagnostics',undefined,target.owner);assert.equal(restored.scheduler.outcome,'succeeded');assert.equal(restored.scheduler.scheduled_at,f.slot);assert.ok(restored.jobs.find(j=>j.id==='payment-plans').restorePaused);assert.equal(restored.jobs.find(j=>j.id==='payment-plans').queued,3);assert.deepEqual(restored.trust.unreconciledPeriods.map(p=>p.id),[f.outstanding.id]);
+  const lateSlot=new Date(Date.now()-120000).toISOString();await target.scheduled(lateSlot);const late=(await target.json('/diagnostics',undefined,target.owner)).scheduler;assert.equal(late.scheduled_at,lateSlot);assert.ok(late.lagSeconds>=120,'A delayed scheduled callback reports positive observed lag');
   const sending=restored.recovery.find(r=>r.channel==='sending'),decision={channel:'sending',restoreId:sending.restore_id,reason:'Principal reviewed schedules and recipients for this installation',confirmed:true};
   await target.json('/recovery/authorize',decision,restoredAssistant,403);assert.ok((await target.json('/diagnostics',undefined,target.owner)).recovery.every(r=>r.authorized_at===null));
   await target.json('/recovery/authorize',{...decision,restoreId:'synthetic-satchel-stale-receipt'},target.owner,409);await target.json('/recovery/authorize',decision,target.owner,409);
@@ -82,9 +82,20 @@ export async function proveRecoveryDiagnostics(){
   await target.scheduled(f.slot);assert.equal(target.mails.length,mailBefore+1,'Fresh local principal authorization releases the reviewed email schedule once');assert.equal(edge.chargeCalls,requests,'Sending authorization never authorizes charging');await target.scheduled(f.slot);assert.equal(target.mails.length,mailBefore+1);
   const charging=restored.recovery.find(r=>r.channel==='charging');await target.json('/recovery/authorize',{...decision,channel:'charging',restoreId:charging.restore_id},target.owner,409);
   assert.ok((await target.json('/audit?action=firm.recovery_authorized',undefined,target.owner)).records.some(r=>r.detail.channel==='sending'));
+  const chargeDecision={...decision,channel:'charging',restoreId:charging.restore_id};
+  await target.json('/providers/stripe/review',{termsUrl:'https://stripe.com/legal/ssa',confirmed:true},target.owner);
+  await target.json('/recovery/authorize',chargeDecision,target.owner,409);
+  await target.json('/stripe/settings',{kind:'operating',confirmed:true},target.owner);await target.json('/recovery/authorize',chargeDecision,target.owner);
+  await target.scheduled(f.slot);assert.equal(edge.chargeCalls,requests,'Installation approval cannot inherit the former principal or client mandate');
+  const renewed=await target.json('/bills/'+f.finance.card.id+'/payment-plans',{approve:true,planId:f.plan.id,revision:beforePlan.revision,billRevision:f.finance.card.revision,balanceCents:37500,startDate:'2026-11-01',reason:'Fresh principal approves the exact restored schedule in this installation',installments:[{dueDate:'2026-11-01',cents:12500},{dueDate:'2026-12-01',cents:12500},{dueDate:'2027-01-01',cents:12500}]},target.owner);
+  assert.equal(renewed.status,'paused');assert.equal(renewed.consent,null);
+  const clientEmail=beforePlan.consent.client_email;await target.json('/team/invite',{email:clientEmail},target.owner);const client=await target.login(clientEmail);
+  const mandate=await target.json('/payment-plans/'+renewed.id+'/mandate',{revision:renewed.revision,agree:true,requestKey:'synthetic-satchel-restored-fresh-mandate'},client);edge.completeSetup(mandate.id);
+  await target.json('/payment-plans/'+renewed.id+'/mandate/confirm',{revision:renewed.revision,agree:true,setupId:mandate.id},client);
+  await target.scheduled(f.slot);await target.scheduled(f.slot);assert.equal(edge.chargeCalls,requests+1,'Fresh local principal approval and hosted client consent collect exactly once');assert.equal((await target.json('/portal/invoices/'+f.finance.card.id+'/payment',undefined,client)).paidCents,12500);
   // A source schedule can execute normally; the restore fence is what stopped the imported one.
-  await h.scheduled(f.slot);assert.ok(edge.chargeCalls>requests);assert.equal((await h.json('/report-schedules',undefined,h.owner)).deliveries.length,1);
+  const beforeSource=edge.chargeCalls;await h.scheduled(f.slot);assert.equal(edge.chargeCalls,beforeSource+1);assert.equal((await h.json('/report-schedules',undefined,h.owner)).deliveries.length,1);
   console.log('PROBE FIRM-007 diagnostics: principal native records -> queue counts, retained successful read, expiry, storage and trust periods reconcile; unknown observations stay unknown; non-principal refused');
-  console.log('PROBE FIRM-007 recovery: populated archive -> identical supported original hash and trust totals; scheduled sending and charging create no imported attempts; fresh sending approval releases email once');
+  console.log('PROBE FIRM-007 recovery: populated archive -> identical supported original hash and trust totals; scheduled sending and charging create no imported attempts; fresh local sending approval and renewed hosted client consent release each permitted effect once');
  }finally{await target?.close();await h.close();}
 }

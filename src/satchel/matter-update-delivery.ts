@@ -22,6 +22,7 @@ export async function runMatterUpdates(env:Bindings,atMs:number){
  if(await recoveryPaused(env.DB,'sending'))return {paused:true};
  const db=env.DB,due=await rows(db,"SELECT * FROM s_matter_update_jobs WHERE status IN('queued','prepared') AND due_at<=? ORDER BY due_at,id LIMIT 100",new Date(atMs).toISOString());
  for(const j of due){
+  if(await recoveryPaused(env.DB,'sending'))return {paused:true};
   try{
    const u=await stmt(db,'SELECT * FROM s_matter_updates WHERE id=?',j.update_id).first<Data>();insist(u?.status==='approved','An exact approved update is required',409);
    const actor=await currentUpdateCounsel(db,u);

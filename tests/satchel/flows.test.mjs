@@ -195,7 +195,8 @@ test('document erasure invalidates old archives and removes every version byte',
 });
 test('FIRM-001 and archive integrity: empty destination, later erasure journal, complete restoration with firm settings provenance',async()=>{
  await proveRecoveryDiagnostics();
- await h.json('/restore',{archive:newArchive,confirm:'RESTORE'},h.owner,409);
+ const recoveryBefore=(await h.json('/diagnostics',undefined,h.owner)).recovery;
+ await h.json('/restore',{archive:newArchive,confirm:'RESTORE'},h.owner,409);assert.deepEqual((await h.json('/diagnostics',undefined,h.owner)).recovery,recoveryBefore,'A refused nonempty restore never pauses the existing installation');
  const target=await harness();try{
   const fresh=await target.json('/state',undefined,target.owner);assert.deepEqual([fresh.matters.length,fresh.members.length,fresh.firm],[0,0,null],'A fresh installation starts with no sample clients, members or firm settings');
   const damaged=await target.request('/api/satchel/restore',{archive:newArchive.replace('Notice.txt','Changed.txt'),confirm:'RESTORE'},target.owner);assert.equal(damaged.status,400);assert.equal((await target.json('/state',undefined,target.owner)).matters.length,0);

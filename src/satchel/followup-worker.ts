@@ -39,6 +39,7 @@ export async function runFollowups(env:Bindings,atMs:number){
  const settings=new Map((await rows(db,'SELECT * FROM s_followup_settings')).map(s=>[s.kind,s])),firm=(await stmt(db,'SELECT name FROM s_firm WHERE id=1').first<Data>())?.name??'the firm';
  let sent=0;
  for(const d of due){
+  if(await recoveryPaused(env.DB,'sending'))return {paused:true};
   const setting=settings.get(d.kind);
   if(!setting?.enabled){await stmt(db,"UPDATE s_followup_sends SET status='cancelled',detail='The sequence is disabled' WHERE id=? AND status='queued'",d.id).run();continue;}
   if(isQuiet(atMs,setting.timezone,setting.quiet_start,setting.quiet_end))continue;

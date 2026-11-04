@@ -70,5 +70,5 @@ export async function runPaymentPlans(env:StripeEnv,at:number){
  const timezone=(await stmt(env.DB,'SELECT timezone FROM s_firm WHERE id=1').first<Data>())?.timezone??'UTC';
  const day=new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(at));
  const plans=await rows(env.DB,"SELECT p.*,b.matter_id FROM s_payment_plans p JOIN s_bills b ON b.id=p.bill_id WHERE p.status='active' ORDER BY p.created_at,p.id");
- for(const p of plans)await runPlan(env,p,day);
+ for(const p of plans){if(await recoveryPaused(env.DB,'charging'))return {paused:true};await runPlan(env,p,day);}
 }

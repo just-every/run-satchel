@@ -41,6 +41,7 @@ export async function runRequestReminders(env:Bindings,atMs:number){
  await db.batch([stmt(db,"UPDATE s_request_reminder_sends SET status='uncertain',detail='Worker outcome unknown; no automatic resend' WHERE status='sending' AND attempted_at<?",new Date(atMs-15*60000).toISOString()),stmt(db,"UPDATE s_request_reminders SET status='escalated',reason='Uncertain delivery; owner must review' WHERE status='active' AND id IN(SELECT reminder_id FROM s_request_reminder_sends WHERE status='uncertain')")]);
  const due=await rows(db,"SELECT s.*,r.request_id,r.email,r.approved_by,q.matter_id FROM s_request_reminder_sends s JOIN s_request_reminders r ON r.id=s.reminder_id JOIN s_document_requests q ON q.id=r.request_id WHERE s.status='queued' AND s.due_at<=? ORDER BY s.due_at,s.id LIMIT 100",at);
  for(const d of due){
+  if(await recoveryPaused(env.DB,'sending'))return {paused:true};
   const stop=async(reason:string,escalate=false)=>{await db.batch([...stopRequestReminders(db,d.request_id,reason,at),...(escalate?[stmt(db,"UPDATE s_request_reminders SET status='escalated',reason=? WHERE id=?",reason,d.reminder_id)]:[]),audit(db,system,'document_request.reminders_halted',d.request_id,JSON.stringify({reason}),{matterId:d.matter_id})]);};
   if(!setting?.enabled){await stop('Email chase settings disabled');continue;}
   if(isQuiet(atMs,setting.timezone,setting.quiet_start,setting.quiet_end))continue;
