@@ -4620,7 +4620,7 @@
       "executable": false
     },
     "src/ui/agent-metrics.tsx": {
-      "sha256": "84c3b0d9ffed39afe3856ed987a7d5e693028b266a326ba24d76466e3a2c9c59",
+      "sha256": "15b3b8c23337ab07ea598fc276d4705fd14ebe78e182688fae897e497be55473",
       "executable": false
     },
     "src/ui/assembly.tsx": {
@@ -5108,11 +5108,11 @@
       "executable": false
     },
     "tests/satchel/agent-metrics-browser.mjs": {
-      "sha256": "a9606a742c623fe60b0fadb58653ed3b742d8aa18fbf9a831a8fce74a45bd1fb",
+      "sha256": "633b010156f7d9ae3909caae3cf52b158b74c7f69cebe62cb45c570f283f1a5b",
       "executable": false
     },
     "tests/satchel/agent-metrics-flow.mjs": {
-      "sha256": "ce5bd775580431d67b3495e8bbf44db559a221c2a8193032a40ed20bc10eff7d",
+      "sha256": "53019cf9bf8fdd6612c7e336ea98a66ecb67f548cee46f69f3ca43910787a5a3",
       "executable": false
     },
     "tests/satchel/assembly-fixture.mjs": {
