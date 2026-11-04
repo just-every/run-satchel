@@ -3656,7 +3656,7 @@
       "executable": false
     },
     "src/satchel/collection-state.ts": {
-      "sha256": "ebd989e81a64e902cf97e37d477c3f4dee0a750dc2a82a90092cd02530fd9a83",
+      "sha256": "2dac6a43a65b16ec7341ebf63a13c691cedfb59732e6ec6952bb0a70af6c3b5c",
       "executable": false
     },
     "src/satchel/collections.ts": {
@@ -4120,7 +4120,7 @@
       "executable": false
     },
     "src/satchel/portal-threads.ts": {
-      "sha256": "6656a4ded1a45c24d86406d10b5f19d437d6ed101ffba93b9cf118a1abae5d77",
+      "sha256": "88bb21adc2a011adb9df6237379b04823000b6b8bcf0a42f55ac690817d90ee4",
       "executable": false
     },
     "src/satchel/portal.ts": {
@@ -5152,7 +5152,7 @@
       "executable": false
     },
     "tests/satchel/collections-flow.mjs": {
-      "sha256": "62afe6d25e88130057cb253aa6b8c742512659d2e7e4f64c5651fc1ba544796f",
+      "sha256": "fefd1c9ea978f4ff810f42459f5bfcbcf8e4cfba5efbed8d88655203502af19a",
       "executable": false
     },
     "tests/satchel/collections-sandbox.mjs": {
@@ -5180,7 +5180,7 @@
       "executable": false
     },
     "tests/satchel/contact-representative-flow.mjs": {
-      "sha256": "e9d60e38925a9c8a16bf07b5dd752891d34308aeb25f2dbbb8324647dc04fdff",
+      "sha256": "7f03267d4f96f70f0fa898587e080c52844032c316ad3f13f3a82319c1dfc88e",
       "executable": false
     },
     "tests/satchel/contact-representative-journey.mjs": {
@@ -5432,7 +5432,7 @@
       "executable": false
     },
     "tests/satchel/portal-threads.test.mjs": {
-      "sha256": "c48092f555cad1e7148e57f94c8ddce775fc2de0dab4555867146f61e9966c1f",
+      "sha256": "695aa76c6bf80cbb03275574901a2ee7e663c56508cf944437055c87a138dc45",
       "executable": false
     },
     "tests/satchel/prebill-journey.mjs": {
@@ -5448,7 +5448,7 @@
       "executable": false
     },
     "tests/satchel/providers.test.mjs": {
-      "sha256": "08c8cbceb5848081a89d66550aeb63ba507b68a0fbedb10581ba874e0dbed7a4",
+      "sha256": "af6021cb25c4bf83d9ba4eeef77192052d6c0b6d6fd97c72ed60c6b13ec02d32",
       "executable": false
     },
     "tests/satchel/rates-journey.test.mjs": {

@@ -108,6 +108,10 @@ test('CLIENT-002 a confidential attachment, a client reply, the retained thread,
   assert.equal(withdrawal.threads.find(t=>t.id===thread.id).messages.at(-1).notifications.find(n=>n.to===roster[3][0]).status,'not_sent');
   assert.equal((await h.json('/portal/matters/'+m.id+'/threads',undefined,client)).threads.find(t=>t.id===thread.id).messages.at(-1).body,'Retained portal message after email withdrawal');
   assert.equal((await get('/attachments/'+attachment,lawyer)).status,200);
+  const duplicate=await h.json('/contacts',{revision:(await h.json('/contacts',undefined,h.owner)).revision,kind:'person',name:'Separately retained recipient identity',emails:[roster[3][0]]},h.owner);
+  await h.json('/contacts/'+duplicate.id+'/consent',{revision:(await h.json('/contacts',undefined,h.owner)).revision,channel:'email',decision:'allowed',evidenceDate:'2026-11-01',source:'Separate retained identity consent'},h.owner);
+  const duplicateBefore=h.mails.length;await h.json('/threads/'+thread.id+'/messages',{body:'A second identity cannot override withdrawal'},lawyer);
+  assert.equal(h.mails.length,duplicateBefore+2);assert.ok(h.mails.slice(duplicateBefore).every(m=>!m.to.includes(roster[3][0])));
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(archive.includes('Settle at 40k'));
   // A withdrawn grant removes the thread from that person's portal at once.
   const grants=(await h.json(base+'/portal',undefined,h.owner)).grants;await h.json('/portal-grants/'+grants.find(g=>g.email==='cocl@example.test').id+'/revoke',{reason:'Left the matter'},h.owner);

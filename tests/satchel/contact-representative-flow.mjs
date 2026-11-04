@@ -122,5 +122,8 @@ export async function representativeProductionFlow(){
   // Reappointing the same person needs a new evidence review, grant and separate packet release.
   const reappointed=await r.record(recipient,nextEvidence.id);await r.review(reappointed.id);await r.grant(recipient,reappointed.id);await h.json('/production-shares/'+opened.id+'/file',{},old,410);const fresh=await h.json(door+'/release',release,h.owner);assert.equal((await h.request('/api/satchel/production-shares/'+fresh.id+'/file',{},old)).status,200);
   const grant=(await h.json(base+'/portal',undefined,h.owner)).grants.find(g=>g.email===recipient&&!g.revokedAt);await h.json('/portal-grants/'+grant.id+'/revoke',{reason:'Withdraw recipient access'},h.owner);await r.grant(recipient,reappointed.id);await h.json('/production-shares/'+fresh.id+'/file',{},old,410);
+  const emailContact=await r.save('Recorded representative email preference',recipient),preference=async decision=>h.json('/contacts/'+emailContact.id+'/consent',{revision:(await r.state()).revision,channel:'email',decision,evidenceDate:'2026-11-01',source:'Explicit representative email preference'},h.owner);
+  await preference('allowed');const consentedRelease=await h.json(door+'/release',release,h.owner),consentedFile='/api/satchel/production-shares/'+consentedRelease.id+'/file';assert.equal((await h.request(consentedFile,{},old)).status,200);
+  await preference('denied');assert.equal((await h.request(consentedFile,{},old)).status,410);assert.deepEqual(Buffer.from(await(await h.request('/api/satchel'+door+'/file',undefined,h.owner)).arrayBuffer()),bytes);assert.equal((await h.json(door+'/shares',undefined,h.owner)).find(s=>s.id===consentedRelease.id).receipts.length,1);
  }finally{await h.close();}
 }
