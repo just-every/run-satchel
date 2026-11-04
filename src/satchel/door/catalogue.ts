@@ -37,13 +37,28 @@ Every tool carries input and output schemas in the authenticated MCP listing. Mu
 
 ${code('standard')} describes an internal preparation with measure 1. Approved selected health-source versions add ${code('sensitive')} with their native record count and kind ${code('health')}. Caller risk flags and instructions embedded in source text cannot remove it. The fixture calls below independently declare their expected classes in ${source('agent-surface.json')}; ${source(surface.verification.journey)} executes them through MCP and the maintained conformance journey checks the actual decisions under autonomous and held policies.
 
-${table(['Fixture call', 'Tool', 'Expected classes and facts'], fixtures.map(step => [code(step.id), code(step.tool), step.expect.map(item => code(item.class) + ' ' + code(JSON.stringify(item.facts))).join('; ')]))}
+${table(['Fixture call', 'Tool', 'Expected classes and facts'], fixtures.map(step => [`[${code(step.id)}](#fixture-${step.id})`, code(step.tool), step.expect.map(item => code(item.class) + ' ' + code(JSON.stringify(item.facts))).join('; ')]))}
 
 The paired calls without health sources are ${surface.journey.filter(step => !step.expect.some(item => item.class !== 'standard')).map(step => code(step.id)).join(', ')}. Read the descriptor for their exact argument references and injected caller flags; fixture expectations are proof targets, not classification input.
+
+## Fixture call reference
+
+These are the named calls executed by ${source(surface.verification.journey, 'the native MCP journey')}. Each ${code('$from')} reference selects a prior call's structured output at its JSON pointer; it is resolved before sending the call. A mutating call also needs a fresh ${code('idempotency_key')}. The conformance journey repeats these calls with the descriptor's injected caller flags to prove that those flags grant no authority and cannot lower a computed class. The fixture setup uses disposable native records and principal-approved source versions, never production records.
+
+${fixtures.map(step => `### Fixture ${step.id}
+
+${code(step.id)} calls ${code(step.tool)} with these arguments:
+
+\`\`\`json
+${JSON.stringify(step.args, null, 2)}
+\`\`\`
+`).join('\n')}
 
 ## Declared capability families
 
 Declared: ${capabilities.declared.map(code).join(', ')}. Undeclared and refused: ${capabilities.refused.map(code).join(', ')}.
+
+${table(['Capability family', 'Declaration'], [...capabilities.declared.map(name => [code(name), 'Declared']), ...capabilities.refused.map(name => [code(name), 'Undeclared and refused'])])}
 
 ${table(['Public surface', 'Current behavior'], [
   ['Resource templates', surface.resources.length ? surface.resources.map(code).join(', ') : 'None. The resource-template listing is empty; resource reads return ' + code('capability_not_declared') + '.'],
@@ -73,7 +88,7 @@ ${table(['Common code', 'Meaning and next step'], [
 
 ## Outstanding contract obligations
 
-This reference documents the declared preparation subset. Registry-derived discovery instructions, public specialist prompt delivery, the complete stranger-agent specialist journey and every remaining full-contract conformance point under autonomous and held policies remain required by BASE-AGENT-013. Resource refresh, successful multi-sponsor isolation, provider mail, timed and queued lifecycle, dual-host operation, owner-native administration, broader ct workflow parity and client custody and redaction remain unproved. See ${source('CONTRACT.md', 'the contract and its Status gaps')}.
+This reference documents the declared preparation subset. Registry-derived discovery instructions, public specialist prompt delivery, the complete stranger-agent specialist journey and every remaining full-contract conformance point under autonomous and held policies remain required by BASE-AGENT-013. The current Base door supplies generic discovery instructions and exposes no seed instruction hook; this guide does not claim that discovery is registry-derived. Resource refresh, successful multi-sponsor isolation, provider mail, timed and queued lifecycle, dual-host operation, owner-native administration, broader ct workflow parity and client custody and redaction remain unproved. See ${source('CONTRACT.md', 'the contract and its Status gaps')}.
 
 AGENT-010 retains the principal-approved native-preparation, sponsor-recipient, zero-spend, no-training and no-outbound-execution floor. Full scoped delegation and provider boundaries await ct approval; canonical generated contract documents await ct cleanup. This guide enables no capability or authority and releases no other lane hold.
 `

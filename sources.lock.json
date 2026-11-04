@@ -172,7 +172,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "717e54165f6f49e3e20aabfd301767e752e0966881b73cd9dca19b77e3022a9b",
+      "sha256": "0f8a87bee80dfa450f89de59021ff55a8a6872d4d22a29f0daa71b9c3372c605",
       "executable": false
     },
     "DEMO.md": {
@@ -192,7 +192,7 @@
       "executable": false
     },
     "docs/agents.md": {
-      "sha256": "5dd7a26c399d3c3a595e1d8c27475d599f09aecbd661c2cdbd0aa603593f4707",
+      "sha256": "595bce548b45e84a8053e3ddc565288faf3e17e5c8270501b7a459be97ebeba6",
       "executable": false
     },
     "docs/assembly-font-license.txt": {
@@ -3776,7 +3776,7 @@
       "executable": false
     },
     "src/satchel/door/catalogue.ts": {
-      "sha256": "9b3b5450f0ea27ba835f75b3dbee55a273cee5b14b778c48c9a333a01a2153ae",
+      "sha256": "7c5329410e783ff036e8a2489f648baebbaa50c7bfc305cb1fd48cec337a34eb",
       "executable": false
     },
     "src/satchel/door/index.ts": {
@@ -5068,11 +5068,11 @@
       "executable": false
     },
     "tests/agent-door/native-journey.mjs": {
-      "sha256": "974ca5d2dd2e3e8cf8dc9cb4e402557a1e3ba460ce417f8a0b52aa21cba542da",
+      "sha256": "76b318fe2161f6c826587cd994fb84878f6df428e7e219c1e0eca1b60106b669",
       "executable": false
     },
     "tests/agent-door/reference.mjs": {
-      "sha256": "d2d6df7949f3f7c6fffcafb325f3805bfb02dc7aca3e5bfc66dc004ce2e2e4db",
+      "sha256": "6ce101734a0a193bdffbe1a85c924e7e332c2695c06522d27e8a410936d76271",
       "executable": false
     },
     "tests/email-link.mjs": {
@@ -5680,7 +5680,7 @@
       "executable": false
     },
     "tests/site/agent-reference-browser.mjs": {
-      "sha256": "5c5378d014b4ee74e1a548eeef7336215a3702ffdc0dcf052dfa332ea039c5a4",
+      "sha256": "55143a70649e2116cd9a98609dfd48d857cce4ada54d915376533972c8c92483",
       "executable": false
     },
     "tests/site/navigation.test.mjs": {
@@ -5696,7 +5696,7 @@
       "executable": false
     },
     "vite.config.ts": {
-      "sha256": "d04420296ecea86c4525e7c3f0bab8d36305b4c483b738a6efc9bdefbc6549a0",
+      "sha256": "e19c48aa5d6d9694488d0420ddd364103a4a59f86b16d2ec934225e0278c0b9f",
       "executable": false
     },
     "vite.site.config.ts": {
