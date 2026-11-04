@@ -13,8 +13,12 @@ export async function harness(options={}){
  const directory=await mkdtemp(join(tmpdir(),'satchel-http-')),origin=`https://127.0.0.1:${port}`,mails=[];
  const config=JSON.parse(await readFile('dist/server/wrangler.json','utf8'));
  const vars={AUTH_LOCAL:'false',AUTH_ORIGIN:origin,OWNER_EMAIL:'owner@example.test',SESSION_SECRET:randomBytes(32).toString('hex'),SETUP_TOKEN:randomBytes(32).toString('hex'),MAIL_PROVIDER:'resend',MAIL_FROM:'auth@example.test',MAIL_API_KEY:'synthetic-satchel-1',...options.bindings};
+ // A virtual prelude pins only the runtime clock; all application handlers remain unchanged.
+ const clockModule={type:'ESModule',path:resolve('dist/server/__satchel_test_clock.mjs'),contents:''};
+ function pinClock(at){const fixed=Date.parse(at);assert.ok(Number.isFinite(fixed),'Use an ISO test clock');clockModule.contents=`const NativeDate=Date; globalThis.Date=class extends NativeDate { constructor(...args){super(...(args.length?args:[${fixed}]));} static now(){return ${fixed};} };`;}
+ if(options.clock)pinClock(options.clock);
  const configOptions={...convertV4MiniflareOptions({
-  host:'127.0.0.1',port,https:true,modulesRoot:resolve('dist/server'),modules:[config.main,...(await readdir('dist/server/assets')).filter(f=>f.endsWith('.js')||f.endsWith('.wasm')).map(f=>'assets/'+f)].map(f=>({type:f.endsWith('.wasm')?'CompiledWasm':'ESModule',path:resolve('dist/server',f)})),
+  host:'127.0.0.1',port,https:true,modulesRoot:resolve('dist/server'),modules:[...(options.clock?[{type:'ESModule',path:resolve('dist/server/__satchel_test_entry.mjs'),contents:`import './__satchel_test_clock.mjs'; export {default} from ${JSON.stringify('./'+config.main)};`},clockModule]:[]),...[config.main,...(await readdir('dist/server/assets')).filter(f=>f.endsWith('.js')||f.endsWith('.wasm')).map(f=>'assets/'+f)].map(f=>({type:f.endsWith('.wasm')?'CompiledWasm':'ESModule',path:resolve('dist/server',f)}))],
   compatibilityDate:config.compatibility_date,compatibilityFlags:config.compatibility_flags,
   assets:{directory:resolve('dist/client'),routerConfig:{has_user_worker:true}},d1Databases:{DB:'satchel-test'},r2Buckets:{ORIGINALS:'satchel-originals-test'},bindings:vars,
   // Only paid/network boundaries are fake; the built application is unchanged.
@@ -39,7 +43,7 @@ export async function harness(options={}){
   const boot=await request('/auth/bootstrap',{token:vars.SETUP_TOKEN,displayName:'Principal'});assert.equal(boot.status,303,await boot.text());
   const owner=await login(vars.OWNER_EMAIL);
   const raw=async(path,init={},cookie='')=>{const request=new Request(origin+path,{...init,headers:{origin,host:new URL(origin).host,'CF-Connecting-IP':'192.0.2.1',...(cookie?{cookie}:{}),...init.headers}});return mf.dispatchFetch(request.url,{redirect:'manual',method:request.method,headers:Object.fromEntries(request.headers),...(request.body?{body:await request.arrayBuffer()}: {})});};
-  return {origin,owner,request,raw,json,login,mails,scheduled:async at=>(await mf.getWorker()).scheduled({scheduledTime:typeof at==='number'?at:Date.parse(at),cron:'*/15 * * * *'}),restart:async()=>{await mf.dispose();mf=new Miniflare(configOptions);await mf.ready;},close:async()=>{await mf.dispose();await rm(directory,{recursive:true,force:true});}};
+  return {origin,owner,request,raw,json,login,mails,scheduled:async at=>(await mf.getWorker()).scheduled({scheduledTime:typeof at==='number'?at:Date.parse(at),cron:'*/15 * * * *'}),restart:async()=>{await mf.dispose();mf=new Miniflare(configOptions);await mf.ready;},setClock:async at=>{assert.ok(options.clock,'Clock must be enabled when the harness starts');await mf.dispose();pinClock(at);configOptions.workers.find(w=>w.config.manifest?.modules['__satchel_test_clock.mjs']).config.manifest.modules['__satchel_test_clock.mjs'].contents=clockModule.contents;mf=new Miniflare(configOptions);await mf.ready;},close:async()=>{await mf.dispose();await rm(directory,{recursive:true,force:true});}};
  }catch(e){await mf.dispose();await rm(directory,{recursive:true,force:true});throw e;}
 }
 export async function open(h,title='Barton lease review',client='Barton Workshop LLC',adverse='Riverbend Holdings LLC'){
