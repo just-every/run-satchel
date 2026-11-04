@@ -1,8 +1,24 @@
 import {createServer} from 'node:http';
-import {readFile} from 'node:fs/promises';
+import {access,readFile} from 'node:fs/promises';
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
 import {resolve,extname} from 'node:path';
 
+let siteReady;
+async function ensureSite(){
+ // Verify shards have isolated output directories; use the real site build in a shard that has not emitted it yet.
+ siteReady??=(async()=>{
+  try{await access(resolve('./dist/site/docs/agents.html'));}
+  catch(error){
+   if(error.code!=='ENOENT')throw error;
+   await promisify(execFile)(process.execPath,[resolve('./node_modules/@runeditrun/rer/global/rer.mjs'),'build','--site'],{timeout:120000,maxBuffer:1024*1024});
+  }
+ })();
+ await siteReady;
+}
+
 export async function serveSite(){
+ await ensureSite();
  const root=resolve('./dist/site');
  const server=createServer(async(req,res)=>{
   try{

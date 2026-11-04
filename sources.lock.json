@@ -5688,7 +5688,7 @@
       "executable": false
     },
     "tests/site/serve.mjs": {
-      "sha256": "0f5ee63dc89be1362b8c684bb351365c636fc08cba41d0bc5bc33d6b0e0fa042",
+      "sha256": "c90ce89f2b4e43733458d03139a1728636ac4323a6081cc51e15ef1f70599be4",
       "executable": false
     },
     "tsconfig.json": {
