@@ -11,4 +11,5 @@ export default async function initialize({agentId, request}) {
   method: 'POST', body: JSON.stringify({agentId, confirmed: true}),
  });
  assert.equal(bound.ok, true, 'Bind the exact selected agent through the native person door');
+ assert.deepEqual(await bound.json(), {id: key.id, agentId}, 'Retain the exact selected agent binding');
 }
