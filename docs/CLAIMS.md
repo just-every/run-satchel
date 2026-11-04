@@ -121,7 +121,7 @@ Generated from CONTRACT.md; regenerate with the documented contract-docs command
 | CONNECT-002 | Connect Zapier and Clio APIs | missing |
 | CONNECT-003 | Reconcile connector work durably | done |
 | REPORT-001 | Report case status and outcomes | done |
-| REPORT-002 | Report firm economics | partial |
+| REPORT-002 | Report firm economics | done |
 | REPORT-003 | Schedule actionable reports | done |
 | MOBILE-001 | Complete practice work on phones | partial |
 | MOBILE-002 | Protect offline work and push alerts | missing |
