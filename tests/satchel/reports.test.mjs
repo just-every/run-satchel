@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {harness} from './harness.mjs';
+import {economicsFoundation,economicsClock} from './economics-fixture.mjs';
 import {reportFoundation,csvRows,withoutRecordedOutcomes} from './report-fixture.mjs';
 test('REPORT-001 seven filtered dashboards drill and export identical permitted rows, retain unknown-practice lead denominators, report explicit outcomes and pause stage duration across closure',async()=>{
  const h=await harness();try{
@@ -188,4 +189,24 @@ assert.match(basis.formulas.realization,/Void invoices contribute zero/);assert.
   const excluded=await restored.json('/reports/economics',undefined,restored.owner);assert.ok(!JSON.stringify(excluded).includes(m.id));assert.ok(!JSON.stringify(excluded).includes(entry.id));assert.equal(excluded.totals.billedCents,0);assert.equal(excluded.totals.costCoverage.coveredCostCents,0);assert.deepEqual(excluded.totals.costCoverage.missingSourceIds,[missing.id]);
   const excludedExport=await(await restored.request('/api/satchel/reports/economics/export',undefined,restored.owner)).text();assert.ok(!excludedExport.includes(m.id));assert.ok(!excludedExport.includes(entry.id));
  }finally{await restored?.close();await h.close();}
+});
+
+// The aging journey uses fixed issue dates and advances a fixed worker clock.
+// It follows real issue, delivery and partial-settlement doors, without database writes.
+test('Economics aging reconciles populated due-date boundaries and keeps pending allocations in receivables',async()=>{
+ const h=await harness({clock:'2030-06-01T16:00:00Z'});try{
+  const f=await economicsFoundation(h),report=await h.json('/reports/economics',undefined,h.owner),m=report.matters.find(m=>m.matterId===f.m.id);
+  assert.equal(report.asOf,economicsClock);assert.deepEqual(m.aging,f.expectedAging);assert.deepEqual(report.totals.aging,f.expectedAging);
+  assert.deepEqual(m.source.invoices.map(i=>i.agingBucket).sort(),['current','1–30','1–30','31–60','31–60','61–90','61–90','91+','unknown'].sort());
+  assert.equal(m.billedCents,126000);assert.equal(m.earnedCents,126000);assert.equal(m.paidCents,500);assert.equal(m.pendingCents,200);assert.equal(m.trustCashCents,4500);assert.equal(m.collectionRate,500/126000);assert.equal(m.profitCents,null);assert.equal(m.costCoverage.approvedTimeEntries,0);
+  assert.equal(Object.values(m.aging).reduce((a,b)=>a+b,0),125500,'Pending allocations do not erase an unpaid receivable');
+  const before=await h.json('/reports/staff-costs',undefined,h.owner);
+  await h.json('/reports/staff-costs/'+f.draft.id+'/approve',{revision:'synthetic-satchel-stale',confirmed:true},h.owner,409);
+  assert.deepEqual(await h.json('/reports/staff-costs',undefined,h.owner),before);assert.deepEqual((await h.json('/reports/economics',undefined,h.owner)).totals,report.totals);
+  await h.json('/reports/staff-costs/'+f.draft.id+'/approve',{revision:f.draft.id,confirmed:true},h.owner);
+  const approved=await h.json('/reports/economics',undefined,h.owner);assert.equal(approved.totals.staffCostCents,54000);assert.equal(approved.totals.profitCents,72000);assert.deepEqual(approved.totals.aging,f.expectedAging);
+  const lawyer=await h.login('lawyer@example.test');for(const path of ['/reports/economics','/reports/economics/export','/reports/staff-costs'])await h.json(path,undefined,lawyer,403);
+  assert.deepEqual((await h.json('/reports/economics',undefined,h.owner)).totals,approved.totals);
+  const artifact=await(await h.request('/api/satchel/reports/economics/export',undefined,h.owner)).json();assert.deepEqual(artifact.totals,approved.totals);assert.equal(artifact.asOf,economicsClock);
+ }finally{await h.close();}
 });

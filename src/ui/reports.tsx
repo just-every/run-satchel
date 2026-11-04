@@ -1,3 +1,4 @@
+import {Economics} from './economics';
 import {useEffect,useState,type FormEvent} from 'react';
 import {api,Field,type Run} from './common';
 import {ReportTable,reportTotal,type ReportDashboard} from './report-table';
@@ -20,8 +21,8 @@ async function exportReport(dashboard:ReportDashboard,filters:Filters,view='all'
  try{link.href=url;link.download=`satchel-report-${dashboard.id}.csv`;link.click();}finally{link.remove();URL.revokeObjectURL(url);}
 }
 
-export function Reports({run,tick,choose,navigate}:{run:Run;tick:number;choose:(id:string)=>void;navigate:()=>void}){
- const [draft,setDraft]=useState<Filters>(initialFilters),[filters,setFilters]=useState<Filters>(initialFilters);
+export function Reports({principal,run,tick,choose,navigate}:{principal:boolean;run:Run;tick:number;choose:(id:string)=>void;navigate:()=>void}){
+ const [mode,setMode]=useState('case'),[draft,setDraft]=useState<Filters>(initialFilters),[filters,setFilters]=useState<Filters>(initialFilters);
  const [view,setView]=useState<ReportView>(),[selected,setSelected]=useState('status'),[selection,setSelection]=useState('all'),[loading,setLoading]=useState(true);
  useEffect(()=>{
   let active=true;setLoading(true);
@@ -33,6 +34,7 @@ export function Reports({run,tick,choose,navigate}:{run:Run;tick:number;choose:(
  const source=view?.dashboards.find(item=>item.id===selected);
  const dashboard=source&&selection!=='all'?{...source,title:selection==='overdue'?'Overdue '+source.title:'Converted leads',rows:source.rows.filter(r=>selection==='overdue'?r.overdue:r.status==='converted'),count:selection==='overdue'?source.overdueCount??0:source.total??0,total:undefined}:source;
  return <>
+  <div className="actions" aria-label="Report type"><button type="button" aria-pressed={mode==='case'} onClick={()=>setMode('case')}>Case reports</button><button type="button" aria-pressed={mode==='economics'} onClick={()=>setMode('economics')}>Firm economics</button></div>
   <section className="panel"><h2>Report filters</h2>
    <form aria-label="Report filters" onSubmit={apply}>
     <div className="inline">
@@ -44,7 +46,7 @@ export function Reports({run,tick,choose,navigate}:{run:Run;tick:number;choose:(
     <button type="submit" disabled={loading}>Apply report filters</button>
    </form>
   </section>
-  {loading?<p role="status">Opening reports…</p>:view&&<>
+  {mode==='economics'?<Economics principal={principal} filters={filters} run={run} tick={tick} openMatter={id=>{choose(id);navigate();}}/>:loading?<p role="status">Opening reports…</p>:view&&<>
    <p>{view.cohortCount} permitted matters in this cohort · As of {view.today} · {view.timezone}</p>
    <p>Dates use firm-local matter opening / lead receipt. Unattributed leads remain in conversion totals. Case status applies to matters.</p>
    <div className="grid">{view.dashboards.map(item=><section className="panel" key={item.id} aria-labelledby={`report-${item.id}-heading`}>
