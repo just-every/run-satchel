@@ -156,7 +156,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "b5926f3805025229ea0ba07392b24caf00c7cedb0fb51bf93c86e327dcdf5a5f",
+      "sha256": "40a79f5dc81eee8dde1a84dbf92e143cadb58d2fa8b5c3e55a91c3c77e26b0c0",
       "executable": false
     },
     "base-copies.json": {
@@ -172,7 +172,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "be423613a9116cdcf0fee5d1bf04174cc8ec3b15e2f17a16bf0023d31ac84303",
+      "sha256": "736d5a44506aa1451f31dd33ccb49224997e2d19f888717cb3a4ea242053dce7",
       "executable": false
     },
     "DEMO.md": {
@@ -789,6 +789,10 @@
     },
     "migrations/core/0130_document_upload_cleanup.sql": {
       "sha256": "47609159dced8eed32649d3900673e5bd90509d29b473ebdc57b04c70851297b",
+      "executable": false
+    },
+    "migrations/core/0131_document_upload_versions.sql": {
+      "sha256": "a9cb25c95d53d51cffc771f90a635dc6e9b61ff653f29dde71a5c3275244d55b",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -3760,7 +3764,7 @@
       "executable": false
     },
     "src/satchel/document-uploads.ts": {
-      "sha256": "dc395ea912362a2ad567a2a8a8557f49dd42e16bf40a44076af29127310afaee",
+      "sha256": "a56ed0c68233027a0c706797bfde38c6444e70beb8be871b38865d514e10cad5",
       "executable": false
     },
     "src/satchel/documents.ts": {
@@ -4724,11 +4728,11 @@
       "executable": false
     },
     "src/ui/document-uploads.tsx": {
-      "sha256": "871622bb9a4479fd636f532992dcc384e14feeb5773c4ed552c9da0ae4038767",
+      "sha256": "44cd146cc2136d09a73a7837c8c87e2a7bf9923d42f0c9ce9352dc8383c3e8a2",
       "executable": false
     },
     "src/ui/documents.tsx": {
-      "sha256": "25d08935140544c9e1f6647e0061b6f2f6b523dff3c8e28db77f7c4a30352b99",
+      "sha256": "672dfbfc7f5d0bbe84bb29f95f71dfe790e5976167985db1333d117c625f2cf6",
       "executable": false
     },
     "src/ui/ethical-walls.tsx": {
@@ -5212,7 +5216,7 @@
       "executable": false
     },
     "tests/satchel/document-upload-flow.mjs": {
-      "sha256": "a7cd912a03fab791343b7f4be51bdc78e6fb01201858ae0d7eb86887bd63516d",
+      "sha256": "2f891dbeec5b2c3a9a3d5d1206bcbd075d2f1e909bfe90863f38cb147c1445b6",
       "executable": false
     },
     "tests/satchel/expenses-journey.test.mjs": {
