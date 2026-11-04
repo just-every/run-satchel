@@ -1,3 +1,4 @@
+import {refuseEconomicsValue} from './economics-confidentiality';
 import { atomic,audit,human,id,insist,matter,need,now,rows,stmt,text,type Actor,type Data } from './model';
 import { openMatter } from './matters';
 import { prepareBill } from './billing';
@@ -5,7 +6,7 @@ import { proposeDeadline } from './deadlines';
 import { requireArea } from './role-areas';
 import {preparationWrites} from './agent-authority';
 export async function propose(db:D1Database,actor:Actor,kind:string,body:Data,integration?:{id:string;requestKey:string;fingerprint:string}) {
- need(actor,'owner','lawyer'); insist(['matter','bill','deadline'].includes(kind),'Unknown preparation command',404);
+ need(actor,'owner','lawyer');await refuseEconomicsValue(db,body); insist(['matter','bill','deadline'].includes(kind),'Unknown preparation command',404);
  if(kind==='bill')requireArea(actor,'billing','write');
  if(kind!=='matter') await matter(db,actor,text(body.matterId,'Matter'));
  else { text(body.title,'Matter title',200); text(body.client,'Client',200); text(body.adverse,'Adverse party',200); }

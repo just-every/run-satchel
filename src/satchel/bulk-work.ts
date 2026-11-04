@@ -1,3 +1,4 @@
+import {approvedStaffCost} from './staff-costs';
 import {atomic,audit,authority,date,digest,Fault,human,id,insist,integer,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
 import {accessGuard,guard} from './trust-guards';
 import {budgetAlerts,loadPricing,price,pricingGuard,type Pricing} from './rates';
@@ -49,13 +50,13 @@ async function validate(db:D1Database,actor:Actor,input:Data,sourceSystem:string
   const guideline=await currentGuideline(db,m.client);
   let ledes=null;
   if(guideline){const checked=await codeLine(db,guideline,{kind,date:day,created_by:timekeeperEmail,minutes,billed_minutes:q?.billedMinutes,rate_cents:q?.rateCents,utbms_task:task,utbms_activity:activity,utbms_expense:expense},undefined,ordinal,amountCents,description);insist(!checked.problems.length,checked.problems.join('; '));ledes={guidelineId:guideline.id,line:checked.line};}
-  const cost=kind==='time'&&actor.role==='owner'?await stmt(db,'SELECT id,hourly_cents FROM s_approved_staff_cost_rates WHERE email=? AND effective_from<=? ORDER BY effective_from DESC LIMIT 1',timekeeperEmail,day).first<Data>():null;
+  const cost=kind==='time'&&actor.role==='owner'?await approvedStaffCost(db,timekeeperEmail,day):null;
   return {errors:[] as string[],value:{matterId,matterNumber:m.matter_number,timekeeperEmail,sourceSystem,sourceId,kind,date:day,description,minutes,billable:q?q.billable:billable,amountCents,price:q,task,activity,expense,expenseMeta,ledes,costBasis:cost?{approvalId:cost.id,hourlyCents:cost.hourly_cents,costCents:Number((BigInt(minutes!)*BigInt(cost.hourly_cents)+30n)/60n)}:null}};
  }catch(e){if(!(e instanceof Fault))throw e;return {errors:[e.message],value:null};}
 }
 async function policyGuards(db:D1Database,actor:Actor){
  const writes:D1PreparedStatement[]=[];
- for(const table of ['s_utbms_codes','s_ledes_timekeepers','s_ledes_guidelines',...(actor.role==='owner'?['s_staff_cost_rates','s_staff_cost_revisions','s_staff_cost_approvals']:[])]){
+ for(const table of ['s_utbms_codes','s_ledes_timekeepers','s_ledes_guidelines',...(actor.role==='owner'?['s_staff_cost_rates','s_staff_cost_revisions','s_staff_cost_approvals','s_staff_cost_disposals']:[])]){
   const snapshot=await rows(db,`SELECT * FROM ${table} ORDER BY rowid`);
   writes.push(guard(db,`(SELECT json_group_array(json(v)) FROM (SELECT json_object(${Object.keys(snapshot[0]??{}).flatMap(k=>[`'${k}'`,k]).join(',')||"'empty',0"}) v FROM ${table} ORDER BY rowid))=?`,JSON.stringify(snapshot)));
  }
@@ -100,8 +101,8 @@ export async function prepareBulkWork(db:D1Database,actor:Actor,body:Data){
  if(previous){insist(previous.request_digest===requestDigest,'Import request ID was already used for different work',409);return batchJson(await readBatch(db,actor,previous.id),actor);}
  // Even an invalid row must name an accessible matter before we retain it.
  for(const r of inputs)await matter(db,actor,text(r.matterId,'Matter',100));
- const pricing=await loadPricing(db),review=await reviews(db,actor,inputs,sourceSystem,pricing),batchId=id(),revision=id(),at=now(),reviewDigest=await digest(canonical(review));
- await atomic(db,actor,[...inputs.map(r=>accessGuard(db,actor,r.matterId)),pricingGuard(db,pricing),
+ const policies=await policyGuards(db,actor),pricing=await loadPricing(db),review=await reviews(db,actor,inputs,sourceSystem,pricing),batchId=id(),revision=id(),at=now(),reviewDigest=await digest(canonical(review));
+ await atomic(db,actor,[...policies,...inputs.map(r=>accessGuard(db,actor,r.matterId)),pricingGuard(db,pricing),
   stmt(db,"INSERT INTO s_bulk_work_batches(id,created_by,source_system,request_id,request_digest,revision,review_digest,status,created_at) VALUES(?,?,?,?,?,?,?,'review',?)",batchId,actor.email,sourceSystem,requestId,requestDigest,revision,reviewDigest,at),
   ...inputs.map((r,i)=>stmt(db,'INSERT INTO s_bulk_work_rows(id,batch_id,ordinal,matter_id,original_json,input_json,review_json) VALUES(?,?,?,?,?,?,?)',id(),batchId,i+1,r.matterId,canonical(r),canonical(r),canonical(review[i]))),
   audit(db,actor,'bulk_work.prepared',batchId,JSON.stringify({sourceSystem,rows:inputs.length,reviewDigest}))]);
@@ -114,8 +115,8 @@ export async function repairBulkRow(db:D1Database,actor:Actor,batchId:string,bod
  insist(body.row&&typeof body.row==='object'&&!Array.isArray(body.row),'Give the complete repaired row');
  const inputs=b.list.map((r:Data,i:number)=>i===index?JSON.parse(canonical(body.row)):JSON.parse(r.input_json));
  for(const r of inputs)await matter(db,actor,text(r.matterId,'Matter',100));
- const pricing=await loadPricing(db),review=await reviews(db,actor,inputs,b.source_system,pricing),revision=id(),reviewDigest=await digest(canonical(review));
- await atomic(db,actor,[guard(db,"EXISTS(SELECT 1 FROM s_bulk_work_batches WHERE id=? AND revision=? AND status='review')",batchId,b.revision),pricingGuard(db,pricing),...inputs.map((r:Data)=>accessGuard(db,actor,r.matterId)),...b.list.map((r:Data)=>accessGuard(db,actor,JSON.parse(r.original_json).matterId)),
+ const policies=await policyGuards(db,actor),pricing=await loadPricing(db),review=await reviews(db,actor,inputs,b.source_system,pricing),revision=id(),reviewDigest=await digest(canonical(review));
+ await atomic(db,actor,[...policies,guard(db,"EXISTS(SELECT 1 FROM s_bulk_work_batches WHERE id=? AND revision=? AND status='review')",batchId,b.revision),pricingGuard(db,pricing),...inputs.map((r:Data)=>accessGuard(db,actor,r.matterId)),...b.list.map((r:Data)=>accessGuard(db,actor,JSON.parse(r.original_json).matterId)),
   ...inputs.map((r:Data,i:number)=>stmt(db,'UPDATE s_bulk_work_rows SET matter_id=?,input_json=?,review_json=? WHERE id=?',r.matterId,canonical(r),canonical(review[i]),b.list[i].id)),
   stmt(db,'UPDATE s_bulk_work_batches SET revision=?,review_digest=? WHERE id=?',revision,reviewDigest,batchId),
   audit(db,actor,'bulk_work.repaired',batchId,canonical({rowId:body.rowId,before:JSON.parse(b.list[index].input_json),after:inputs[index],reviewDigest}))]);

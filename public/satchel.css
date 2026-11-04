@@ -31,3 +31,16 @@
 .firm-search .search-filters { display:grid; gap:.6rem; padding:.6rem 0; }
 .firm-search summary, .firm-search small { font-size:13px; }
 .firm-search select { width:100%; min-width:0; box-sizing:border-box; }
+
+/* Economics uses the workspace's existing surfaces and full borders. */
+.economics { min-width:0; overflow-wrap:anywhere; }
+.economics-figures { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr)); gap:1rem; margin:1.5rem 0; }
+.economics-figures>div,.economics-source { border:1px solid var(--hairline); border-radius:8px; padding:1rem; min-width:0; }
+.economics-figures dt { font-size:14px; }
+.economics-figures dd { font-size:18px; margin-top:.4rem; }
+.economics-figures dd+dd { font-size:13px; color:var(--muted); }
+.economics-source { margin:1rem 0; }
+.economics-source h3 { margin-top:0; }
+.economics-source p { font-size:14px; }
+.economics-source dl { display:grid; gap:.5rem; }
+.economics details>dl>div { margin:1rem 0; }

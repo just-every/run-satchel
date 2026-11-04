@@ -1,3 +1,4 @@
+import {refuseEconomicsValue} from './economics-confidentiality';
 import {recoverDocumentUploads} from './document-uploads';
 import {restoredProposalSponsorLinks} from './proposal-sponsors.ts'
 import {requireWholeFirmWallAccess} from './wall-doors';
@@ -30,13 +31,26 @@ export async function backup(db:D1Database,actor:Actor,originals:R2Bucket) {
 export async function restoreStream(db:D1Database,actor:Actor,source:ReadableStream<Uint8Array>,confirm:string,originals:R2Bucket,laterJournal?:LaterJournal) {
  human(actor);need(actor,'owner');insist(confirm==='RESTORE','Type RESTORE to confirm an empty-destination restore');
  const service=await serviceFor(db,originals),hash=createHash('sha256');let job:string|undefined,closing:{archiveHash:string;contentHash:string}|undefined;
+ const costIds=new Set<string>(),capturedCostIds=new Set<string>();
  const measured=source.pipeThrough(new TransformStream<Uint8Array,Uint8Array>({transform(chunk,controller){hash.update(chunk);controller.enqueue(chunk);}}));
  try{for await(const item of readArchive(measured)){
   if(item.kind==='manifest')job=await service.imports.create(item,actor.id);
-  else if(item.kind==='part'){insist(job,'Missing archive manifest');await service.imports.uploadPart(job,item.index,item);}
+  else if(item.kind==='part'){
+   insist(job,'Missing archive manifest');
+   for(const record of item.items)if(record.kind==='row'){
+    if(['s_staff_cost_rates','s_staff_cost_revisions'].includes(record.table)){insist(typeof record.row.id==='string','Invalid archived cost revision',409);costIds.add(record.row.id);}
+    // Cost and report custody have their own authenticated archive boundary.
+    // Ordinary records cannot become an alternate release of those payloads.
+    const nativeCustody=/^s_(staff_cost_|economics_)/.test(record.table)||(record.table==='s_audit'&&typeof record.row.action==='string'&&/^report\.(staff_cost_|economics_)/.test(record.row.action));
+    if(record.table==='s_bulk_work_rows')await refuseEconomicsValue(db,{original:record.row.original_json,input:record.row.input_json},capturedCostIds);
+    else if(!nativeCustody)await refuseEconomicsValue(db,record.row,capturedCostIds);
+   }
+   await service.imports.uploadPart(job,item.index,item);
+  }
   else closing=item;
  }
  insist(job&&closing,'Incomplete archive');
+ insist(![...capturedCostIds].some(reference=>costIds.has(reference)),'Confidential economics must stay in authenticated internal reporting',422);
  const result=await service.imports.finalize(job,{archiveHash:closing.archiveHash,contentHash:closing.contentHash,laterJournal});
  if(result.phase==='complete')await atomic(db,actor,[stmt(db,'DELETE FROM s_proposal_sponsor_links'),restoredProposalSponsorLinks(db),audit(db,actor,'firm.archive_restored','firm',JSON.stringify({importId:job,sha256:hash.digest('hex'),archiveHash:closing.archiveHash,contentHash:closing.contentHash,decision:'RESTORE into empty product data'}))]);
  return result;

@@ -10,6 +10,7 @@ export async function proveWriteoffReversal(){
   const before=await h.json(payment,undefined,s.client),amount=12000;
   const original=await h.json('/invoices/'+bill.id+'/writeoff',{requestKey:'concession-for-billing-review',revision:bill.revision,cents:amount,reason:'Principal approved a concession pending review of duplicated services',approve:true},h.owner);
   assert.equal((await h.json(payment,undefined,s.client)).dueCents,before.dueCents-amount);
+  const writeoffAsOf=(await h.json('/reports/economics',undefined,h.owner)).asOf;
   const voidDecision={revision:bill.revision,reason:'Principal reviews replacing this invoice'};
   await h.json('/invoices/'+bill.id+'/void',voidDecision,h.owner,409);
   const artifact=await(await h.request('/api/satchel/bills/'+bill.id+'/export',undefined,h.owner)).text();
@@ -19,9 +20,11 @@ export async function proveWriteoffReversal(){
   await designate(h);const account=await h.json('/trust/accounts',{name:'Operating finance corrections',kind:'operating',bankReference:'synthetic-satchel-writeoff-bank'},h.owner);
   const check=await h.json('/offline-payments',{requestKey:'synthetic-satchel-writeoff-check',payer:s.m.client,method:'check',reference:'synthetic-satchel-writeoff-check',purpose:'operating',receivedDate:'2026-10-01',depositDate:'2026-10-01',operatingAccountId:account.id,cents:30000,allocations:[{billId:bill.id,cents:25500}]},h.owner);
   assert.equal(check.creditCents,4500);assert.equal((await h.json(payment,undefined,s.client)).dueCents,0);
+  const receiptAsOf=(await h.json('/reports/economics',undefined,h.owner)).asOf;
   const returned={requestKey:'synthetic-satchel-writeoff-bounce',kind:'bounce',reason:'Bank returned the original check'};
   await h.json('/offline-payments/'+check.id+'/actions',returned,h.owner);await h.json('/offline-payments/'+check.id+'/actions',returned,h.owner);
   assert.equal((await h.json(payment,undefined,s.client)).dueCents,before.dueCents-amount,'A returned receipt leaves the independent approved write-off intact');
+  const bouncedAsOf=(await h.json('/reports/economics',undefined,h.owner)).asOf;
   const reversal={requestKey:'restore-reviewed-concession',writeoffId:original.id,revision:bill.revision,cents:5000,reason:'Finance reviewed the source work and approved restoring this part of the receivable',approve:true};
   await h.json(path,reversal,s.client,403);
   const clientMember=(await h.json('/state',undefined,h.owner)).members.find(m=>m.role==='client');assert.ok(clientMember);
@@ -43,6 +46,7 @@ export async function proveWriteoffReversal(){
   assert.equal(first.funds.due_cents,before.dueCents-7000);
   for(const changed of [{cents:5001},{reason:'Different finance decision'},{writeoffId:crypto.randomUUID()}])await h.json(path,{...reversal,...changed},h.owner,409);
   await h.json(path,{...reversal,requestKey:'excess-restoration',cents:7001},h.owner,409);
+  const partialReversalAsOf=(await h.json('/reports/economics',undefined,h.owner)).asOf;
   const final=await h.json(path,{...reversal,requestKey:'restore-remaining-concession',cents:7000,reason:'Principal completed review and approved restoring the remainder'},h.owner);
   assert.equal(final.writeoffs.find(w=>w.id===original.id).remainingCents,0);
   assert.equal(final.funds.written_off_cents,0);assert.equal(final.funds.paid_cents,0);assert.equal(final.funds.due_cents,before.dueCents);
@@ -56,6 +60,10 @@ export async function proveWriteoffReversal(){
   assert.equal((await restored.json(path,reversal,restored.owner)).reversals.length,2);
   await h.json('/invoices/'+bill.id+'/void',voidDecision,h.owner);
   assert.equal(await(await h.request('/api/satchel/bills/'+bill.id+'/export',undefined,h.owner)).text(),artifact,'Finance corrections preserve the original issued artifact');
+  const pastWriteoff=await h.json('/reports/economics?asOf='+encodeURIComponent(writeoffAsOf),undefined,h.owner),pastReceipt=await h.json('/reports/economics?asOf='+encodeURIComponent(receiptAsOf),undefined,h.owner),pastBounce=await h.json('/reports/economics?asOf='+encodeURIComponent(bouncedAsOf),undefined,h.owner),pastReversal=await h.json('/reports/economics?asOf='+encodeURIComponent(partialReversalAsOf),undefined,h.owner);
+  assert.equal(pastWriteoff.totals.aging.unknown,63000);assert.equal(pastWriteoff.totals.paidCents,0);
+  assert.equal(pastReceipt.totals.aging.unknown,37500);assert.equal(pastReceipt.totals.paidCents,25500);assert.equal(pastReceipt.totals.collectionRate,25500/75000);
+  assert.equal(pastBounce.totals.aging.unknown,63000);assert.equal(pastBounce.totals.paidCents,0);assert.equal(pastReversal.totals.aging.unknown,68000);assert.equal(pastReversal.totals.paidCents,0);
   const wallOwner=['synthetic-satchel-custodian','example.test'].join('@');
   await h.json('/team',{email:wallOwner,name:'Finance wall custodian',role:'lawyer'},h.owner);await h.json('/team/invite',{email:wallOwner},h.owner);await h.login(wallOwner);
   await h.json('/matters/'+s.m.id+'/wall',{revision:null,custodianEmail:wallOwner,members:[wallOwner],reason:'Finance access withdrawn after the retained decisions'},h.owner);
