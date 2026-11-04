@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { marked, Renderer } from 'marked'
 import { run } from '../run'
+import { withAgentReference } from '../../satchel/door/catalogue.ts'
 
 export type DocsPage = { slug: string; title: string; summary: string; source: string; html: string; toc: { id: string; text: string }[] }
 type Section = { title: string; pages: [slug: string, title: string, summary: string, source: string][] }
@@ -26,6 +27,7 @@ const SECTIONS: Section[] = [
   ] },
   { title: 'Reference', pages: [
     ['importing', 'Import format', 'The CSV columns, limits, journal, resume and undo.', 'IMPORTING.md'],
+    ['agents', 'Company preparation agents', 'The current MCP jobs, scopes, classes, fixtures and preparation authority.', 'docs/agents.md'],
     ['api', 'API', 'Agent keys, preparation routes and the decisions people record.', 'API.md'],
     ['operations', 'Install and operate', 'Owner installation, deployment to your Cloudflare account and operations.', 'README.md'],
   ] },
@@ -78,7 +80,7 @@ function render(markdown: string, from: string) {
 
 export const docsSections = SECTIONS.map(section => ({
   title: section.title,
-  pages: section.pages.map(([slug, title, summary, source]): DocsPage => ({ slug, title, summary, source, ...render(readFileSync(resolve(source), 'utf8'), source) })),
+  pages: section.pages.map(([slug, title, summary, source]): DocsPage => ({ slug, title, summary, source, ...render(source === 'docs/agents.md' ? withAgentReference(readFileSync(resolve(source), 'utf8')) : readFileSync(resolve(source), 'utf8'), source) })),
 }))
 export const docsPages = docsSections.flatMap(section => section.pages)
 export const docsLead = 'Run Satchel on your own computer, open conflict-reviewed matters, bill exact USD work and keep every original.'

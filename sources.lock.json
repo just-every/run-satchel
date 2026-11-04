@@ -148,7 +148,7 @@
       "executable": false
     },
     "agent-surface.json": {
-      "sha256": "57d0d0ee551aa35b5fcbe2d55cdd7dd6f6ea34c79b108b901445057cd43aa06b",
+      "sha256": "f8d3ca82ab6d4bb90229652de0b4d48cf447d554b3ae1661c16bbbd86c969859",
       "executable": false
     },
     "AGENTS.md": {
@@ -172,7 +172,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "be423613a9116cdcf0fee5d1bf04174cc8ec3b15e2f17a16bf0023d31ac84303",
+      "sha256": "717e54165f6f49e3e20aabfd301767e752e0966881b73cd9dca19b77e3022a9b",
       "executable": false
     },
     "DEMO.md": {
@@ -192,7 +192,7 @@
       "executable": false
     },
     "docs/agents.md": {
-      "sha256": "07990ca920c69ee788f178255f87189371de5441c56a399a5bfca8bfc5c8b952",
+      "sha256": "5dd7a26c399d3c3a595e1d8c27475d599f09aecbd661c2cdbd0aa603593f4707",
       "executable": false
     },
     "docs/assembly-font-license.txt": {
@@ -1073,6 +1073,10 @@
     },
     "RUN-LOCALLY.md": {
       "sha256": "9d67dd21ac12b22f893dfd62aab4e9c0501f4b4b1897146570fea9d2bf171fb5",
+      "executable": false
+    },
+    "scripts/agent-reference.mjs": {
+      "sha256": "0a746fe30814ce577b3f0bf4f432a347d06ca836e5bb8d7ce4df94b53e3e5bec",
       "executable": false
     },
     "scripts/build-deployment-spec.mjs": {
@@ -3771,8 +3775,12 @@
       "sha256": "50364241f1e0aa0d3e74f9e10278ca36ef219e081e65589a64fb6b067930965b",
       "executable": false
     },
+    "src/satchel/door/catalogue.ts": {
+      "sha256": "9b3b5450f0ea27ba835f75b3dbee55a273cee5b14b778c48c9a333a01a2153ae",
+      "executable": false
+    },
     "src/satchel/door/index.ts": {
-      "sha256": "3da7d1b53a0919560bfdcd4a254f867259ae84714a6abdf9c778886e71e58fe7",
+      "sha256": "a3b4bfd9215f1b35fba2d90e31e8f88116121e954666c9a613d573e373ac664f",
       "executable": false
     },
     "src/satchel/door/native.ts": {
@@ -3788,7 +3796,7 @@
       "executable": false
     },
     "src/satchel/door/tools.ts": {
-      "sha256": "eb2a27f08e65761fe1b01c9863d1ef118941c83ad55b860892509fbfaeea2c0a",
+      "sha256": "ffa91518498d6514edb3dea619b952a2723102649431cfb4ace398c6a262a713",
       "executable": false
     },
     "src/satchel/economics.ts": {
@@ -4468,7 +4476,7 @@
       "executable": false
     },
     "src/site/docs/DocsArticle.tsx": {
-      "sha256": "1eacf8200936dcac26bb109ab04b52847c3562e318e0d5bb67400eb46cc3ee40",
+      "sha256": "10a77983613447645b9c318afe70adc0dc69895bef27148ed0eaf6623d3247bb",
       "executable": false
     },
     "src/site/docs/DocsIndex.tsx": {
@@ -4480,7 +4488,7 @@
       "executable": false
     },
     "src/site/docs/source.ts": {
-      "sha256": "095509a3054c50018957c23fcaf65ead650383c591ae5578e5b6bd3e3c906406",
+      "sha256": "0a3431ed7ffe012e75e9bd3f65cea653784bdee5ba1fc97b318ba7505c1e371b",
       "executable": false
     },
     "src/site/landing/Landing.tsx": {
@@ -4580,7 +4588,7 @@
       "executable": false
     },
     "src/site/styles/docs.css": {
-      "sha256": "7f8c55b966988a717b6ce27395199ba086e55721457c14eb4be159494a677549",
+      "sha256": "a3946faf2b014513e7bb30c8d2cbdc63e39d544ed96e8d885e78ce662977e7a5",
       "executable": false
     },
     "src/site/styles/landing.css": {
@@ -5060,7 +5068,11 @@
       "executable": false
     },
     "tests/agent-door/native-journey.mjs": {
-      "sha256": "0b1377c01805aaf5b35b763554570704fa2a35ff51158e8a49a5d3ba1e9e6bc2",
+      "sha256": "974ca5d2dd2e3e8cf8dc9cb4e402557a1e3ba460ce417f8a0b52aa21cba542da",
+      "executable": false
+    },
+    "tests/agent-door/reference.mjs": {
+      "sha256": "d2d6df7949f3f7c6fffcafb325f3805bfb02dc7aca3e5bfc66dc004ce2e2e4db",
       "executable": false
     },
     "tests/email-link.mjs": {
@@ -5304,7 +5316,7 @@
       "executable": false
     },
     "tests/satchel/journey.test.mjs": {
-      "sha256": "5ddc3e2d7fb7181f4799aeda28bbb2c44acee29bb3e2451d04883bf020e0070e",
+      "sha256": "95da9f1bb9a21ed5de5aa7f550ac25d3a1ca17881fc3d825e5d03834bb5245cd",
       "executable": false
     },
     "tests/satchel/leads-journey.test.mjs": {
@@ -5667,8 +5679,16 @@
       "sha256": "62b9b817d6464cb347a9e62de8136a03a8b2a12095691569ef55db8207f32a23",
       "executable": false
     },
+    "tests/site/agent-reference-browser.mjs": {
+      "sha256": "c4a5a5df85ebc3fbb3b6eb60d28075d48e14845e7c56bb419218d9c866aee5bf",
+      "executable": false
+    },
     "tests/site/navigation.test.mjs": {
-      "sha256": "30278e554dc37734f7f30dd27495258cf7d4325968af0b1d19b5956477dfadb2",
+      "sha256": "50650866501936c8aab20b82147ee48e43b2b62916e90596f56b2cbf10254b5f",
+      "executable": false
+    },
+    "tests/site/serve.mjs": {
+      "sha256": "3eeff284cf847a3207de0a0135a34aa0888a5317f335e95d222673bfab9fe61a",
       "executable": false
     },
     "tsconfig.json": {

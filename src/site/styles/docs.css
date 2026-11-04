@@ -22,9 +22,9 @@
 /* A docs page: sidebar, article, contents */
 .docs-shell { display: grid; grid-template-columns: 236px minmax(0, 1fr) 220px; gap: 56px; padding-top: 48px; padding-bottom: 96px; }
 .docs-sidebar { position: sticky; top: 24px; align-self: start; padding-left: 18px; font-size: 15px; }
-.docs-nav-home { display: inline-block; margin-bottom: 18px; padding: 9px 18px 9px 16px; border-radius: 0 8px 8px 0; margin-left: -18px; background: var(--walnut); color: #fff; font-size: 12.5px; font-weight: 750; letter-spacing: .18em; text-transform: uppercase; text-decoration: none; box-shadow: inset 6px 0 0 rgba(255, 255, 255, .13); }
+.docs-nav-home { display: inline-block; margin-bottom: 18px; padding: 9px 18px 9px 16px; border-radius: 0 8px 8px 0; margin-left: -18px; background: var(--walnut); color: #fff; font-size: 13px; font-weight: 750; letter-spacing: .18em; text-transform: uppercase; text-decoration: none; box-shadow: inset 6px 0 0 rgba(255, 255, 255, .13); }
 .docs-nav-group + .docs-nav-group { margin-top: 20px; }
-.docs-nav-section { margin-bottom: 6px; color: var(--muted-2); font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+.docs-nav-section { margin-bottom: 6px; color: var(--muted-2); font-size: 13px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
 .docs-nav-group a { display: block; padding: 6px 10px; margin-left: -10px; border-radius: 6px; color: var(--text); text-decoration: none; }
 .docs-nav-group a:hover { background: var(--surface-sunk); }
 .docs-nav-group a[aria-current] { background: #dcebea; color: var(--ink); font-weight: 650; }
@@ -47,7 +47,7 @@
 .docs-prose code { padding: 1px 6px; border-radius: 5px; background: #e4eeed; color: var(--ink); font: 500 .86em var(--font-mono); overflow-wrap: anywhere; }
 .docs-prose blockquote { margin: 22px 0; padding: 4px 20px; border-left: 4px solid var(--brass); background: var(--amber-bg); color: #4a3a22; border-radius: 0 8px 8px 0; }
 .docs-code { margin: 20px 0 24px; border-radius: 12px; background: var(--petrol-night); color: #eef6f6; overflow: hidden; box-shadow: var(--shadow-card); }
-.docs-code-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px 0 20px; color: #9fc0c4; font-size: 12.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.docs-code-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px 0 20px; color: #9fc0c4; font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
 .docs-copy { min-height: 30px; padding: 0 12px; border: 1px solid rgba(238, 246, 246, .35); border-radius: 999px; background: transparent; color: inherit; font: 500 13px/1 var(--font-ui); cursor: pointer; letter-spacing: 0; text-transform: none; }
 .docs-copy:hover { background: rgba(238, 246, 246, .1); }
 .docs-code pre { margin: 0; padding: 12px 20px 18px; overflow-x: auto; font: 500 14.5px/1.7 var(--font-mono); }
@@ -56,13 +56,16 @@
 .docs-table table { width: 100%; font-size: 15px; line-height: 1.5; }
 .docs-table th, .docs-table td { padding: 11px 16px; border-bottom: 1px solid var(--hairline); text-align: left; vertical-align: top; }
 .docs-table th { background: #e8f0ef; color: var(--ink); font-weight: 700; }
+.docs-table code { font-size: 13px; }
+.agent-reference .docs-table table { min-width: 720px; }
+.agent-reference .docs-table code { overflow-wrap: normal; white-space: nowrap; }
 .docs-table tr:last-child td { border-bottom: 0; }
 .docs-pager { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 56px; max-width: 760px; }
 .docs-pager-link { display: grid; gap: 4px; padding: 18px 22px; color: var(--ink); font-weight: 750; font-size: 18px; text-decoration: none; }
 .docs-pager-link span { color: var(--muted-2); font-size: 13px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
 .docs-pager-link.is-next { text-align: right; }
 .docs-toc { position: sticky; top: 24px; align-self: start; font-size: 14.5px; }
-.docs-toc p { margin-bottom: 8px; color: var(--muted-2); font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+.docs-toc p { margin-bottom: 8px; color: var(--muted-2); font-size: 13px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
 .docs-toc li { padding: 5px 0 5px 12px; border-left: 2px solid var(--hairline); }
 .docs-toc a { color: var(--muted); text-decoration: none; }
 .docs-toc a:hover { color: var(--ink); }
