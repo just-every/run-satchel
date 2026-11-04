@@ -39,6 +39,7 @@ export const areaRules:[RegExp,string[]][]=[
  rule('/portal/invoices/'+seg+'/(payment|checkout)',['billing']),
  rule('/(client-reminder-templates|matters/'+seg+'/client-reminders|matters/'+seg+'/client-reminders/schedule)',['contacts','documents','billing']),
  rule('/(matters/'+seg+'/correspondence|mail-attempts/'+seg+'/(send|resend-review|reconcile))',['contacts','documents','billing']),
+ rule('/(matters/'+seg+'/document-uploads|document-uploads/'+seg+'/(parts/'+seg+'|complete|cancel))',['documents']),
  rule('/matters/'+seg+'/fields',['documents:read']),
  rule('/matters/'+seg+'/(lifecycle|closure-preview|close|reopen)',['documents:read','billing:read','rates:all','bank:full']),
  rule('/audit(/export)?',['settings:read','contacts:read','documents:read','billing:read','rates:all','bank:full']),

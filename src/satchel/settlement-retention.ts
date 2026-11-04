@@ -26,7 +26,7 @@ export async function disposeSettlement(db:D1Database,actor:Actor,matterId:strin
  const retention=await stmt(db,'SELECT * FROM s_retention WHERE matter_id=? AND document_id IS NULL AND superseded_at IS NULL',matterId).first<Data>();
  insist(retention,'Settlement evidence needs a matter retention schedule',409);
  insist(retention.dispose_after<=today,`Its retention runs until ${retention.dispose_after}`,409);
- const at=now(),service=await createPortability({db,buckets:{originals},policy});
+ const at=now(),service=await createPortability({db,buckets:{originals,matterOriginals:originals},policy});
  await atomic(db,actor,[...matterGuard(db,actor,matterId),
   guard(db,`NOT ${retainedFeeBill}`,matterId),
   guard(db,'NOT EXISTS(SELECT 1 FROM s_holds WHERE matter_id=? AND released_at IS NULL)',matterId),
