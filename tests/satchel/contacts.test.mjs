@@ -1,3 +1,4 @@
+import {representativeFixture,representativeAddress} from './contact-representative-flow.mjs';
 import {authorizeAgent} from './agent-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -109,7 +110,9 @@ test('INTAKE-004 INTAKE-005 imported insurer aliases retain every source, relati
   assert.deepEqual((await h.json('/matters/'+cleared.id,undefined,h.owner)).conflict,recorded,'Reopening never rewrites the reviewed search or its clearance evidence');
   const preferenceAudit=await h.json('/audit?action=contact.preferences_recorded',undefined,h.owner);assert.equal(preferenceAudit.records.length,4);assert.ok(preferenceAudit.records.every(r=>r.evidence.record.recordType==='s_contact_preferences'&&r.evidence.record.source));
   const audit=await h.json('/audit?action=contact.merged',undefined,h.owner);assert.equal(audit.records[0].evidence.record.recordType,'s_contact_merges');assert.equal(audit.records[0].evidence.record.survivor_id,a.id);
+  const representative=await representativeFixture(h,m1,{represented:representativeAddress('client'),recipient:representativeAddress('deleg'),successor:representativeAddress('stranger')}),evidence=await representative.record(representative.recipient);await representative.review(evidence.id);
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();target=await harness();assert.equal((await target.json('/restore',{archive,confirm:'RESTORE'},target.owner)).phase,'complete');
+  const evidenceHistory=(await target.json('/contacts/'+representative.contact.id+'/representatives',undefined,target.owner)).evidence;assert.equal(evidenceHistory[0].id,evidence.id);assert.equal(evidenceHistory[0].authority_evidence,evidence.evidence[0].authority_evidence);assert.equal(evidenceHistory[0].verification_evidence,evidence.evidence[0].verification_evidence);assert.equal(evidenceHistory[0].reviews[0].local,0,'An archived principal review is retained history and confers no installation authority');
   assert.deepEqual(await target.json('/contacts',undefined,target.owner),await h.json('/contacts',undefined,h.owner));assert.equal((await target.json('/matters/'+historic.id,undefined,target.owner)).conflict.matches,historicMatches);assert.deepEqual((await target.json('/matters/'+cleared.id,undefined,target.owner)).conflict,recorded);await target.restart();assert.deepEqual((await target.json('/matters/'+cleared.id,undefined,target.owner)).conflict,recorded);
  }finally{await target?.close();await h.close();}
 });

@@ -85,7 +85,7 @@ test('CLIENT-001 two co-clients, a payer and a delegate each reach only their ow
   await h.json('/portal/matters/'+m.id+'/requests',undefined,payer,404);
   for(const path of [base+'/timeline',base+'/documents',base+'/threads','/state','/search?q=release'])await h.json(path,undefined,payer,403);
   const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(archive.includes('co_client'));
-  await representativePortalFlow(h);
+  await representativePortalFlow();
   // An ethical wall closes every portal read door even when the person retains a grant.
   await h.json(base+'/wall',{custodianEmail:'lawyer@example.test',members:[],reason:'Separate conflicting representation',revision:null},h.owner);
   for(const cookie of [client,coclient,second,payer,delegate]){

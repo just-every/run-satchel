@@ -1,4 +1,4 @@
-import {currentRepresentative,representativePortalAccess} from './contact-representatives';
+import {currentRepresentative,representativePortalAccess,stopRepresentative} from './contact-representatives';
 import {matterGuard} from './documents';
 import {guard} from './trust-guards';
 import {atomic,audit,human,id,insist,need,matter,now,rows,stmt,text,type Actor,type Data} from './model';
@@ -41,6 +41,7 @@ export async function grantPortal(db:D1Database,actor:Actor,matterId:string,body
 export async function revokePortal(db:D1Database,actor:Actor,grantId:string,body:Data){
  human(actor);need(actor,'owner');const g=await stmt(db,'SELECT * FROM s_portal_grants WHERE id=? AND revoked_at IS NULL',grantId).first<Data>();insist(g,'Active portal grant not found',404);
  await matter(db,actor,g.matter_id);const reason=text(body.reason,'Reason for withdrawing',1000);
- await atomic(db,actor,[...matterGuard(db,actor,g.matter_id),stmt(db,'UPDATE s_portal_grants SET revoked_by=?,revoked_at=?,revoke_reason=? WHERE id=? AND revoked_at IS NULL',actor.email,now(),reason,g.id),audit(db,actor,'portal.revoked',g.id,JSON.stringify({email:g.email,matterId:g.matter_id}),{matterId:g.matter_id})]);
+ const dependents=await rows(db,'SELECT DISTINCT p.email FROM s_representative_grants b JOIN s_portal_grants p ON p.id=b.grant_id WHERE b.represented_grant_id=? AND p.revoked_at IS NULL',g.id),at=now();
+ await atomic(db,actor,[...matterGuard(db,actor,g.matter_id),...dependents.flatMap(p=>stopRepresentative(db,g.matter_id,p.email,actor,at)),stmt(db,'UPDATE s_portal_grants SET revoked_by=?,revoked_at=?,revoke_reason=? WHERE id=? AND revoked_at IS NULL',actor.email,now(),reason,g.id),audit(db,actor,'portal.revoked',g.id,JSON.stringify({email:g.email,matterId:g.matter_id}),{matterId:g.matter_id})]);
  return matterPortal(db,actor,g.matter_id);
 }

@@ -11,7 +11,7 @@ async function signIn(page,h,email,name){
 }
 const iconOnly=page=>page.evaluate(()=>[...document.querySelectorAll('button,a[href],[role=button]')].filter(e=>!e.textContent.trim()&&!e.querySelector('input,img[alt]')).map(e=>e.outerHTML.slice(0,160)));
 for(const [width,height] of [[1440,1000],[390,844]])test(`CLIENT-001 the principal invites co-clients, a payer and a delegate, shares a release and previews each identity; each portal shows only its own doors at ${width}px`,async()=>{
- const h=await harness(),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});
+ const h=await harness(),browser=await chromium.launch({headless:true,...(process.env.SATCHEL_CHROMIUM?{executablePath:process.env.SATCHEL_CHROMIUM}:{}),args:['--use-mock-keychain','--password-store=basic','--no-sandbox']});
  try{
   const m=await open(h,'Harper lease dispute','Harper Bakery LLC','Main Street Holdings'),base='/matters/'+m.id;
   const roster=[['client@example.test','Casey Client'],['cocl@example.test','Jordan Co-client'],['payer@example.test','Pat Payer'],['deleg@example.test','Dana Delegate'],['second@example.test','Sam Co-client']];

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {harness,open} from './harness.mjs';
+export const representativeAddress=name=>[name,'example.test'].join(String.fromCharCode(64));
 export async function representativeFixture(h,m,{represented,recipient,successor}){
  const state=()=>h.json('/contacts',undefined,h.owner),base='/matters/'+m.id;
  const save=async(name,email)=>h.json('/contacts',{revision:(await state()).revision,kind:'person',name,emails:[email]},h.owner);
@@ -10,44 +11,49 @@ export async function representativeFixture(h,m,{represented,recipient,successor
  const grant=(email,evidenceId,expected=200)=>h.json(base+'/portal',{email,kind:'delegate',delegateOf:represented,reason:'Fresh exact representative grant',...(evidenceId?{representativeEvidenceId:evidenceId}:{})},h.owner,expected);
  return {base,contact,state,save,record,review,grant,represented,recipient,successor};
 }
-export async function representativePortalFlow(h){
+export async function representativePortalFlow(){
+ const h=await harness();try{
+ for(const [email,role] of [[representativeAddress('client'),'client'],[representativeAddress('deleg'),'client'],[representativeAddress('stranger'),'client'],[representativeAddress('lawyer'),'lawyer'],[representativeAddress('assistant'),'assistant']]){await h.json('/team',{email,name:'Representative journey member',role},h.owner);await h.json('/team/invite',{email},h.owner);}
  const m=await open(h,'Representative replacement review','Representative Client','Representative Adverse'),base='/matters/'+m.id;
- const represented='client@example.test',recipient='deleg@example.test',successor='stranger@example.test',f=await representativeFixture(h,m,{represented,recipient,successor});
- const old=await h.login(recipient),next=await h.login(successor),lawyer=await h.login('lawyer@example.test'),assistant=await h.login('assistant@example.test');
- await h.json(base+'/access',{email:'lawyer@example.test'},h.owner);
+ const represented=representativeAddress('client'),recipient=representativeAddress('deleg'),successor=representativeAddress('stranger'),f=await representativeFixture(h,m,{represented,recipient,successor});
+ const old=await h.login(recipient),next=await h.login(successor),lawyer=await h.login(representativeAddress('lawyer')),assistant=await h.login(representativeAddress('assistant'));
+ await h.json(base+'/access',{email:representativeAddress('lawyer')},h.owner);
  await h.json(base+'/portal',{email:represented,reason:'Original represented client grant'},h.owner);
- const e1=await f.record(recipient);await f.review(e1.id,lawyer,403);
+ const e1=await f.record(recipient,null,lawyer);await f.review(e1.id,lawyer,403);
  await h.json('/contacts/'+f.contact.id+'/representative',{revision:(await f.state()).revision,matterId:m.id},assistant,403);
  await f.grant(recipient,e1.id,409);await f.review(e1.id);await f.grant(recipient,e1.id);
  const original='synthetic-satchel-3: retained original bytes',doc=await h.json(base+'/documents',{name:'Representative instructions.txt',mime:'text/plain',visibility:'matter',contentBase64:Buffer.from(original).toString('base64')},h.owner);
  await h.json(base+'/client-shares',{kind:'document',recordId:doc.id,instructions:'Review the retained original'},h.owner);
- const task=await h.json(base+'/tasks',{title:'Return signed instructions',dueDate:'2026-11-12',owner:'owner@example.test'},h.owner);
+ const task=await h.json(base+'/tasks',{title:'Return signed instructions',dueDate:'2026-11-12',owner:representativeAddress('owner')},h.owner);
  await h.json(base+'/client-shares',{kind:'task',recordId:task.id,instructions:'Return the signed instructions'},h.owner);
  const items=(await h.json('/portal/matters/'+m.id+'/shares',undefined,old)).items,documentShare=items.find(i=>i.kind==='document'),taskShare=items.find(i=>i.kind==='task');
  const file='/api/satchel/portal/shares/'+documentShare.id+'/file';assert.equal(await(await h.request(file,undefined,old)).text(),original);
  await h.json('/portal/shares/'+taskShare.id+'/acknowledge',{note:'Reviewed with the client'},old);
  const request=(await h.json(base+'/requests',{title:'Evidence of authority',instructions:'Send the signed instructions',criteria:'Complete and signed',clientVisible:true},h.owner)).requests[0];
  assert.equal((await h.json('/portal/matters/'+m.id+'/requests',undefined,old)).requests[0].id,request.id);
+ await h.json('/providers/mail/review',{termsUrl:'https://resend.com/legal/terms-of-service',confirmed:true},h.owner);const settings=(await h.json('/followups/settings',undefined,h.owner)).settings.find(x=>x.kind==='engagement_chase');await h.json('/followups/settings',{...settings,enabled:true,steps:[{afterMinutes:15}],quietStart:'00:00',quietEnd:'01:00',timezone:'UTC',maxContacts:3},h.owner);await h.json('/portal/requests/'+request.id+'/reminder-consent',{consent:true},old);await h.json('/requests/'+request.id+'/reminders',{email:recipient,approved:true},h.owner);
  const before=h.mails.length;
  await h.json('/contacts/'+f.contact.id+'/consent',{revision:(await f.state()).revision,channel:'sms',decision:'denied',evidenceDate:'2026-11-01',source:'Client withdrew SMS consent; no SMS is sent'},h.owner);
  assert.equal((await h.json('/contacts/'+f.contact.id,undefined,h.owner)).effectiveConsent.sms,'denied');assert.equal(h.mails.length,before);
- const e2=await f.record(successor,e1.id);
+ const e2=await f.record(successor,e1.id);await f.record(successor,e1.id,h.owner,409);const runAt=new Date(Date.now()+86400000);runAt.setUTCHours(12,0,0,0);await h.restart();await h.scheduled(runAt.getTime());assert.equal(h.mails.length,before,'Replacement stops queued request reminders');const stopped=(await h.json(base+'/requests',undefined,h.owner)).requests.find(q=>q.id===request.id).reminders.sequences;assert.equal(stopped[0].status,'stopped');
  assert.equal((await h.request(file,undefined,old)).status,404);await h.json('/portal/shares/'+taskShare.id+'/complete',{},old,404);await h.json('/portal/requests/'+request.id+'/notes',{body:'Old representative must be refused'},old,404);
  await h.json('/portal/matters/'+m.id+'/requests',undefined,next,404);await f.review(e1.id,h.owner,409);await f.grant(successor,e1.id,409);await f.grant(successor,e2.id,409);
  await f.review(e2.id);await h.json('/portal/matters/'+m.id+'/shares',undefined,next,404);await f.grant(successor,e2.id);
  assert.equal(await(await h.request(file,undefined,next)).text(),original);await h.json('/portal/shares/'+taskShare.id+'/complete',{},next);await h.json('/portal/requests/'+request.id+'/notes',{body:'Fresh successor confirms the request'},next);
  const history=await h.json('/contacts/'+f.contact.id+'/representatives',undefined,h.owner);assert.deepEqual(history.evidence.map(r=>r.id),[e1.id,e2.id]);assert.equal(history.evidence[0].current,0);assert.equal(history.evidence[1].reviews.length,1);
  const archive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),restored=await harness();
- try{await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);const restoredNext=await restored.login(successor);assert.equal((await restored.request(file,undefined,restoredNext)).status,404);const retained=await restored.json('/contacts/'+f.contact.id+'/representatives',undefined,restored.owner);assert.equal(retained.evidence.length,2);assert.ok(retained.evidence.every(r=>r.reviews.every(v=>v.local===0)));await restored.json(base+'/portal',{email:successor,kind:'delegate',delegateOf:represented,representativeEvidenceId:e2.id,reason:'Cannot inherit archive authority'},restored.owner,409);assert.equal(await(await restored.request('/api/satchel/documents/'+doc.id+'/file',undefined,restored.owner)).text(),original);}finally{await restored.close();}
+ try{await restored.json('/restore',{archive,confirm:'RESTORE'},restored.owner);await restored.json('/team/invite',{email:successor},restored.owner);const restoredNext=await restored.login(successor);assert.equal((await restored.request(file,undefined,restoredNext)).status,404);const retained=await restored.json('/contacts/'+f.contact.id+'/representatives',undefined,restored.owner);assert.equal(retained.evidence.length,2);assert.ok(retained.evidence.every(r=>r.reviews.every(v=>v.local===0)));await restored.json(base+'/portal',{email:successor,kind:'delegate',delegateOf:represented,representativeEvidenceId:e2.id,reason:'Cannot inherit archive authority'},restored.owner,409);assert.equal(await(await restored.request('/api/satchel/documents/'+doc.id+'/file',undefined,restored.owner)).text(),original);}finally{await restored.close();}
+ const principalGrant=(await h.json(base+'/portal',undefined,h.owner)).grants.find(g=>g.email===represented&&!g.revokedAt);await h.json('/portal-grants/'+principalGrant.id+'/revoke',{reason:'Original represented client grant withdrawn'},h.owner);await h.json(base+'/portal',{email:represented,reason:'Fresh represented client grant'},h.owner);assert.equal((await h.request(file,undefined,next)).status,404,'Replacing the original client grant cannot revive its delegate grant');await f.grant(successor,e2.id);assert.equal((await h.request(file,undefined,next)).status,200);
  // Losing and surviving identities retain evidence but cannot inherit its reviewed authority.
- const duplicate=await f.save('Representative principal duplicate','second@example.test'),merge=await h.json('/contacts/merge-preview',{survivorId:f.contact.id,duplicateId:duplicate.id,reason:'Practitioner confirms duplicate identity'},h.owner);await h.json('/contacts/merge',{previewId:merge.id},h.owner);
+ const duplicate=await f.save('Representative principal duplicate',representativeAddress('second')),merge=await h.json('/contacts/merge-preview',{survivorId:f.contact.id,duplicateId:duplicate.id,reason:'Practitioner confirms duplicate identity'},h.owner);await h.json('/contacts/merge',{previewId:merge.id},h.owner);
  assert.equal((await h.request(file,undefined,next)).status,404);await f.review(e2.id,h.owner,409);await f.grant(successor,e2.id,409);
  assert.equal(await(await h.request('/api/satchel/documents/'+doc.id+'/file',undefined,h.owner)).text(),original);
  const shares=await h.json(base+'/client-shares',undefined,h.owner);assert.ok(shares.shares.find(s=>s.id===taskShare.id).acks.some(a=>a.kind==='completed'&&a.by===successor));
+ }finally{await h.close();}
 }
 
 export async function representativeMailFlow(h,s){
- const recipient='client@example.test',represented='second@example.test',successor='deleg@example.test';
+ const recipient=representativeAddress('client'),represented=representativeAddress('second'),successor=representativeAddress('deleg');
  for(const email of [represented,successor]){await h.json('/team',{email,name:'Representative recipient',role:'client'},h.owner);await h.json('/team/invite',{email},h.owner);}
  const f=await representativeFixture(h,s.m,{represented,recipient,successor});
  await h.json(s.base+'/portal',{email:represented,reason:'Represented client original grant'},h.owner);
