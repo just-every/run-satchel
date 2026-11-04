@@ -5,18 +5,19 @@ import {capturePanel} from './browser-shots.mjs';
 
 export async function exerciseWorkReconciliation(page,h,width){
  const m=(await h.json('/state',undefined,h.owner)).matters.find(m=>m.client==='Harper Bakery LLC'),base='/matters/'+m.id;
+ const cost=await h.json(base+'/entries',{kind:'disbursement',date:'2026-10-15',description:'Confirmed expense for reconciliation review',amountCents:900,expense:{category:'advanced_cost',vendor:'Native records office',vendorReference:'synthetic-satchel-52',accountingCode:'Advanced client costs',sourceSystem:'Reviewed native expense ledger',sourceId:'synthetic-satchel-53'}},h.owner);
  const entry=await h.json(base+'/entries',{kind:'time',date:'2026-10-15',description:'Confirmed source for reconciliation review',minutes:30,rateCents:10000},h.owner);
  const invoiced=await h.json(base+'/entries',{kind:'time',date:'2026-10-15',description:'Previously reviewed source',minutes:60,rateCents:10000},h.owner);
  let prior=await h.json(base+'/bills',{title:'Prior invoice with unpaid work',date:'2026-10-15',entryIds:[invoiced.id]},h.owner);
  prior=await h.json('/bills/'+prior.id+'/approve',{revision:prior.revision,reviewNote:'Counsel reviewed the prior work',taxReviewId:await exemptTaxReview(h,'/bills/'+prior.id+'/approve')},h.owner);
  const key=await h.json('/keys',{label:'Native reconciliation review'},h.owner),{auth}=await authorizeAgent(h,key,m.id);
  const r=(await h.json('/agent/matters/'+m.id,undefined,'',200,auth)).billing.workReconciliation;
- const proposal=await h.json('/agent/prepare-bill',{matterId:m.id,title:'Reconciled source review',date:'2026-10-17',entryIds:[entry.id],reconciliationId:r.id},'',200,auth);
+ const proposal=await h.json('/agent/prepare-bill',{matterId:m.id,title:'Reconciled source review',date:'2026-10-17',entryIds:[entry.id,cost.id],reconciliationId:r.id},'',200,auth);
  await page.reload();await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Preparations',exact:true}).click();
  const card=page.locator('article.record').filter({hasText:'Reconciled source review'});
  await card.getByRole('heading',{name:'Confirmed work reconciliation'}).waitFor();
  await card.getByText('Recommendation provenance',{exact:true}).click();
- await card.getByText('Source history',{exact:true}).click();
+ await card.getByText('Source history',{exact:true}).first().click();
  await card.getByText('Recorded invoice reconciliation',{exact:true}).click();
  if(width===1440){
   assert.ok((await card.innerText()).includes('Confirmed source for reconciliation review'));
@@ -25,6 +26,9 @@ export async function exerciseWorkReconciliation(page,h,width){
   assert.ok((await card.innerText()).includes('creates a draft for counsel review'));
   assert.ok((await card.innerText()).includes(r.id));
   assert.ok((await card.innerText()).includes('$50.00'));
+  assert.ok((await card.innerText()).includes('Native records office'));
+  assert.ok((await card.innerText()).includes('synthetic-satchel-53'));
+  assert.ok((await card.innerText()).includes('$9.00'));
   assert.ok((await card.innerText()).includes('Prior invoice with unpaid work'));
   assert.ok((await card.innerText()).includes('Still due $100.00'));
   assert.ok((await card.innerText()).includes('Payment gap remains'));
@@ -36,7 +40,7 @@ export async function exerciseWorkReconciliation(page,h,width){
  const accepted=(await h.json('/state',undefined,h.owner)).proposals.find(p=>p.id===proposal.id),draft=(await h.json(base+'/billing',undefined,h.owner)).bills.find(b=>b.id===accepted.result_id);
  await card.getByText('approved',{exact:true}).waitFor();
  if(width===1440){
-  assert.equal(draft.status,'draft');assert.equal(draft.snapshot.totalCents,5000);
+  assert.equal(draft.status,'draft');assert.equal(draft.snapshot.totalCents,5900);
   assert.equal(await card.getByRole('button',{name:'Accept preparation',exact:true}).count(),0);
   assert.ok((await card.innerText()).includes(entry.revision),'Original source provenance stays visible after the decision');
   assert.deepEqual(await card.evaluate(root=>[...root.querySelectorAll('p,strong,summary,li,button,small,pre')].filter(e=>e.getClientRects().length&&parseFloat(getComputedStyle(e).fontSize)<13).map(e=>e.tagName)),[]);

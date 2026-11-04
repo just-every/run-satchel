@@ -36,7 +36,8 @@ export async function reconcileAgentWork(db:D1Database,d:Data,billing:Data){
   const invoices=billing.bills.flatMap((b:Data)=>b.snapshot.lines.filter((l:Data)=>l.sourceId===e.id).map((l:Data)=>({id:b.id,revision:b.revision,status:b.status,correctsBillId:b.correctsBillId,sourceRevision:l.sourceRevision})));
   const live=invoices.filter((b:Data)=>b.status!=='void');
   const state=live.some((b:Data)=>b.status!=='draft')?'billed':live.length||e.reservedBy?'reserved':!e.billable?'nonbillable':invoices.length||e.released?'released':'omitted';
-  return {sourceId:e.id,sourceRevision:e.revision,kind:e.kind,date:e.date,description:e.description,timekeeperEmail:e.timekeeperEmail,amountCents:e.amountCents,billable:e.billable,state,invoices,edits:(e.editHistory??[]).map((v:Data)=>({id:v.id,previousRevision:v.previousRevision,revision:v.revision}))};
+  const expense=e.expense?{category:e.expense.category,vendor:e.expense.vendor,vendorReference:e.expense.vendorReference,accountingCode:e.expense.accountingCode,sourceSystem:e.expense.sourceSystem,sourceId:e.expense.sourceId}:null;
+  return {sourceId:e.id,sourceRevision:e.revision,kind:e.kind,date:e.date,description:e.description,timekeeperEmail:e.timekeeperEmail,amountCents:e.amountCents,rateRuleId:e.rateRuleId,rateSource:e.rateSource,expense,billable:e.billable,state,invoices,edits:(e.editHistory??[]).map((v:Data)=>({id:v.id,previousRevision:v.previousRevision,revision:v.revision}))};
  });
  const agreement=await stmt(db,'SELECT id,processor,model_revision FROM s_agent_agreements WHERE id=?',d.agreement_id).first<Data>();
  const invoices=reconcileInvoices(billing);

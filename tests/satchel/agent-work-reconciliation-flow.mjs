@@ -8,7 +8,9 @@ export async function proveAgentWorkReconciliation(){
  try{
   const m=await open(h,'Native omitted work'),base='/matters/'+m.id;
   const entry=(description,extra={})=>h.json(base+'/entries',{kind:'time',date:'2026-10-15',description,minutes:30,rateCents:10000,...extra},h.owner);
-  const time=await entry('Confirmed omitted time'),expense=await entry('Confirmed omitted cost',{kind:'disbursement',amountCents:900}),nonbillable=await entry('Nonbillable internal work',{billable:false}),reserved=await entry('Reserved draft work'),billed=await entry('Already billed work'),released=await entry('Released invoice work');
+  await h.json('/time/drafts',{matterId:m.id,date:'2026-10-14',minutes:30,rateCents:10000,description:'Confirmed omitted time',billable:true},h.owner);
+  await h.json('/time/post',{from:'2026-10-14',to:'2026-10-14'},h.owner);
+  const time=(await h.json(base+'/billing',undefined,h.owner)).entries.find(e=>e.description==='Confirmed omitted time'),expense=await entry('Confirmed omitted cost',{kind:'disbursement',amountCents:900,expense:{category:'advanced_cost',vendor:'Native records office',vendorReference:'synthetic-satchel-50',accountingCode:'Advanced client costs',sourceSystem:'Reviewed native expense ledger',sourceId:'synthetic-satchel-51'}}),nonbillable=await entry('Nonbillable internal work',{billable:false}),reserved=await entry('Reserved draft work'),billed=await entry('Already billed work'),released=await entry('Released invoice work');
   await h.json('/time/drafts',{matterId:m.id,date:'2026-10-15',minutes:45,description:'Unconfirmed timesheet work',billable:true},h.owner);
   const bill=ids=>h.json(base+'/bills',{title:'Native source invoice',date:'2026-10-15',entryIds:ids},h.owner);
   const approve=async b=>h.json('/bills/'+b.id+'/approve',{revision:b.revision,reviewNote:'Counsel checked native source work',taxReviewId:await exemptTaxReview(h,'/bills/'+b.id+'/approve')},h.owner);
@@ -24,6 +26,8 @@ export async function proveAgentWorkReconciliation(){
   assert.equal(r.sources.find(s=>s.sourceId===reserved.id).invoices[0].id,reservation.id);
   assert.deepEqual(r.sources.find(s=>s.sourceId===released.id).invoices.map(b=>[b.id,b.status]),[[voided.id,'void']]);
   assert.ok(!r.sources.some(s=>s.description==='Unconfirmed timesheet work'));
+  assert.deepEqual(r.sources.find(s=>s.sourceId===expense.id).expense,{category:'advanced_cost',vendor:'Native records office',vendorReference:'synthetic-satchel-50',accountingCode:'Advanced client costs',sourceSystem:'Reviewed native expense ledger',sourceId:'synthetic-satchel-51'});
+  assert.equal(r.sources.find(s=>s.sourceId===time.id).rateSource,time.rateSource);
   assert.deepEqual(r.sources.filter(s=>['omitted','released'].includes(s.state)).map(s=>s.amountCents).sort((a,b)=>a-b),[900,5000,5000]);
   const invoice=id=>r.invoices.find(b=>b.id===id);
   assert.equal(invoice(reservation.id).trustPayment,null,'A draft reservation is not a receivable');
@@ -51,6 +55,7 @@ export async function proveAgentWorkReconciliation(){
   const history=(await h.json('/state',undefined,h.owner)).proposals.find(v=>v.id===p.id).workReconciliation;
   assert.equal(history.agreement.id,agreement.id);assert.equal(history.agreement.model_revision,'synthetic-satchel-1');
   assert.deepEqual(history.invoices,r.invoices);
+  assert.deepEqual(history.sources.find(s=>s.sourceId===expense.id).expense,r.sources.find(s=>s.sourceId===expense.id).expense);
   assert.deepEqual(history.sources.map(s=>[s.sourceId,s.sourceRevision]),[[time.id,time.revision],[expense.id,expense.revision],[released.id,edit.revision]]);
   await h.json('/proposals/'+p.id+'/decide',{decision:'approve'},'',401,auth);
   const draft=await h.json('/proposals/'+p.id+'/decide',{decision:'approve'},h.owner);
@@ -80,16 +85,16 @@ export async function proveAgentWorkReconciliation(){
   const cash=async()=>{const c=await context();return c.billing.workReconciliation.invoices.find(b=>b.id===draft.id).trustPayment;};
   assert.deepEqual(await cash(),{reviewedCents:11900,recordedPaidCents:0,writtenOffCents:0,dueCents:11900,creditCents:0,reservedCents:0,state:'payment_gap',pendingCorrectionIds:[],bankSettlement:'unverified',booksSync:'unknown'});
   const receiptBody={requestKey:'synthetic-satchel-40',payer:m.client,method:'check',reference:'synthetic-satchel-41',receivedDate:'2026-10-17',depositDate:'2026-10-17',operatingAccountId:operating.id,cents:5000,purpose:'operating',allocations:[{billId:draft.id,cents:5000}]};
-  await h.json('/offline-payments',receiptBody,'',401,auth);
+  const unpaid=await cash();await h.json('/offline-payments',receiptBody,'',401,auth);assert.deepEqual(await cash(),unpaid);
   const receipt=await h.json('/offline-payments',receiptBody,h.owner);
   await h.json('/offline-payments',receiptBody,h.owner);
   assert.equal((await cash()).recordedPaidCents,5000);assert.equal((await cash()).dueCents,6900);
   const concession={requestKey:'synthetic-satchel-42',revision:reviewed.revision,cents:6900,reason:'Principal approves exact native concession',approve:true};
-  await h.json('/invoices/'+draft.id+'/writeoff',concession,'',401,auth);
+  const partialCash=await cash();await h.json('/invoices/'+draft.id+'/writeoff',concession,'',401,auth);assert.deepEqual(await cash(),partialCash);
   const writeoff=await h.json('/invoices/'+draft.id+'/writeoff',concession,h.owner);
   assert.equal((await cash()).state,'resolved_with_writeoff');assert.equal((await cash()).recordedPaidCents,5000);assert.equal((await cash()).writtenOffCents,6900);
   const reversal={requestKey:'synthetic-satchel-43',writeoffId:writeoff.id,revision:reviewed.revision,cents:6900,reason:'Principal restores the collectible balance',approve:true};
-  await h.json('/invoices/'+draft.id+'/writeoff-reversals',reversal,'',401,auth);
+  const concededCash=await cash();await h.json('/invoices/'+draft.id+'/writeoff-reversals',reversal,'',401,auth);assert.deepEqual(await cash(),concededCash);
   await h.json('/invoices/'+draft.id+'/writeoff-reversals',reversal,h.owner);
   assert.equal((await cash()).dueCents,6900);assert.equal((await cash()).state,'payment_gap');
   await h.json('/offline-payments/'+receipt.id+'/actions',{requestKey:'synthetic-satchel-44',kind:'bounce',reason:'Bank returned the check'},h.owner);
@@ -111,7 +116,7 @@ export async function proveAgentWorkReconciliation(){
   const sponsoredKey=await h.json('/keys',{label:'Scoped reconciliation counsel'},sponsor),scoped=await authorizeAgent(h,sponsoredKey,m.id,{sponsorCookie:sponsor});
   const scopedWork=await entry('Matter access removed before review'),scopedContext=(await h.json('/agent/matters/'+m.id,undefined,'',200,scoped.auth)).billing.workReconciliation;
   const scopedPayload={matterId:m.id,title:'Current scope review',date:'2026-10-17',entryIds:[scopedWork.id],reconciliationId:scopedContext.id},scopedProposal=await h.json('/agent/prepare-bill',scopedPayload,'',200,scoped.auth);
-  const ceiling={rates:'none',bank:'none',reports:'none',contacts:'write',documents:'write',billing:'write',settings:'write'};
+  const ceiling={rates:'own',bank:'none',reports:'none',contacts:'write',documents:'write',billing:'write',settings:'write'};
   const restricted=await h.json('/roles',{name:'Reconciliation without rates or custody',permissions:ceiling,reason:'Principal narrows current sponsor visibility'},h.owner);
   await h.json('/team',{email:sponsorEmail,name:'Reconciliation counsel',role:'lawyer',customRoleId:restricted.id},h.owner);
   const limited=(await h.json('/agent/matters/'+m.id,undefined,'',200,scoped.auth)).billing.workReconciliation;
@@ -143,6 +148,11 @@ export async function proveAgentWorkReconciliation(){
   await h.json('/agent-agreements/'+agreement.id+'/withdraw',{reason:'Record new agreement terms separately'},h.owner);
   await h.json('/keys/'+key.id+'/revoke',{},h.owner);
   const final=(await h.json('/state',undefined,h.owner)).proposals;
+  console.log('PROBE AGENT-006 omitted: delegated matter context with confirmed time and expense -> omitted sources identified; unposted and nonbillable work excluded');
+  console.log('PROBE AGENT-006 reservations: native draft, approved credit and void -> reserved and billed sources excluded; released source billed once');
+  console.log('PROBE AGENT-006 authority: changed source, removed access, narrowed role, erased source and revoked delegation -> preparation or acceptance refused without reservation');
+  console.log('PROBE AGENT-006 cash: native reviewed invoice with partial receipt, write-off, reversal, return and final receipt -> due 11900 to 6900 to 0 to 6900 to 11900 to 0; bank unverified');
+  console.log('PROBE AGENT-006 boundaries: agent approval, export, receipt, write-off, reversal and trust-transfer attempts -> refused; no agent financial effect');
   assert.deepEqual(final.find(v=>v.id===p.id).workReconciliation,history);
   assert.deepEqual([final.find(v=>v.id===p.id).status,final.find(v=>v.id===p.id).result_id,final.find(v=>v.id===declined.id).status,final.find(v=>v.id===revoked.id).status],['approved',draft.id,'declined','pending']);
   assert.equal((await h.json(base+'/billing',undefined,h.owner)).entries.find(e=>e.id===revokedWork.id).reservedBy,null);
@@ -150,5 +160,6 @@ export async function proveAgentWorkReconciliation(){
   restored=await harness();await restored.json('/restore',{archive:await(await h.request('/api/satchel/backup',undefined,h.owner)).text(),confirm:'RESTORE'},restored.owner);
   assert.deepEqual((await restored.json('/state',undefined,restored.owner)).proposals.find(v=>v.id===p.id).workReconciliation,history);
   await restored.json('/proposals/'+revoked.id+'/decide',{decision:'approve'},restored.owner,401);
+  console.log('PROBE AGENT-006 history: source and decision history after agreement withdrawal, key revocation, restart and archive restore -> original provenance retained; replay refused');
  }finally{await restored?.close();await h.close();}
 }
