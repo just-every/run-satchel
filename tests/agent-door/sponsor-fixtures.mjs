@@ -24,6 +24,7 @@ const memberBody = (member, role = 'lawyer', active = true) => ({email: member.e
 /** Invite and confirm real members before the signed Business roster binds them. */
 export async function initializeSponsors(reviewers, cookie) {
  members.clear();
+ admissionState = undefined;
  for (const label of labels) await reviewers.initialize(label, {cookie});
 }
 
@@ -85,7 +86,7 @@ export default async function sponsors(context) {
 async function nativeState({database}) {
  const db=await database('DB');
  const read=async sql=>(await db.prepare(sql).all()).results;
- return {proposals:await read('SELECT id,status,payload,delegation_id FROM s_proposals ORDER BY id'),delegations:await read('SELECT id,key_id,used_jobs,revoked_at FROM s_agent_delegations ORDER BY id')};
+ return {proposals:await read('SELECT * FROM s_proposals ORDER BY id'),delegations:await read('SELECT * FROM s_agent_delegations ORDER BY id'),matters:await read('SELECT * FROM s_matters ORDER BY id')};
 }
 
 export async function verifySponsorProbeState(context){
@@ -94,7 +95,7 @@ export async function verifySponsorProbeState(context){
  console.log('Sponsor admission: signed probes leave all native proposals and delegations unchanged');
 }
 
-/** Previously usable native preparations stop on the very next changed membership. */
+/** The same credentials stop at both preparation doors after membership changes. */
 export async function proveSponsorLifecycle(context, matterId) {
  const native = personDoor(context, context.cookie);
  for (const label of labels) {
@@ -105,23 +106,49 @@ export async function proveSponsorLifecycle(context, matterId) {
   const agreement = await (await native('/api/satchel/agent-agreements', {keyId: member.key.id, processor: 'Native preparation only', modelRevision: 'native-proposal', agreementReference: 'Synthetic counsel-reviewed agreement', retentionTerms: 'Firm-owned originals; retained decision evidence', trainingTerms: 'No training or secondary use', trainingAllowed: false, expiresAt: '2099-12-31T00:00:00.000Z', confirmed: true})).json();
   const grant = await (await native('/api/satchel/agent-delegations', {keyId: member.key.id, agreementId: agreement.id, matterId, actions: ['context', 'prepare-matter'], recipients: [member.email], maxJobs: 10, spendCents: 0, expiresAt: '2099-12-30T00:00:00.000Z', stopRule: 'Stop on revoked authority', escalationEmail: context.email, sources: [], confirmed: true})).json();
   const prepare = () => requestPreparation(context, member.key.key, grant.id);
+  // These native agents have their own audit identities, separate from the selected Business agent.
+  const prepareMcp = args => context.tool('satchel.proposal.prepare_matter', args, {token: member.key.key, track: false});
+  const preparation = () => ({delegationId: grant.id, payload: preparationPayload(), idempotency_key: crypto.randomUUID()});
   const witness = () => nativeState(context);
-  for (const role of label === 'inactive' ? ['lawyer'] : ['billing', 'accountant', 'client']) {
-   await native('/api/satchel/team', memberBody(member));
+  const allowedPreparation = async () => {
    const allowed = await prepare();
    assert.equal(allowed.status, 200, 'Current counsel can prepare within the principal-approved grant');
-   const result=await allowed.json();
-   assert.equal(result.status, 'pending', 'Preparation remains human-reviewed');
-   await native('/api/satchel/team', memberBody(member, role, label !== 'inactive'));
+   assert.equal((await allowed.json()).status, 'pending', 'Preparation remains human-reviewed');
+   const args = preparation(), mcp = await prepareMcp(args);
+   assert.equal(mcp.status, 200, 'Current counsel can prepare through MCP');
+   assert.equal(mcp.result?.isError, false, 'MCP preparation succeeds under the current grant');
+   assert.equal(mcp.result?.structuredContent?.status, 'pending', 'MCP also prepares only a human-reviewed proposal');
+   return args;
+  };
+  const refusedPreparation = async (args, status, reason) => {
    const before = await witness(), refused = await prepare();
-   assert.equal(refused.status, 403, 'Changed membership stops the next previously authorized preparation');
+   assert.equal(refused.status, status, reason + ' stops the next native preparation');
    assert.equal(typeof (await refused.json()).error, 'string', 'Native refusal is typed');
-   assert.deepEqual(await witness(), before, 'Refusal changes no proposal or delegation state');
-   console.log('Sponsor lifecycle: ' + (label === 'inactive' ? 'inactive' : role) + ' -> HTTP 403; native state unchanged');
+   assert.deepEqual(await witness(), before, 'Native refusal changes no proposal, delegation or matter state');
+   for (const [kind, input] of [['replay', args], ['fresh', preparation()]]) {
+    const mcp = await prepareMcp(input);
+    assert.equal(mcp.status, 401, reason + ' stops ' + kind + ' MCP preparation');
+    assert.equal(mcp.message?.error?.code, -32001, 'MCP refusal is typed Unauthorized');
+    assert.equal(mcp.result, undefined, 'Refusal exposes no cached or fresh preparation');
+    assert.deepEqual(await witness(), before, 'MCP refusal changes no proposal, delegation or matter state');
+   }
+   console.log('Sponsor lifecycle: ' + reason + ' -> native HTTP ' + status + ', replay and fresh MCP HTTP 401; native state unchanged');
+  };
+  const beforeSuspension = await allowedPreparation();
+  await native('/auth/operator/status', {operatorId: member.operatorId, status: 'inactive'});
+  await refusedPreparation(beforeSuspension, 401, 'operator suspension');
+  await native('/auth/operator/status', {operatorId: member.operatorId, status: 'active'});
+  for (const role of label === 'inactive' ? ['lawyer'] : ['billing', 'accountant', 'client']) {
+   await native('/api/satchel/team', memberBody(member));
+   const args = await allowedPreparation();
+   await native('/api/satchel/team', memberBody(member, role, label !== 'inactive'));
+   await refusedPreparation(args, 403, label === 'inactive' ? 'inactive firm membership' : role);
   }
  }
 }
 
 function requestPreparation({request, origin}, key, delegationId) {
- return request(origin + '/api/satchel/agent/prepare-matter', {method: 'POST', headers: {Origin: origin, Authorization: 'Bearer ' + key, 'Content-Type': 'application/json', 'x-satchel-delegation': delegationId}, body: JSON.stringify({title: 'Synthetic membership preparation', client: 'Synthetic client', adverse: 'Synthetic counterparty'})});
+ return request(origin + '/api/satchel/agent/prepare-matter', {method: 'POST', headers: {Origin: origin, Authorization: 'Bearer ' + key, 'Content-Type': 'application/json', 'x-satchel-delegation': delegationId}, body: JSON.stringify(preparationPayload())});
 }
+
+const preparationPayload = () => ({title: 'Synthetic membership preparation', client: 'Synthetic client', adverse: 'Synthetic counterparty'});
