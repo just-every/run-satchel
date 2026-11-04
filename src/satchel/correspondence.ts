@@ -8,7 +8,8 @@ import {atomic,audit,digest,human,id,insist,matter,need,now,rows,stmt,text,type 
 import {accessGuard,guard} from './trust-guards';
 import {contactData,contactRevisionGuard} from './contact-data';
 import {contactGraph} from './contact-graph';
-import {portalAccess,readerKinds,portalKinds} from './portal';
+import {portalAccess,readerKinds} from './portal';
+const invoiceKinds=['client','co_client','payer'];
 import {requireProviderReview} from './providers';
 
 function counsel(actor:Actor){human(actor);need(actor,'owner','lawyer');}
@@ -18,13 +19,13 @@ export async function eligible(db:D1Database,actor:Actor,m:Data){
  const data=await contactData(db),graph=contactGraph(data),contacts=graph.contacts.filter(c=>c.emails.some(e=>e.toLowerCase()===m.recipient));
  insist(contacts.length===1&&contacts[0].effectiveConsent.email==='allowed','Record explicit email consent for every merged identity; a merge supplies no consent',409);
  const contact=contacts[0];
- const grant=await stmt(db,`SELECT candidate.id FROM s_portal_grants candidate WHERE candidate.email=? AND candidate.matter_id=? AND ${portalAccess('candidate.matter_id',m.bill_id?portalKinds:readerKinds,'candidate.id')} ${m.recipient_grant_id?'AND candidate.id=?':''} ORDER BY candidate.granted_at DESC,candidate.id DESC LIMIT 1`,m.recipient,m.matter_id,m.recipient,...(m.recipient_grant_id?[m.recipient_grant_id]:[])).first<Data>();
+ const grant=await stmt(db,`SELECT candidate.id FROM s_portal_grants candidate WHERE candidate.email=? AND candidate.matter_id=? AND ${portalAccess('candidate.matter_id',m.bill_id?invoiceKinds:readerKinds,'candidate.id')} ${m.recipient_grant_id?'AND candidate.id=?':''} ORDER BY candidate.granted_at DESC,candidate.id DESC LIMIT 1`,m.recipient,m.matter_id,m.recipient,...(m.recipient_grant_id?[m.recipient_grant_id]:[])).first<Data>();
  insist(grant,'Recipient access was withdrawn or is not authorized for this message',409);m.recipient_grant_id=grant.id;
  insist(contact.matterRoles.some(r=>r.matter_id===m.matter_id&&r.role==='client')||await stmt(db,'SELECT 1 FROM s_representative_grants WHERE grant_id=?',grant.id).first(),'Choose a client contact or a currently reviewed representative on this matter',409);
  if(m.bill_id)insist(await stmt(db,"SELECT 1 FROM s_invoice_issues i JOIN s_bills b ON b.id=i.bill_id WHERE i.bill_id=? AND b.matter_id=? AND b.status<>'void' AND i.pdf_digest=?",m.bill_id,m.matter_id,m.bill_digest).first(),'Select an existing issued invoice that has not been voided',409);
  return data.revision;
 }
-export function fences(db:D1Database,actor:Actor,m:Data,revision:number){return [accessGuard(db,actor,m.matter_id),...contactRevisionGuard(db,revision),guard(db,portalAccess('?',m.bill_id?portalKinds:readerKinds,m.recipient_grant_id?'?':undefined),m.recipient,...(m.recipient_grant_id?[m.recipient_grant_id]:[]),m.matter_id),...(m.bill_id?[guard(db,"EXISTS(SELECT 1 FROM s_bills b JOIN s_invoice_issues i ON i.bill_id=b.id WHERE b.id=? AND b.status<>'void' AND i.pdf_digest=?)",m.bill_id,m.bill_digest)]:[])];}
+export function fences(db:D1Database,actor:Actor,m:Data,revision:number){return [accessGuard(db,actor,m.matter_id),...contactRevisionGuard(db,revision),guard(db,portalAccess('?',m.bill_id?invoiceKinds:readerKinds,m.recipient_grant_id?'?':undefined),m.recipient,...(m.recipient_grant_id?[m.recipient_grant_id]:[]),m.matter_id),...(m.bill_id?[guard(db,"EXISTS(SELECT 1 FROM s_bills b JOIN s_invoice_issues i ON i.bill_id=b.id WHERE b.id=? AND b.status<>'void' AND i.pdf_digest=?)",m.bill_id,m.bill_digest)]:[])];}
 export async function correspondenceState(db:D1Database,actor:Actor,matterId:string){
  counsel(actor);await matter(db,actor,matterId);
  const messages=await rows(db,'SELECT * FROM s_correspondence WHERE matter_id=? ORDER BY reviewed_at,id',matterId);

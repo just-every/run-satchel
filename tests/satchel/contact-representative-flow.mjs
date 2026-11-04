@@ -67,6 +67,7 @@ export async function representativeMailFlow(h,s){
  await h.json(s.base+'/portal',{email:represented,reason:'Represented client original grant'},h.owner);
  const first=await f.record(recipient);await f.review(first.id);await f.grant(recipient,first.id);
  const letter={recipient,subject:'Exact representative letter',body:'synthetic-satchel-4: retain these exact delivered bytes',reviewNote:'Counsel authorizes this exact recipient and evidence revision'};
+ await h.json(s.base+'/correspondence',{...letter,billId:s.bill.id},s.lawyer,409);await h.json(s.base+'/client-reminders/schedule',{recipient,billId:s.bill.id,dueAt:'2026-11-01T12:00:00.000Z'},s.lawyer,409);
  const delivered=await h.json(s.base+'/correspondence',letter,s.lawyer);await h.json('/mail-attempts/'+delivered.attemptId+'/send',{},s.lawyer);
  const stale=await h.json(s.base+'/correspondence',letter,s.lawyer),queued=await s.schedule('appointment','2026-11-01T12:00:00.000Z');
  const count=h.mails.length,second=await f.record(successor,first.id);

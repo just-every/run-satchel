@@ -63,7 +63,9 @@ test('Request reminders need exact reader opt-in and counsel approval, honor qui
   const q=(await h.json(base+'/requests',{title:'Preference stop',instructions:'Upload text',criteria:'Complete',clientVisible:true},h.owner)).requests.find(q=>q.title==='Preference stop');await h.json('/portal/requests/'+q.id+'/reminder-consent',{consent:true},client);await approve(q);
   await preference('denied');await approve(q,h.owner,409);await preference('allowed');await h.restart();await h.scheduled(tomorrow.getTime()+10*86400000);assert.equal(h.mails.length,before+3,'Renewed contact consent cannot resume the old request preparation');
   assert.equal((await h.json(base+'/requests',undefined,h.owner)).requests.find(r=>r.id===q.id).reminders.sequences[0].status,'stopped');
-  await approve(q);await h.scheduled(tomorrow.getTime()+10*86400000);assert.equal(h.mails.length,before+4,'Fresh counsel approval follows current email and exact-request authority');
+  const renewed=(await h.json(base+'/requests',{title:'Fresh explicit request',instructions:'Upload current text',criteria:'Complete',clientVisible:true},h.owner)).requests.find(r=>r.title==='Fresh explicit request');
+  await approve(renewed,h.owner,409);await h.json('/portal/requests/'+renewed.id+'/reminder-consent',{consent:true},client);await approve(renewed);await h.scheduled(tomorrow.getTime()+10*86400000);assert.equal(h.mails.length,before+4,'Fresh counsel approval follows current email and new exact-request authority');
+  assert.equal((await h.json(base+'/requests',undefined,h.owner)).requests.find(r=>r.id===q.id).reminders.sequences[0].status,'stopped');
 
  }finally{await h.close();}
 });
