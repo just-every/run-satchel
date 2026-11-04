@@ -1,3 +1,4 @@
+import {requireRecoveryAuthority} from './recovery-authority';
 import {offlinePaidSql,writeoffSql} from './offline-balances';
 import {verifyProtectedStripe} from './stripe-config';
 import {sourceDocument} from './trust';
@@ -26,6 +27,7 @@ export async function invoicePayment(env:StripeEnv,actor:Actor,billId:string){
  return {id:b.id,number:b.number,status:b.status==='void'?'void':attempts.some(a=>['creating','open','pending','uncertain'].includes(a.status)&&a.purpose==='operating')?'pending':s.totalCents-funds.paid_cents-funds.written_off_cents<=0?'paid':attempts.some(a=>a.status==='returned')?'returned':'unpaid',totalCents:s.totalCents,dueCents:Math.max(0,s.totalCents-funds.paid_cents-funds.written_off_cents),paidCents:funds.paid_cents,reservedCents:funds.reserved_cents,issuedAt:b.issued_at,attempts,resumeId:attempts.find(a=>a.status==='open'&&a.purpose==='operating')?.id??null,replacements,deliveryPdfUrl:delivered?.pdfUrl??null,owner:actor.role==='owner',trustLedgers:actor.role==='owner'?await rows(env.DB,'SELECT l.id,a.name FROM s_trust_ledgers l JOIN s_trust_accounts a ON a.id=l.account_id WHERE l.matter_id=?',b.matter_id):[],pdfUrl:actor.role==='client'?'/api/satchel/portal/invoices/'+billId+'/pdf':'/api/satchel/bills/'+billId+'/invoice.pdf',canPay:b.status!=='void'&&s.totalCents-funds.paid_cents-funds.written_off_cents-funds.reserved_cents>0&&!attempts.some(a=>['creating','open','pending','uncertain'].includes(a.status)&&a.purpose==='operating'),sandbox:env.STRIPE_MODE!=='live'};
 }
 export async function startCheckout(env:StripeEnv,actor:Actor,billId:string,b:Data){
+ await requireRecoveryAuthority(env.DB,'charging');
  const bill=await paymentInvoice(env.DB,actor,billId);insist(bill.status!=='void','This invoice is void; open its replacement invoice',409);await requireProviderReview(env.DB,'stripe');
  const requestKey=text(b.requestKey,'Payment decision reference',100),purpose=b.purpose==='trust'?'trust':'operating';
  if(purpose==='trust')need(actor,'owner');

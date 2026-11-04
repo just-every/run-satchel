@@ -1,3 +1,4 @@
+import {recoveryPaused} from './recovery-authority';
 import type {Bindings} from '../auth.server';
 import {atomic,audit,id,insist,now,rows,stmt,type Actor,type Data} from './model';
 import {eligible,fences,sendCorrespondence} from './correspondence';
@@ -18,6 +19,7 @@ export async function matterUpdateSendGuards(db:D1Database,actor:Actor,attempt:D
  return [...updateAuthorityGuards(db,actor,u),guard(db,"EXISTS(SELECT 1 FROM s_matter_update_jobs WHERE id=? AND status<>'paused')",job.id),guard(db,'EXISTS(SELECT 1 FROM s_matter_update_recipients WHERE update_id=? AND email=?)',u.id,job.recipient),updateContactCapGuard(db,job.recipient,u.max_contacts,atMs)];
 }
 export async function runMatterUpdates(env:Bindings,atMs:number){
+ if(await recoveryPaused(env.DB,'sending'))return {paused:true};
  const db=env.DB,due=await rows(db,"SELECT * FROM s_matter_update_jobs WHERE status IN('queued','prepared') AND due_at<=? ORDER BY due_at,id LIMIT 100",new Date(atMs).toISOString());
  for(const j of due){
   try{

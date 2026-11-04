@@ -1,3 +1,4 @@
+import {restoreFences} from './recovery-authority';
 import {restoredProposalSponsorLinks} from './proposal-sponsors.ts'
 import {requireWholeFirmWallAccess} from './wall-doors';
 // Stream native archives, including R2 intake originals, without a total-byte ceiling.
@@ -6,7 +7,7 @@ import {stmt} from './model';
 import {createHash} from 'node:crypto';
 import {createPortability,readArchive,type LaterJournal} from '@runeditrun/rer/modules/portability';
 import policy from './archive-policy.mjs';
-import {atomic,audit,human,insist,need,text,type Actor,type Data} from './model';
+import {atomic,audit,human,id,insist,need,now,text,type Actor,type Data} from './model';
 const serviceFor=(db:D1Database,originals:R2Bucket)=>createPortability({db,buckets:{originals},policy});
 export async function backup(db:D1Database,actor:Actor,originals:R2Bucket) {
  human(actor);need(actor,'owner');await requireWholeFirmWallAccess(db,actor);
@@ -17,7 +18,7 @@ export async function backup(db:D1Database,actor:Actor,originals:R2Bucket) {
   let status=await service.exports.advance(job);while(status.phase!=='complete')status=await service.exports.advance(job);
   const reader=(await service.exports.download(job)).getReader(),hash=createHash('sha256');let bytes=0;
   const stream=new ReadableStream<Uint8Array>({async pull(controller){
-   try{await requireWholeFirmWallAccess(db,actor);const next=await reader.read();if(next.done){await atomic(db,actor,[audit(db,actor,'firm.archive_exported','firm',JSON.stringify({exportId:job,sha256:hash.digest('hex'),bytes}))]);await service.exports.abort(job);controller.close();}
+   try{await requireWholeFirmWallAccess(db,actor);const next=await reader.read();if(next.done){const sha256=hash.digest('hex');await atomic(db,actor,[stmt(db,"INSERT INTO s_recovery_receipts VALUES(?,'backup',?,NULL,NULL,?,?)",id(),sha256,bytes,now()),audit(db,actor,'firm.archive_exported','firm',JSON.stringify({exportId:job,sha256,bytes}))]);await service.exports.abort(job);controller.close();}
     else{bytes+=next.value.byteLength;hash.update(next.value);controller.enqueue(next.value);}}
    catch(error){await service.exports.abort(job);controller.error(error);}
   },async cancel(reason){await reader.cancel(reason);await service.exports.abort(job);}});
@@ -26,16 +27,18 @@ export async function backup(db:D1Database,actor:Actor,originals:R2Bucket) {
 }
 export async function restoreStream(db:D1Database,actor:Actor,source:ReadableStream<Uint8Array>,confirm:string,originals:R2Bucket,laterJournal?:LaterJournal) {
  human(actor);need(actor,'owner');insist(confirm==='RESTORE','Type RESTORE to confirm an empty-destination restore');
- const service=await serviceFor(db,originals),hash=createHash('sha256');let job:string|undefined,closing:{archiveHash:string;contentHash:string}|undefined;
- const measured=source.pipeThrough(new TransformStream<Uint8Array,Uint8Array>({transform(chunk,controller){hash.update(chunk);controller.enqueue(chunk);}}));
+ const service=await serviceFor(db,originals),hash=createHash('sha256');let bytes=0;let job:string|undefined,closing:{archiveHash:string;contentHash:string}|undefined;
+ const measured=source.pipeThrough(new TransformStream<Uint8Array,Uint8Array>({transform(chunk,controller){bytes+=chunk.byteLength;hash.update(chunk);controller.enqueue(chunk);}}));
  try{for await(const item of readArchive(measured)){
   if(item.kind==='manifest')job=await service.imports.create(item,actor.id);
   else if(item.kind==='part'){insist(job,'Missing archive manifest');await service.imports.uploadPart(job,item.index,item);}
   else closing=item;
  }
  insist(job&&closing,'Incomplete archive');
+ // Fence before any restored product row becomes visible to a scheduled handler.
+ const receipt=id(),at=now();await atomic(db,actor,restoreFences(db,receipt,at));
  const result=await service.imports.finalize(job,{archiveHash:closing.archiveHash,contentHash:closing.contentHash,laterJournal});
- if(result.phase==='complete')await atomic(db,actor,[stmt(db,'DELETE FROM s_proposal_sponsor_links'),restoredProposalSponsorLinks(db),audit(db,actor,'firm.archive_restored','firm',JSON.stringify({importId:job,sha256:hash.digest('hex'),archiveHash:closing.archiveHash,contentHash:closing.contentHash,decision:'RESTORE into empty product data'}))]);
+ if(result.phase==='complete'){const sha256=hash.digest('hex');await atomic(db,actor,[stmt(db,"INSERT INTO s_recovery_receipts VALUES(?,'restore',?,?,?,?,?)",receipt,sha256,closing.archiveHash,closing.contentHash,bytes,at),stmt(db,'DELETE FROM s_proposal_sponsor_links'),restoredProposalSponsorLinks(db),audit(db,actor,'firm.archive_restored','firm',JSON.stringify({importId:job,sha256,archiveHash:closing.archiveHash,contentHash:closing.contentHash,decision:'RESTORE into empty product data'}))]);}
  return result;
  }catch(error){if(job)await service.imports.abort(job);throw error;}
 }

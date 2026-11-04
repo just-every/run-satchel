@@ -1,3 +1,4 @@
+import {recoveryPaused} from './recovery-authority';
 import {wallAllows} from './matter-scope';
 import type {Bindings} from '../auth.server';
 import {operatorMail} from '../mail.server.mjs';
@@ -9,6 +10,7 @@ async function outcome(db:D1Database,d:Data,claim:string,status:string,provider:
  await db.batch([stmt(db,"UPDATE s_reminder_deliveries SET status=?,provider=?,provider_id=?,detail=? WHERE id=? AND claim=? AND status='sending'",status,provider,providerId,detail,d.id,claim),audit(db,{id:'scheduled-reminders',email:'scheduler',role:'system',channel:'automation'},'deadline.reminder_result',d.id,JSON.stringify({recipient:d.recipient,status,provider,providerId,detail}))]);
 }
 export async function runReminders(env:Bindings,at=Date.now()){
+ if(await recoveryPaused(env.DB,'sending'))return {paused:true};
  const db=env.DB;
  // A claimed send interrupted by a Worker restart is uncertain, never retried.
  await stmt(db,"UPDATE s_reminder_deliveries SET status='uncertain',detail='Worker stopped before recording the provider outcome. Reconcile before any new send.' WHERE status='sending' AND claimed_at<=?",at-600000).run();

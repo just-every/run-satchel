@@ -1,3 +1,4 @@
+import {recoveryPaused} from './recovery-authority';
 import {atomic,audit,id,insist,matter,now,rows,stmt,type Actor,type Data} from './model';
 import {accessGuard,guard} from './trust-guards';
 import {portalAccess} from './portal';
@@ -65,6 +66,7 @@ async function runPlan(env:StripeEnv,p:Data,day:string){
  }
 }
 export async function runPaymentPlans(env:StripeEnv,at:number){
+ if(await recoveryPaused(env.DB,'charging'))return {paused:true};
  const timezone=(await stmt(env.DB,'SELECT timezone FROM s_firm WHERE id=1').first<Data>())?.timezone??'UTC';
  const day=new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(at));
  const plans=await rows(env.DB,"SELECT p.*,b.matter_id FROM s_payment_plans p JOIN s_bills b ON b.id=p.bill_id WHERE p.status='active' ORDER BY p.created_at,p.id");

@@ -1,3 +1,4 @@
+import {recoveryPaused} from './recovery-authority';
 import {runRequestReminders} from './request-reminders';
 import type {Bindings} from '../auth.server';
 import {operatorMail} from '../mail.server.mjs';
@@ -30,6 +31,7 @@ async function message(env:Bindings,d:Data,firm:string){
   :{subject:`Your engagement with ${firm}`,text:`${firm} is following up about next steps on your engagement. Reply to this message with any questions.${stop}`};
 }
 export async function runFollowups(env:Bindings,atMs:number){
+ if(await recoveryPaused(env.DB,'sending'))return {paused:true};
  await runRequestReminders(env,atMs);
  const db=env.DB,at=new Date(atMs).toISOString();
  await db.batch([stmt(db,'DELETE FROM s_consult_rate_limits WHERE expires_at<?',at),stmt(db,"UPDATE s_followup_sends SET status='uncertain',detail='The worker stopped before the provider answered; check the provider before contacting again. No automatic resend.' WHERE status='sending' AND attempted_at<?",new Date(atMs-15*60000).toISOString())]);

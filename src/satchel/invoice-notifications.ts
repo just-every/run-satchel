@@ -1,3 +1,4 @@
+import {requireRecoveryAuthority} from './recovery-authority';
 import type {Bindings} from '../auth.server';
 import {operatorMail} from '../mail.server.mjs';
 import {serializeSendGridMessage,sendSendGrid,SendGridSendError} from '../modules/mail/src/sendgrid-email/index.mjs';
@@ -25,6 +26,7 @@ export async function authorizeInvoiceNotification(db:D1Database,actor:Actor,del
  await atomic(db,actor,[...deliveryFences(db,actor,d,revision),guard(db,'COALESCE((SELECT id FROM s_invoice_delivery_attempts WHERE delivery_id=? ORDER BY authorized_at DESC,id DESC LIMIT 1),\'\')=?',d.id,prior?.id??''),...(prior?.status==='ready'?[stmt(db,"UPDATE s_invoice_delivery_attempts SET status='withdrawn',detail='Replaced by a new audited authorization before provider submission' WHERE id=? AND status='ready'",prior.id)]:[]),stmt(db,'INSERT INTO s_invoice_delivery_attempts(id,delivery_id,notification_template_id,authorized_by,authorized_at,reason,contact_revision) VALUES(?,?,?,?,?,?,?)',attemptId,deliveryId,templateId,actor.email,at,reason,revision),audit(db,actor,prior?'invoice.resend_authorized':'invoice.notification_authorized',attemptId,JSON.stringify({deliveryId,priorAttemptId:prior?.id??null,notificationTemplateId:templateId,reason}),{matterId:d.matter_id})]);return {attemptId,deliveryId};
 }
 export async function sendInvoiceNotification(env:InvoiceDeliveryEnv,actor:Actor,attemptId:string){
+ await requireRecoveryAuthority(env.DB,'sending');
  invoiceStaff(actor,true);const db=env.DB,a=await stmt(db,'SELECT a.*,t.subject,t.body FROM s_invoice_delivery_attempts a JOIN s_invoice_notification_templates t ON t.id=a.notification_template_id WHERE a.id=?',attemptId).first<Data>();insist(a,'Invoice notification attempt not found',404);
  const d=await deliveryAccess(db,actor,a.delivery_id);if(a.status!=='ready')return invoiceDeliveryState(db,actor,d.matter_id);
  const revision=await notificationEligibility(db,actor,d);insist(revision===a.contact_revision,'Contact or consent changed; authorize a new reviewed attempt',409);

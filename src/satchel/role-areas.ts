@@ -14,6 +14,7 @@ export const areaRules:[RegExp,string[]][]=[
  rule('/security/devices(?:/'+seg+'/revoke)?',open),
  rule('/security/microsoft(?:/jobs(?:/'+seg+'/run)?|/revoke)?',['settings']),
  rule('/(agent-controls|agent-agreements(?:/'+seg+'/withdraw)?|agent-delegations(?:/'+seg+'/(?:revoke|context))?|agent-jobs/'+seg+'/run)',['settings']),
+ rule('/(diagnostics|recovery/authorize)',['settings','bank:full']),
  rule('/settlement-policy',['settings']),
  rule('/(bills/'+seg+'/reconciliation|stripe/collections/'+seg+'/(reconcile|refund|settlement|bank-match|bank-reversal))',['billing','bank:full']),
  rule('/(bills/'+seg+'/payment-plans|payment-plans/'+seg+'(?:/actions|/mandate|/mandate/confirm)?)',['billing']),

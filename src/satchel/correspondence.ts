@@ -1,3 +1,4 @@
+import {requireRecoveryAuthority} from './recovery-authority';
 import {serializeSendGridMessage} from '../modules/mail/src/sendgrid-email/index.mjs';
 import {collectionSendGuards} from './collection-state';
 import {matterUpdateSendGuards} from './matter-update-delivery';
@@ -48,6 +49,7 @@ export async function reviewCorrespondence(db:D1Database,actor:Actor,matterId:st
 }
 async function load(db:D1Database,actor:Actor,attemptId:string){counsel(actor);const a=await stmt(db,'SELECT a.*,m.matter_id,m.recipient,m.subject,m.body,m.bill_id,m.bill_digest,COALESCE((SELECT template_id FROM s_client_reminder_jobs WHERE correspondence_id=m.id),(SELECT collection_id FROM s_collection_attempts WHERE correspondence_id=m.id)) template_version FROM s_correspondence_attempts a JOIN s_correspondence m ON m.id=a.correspondence_id WHERE a.id=?',attemptId).first<Data>();insist(a,'Mail attempt not found',404);await matter(db,actor,a.matter_id);return a;}
 export async function sendCorrespondence(env:Bindings,actor:Actor,attemptId:string,atMs=Date.now()){
+ await requireRecoveryAuthority(env.DB,'sending');
  const db=env.DB,a=await load(db,actor,attemptId);
  if(a.status!=='ready')return correspondenceState(db,actor,a.matter_id);
  const revision=await eligible(db,actor,a);insist(revision===a.contact_revision,'Contact authority changed; make a fresh review decision',409);

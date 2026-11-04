@@ -1,3 +1,5 @@
+import {requireRecoveryAuthority} from './recovery-authority';
+import {recoveryPaused} from './recovery-authority';
 import {firmToday} from './retention';
 import type {Bindings} from '../auth.server';
 import {atomic,audit,human,id,insist,integer,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
@@ -38,6 +40,7 @@ export async function collectionAction(db:D1Database,actor:Actor,collectionId:st
  await atomic(db,actor,[accessGuard(db,actor,s.matter_id),stmt(db,'INSERT INTO s_collection_events(id,collection_id,kind,note,next_due_at,decision_attempt_id,actor,at) VALUES(?,?,?,?,?,?,?,?)',id(),s.id,b.kind,note,next,b.kind==='decision'?view.attempts.filter((a:Data)=>a.attempted_at).at(-1)?.id:null,actor.email,now()),audit(db,actor,'collection.'+b.kind,s.id,note,{matterId:s.matter_id})]);return collectionView(db,s);
 }
 export async function runCollection(env:Bindings,actor:Actor,collectionId:string,atMs=Date.now()){
+ await requireRecoveryAuthority(env.DB,'sending');
  const db=env.DB,s=await load(db,actor,collectionId);insist(s.owner_id===actor.id,'Only the approving collection owner can run this sequence',403);
  const view=await collectionView(db,s);if(view.status!=='active'||Date.parse(view.nextDueAt)>atMs)return view;
  let link=await stmt(db,'SELECT * FROM s_collection_attempts WHERE collection_id=? AND collection_step=?',s.id,view.step).first<Data>();
@@ -49,6 +52,7 @@ export async function runCollection(env:Bindings,actor:Actor,collectionId:string
  await sendCorrespondence(env,actor,link.attempt_id,atMs);return collectionView(db,s);
 }
 export async function runCollections(env:Bindings,atMs:number){
+ if(await recoveryPaused(env.DB,'sending'))return {paused:true};
  const list=await rows(env.DB,"SELECT s.* FROM s_collection_sequences s WHERE s.first_due_at<=? AND NOT EXISTS(SELECT 1 FROM s_collection_events e WHERE e.collection_id=s.id AND e.kind='stop') AND NOT EXISTS(SELECT 1 FROM s_bills b WHERE b.id=s.bill_id AND b.status='void') ORDER BY s.approved_at,s.id",new Date(atMs).toISOString());
  for(const s of list){try{const o=await stmt(env.DB,'SELECT o.*,m.role member_role,m.active,r.permissions FROM oa_operators o LEFT JOIN s_members m ON m.email=o.email LEFT JOIN s_custom_roles r ON r.id=m.custom_role_id WHERE o.id=?',s.owner_id).first<Data>();insist(o?.status==='active'&&(o.role==='owner'||o.active===1),'Collection owner no longer active',409);const actor:Actor={id:o.id,email:o.email,name:o.display_name,role:o.role==='owner'?'owner':o.member_role,channel:'person',...(o.role!=='owner'&&o.permissions?{grants:parseGrants(o.permissions)}:{})};await runCollection(env,actor,s.id,atMs);}catch{/* A denied sequence never grants alternate outbound authority. */}}
 }

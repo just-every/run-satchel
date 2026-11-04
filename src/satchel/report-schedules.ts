@@ -1,3 +1,4 @@
+import {recoveryPaused} from './recovery-authority';
 // REPORT-003: the principal saves a report definition and schedules a weekly summary to named recipients. Each delivery is
 // built with the recipient's own report permission at send time, carries counts only, and records its provider outcome;
 // a failed delivery opens an exception owned by the principal with a due date.
@@ -106,6 +107,7 @@ function latestSlot(s:Data,atMs:number){
  return best;
 }
 export async function runReportSchedules(env:Bindings,atMs:number) {
+ if(await recoveryPaused(env.DB,'sending'))return {paused:true};
  const db=env.DB,at=new Date(atMs).toISOString(),mail=operatorMail(env),authority=await reviewOf(db,'mail');let made=0;
  for(const stale of await rows(db,"SELECT d.id,d.schedule_id,d.recipient,s.owner_email FROM s_report_deliveries d JOIN s_report_schedules s ON s.id=d.schedule_id WHERE d.status='queued' AND d.at<?",new Date(atMs-15*60000).toISOString()))await db.batch([stmt(db,"UPDATE s_report_deliveries SET status='uncertain',detail='Worker outcome unknown; no automatic resend' WHERE id=? AND status='queued'",stale.id),stmt(db,"INSERT INTO s_report_exceptions(id,schedule_id,delivery_id,recipient,owner_email,due_date,status,created_at) SELECT ?,?,?,?,?,?,'open',? WHERE NOT EXISTS(SELECT 1 FROM s_report_exceptions WHERE delivery_id=?)",id(),stale.schedule_id,stale.id,stale.recipient,stale.owner_email,new Date(atMs+86400000).toISOString().slice(0,10),at,stale.id)]);
  for(const s of await rows(db,'SELECT * FROM s_report_schedules WHERE active=1')){

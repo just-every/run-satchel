@@ -1,3 +1,4 @@
+import {recoveryPaused} from './recovery-authority';
 import type {Bindings} from '../auth.server';
 import {operatorMail} from '../mail.server.mjs';
 import {atomic,audit,human,id,insist,matter,need,now,rows,stmt,type Actor,type Data} from './model';
@@ -34,6 +35,7 @@ export async function approveRequestReminders(env:Bindings,actor:Actor,requestId
 }
 const eligible=`EXISTS(SELECT 1 FROM s_request_reminders r JOIN s_document_requests q ON q.id=r.request_id JOIN s_request_consents c ON c.request_id=q.id AND c.email=r.email JOIN oa_operators o ON o.email=r.email WHERE r.id=s_request_reminder_sends.reminder_id AND r.status='active' AND q.status='open' AND q.client_visible=1 AND c.revoked_at IS NULL AND o.status='active' AND ${portalAccess('q.matter_id',readerKinds).replace('g.email=?','g.email=r.email')})`;
 export async function runRequestReminders(env:Bindings,atMs:number){
+ if(await recoveryPaused(env.DB,'sending'))return {paused:true};
  const db=env.DB,at=new Date(atMs).toISOString(),setting=await stmt(db,"SELECT * FROM s_followup_settings WHERE kind='engagement_chase'").first<Data>();
  // A crashed send is uncertain. It is never retried, and the sequence is escalated for its human owner.
  await db.batch([stmt(db,"UPDATE s_request_reminder_sends SET status='uncertain',detail='Worker outcome unknown; no automatic resend' WHERE status='sending' AND attempted_at<?",new Date(atMs-15*60000).toISOString()),stmt(db,"UPDATE s_request_reminders SET status='escalated',reason='Uncertain delivery; owner must review' WHERE status='active' AND id IN(SELECT reminder_id FROM s_request_reminder_sends WHERE status='uncertain')")]);

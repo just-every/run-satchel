@@ -1,3 +1,4 @@
+import {requireRecoveryAuthority} from './recovery-authority';
 import {atomic,audit,human,id,insist,now,stmt,text,type Actor,type Data} from './model';
 import {paymentAccess} from './invoice-payment';
 import {guard} from './trust-guards';
@@ -14,6 +15,7 @@ export async function planStripeConfig(env:StripeEnv){
  const account=await stripeApi(env,'/account');insist(account.id===config.account_id,'Stripe account changed; obtain a new collection approval',409);return config;
 }
 export async function startPlanMandate(env:StripeEnv,actor:Actor,planId:string,b:Data){
+ await requireRecoveryAuthority(env.DB,'charging');
  clientConsent(actor,b);const p=await planAccess(env,actor,planId);
  insist(p.status==='paused'&&b.revision===p.revision,'The principal must approve the current paused plan before client authorization',409);
  const key=text(b.requestKey,'Authorization request reference',100),request=JSON.stringify({planId,revision:p.revision,client:actor.email,agree:true});
