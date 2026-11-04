@@ -1,7 +1,8 @@
 import {createHash} from 'node:crypto';
 import {atomic,audit,digest,human,id,insist,integer,matter,now,rows,stmt,text,type Actor,type Data} from './model';
-import {documentGuard,matterGuard,mediaType,visibleDocument} from './documents';
+import {documentAccess,documentGuard,matterGuard,mediaType,visibleDocument} from './documents';
 import {guard} from './trust-guards';
+import {matterScope} from './matter-scope';
 
 type Store={DB:D1Database;ORIGINALS:R2Bucket};
 export const uploadLimits={fileBytes:500*1024*1024,partBytes:8*1024*1024,files:100,matterBytes:10*1024*1024*1024,expiresHours:24};
@@ -39,14 +40,29 @@ async function claim(env:Store,actor:Actor,u:Data){
 async function release(env:Store,u:Data,lease:string){await stmt(env.DB,'UPDATE s_document_uploads SET lease=NULL,lease_until=NULL WHERE id=? AND lease=?',u.id,lease).run();}
 async function describe(env:Store,u:Data){
  const parts=await rows(env.DB,'SELECT part_number,size,sha256 FROM s_document_upload_parts WHERE upload_id=? AND etag IS NOT NULL ORDER BY part_number',u.id);
+ return uploadJson(u,parts);
+}
+function uploadJson(u:Data,parts:Data[]){
  return {id:u.id,batchId:u.batch_id,documentId:u.state==='complete'?(u.target_document_id??u.document_id):null,targetDocumentId:u.target_document_id??null,baseRevision:u.base_revision??null,reviewedRevision:u.reviewed_revision??null,currentRevision:['active','completing'].includes(u.state)?u.target?.revision??null:null,currentVersion:['active','completing'].includes(u.state)?u.target?.current_version??null:null,name:u.name,path:u.relative_path,mime:u.declared_mime,size:u.size,sha256:u.sha256,visibility:u.visibility,state:u.state,expiresAt:u.expires_at,parts:parts.map(p=>({number:p.part_number,size:p.size,sha256:p.sha256}))};
 }
 export async function uploadState(env:Store,actor:Actor,matterId:string){
  human(actor);await matter(env.DB,actor,matterId);
  await recoverDocumentUploads(env);
- const uploads=await rows(env.DB,'SELECT * FROM s_document_uploads WHERE matter_id=? AND (actor_id=? OR ?=\'owner\') ORDER BY created_at DESC,id',matterId,actor.id,actor.role);
- const permitted=[];for(const u of uploads){try{permitted.push(await access(env,actor,u.id));}catch(error){if((error as {status?:number}).status===404||(error as {status?:number}).status===403)continue;throw error;}}
- return {limits:uploadLimits,usedAndReservedBytes:actor.role==='owner'?(await stmt(env.DB,usageSql,matterId,matterId,matterId,matterId).first<Data>())!.bytes:null,uploads:await Promise.all(permitted.map(u=>describe(env,u)))};
+ // Apply the same current document visibility and author checks as access(),
+ // in one query for the whole matter rather than once per retained original.
+ const visibility=documentAccess(actor);
+ const uploads=await rows(env.DB,`SELECT u.*,d.revision AS target_revision,d.current_version AS target_current_version
+  FROM s_document_uploads u LEFT JOIN s_documents d ON d.id=COALESCE(u.target_document_id,u.document_id)
+  WHERE u.matter_id=? AND (u.actor_id=? OR ?='owner') AND ${matterScope('u.matter_id')}
+  AND ((u.target_document_id IS NULL AND u.state<>'complete') OR
+   (d.id IS NOT NULL AND d.erased_at IS NULL AND ${visibility.sql} AND (u.target_document_id IS NULL OR d.created_by=? OR ?='owner')))
+  ORDER BY u.created_at DESC,u.id`,matterId,actor.id,actor.role,actor.role,actor.email,...visibility.params,actor.email,actor.role);
+ const parts=await rows(env.DB,`SELECT p.upload_id,p.part_number,p.size,p.sha256 FROM s_document_upload_parts p
+  JOIN s_document_uploads u ON u.id=p.upload_id
+  WHERE u.matter_id=? AND (u.actor_id=? OR ?='owner') AND p.etag IS NOT NULL ORDER BY p.part_number`,matterId,actor.id,actor.role);
+ const byUpload=new Map<string,Data[]>();
+ for(const p of parts){const group=byUpload.get(p.upload_id)??[];group.push(p);byUpload.set(p.upload_id,group);}
+ return {limits:uploadLimits,usedAndReservedBytes:actor.role==='owner'?(await stmt(env.DB,usageSql,matterId,matterId,matterId,matterId).first<Data>())!.bytes:null,uploads:uploads.map(u=>uploadJson({...u,target:u.target_document_id?{revision:u.target_revision,current_version:u.target_current_version}:undefined},byUpload.get(u.id)??[]))};
 }
 export async function beginUploads(env:Store,actor:Actor,matterId:string,body:Data){
  human(actor);await matter(env.DB,actor,matterId);

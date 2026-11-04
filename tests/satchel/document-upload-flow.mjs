@@ -221,6 +221,12 @@ async function proveFolderFormats(h){
   const u=batch.uploads.find(u=>u.name===file.name),r=await h.raw('/api/satchel/document-uploads/'+u.id+'/parts/1',{method:'POST',headers:{'content-type':'application/octet-stream','x-part-sha256':hash(file.bytes)},body:file.bytes},h.owner);assert.equal(r.status,200,await r.text());
   await h.json('/document-uploads/'+u.id+'/complete',{},h.owner);
  }
+ const state=await h.json(door,undefined,h.owner);assert.equal(state.uploads.length,originals.length);
+ for(const file of originals){
+  const u=state.uploads.find(u=>u.name===file.name);
+  assert.equal(u.state,'complete');assert.equal(u.id,batch.uploads.find(u=>u.name===file.name).id);
+  assert.deepEqual(u.parts,[{number:1,size:file.bytes.length,sha256:hash(file.bytes)}],'Folder state retains each original’s own verified parts');
+ }
  const docs=await h.json('/matters/'+m.id+'/documents',undefined,h.owner);assert.equal(docs.length,originals.length);
  for(const file of originals){
   const doc=docs.find(d=>d.title===file.name),v=doc.versions[0];assert.deepEqual([v.size,v.sha256,v.declaredMime,v.path,v.scanStatus],[file.bytes.length,hash(file.bytes),file.mime,'Matter folder/'+file.name,'quarantined']);

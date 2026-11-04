@@ -3768,7 +3768,7 @@
       "executable": false
     },
     "src/satchel/document-uploads.ts": {
-      "sha256": "30cb250cee5f64458fd208d9e2f2fdd7442432fcca5e19bae4f4267c0e513735",
+      "sha256": "9267df6c88ca96e2499fb2bafcf1416a5a363421e44d877b62c3bd92229ec26b",
       "executable": false
     },
     "src/satchel/documents.ts": {
@@ -5224,7 +5224,7 @@
       "executable": false
     },
     "tests/satchel/document-upload-flow.mjs": {
-      "sha256": "f72fe1f97f5c25902db41ad5b6aa791ccd575bd8b021943c79f60363e9fa1469",
+      "sha256": "e0ae8b86312e2b985ffee8f3ab9bbdff1ce8bc20a90b246cbc6be669b66745d0",
       "executable": false
     },
     "tests/satchel/document-upload-scale.mjs": {
