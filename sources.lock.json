@@ -156,7 +156,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "3e2f0a0ccf3e27b351e0c43f5f61eb6aac097b55d76a775e1329e47b353ca132",
+      "sha256": "ef37754cf5931bfaef81fb2aaa33694564e7c3db0e508ab26d55ff611a1178ab",
       "executable": false
     },
     "base-copies.json": {
@@ -172,7 +172,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "3fcf1825846186f22984bf5f6cad53128fedaf7ce1268f9ead477054e9f32984",
+      "sha256": "c6361883073859684a8e72a3a230cc1c19ca410c4e9603023bb8ea4a128b4a9e",
       "executable": false
     },
     "DEMO.md": {
@@ -3820,15 +3820,15 @@
       "executable": false
     },
     "src/satchel/economics-exports.ts": {
-      "sha256": "e6bfdd879029cac84e4cf2c56ce4bd7f24adc033c738cb49847d95b00c195e7e",
+      "sha256": "bbfc3b513abcfb57878f9ec1b54fc86eee5cc1c0e578b24a0058b9e131bafa3a",
       "executable": false
     },
     "src/satchel/economics-history.ts": {
-      "sha256": "e557afd677847f1843b909786a70bf0214ca5f733a4292c90b61675922a8eaa2",
+      "sha256": "1c786d5cad3141971d015998b9ef84a3dbc966d538de436cedd0db2d05f0df4f",
       "executable": false
     },
     "src/satchel/economics-retention.ts": {
-      "sha256": "95ca6842be69f9d067525d9ca136e1436778ecaaab69873907dd0f3f66377e16",
+      "sha256": "1af71b36624cb70f8fa3cfa24686ce3529d899a3b1b50f562143b18bf41fa1cd",
       "executable": false
     },
     "src/satchel/economics.ts": {
@@ -5540,7 +5540,7 @@
       "executable": false
     },
     "tests/satchel/reports.test.mjs": {
-      "sha256": "01cbc586f138220e3445e74ecd358fda520e732bc45be36e9be52065e75fd8b2",
+      "sha256": "dbd11161c30581c6a7b6df08ffe3e265e18da0e430da853e4d4a353b85f2af28",
       "executable": false
     },
     "tests/satchel/roles-journey.test.mjs": {
