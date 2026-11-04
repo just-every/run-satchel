@@ -14,6 +14,9 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`CLIENT-002 staff send 
   const m=await open(h,'Harper lease dispute','Harper Bakery LLC','Main Street Holdings'),base='/matters/'+m.id;
   for(const [email,role,name] of [['lawyer@example.test','lawyer','Marcus Lee'],['client@example.test','client','Casey Client']]){await h.json('/team',{email,name,role},h.owner);await h.json('/team/invite',{email},h.owner);await h.login(email);}
   await h.json(base+'/access',{email:'lawyer@example.test'},h.owner);await h.json(base+'/portal',{email:'client@example.test',reason:'Client follows the lease review'},h.owner);await h.json('/providers/mail/review',{termsUrl:'https://resend.com/legal/terms-of-service',confirmed:true},h.owner);
+  const recipient=(await h.json(base+'/portal',undefined,h.owner)).grants[0].email;
+  const contact=await h.json('/contacts',{revision:(await h.json('/contacts',undefined,h.owner)).revision,kind:'person',name:'Notification recipient',emails:[recipient]},h.owner);
+  await h.json('/contacts/'+contact.id+'/consent',{revision:(await h.json('/contacts',undefined,h.owner)).revision,channel:'email',decision:'allowed',evidenceDate:'2026-11-01',source:'Client chose email notifications for secure portal messages'},h.owner);
   const errors=[],lawyer=await(await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true})).newPage();lawyer.setDefaultTimeout(15000);lawyer.on('pageerror',e=>errors.push(String(e)));
   await signIn(lawyer,h,'lawyer@example.test');await lawyer.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Matters',exact:true}).click();
   const panel=lawyer.locator('section.portal-threads');await panel.getByRole('heading',{name:'Client messages'}).waitFor();await panel.getByText('Start a message to the client').click();

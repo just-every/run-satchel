@@ -5428,7 +5428,7 @@
       "executable": false
     },
     "tests/satchel/portal-threads-journey.test.mjs": {
-      "sha256": "0798384bab987f7ca85590b5a1ac7117fa099084c42a3f28acb21542fbd34cb9",
+      "sha256": "b9944818a356e45f2a6d94c1039c969bc4b01775bef273161e394caa040f8b00",
       "executable": false
     },
     "tests/satchel/portal-threads.test.mjs": {
