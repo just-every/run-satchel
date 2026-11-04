@@ -787,6 +787,10 @@
       "sha256": "5a0cb23e7ca54746a426830ac565f15535254487ce9c337fa4c4d1a79dff387d",
       "executable": false
     },
+    "migrations/core/0130_restored_automation_policy.sql": {
+      "sha256": "e7ec28e1ea8d4a2db36e7d3cc067f29e0cf415a37fd834fb42f6776e5fbbf2e3",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "31dbf44f24514b9f626261911b9b83c806cacdf00dd23e49f465f3fdfebb715e",
       "executable": false
@@ -3580,7 +3584,7 @@
       "executable": false
     },
     "src/satchel/archive-transport.ts": {
-      "sha256": "1f4e5cd56b641a7e9e97cc75e53978475cb4cbca1d2762135ac88265ddbb50fd",
+      "sha256": "7ed1e3ad95316c50ba2e6e7cd992648b88e9ca4ad12f964e4804decdb1ddeafd",
       "executable": false
     },
     "src/satchel/archive.ts": {
@@ -4152,7 +4156,7 @@
       "executable": false
     },
     "src/satchel/recovery-authority.ts": {
-      "sha256": "c13d7aa9bce702f8e4f00b33c00eb3066dafffba48e41633c732dce537b28de0",
+      "sha256": "35217c9f803eae14bc17d416f8bf239951bd8b14c7fd99df35ffae363b3cee2d",
       "executable": false
     },
     "src/satchel/released-entries.ts": {
@@ -5445,6 +5449,14 @@
     },
     "tests/satchel/rates.test.mjs": {
       "sha256": "4c211bfe0705929c5c38754c0066afac10bf47ddb1b6fcc591cc414747b29e75",
+      "executable": false
+    },
+    "tests/satchel/recovery-diagnostics-browser.mjs": {
+      "sha256": "45630ce00beef3cd22d32f91ed296dafa64fd27acae57bb9281d3592dc129d28",
+      "executable": false
+    },
+    "tests/satchel/recovery-diagnostics-flow.mjs": {
+      "sha256": "8047e726f0452406f087bf111261c2fe3ecb71e3a82c54985ce682d67167eca1",
       "executable": false
     },
     "tests/satchel/reminder-journey.test.mjs": {

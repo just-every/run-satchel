@@ -23,7 +23,12 @@ export async function sweepMicrosoft(db:D1Database,actor:Actor){
 export async function microsoftState(env:MicrosoftBindings,actor:Actor){
  microsoftPrincipal(actor);await sweepMicrosoft(env.DB,actor);
  const c=await microsoftRecord(env.DB);
- return {configured:!!(env.ENTRA_TENANT_ID&&env.ENTRA_CLIENT_ID&&env.ENTRA_CLIENT_SECRET),capability:'directory:read',status:c?.status??'disconnected',generation:c?.generation??0,outcome:c?.outcome??'explicit_connection_required',tokenExpiresAt:c?.token_expires_at?new Date(c.token_expires_at).toISOString():null,observedTokenExpiresAt:c?.observed_token_expires_at?new Date(c.observed_token_expires_at).toISOString():null,lastSuccessfulReadAt:c?.last_success_at??null,updatedAt:c?.updated_at??null,jobs:(await rows(env.DB,'SELECT id,generation,capability,status,outcome,created_at,started_at,finished_at,user_count,has_more,provider_status FROM s_microsoft_jobs ORDER BY created_at DESC,id DESC LIMIT 100')).map(microsoftJobView)};
+ let authorization=c?.status??'disconnected';
+ if(c?.status==='connected'){
+  try{const configuration=await microsoftConfiguration(env);if(configuration.fingerprint!==c.configuration_digest||!await stmt(env.DB,`SELECT 1 FROM s_microsoft_connector j WHERE j.id='installation' AND ${microsoftStoredSessionSql('j')}`).first())authorization='reauthorization_required';}
+  catch{authorization='configuration_required';}
+ }
+ return {authorization,configured:!!(env.ENTRA_TENANT_ID&&env.ENTRA_CLIENT_ID&&env.ENTRA_CLIENT_SECRET),capability:'directory:read',status:c?.status??'disconnected',generation:c?.generation??0,outcome:c?.outcome??'explicit_connection_required',tokenExpiresAt:c?.token_expires_at?new Date(c.token_expires_at).toISOString():null,observedTokenExpiresAt:c?.observed_token_expires_at?new Date(c.observed_token_expires_at).toISOString():null,lastSuccessfulReadAt:c?.last_success_at??null,updatedAt:c?.updated_at??null,jobs:(await rows(env.DB,'SELECT id,generation,capability,status,outcome,created_at,started_at,finished_at,user_count,has_more,provider_status FROM s_microsoft_jobs ORDER BY created_at DESC,id DESC LIMIT 100')).map(microsoftJobView)};
 }
 export async function connectMicrosoft(env:MicrosoftBindings,actor:Actor,body:Data,sessionId:string){
  const version=await microsoftOwner(env.DB,actor,sessionId);

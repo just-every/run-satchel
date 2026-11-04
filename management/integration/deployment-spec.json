@@ -748,6 +748,18 @@
       "name": "0128_proposal_sponsor_links.sql",
       "sha256": "871277ac5b1374ebe10808bb0bf6f4158431009949e9dc35c753878f8025169a",
       "sql": "-- Destination-local admission links for explicitly restored proposals. Historical\n-- source rows and their sponsor/preparer attribution remain byte-identical.\nCREATE TABLE s_proposal_sponsor_links (\n proposal_id TEXT PRIMARY KEY,\n operator_id TEXT NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0129_operational_diagnostics.sql",
+      "sha256": "5a0cb23e7ca54746a426830ac565f15535254487ce9c337fa4c4d1a79dff387d",
+      "sql": "-- Installation observations and restore authority never travel in archives.\nALTER TABLE s_microsoft_connector ADD COLUMN last_success_at TEXT;\nALTER TABLE s_microsoft_connector ADD COLUMN observed_token_expires_at INTEGER;\nUPDATE s_microsoft_connector SET observed_token_expires_at=token_expires_at;\nCREATE TABLE s_recovery_receipts(\n id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN('backup','restore')),\n sha256 TEXT NOT NULL, archive_hash TEXT, content_hash TEXT,\n bytes INTEGER NOT NULL CHECK(bytes>=0), verified_at TEXT NOT NULL\n);\nCREATE TABLE s_recovery_authority(\n channel TEXT PRIMARY KEY CHECK(channel IN('sending','charging')),\n restore_id TEXT NOT NULL, restored_at TEXT NOT NULL,\n authorized_by TEXT, authorized_at TEXT, reason TEXT\n);\nCREATE TABLE s_scheduler_observation(\n id INTEGER PRIMARY KEY CHECK(id=1), scheduled_at TEXT NOT NULL,\n started_at TEXT NOT NULL, completed_at TEXT, outcome TEXT NOT NULL CHECK(outcome IN('running','succeeded','failed'))\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0130_restored_automation_policy.sql",
+      "sha256": "e7ec28e1ea8d4a2db36e7d3cc067f29e0cf415a37fd834fb42f6776e5fbbf2e3",
+      "sql": "-- The archive policy normalizes this bootstrap row in the atomic import itself,\n-- including imports through the installation recovery command.\nCREATE TABLE s_recovery_state(\n id INTEGER PRIMARY KEY CHECK(id=1),\n sending_paused INTEGER NOT NULL DEFAULT 0 CHECK(sending_paused IN(0,1)),\n charging_paused INTEGER NOT NULL DEFAULT 0 CHECK(charging_paused IN(0,1))\n);\nINSERT INTO s_recovery_state VALUES(1,0,0);\n"
     }
   ],
   "compatibilityDate": "2026-09-08",

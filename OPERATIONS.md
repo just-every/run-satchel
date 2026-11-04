@@ -51,6 +51,34 @@ Preserve ambiguous state and applied migration history. Never place a remote
 credential, owner secret or local resource ID in source. A schema change needs
 a forward migration and verified transition/recovery.
 
+## Operational diagnostics and restored automation
+
+The principal opens **Team & safety → Operational diagnostics**. The surface
+reads native queue records, Microsoft authorization and retained successful-read
+times, original byte counts, actual bucket object sizes, local export and restore
+receipts, scheduler observations and unreconciled trust periods. Each section
+names its next action. Provider charges, total database usage, quota and bank-feed
+health remain unknown without a provider observation. A terms review does not
+verify authorization, delivery, bank settlement or an off-site backup.
+
+Both the workspace restore and the installation recovery command normalize the
+installation automation state to paused. Scheduled sending and charging remain
+paused across restarts; importing provider reviews never releases them. In
+**Recovery settings**, the principal reviews the current restore fence, records
+a reason and explicitly authorizes sending or charging separately. A fresh
+provider review in this installation is required. Charging also requires a new
+operating processor arrangement; every existing plan, mandate, recipient and
+current-authority check still applies. Microsoft connections and their tokens
+are excluded and must be established afresh. An interrupted send or charge is
+never retried automatically.
+
+Workspace restore records the supplied archive digest after validating the
+archive's counts and hashes. A command-line restore has its command receipt;
+the workspace does not invent a verification record for it. Export completion
+records the bytes streamed, not proof that a private off-site copy was retained.
+Large-attachment recovery, live token-expiry and stopped-bank-feed proof, complete
+provider diagnostics and owner-hosted installation proof remain outstanding.
+
 ## Deployment
 
 `rer deploy --dry-run` validates the real owner-account

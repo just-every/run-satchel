@@ -1,3 +1,4 @@
+import {proveRecoveryDiagnostics} from './recovery-diagnostics-flow.mjs';
 import {authorizeAgent} from './agent-fixture.mjs';
 import {proveAgentExecution} from './agent-execution-flow.mjs';
 import {proveMicrosoftSecurity} from './microsoft-security-flow.mjs';
@@ -193,6 +194,7 @@ test('document erasure invalidates old archives and removes every version byte',
  newArchive=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(newArchive.includes('runeditrun-portability'));assert.notEqual(oldArchive,newArchive);
 });
 test('FIRM-001 and archive integrity: empty destination, later erasure journal, complete restoration with firm settings provenance',async()=>{
+ await proveRecoveryDiagnostics();
  await h.json('/restore',{archive:newArchive,confirm:'RESTORE'},h.owner,409);
  const target=await harness();try{
   const fresh=await target.json('/state',undefined,target.owner);assert.deepEqual([fresh.matters.length,fresh.members.length,fresh.firm],[0,0,null],'A fresh installation starts with no sample clients, members or firm settings');
@@ -204,7 +206,7 @@ test('FIRM-001 and archive integrity: empty destination, later erasure journal, 
   const nativeRows=archive=>archive.trim().split('\n').map(line=>JSON.parse(line)).filter(record=>record.kind==='part').flatMap(part=>part.items).filter(item=>item.kind==='row').map(item=>JSON.stringify({table:item.table,row:item.row})).sort();
   const restoredRows=nativeRows(roundtrip),custody=restoredRows.map(JSON.parse).filter(item=>item.table==='s_audit'&&item.row.action==='firm.archive_restored');
   assert.equal(custody.length,1,'Restore appends exactly one new custody action');assert.equal(custody[0].row.role,'owner');assert.equal(JSON.parse(custody[0].row.detail).sha256,(await import('node:crypto')).createHash('sha256').update(newArchive).digest('hex'));
-  assert.deepEqual(restoredRows.filter(row=>JSON.parse(row).row.id!==custody[0].row.id),nativeRows(newArchive),'Every archived native row survives unchanged beside the new restore custody action');
+  assert.deepEqual(restoredRows.filter(row=>JSON.parse(row).row.id!==custody[0].row.id),nativeRows(newArchive).map(row=>{const item=JSON.parse(row);return item.table==='s_recovery_state'?JSON.stringify({...item,row:{...item.row,sending_paused:1,charging_paused:1}}):row;}).sort(),'Every archived native row survives beside custody and the explicitly paused installation automation state');
   assert.deepEqual(await target.json('/firm',undefined,target.owner),await h.json('/firm',undefined,h.owner),'Firm settings and their provenance restore exactly');
   assert.equal(await(await target.request('/api/satchel/bills/'+bill.id+'/export',undefined,target.owner)).text(),originalCsv);
   await target.json('/documents/'+privateDoc.id+'/file',undefined,target.owner,404);
