@@ -30,9 +30,18 @@ export async function decideProposal(db:D1Database,actor:Actor,proposalId:string
   return openMatter(db,approving,{...payload,conflictId:body.conflictId,reviewNote:body.reviewNote,confirmed:body.confirmed});
  }
  if(p.kind==='bill') {
-  const stage={writes:await reviewWorkRecommendation(db,p,payload),snapshot:{},billId:approving.approval.resultId};
-  await prepareBill(db,approving,payload.matterId,payload,stage);
-  await atomic(db,approving,stage.writes);return getBill(db,actor,stage.billId);
+  try{
+   const stage={writes:await reviewWorkRecommendation(db,p,payload),snapshot:{},billId:approving.approval.resultId};
+   await prepareBill(db,approving,payload.matterId,payload,stage);
+   await atomic(db,approving,stage.writes);
+  }catch(error){
+   if(payload.reconciliationId&&[400,401,403,404,409,422].includes((error as {status?:number}).status??0)){
+    await matter(db,actor,payload.matterId);
+    await atomic(db,actor,[audit(db,actor,'proposal.acceptance_refused',p.id,'Work or delegation changed; no draft created',{matterId:payload.matterId,reviewedRevision:payload.reconciliationId})]);
+   }
+   throw error;
+  }
+  return getBill(db,actor,approving.approval.resultId);
  }
  return proposeDeadline(db,approving,payload.matterId,payload);
 }

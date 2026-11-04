@@ -4160,7 +4160,7 @@
       "executable": false
     },
     "src/satchel/proposals.ts": {
-      "sha256": "542924f2dc80dabf371f9592c96e030ef9bda9cd86a9759c0d3373b5717bfc86",
+      "sha256": "fb2193e27ee406c79daf0e632ae706ce7529e6b21be296b42652ee1cda0a0d2f",
       "executable": false
     },
     "src/satchel/providers.ts": {
@@ -4920,7 +4920,7 @@
       "executable": false
     },
     "src/ui/proposals.tsx": {
-      "sha256": "2acc0d7d5137d547f298e3a676e581afdd22653ab6201c6ca16b391151e9c616",
+      "sha256": "92d27edba80ed531cc6b91556a341305d2f1639009ea49651bdf2f50135525d1",
       "executable": false
     },
     "src/ui/providers.tsx": {
@@ -5104,11 +5104,11 @@
       "executable": false
     },
     "tests/satchel/agent-work-reconciliation-browser.mjs": {
-      "sha256": "c32b889714842c278a0b179b84124e6cc23491593ba53046feeab1755f3f7a3f",
+      "sha256": "e7717226551a0a349a2c2cc50a00092a7b6b79c08c8a045575089015048866d4",
       "executable": false
     },
     "tests/satchel/agent-work-reconciliation-flow.mjs": {
-      "sha256": "0601872f9a4209b888df9a4f00c3ce222e18936e360c5ac892844a08f395c169",
+      "sha256": "a3a930326c81d1813b0676cd675b73d08de279c530d624e033f3d5ced643b222",
       "executable": false
     },
     "tests/satchel/assembly-fixture.mjs": {

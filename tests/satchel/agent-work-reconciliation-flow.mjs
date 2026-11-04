@@ -92,6 +92,8 @@ export async function proveAgentWorkReconciliation(){
   await h.json('/agent/matters/'+m.id,undefined,'',403,auth);
   await h.json('/agent/prepare-bill',{matterId:m.id,title:'Stopped work',date:'2026-10-17',entryIds:[revokedWork.id]},'',403,auth);
   await h.json('/proposals/'+revoked.id+'/decide',{decision:'approve'},h.owner,403);
+  const refusals=await h.json('/audit?action=proposal.acceptance_refused',undefined,h.owner);
+  for(const p of [stale,competitor,revoked,erasedProposal])assert.ok(refusals.records.some(a=>a.objectId===p.id),'Each refused review retains its proposal identity');
   await h.json('/agent-agreements/'+agreement.id+'/withdraw',{reason:'Record new agreement terms separately'},h.owner);
   await h.json('/keys/'+key.id+'/revoke',{},h.owner);
   const final=(await h.json('/state',undefined,h.owner)).proposals;
