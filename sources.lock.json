@@ -172,7 +172,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "450a9b13bb29e057304e04c461a7324ba6f031594f26d0129cb35af143e79ed5",
+      "sha256": "6938e1c68fae4eca242aeb3cd0d8c464a56140bbb54d6dd2798d170ebe199002",
       "executable": false
     },
     "DEMO.md": {
@@ -3640,7 +3640,7 @@
       "executable": false
     },
     "src/satchel/bulk-work.ts": {
-      "sha256": "41ba2b22408b264bf6edb9c958fe530374c7aaa7f76bf91623da988c5041811a",
+      "sha256": "44ebcf1fb2be000b20ad72f886f92a0dc4de5ed83947a9962d79eca0334d1f1d",
       "executable": false
     },
     "src/satchel/chronology-extraction.ts": {
@@ -5232,7 +5232,7 @@
       "executable": false
     },
     "tests/satchel/economics-cost-disposal-flow.mjs": {
-      "sha256": "8c6d829e51913d1204c466f0e226b771d18c507f8ef4cd8696987f0aa0099662",
+      "sha256": "95376a10c56add13d9e11235d00302d2bb956d4f102736d6680511d85912a81a",
       "executable": false
     },
     "tests/satchel/economics-fixture.mjs": {
