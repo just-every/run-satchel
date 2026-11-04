@@ -211,6 +211,7 @@ assert.match(basis.formulas.realization,/Void invoices contribute zero/);assert.
 async function proveEconomicsAging(){
  const h=await harness({clock:'2030-06-01T16:00:00Z'});try{
   const f=await economicsFoundation(h),report=await h.json('/reports/economics',undefined,h.owner),m=report.matters.find(m=>m.matterId===f.m.id);
+  await h.json('/matters/'+f.m.id+'/documents',{name:'Synthetic current economics capture.txt',mime:'text/plain',contentBase64:Buffer.from(JSON.stringify(report)).toString('base64'),visibility:'matter'},h.owner,422);
   assert.equal(report.asOf,economicsClock);assert.deepEqual(m.aging,f.expectedAging);assert.deepEqual(report.totals.aging,f.expectedAging);
   assert.deepEqual(m.source.invoices.map(i=>i.agingBucket).sort(),['current','1–30','1–30','31–60','31–60','61–90','61–90','91+','unknown'].sort());
   assert.equal(m.billedCents,126000);assert.equal(m.earnedCents,126000);assert.equal(m.paidCents,500);assert.equal(m.pendingCents,200);assert.equal(m.trustCashCents,4500);assert.equal(m.collectionRate,500/126000);assert.equal(m.profitCents,null);assert.equal(m.costCoverage.approvedTimeEntries,0);
@@ -224,10 +225,35 @@ async function proveEconomicsAging(){
   assert.deepEqual((await h.json('/reports/economics',undefined,h.owner)).totals,approved.totals);
   const artifact=await(await h.request('/api/satchel/reports/economics/export',undefined,h.owner)).json();assert.deepEqual(artifact.totals,approved.totals);assert.equal(artifact.asOf,economicsClock);
   const earlier=await h.json('/reports/staff-costs',{...f.costInput,effectiveFrom:'2029-01-01',hourlyCents:1000,reason:'Synthetic older approved basis',confirmed:true},h.owner);
+  const firstConcurrent=await h.json('/reports/staff-costs/drafts',{...f.costInput,effectiveFrom:'2031-01-01',reason:'Synthetic future staff-cost review one'},h.owner),secondConcurrent=await h.json('/reports/staff-costs/drafts',{...f.costInput,effectiveFrom:'2031-01-01',hourlyCents:7000,reason:'Synthetic future staff-cost review two'},h.owner);
+  const concurrent=await Promise.all([firstConcurrent,secondConcurrent].map(d=>h.request('/api/satchel/reports/staff-costs/'+d.id+'/approve',{revision:d.id,confirmed:true},h.owner)));
+  assert.deepEqual(concurrent.map(r=>r.status).sort(),[200,409]);assert.equal((await h.json('/reports/staff-costs',undefined,h.owner)).approved.filter(c=>c.effective_from==='2031-01-01').length,1,'Concurrent approvals cannot create two active costs for one work date');assert.equal((await h.json('/reports/economics',undefined,h.owner)).totals.profitCents,72000);
   const retained=await h.json('/reports/economics/exports',{confirmed:true,filters:{}},h.owner),dependent=await h.json('/reports/economics/exports',{confirmed:true,filters:{}},h.owner);
   const original=await(await h.request(retained.downloadPath,undefined,h.owner)).text();assert.equal(JSON.parse(original).totals.profitCents,72000);
+
+  const copies=[original,JSON.stringify(JSON.parse(original)),JSON.stringify((({manifest,...payload})=>payload)(JSON.parse(original)))],costRecord=(await h.json('/reports/staff-costs',undefined,h.owner)).revisions.find(r=>r.id===f.draft.id);
+  const ordinary=await h.json('/matters/'+f.m.id+'/documents',{name:'Synthetic ordinary text.txt',mime:'text/plain',contentBase64:Buffer.from('Synthetic ordinary client evidence').toString('base64'),visibility:'matter'},h.owner);assert.ok(ordinary.id);
+  await h.json('/matters/'+f.m.id+'/threads',{subject:'Synthetic ordinary portal message',body:'The retained client task is ready for review.'},h.owner);
+  const beforeDocuments=await h.json('/matters/'+f.m.id+'/documents',undefined,h.owner),beforeThreads=await h.json('/matters/'+f.m.id+'/threads',undefined,h.owner),beforeMails=h.mails.length;
+  for(const text of [...copies,JSON.stringify(costRecord)]){
+   await h.json('/matters/'+f.m.id+'/documents',{name:'Synthetic attempted capture.txt',mime:'text/plain',contentBase64:Buffer.from(text).toString('base64'),visibility:'matter'},h.owner,422);
+   await h.json('/matters/'+f.m.id+'/threads',{subject:'Synthetic attempted capture',body:'Review this attached record',attachments:[{name:'Synthetic attempted capture.txt',contentBase64:Buffer.from(text).toString('base64')}]},h.owner,422);
+  }
+  await h.json('/matters/'+f.m.id+'/threads',{subject:'Synthetic attempted cost message',body:JSON.stringify(costRecord)},h.owner,422);
+  await h.json('/matters/'+f.m.id+'/correspondence',{recipient:costRecord.email,subject:'Synthetic refused cost letter',body:JSON.stringify(costRecord),reviewNote:'This private cost payload must not become correspondence'},h.owner,422);
+  assert.deepEqual(await h.json('/matters/'+f.m.id+'/documents',undefined,h.owner),beforeDocuments);assert.deepEqual(await h.json('/matters/'+f.m.id+'/threads',undefined,h.owner),beforeThreads);assert.equal(h.mails.length,beforeMails);
+  const {movePackage}=await import('./migration-fixture.mjs'),source=await movePackage(costRecord.email,f.account.id);await h.json('/migration/preview',{package:source},h.owner);
+  const bytes=Buffer.from(original),{createHash}=await import('node:crypto');source.files[1]={...source.files[1],contentBase64:bytes.toString('base64'),sha256:createHash('sha256').update(bytes).digest('hex')};await h.json('/migration/preview',{package:source},h.owner,422);assert.equal((await h.json('/migration',undefined,h.owner)).jobs.length,0);
   const beforeDisposal=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();
   const disposeCost={confirm:f.draft.id,reason:'Principal approved expired cost payload disposal'},disposeReport={confirm:retained.id,reason:'Principal approved expired report disposal'};
+  const unused=(await h.json('/reports/staff-costs',undefined,h.owner)).approved.find(c=>c.effective_from==='2031-01-01'),emptyExport=await h.json('/reports/economics/exports',{confirmed:true,filters:{status:'closed'}},h.owner),disposeUnused={confirm:unused.id,reason:'Principal approved unused cost setting disposal'},disposeEmpty={confirm:emptyExport.id,reason:'Principal approved empty report disposal'};
+  await h.json('/reports/economics/retention',undefined,lawyer,403);await h.json('/reports/economics/retention',{disposeAfter:'2030-09-30',basis:'Refused non-principal setting'},lawyer,403);
+  await h.json('/reports/staff-costs/'+unused.id+'/dispose',disposeUnused,h.owner,409);await h.json('/reports/economics/exports/'+emptyExport.id+'/dispose',disposeEmpty,h.owner,409);
+  const futurePolicy=await h.json('/reports/economics/retention',{revision:null,disposeAfter:'2030-10-02',basis:'Synthetic future firm retention decision'},h.owner);
+  await h.json('/reports/economics/retention',{revision:null,disposeAfter:'2030-09-30',basis:'Refused stale policy decision'},h.owner,409);assert.equal((await h.json('/reports/economics/retention',undefined,h.owner)).current.id,futurePolicy.id);
+  await h.json('/reports/economics/exports/'+emptyExport.id+'/dispose',disposeEmpty,h.owner,409);await h.json('/reports/staff-costs/'+unused.id+'/dispose',disposeUnused,h.owner,409);
+  const expiredPolicy=await h.json('/reports/economics/retention',{revision:futurePolicy.id,disposeAfter:'2030-09-30',basis:'Synthetic expired firm retention decision'},h.owner);
+
   await h.json('/reports/staff-costs/'+f.draft.id+'/dispose',disposeCost,lawyer,403);
   await h.json('/reports/economics/exports/'+retained.id+'/dispose',disposeReport,lawyer,403);
   await h.json('/reports/staff-costs/'+f.draft.id+'/dispose',disposeCost,h.owner,409);
@@ -237,8 +263,10 @@ async function proveEconomicsAging(){
   const hold=await h.json('/holds',{matterId:f.m.id,reason:'Synthetic counsel hold on financial report evidence'},h.owner);
   const beforeHeldCosts=await h.json('/reports/staff-costs',undefined,h.owner);
   await h.json('/reports/staff-costs/'+f.draft.id+'/dispose',disposeCost,h.owner,409);await h.json('/reports/economics/exports/'+retained.id+'/dispose',disposeReport,h.owner,409);
+  await h.json('/reports/staff-costs/'+unused.id+'/dispose',disposeUnused,h.owner,409);await h.json('/reports/economics/exports/'+emptyExport.id+'/dispose',disposeEmpty,h.owner,409);
   assert.deepEqual(await h.json('/reports/staff-costs',undefined,h.owner),beforeHeldCosts);assert.equal(await(await h.request(retained.downloadPath,undefined,h.owner)).text(),original);
   await h.json('/holds/'+hold.id+'/release',{reason:'Counsel released exact hold after review'},h.owner);
+  const emptyDisposed=await h.json('/reports/economics/exports/'+emptyExport.id+'/dispose',disposeEmpty,h.owner),unusedDisposed=await h.json('/reports/staff-costs/'+unused.id+'/dispose',disposeUnused,h.owner);assert.equal(emptyDisposed.journal.reportArtifacts,1);assert.equal(unusedDisposed.journal.costVersions,1);assert.equal(unusedDisposed.journal.reportArtifacts,0);assert.equal((await h.json('/reports/economics',undefined,h.owner)).totals.profitCents,72000);
   const reportDisposed=await h.json('/reports/economics/exports/'+retained.id+'/dispose',disposeReport,h.owner);assert.equal(reportDisposed.journal.reportArtifacts,1);assert.equal(reportDisposed.journal.bytes,Buffer.byteLength(original));
   assert.equal((await h.request(retained.downloadPath,undefined,h.owner)).status,404);
   const disposed=await h.json('/reports/staff-costs/'+f.draft.id+'/dispose',disposeCost,h.owner);assert.equal(disposed.journal.costVersions,1);assert.equal(disposed.journal.approvedCostVersions,1);assert.equal(disposed.journal.auditPayloads,2);assert.equal(disposed.journal.reportArtifacts,1);
@@ -247,11 +275,13 @@ async function proveEconomicsAging(){
   const after=await h.json('/reports/economics',undefined,h.owner);assert.equal(after.totals.staffCostCents,null,'Disposal cannot fall back to an older approved cost');assert.equal(after.totals.profitCents,null);assert.equal(after.totals.costCoverage.approvedTimeEntries,0);assert.deepEqual(after.totals.aging,f.expectedAging);
   await h.json('/reports/staff-costs/'+f.draft.id+'/approve',{revision:f.draft.id,confirmed:true},h.owner,404);await h.json('/reports/staff-costs/'+f.draft.id+'/dispose',disposeCost,h.owner,404);
   const disposedAudit=(await h.json('/audit?action=report.staff_cost_approved',undefined,h.owner)).records.find(r=>r.objectId===f.draft.id);assert.equal(disposedAudit.evidence.disposedStaffCostPayload,true);assert.ok(!JSON.stringify(disposedAudit).includes(f.costInput.reason));
+  await h.json('/matters/'+f.m.id+'/documents',{name:'Synthetic erased report replay.txt',mime:'text/plain',contentBase64:Buffer.from(original).toString('base64'),visibility:'matter'},h.owner,422);
   await h.restart();assert.equal((await h.json('/reports/economics',undefined,h.owner)).totals.profitCents,null);assert.equal((await h.request(dependent.downloadPath,undefined,h.owner)).status,404);
   const afterDisposal=await(await h.request('/api/satchel/backup',undefined,h.owner)).text();assert.ok(!afterDisposal.includes(f.costInput.reason),'Current archives contain no disposed cost payload or report derivative');
   const restored=await harness({clock:economicsClock});try{
    await restored.json('/restore',{archive:beforeDisposal,journal:afterDisposal,confirm:'RESTORE'},restored.owner,409);
    await restored.json('/restore',{archive:afterDisposal,confirm:'RESTORE'},restored.owner);
+   assert.equal((await restored.json('/reports/economics/retention',undefined,restored.owner)).current.id,expiredPolicy.id,'Recovery preserves the latest explicit retention revision, independent of row order');
    assert.equal((await restored.json('/reports/economics',undefined,restored.owner)).totals.profitCents,null);assert.equal((await restored.request(dependent.downloadPath,undefined,restored.owner)).status,404);assert.deepEqual(await restored.json('/reports/staff-costs',undefined,restored.owner),costsAfter);
   }finally{await restored.close();}
 

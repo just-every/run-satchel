@@ -20,7 +20,7 @@ import {listProductionShares,releaseProduction,recallProductionShare,inviteProdu
 import {revenueState,approveRevenueRule,approveRevenueAllocation} from './revenue';
 import {listBulkWork,prepareBulkWork,repairBulkRow,postBulkWork} from './bulk-work';
 import {recordOffline,offlineReceipt,offlineAction,writeOffInvoice} from './offline-payments';
-import {disposeStaffCost,disposeEconomicsExport} from './economics-retention';
+import {disposeStaffCost,disposeEconomicsExport,economicsRetention,saveEconomicsRetention} from './economics-retention';
 import {generateEconomics,downloadEconomics,retainedEconomics} from './economics-exports';
 import {economics,exportEconomics} from './economics';
 import {approveStaffCost,saveStaffCost,approveSavedStaffCost,staffCosts} from './staff-costs';
@@ -409,6 +409,8 @@ api.post('/api/satchel/reports/economics/exports',as(async(a,c)=>generateEconomi
 api.get('/api/satchel/reports/economics/exports/:id/file',as((a,c)=>downloadEconomics(db(c),a,param(c))));
 api.post('/api/satchel/reports/economics/exports/:id/dispose',as(async(a,c)=>disposeEconomicsExport(db(c),a,param(c),await body(c),runtimeBindings(c.env).ORIGINALS)));
 api.post('/api/satchel/reports/staff-costs/:id/dispose',as(async(a,c)=>disposeStaffCost(db(c),a,param(c),await body(c),runtimeBindings(c.env).ORIGINALS)));
+api.get('/api/satchel/reports/economics/retention',as((a,c)=>economicsRetention(db(c),a)));
+api.post('/api/satchel/reports/economics/retention',as(async(a,c)=>saveEconomicsRetention(db(c),a,await body(c))));
 api.get('/api/satchel/reports',as((a,c)=>reportState(db(c),a,c.req.query())));
 api.get('/api/satchel/reports/export',as((a,c)=>exportReport(db(c),a,c.req.query())));
 api.get('/api/satchel/ledes',as(async(a,c)=>{insist(['owner','lawyer'].includes(a.role),'Your role cannot perform this action',403);return ledesSettings(db(c));}));

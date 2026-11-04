@@ -340,11 +340,47 @@ All cost and economics doors require the current native principal session.
 Wider custom reporting grants confer no principal authority. An `asOf` input is
 refused: the read timestamp describes current state, not historical accounting.
 Pending applications and trust cash stay separate from cleared operating receipts.
-The economics screens, populated aging, complete historical reconstruction,
-separate artifact authority checks, complete outbound exclusion and disposal riders remain gaps. Native principal role removal, deactivation and session revocation refuse the next direct read or export.
-Cost revisions, approvals and custody audit history travel in native archives;
-restore grants no new principal session. Full archive-authority and erasure-fence
-rider proof remains owed.
+The workspace exposes Firm economics under Reports and Staff cost settings under
+Firm. A saved revision is shown with its exact basis, date, author and approval
+before the principal approves it.
+
+`POST /api/satchel/reports/economics/exports` with `confirmed: true` and `filters`
+retains an immutable confidential formula artifact and returns its ID, hash and
+separate authenticated download path. `GET /api/satchel/reports/economics/exports`
+lists only reports whose entire matter custody is currently permitted.
+`GET /api/satchel/reports/economics/exports/:id/file` checks the current native
+principal, every covered matter and the artifact hash again. The ID grants no
+access. Supersession never rewrites these bytes; restart and native restore keep
+them unchanged without restoring the requesting person's credentials.
+
+`POST /api/satchel/reports/staff-costs/:id/dispose` and
+`POST /api/satchel/reports/economics/exports/:id/dispose` require the exact ID in
+`confirm` and an explicit `reason`. Each affected matter needs expired whole-matter
+retention and no active legal hold. Cost disposal also clears confidential cost
+audit payloads and every retained report that cites that revision, records their
+kinds and counts, and leaves required costs unknown rather than selecting an
+older rate. Attribution, original payload hashes and minimal erasure evidence
+remain. Downloaded copies stay outside local erasure.
+
+Unused cost settings and empty reports require an expired firm retention decision
+instead. `GET /api/satchel/reports/economics/retention` returns the current decision;
+`POST` to that route accepts its exact `revision` (null initially), `disposeAfter`
+and `basis`. Decisions append to an explicit revision chain. Their disposal also
+requires current access to every matter and every ethical wall and refuses while
+any legal hold is active. A firm decision never bypasses a known matter schedule.
+These settings live with staff cost settings and authorize no automatic erasure.
+
+Native archives retain cost versions, approvals, retained reports and custody
+history under the existing archive authority. Approved disposal advances the
+native erasure journal, so restoring an older archive with that later journal is
+refused. Restore imports neither identities nor sessions nor authority grants.
+Native report JSON is classified for internal reporting. Hash-only fences keep
+registered artifact bytes, reformatted payloads and structured native cost records
+out of ordinary document capture, portal messages and attachments, reviewed
+correspondence and migration originals, including replay after disposal. These
+controls do not claim to stop someone transcribing a previously downloaded copy.
+Complete historical reconstruction and complete outbound-channel proof remain
+open under REPORT-002; this native slice grants no provider authority.
 
 ### Recorded contact preferences
 
