@@ -172,7 +172,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "161928aedd4210d4c07f995f40d3bf47fb112dd622cd45165a4c73317224b9fa",
+      "sha256": "5c73e9a85b177d4603c4940b8349b61a4195671fa3d8238a89152bc132e65624",
       "executable": false
     },
     "DEMO.md": {
@@ -3560,7 +3560,7 @@
       "executable": false
     },
     "src/satchel/agent-context.ts": {
-      "sha256": "c6f34b48b3d605441ad9c5698fc70c849cd3337887ab2b4738c76d9ce2e00596",
+      "sha256": "c3ee6a3d81ae473a9b561a82a0d418e44754f0915669343c70f3e4fad1d9730c",
       "executable": false
     },
     "src/satchel/agent-jobs.ts": {
@@ -3572,7 +3572,7 @@
       "executable": false
     },
     "src/satchel/agent-work-reconciliation.ts": {
-      "sha256": "bec3f165ef9a038989e44e100b83b14d35fb9fe9d483cd142d59d56bfc8ced65",
+      "sha256": "ff7dcc0aa3c7fa10f5b281e1cabf69e26b17d9b89aac3d205a0957852646f85b",
       "executable": false
     },
     "src/satchel/api.ts": {
@@ -5100,7 +5100,7 @@
       "executable": false
     },
     "tests/satchel/agent-work-reconciliation-flow.mjs": {
-      "sha256": "1e616640e5784071fc6d20e2e312e72ae61e6578a17af41653294633d921c493",
+      "sha256": "8ee572f31b0bd9dd8c8084c2048de1662b12976a783e8fd72cc27ef1450a6c29",
       "executable": false
     },
     "tests/satchel/assembly-fixture.mjs": {

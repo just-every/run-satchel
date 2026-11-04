@@ -4,6 +4,7 @@ import {listBilling} from './billing';
 import {documentGuard,matterGuard,visibleDocument} from './documents';
 import {agentForKey} from './session';
 import {gateGrants,requireArea} from './role-areas';
+import {redact} from './role-redaction';
 
 const policyRevision='native-confirmed-work-1';
 const scopeKeys=['id','key_id','agreement_id','sponsor_id','matter_id','actions','recipients','spend_cents','expires_at','stop_rule','escalation_email','approved_by','approved_at'];
@@ -31,7 +32,7 @@ function reconcileInvoices(billing:Data){
 
 // Only posted native entries are confirmed work. Unposted timers and timesheets,
 // document activity and provider observations are never inferred to be billable.
-export async function reconcileAgentWork(db:D1Database,d:Data,billing:Data){
+export async function reconcileAgentWork(db:D1Database,d:Data,billing:Data,actor:Actor){
  const sources=billing.entries.map((e:Data)=>{
   const invoices=billing.bills.flatMap((b:Data)=>b.snapshot.lines.filter((l:Data)=>l.sourceId===e.id).map((l:Data)=>({id:b.id,revision:b.revision,status:b.status,correctsBillId:b.correctsBillId,sourceRevision:l.sourceRevision})));
   const live=invoices.filter((b:Data)=>b.status!=='void');
@@ -40,10 +41,12 @@ export async function reconcileAgentWork(db:D1Database,d:Data,billing:Data){
   return {sourceId:e.id,sourceRevision:e.revision,kind:e.kind,date:e.date,description:e.description,timekeeperEmail:e.timekeeperEmail,amountCents:e.amountCents,rateRuleId:e.rateRuleId,rateSource:e.rateSource,expense,billable:e.billable,state,invoices,edits:(e.editHistory??[]).map((v:Data)=>({id:v.id,previousRevision:v.previousRevision,revision:v.revision}))};
  });
  const agreement=await stmt(db,'SELECT id,processor,model_revision FROM s_agent_agreements WHERE id=?',d.agreement_id).first<Data>();
- const invoices=reconcileInvoices(billing);
- const inputs={policyRevision,scope:scope(d),agreement,sources,invoices};
+ // Apply current visibility before recording inputs or deriving their identity.
+ // A hidden payment must not change the recommendation seen by a narrowed role.
+ const permitted=await redact(db,actor,'/api/satchel/agent/matters/'+d.matter_id,{sources,invoices:reconcileInvoices(billing)}) as Data;
+ const inputs={policyRevision,scope:scope(d),agreement,sources:permitted.sources,invoices:permitted.invoices};
  const reconciliationId=await digest(JSON.stringify(inputs));
- return {id:reconciliationId,policyRevision,agreement,sources,invoices,inputs};
+ return {id:reconciliationId,policyRevision,agreement,sources:permitted.sources,invoices:permitted.invoices,inputs};
 }
 export function reconciliationWrites(db:D1Database,r:Data){
  return [stmt(db,'INSERT OR IGNORE INTO s_agent_work_reconciliations(id,delegation_id,matter_id,inputs,created_at) VALUES(?,?,?,?,?)',r.id,r.inputs.scope.id,r.inputs.scope.matter_id,JSON.stringify(r.inputs),now())];
@@ -63,7 +66,7 @@ async function currentAuthority(db:D1Database,actor:Actor,d:Data){
 }
 export async function prepareWorkRecommendation(db:D1Database,actor:Actor,d:Data,body:Data){
  insist(Array.isArray(body.entryIds)&&body.entryIds.length>0&&body.entryIds.length<=100&&new Set(body.entryIds).size===body.entryIds.length,'Select between 1 and 100 distinct confirmed entries');
- const current=await reconcileAgentWork(db,d,await listBilling(db,actor,d.matter_id));
+ const current=await reconcileAgentWork(db,d,await listBilling(db,actor,d.matter_id),actor);
  let recommendation:Data=current;
  if(body.reconciliationId!==undefined){
   insist(typeof body.reconciliationId==='string','Choose a recorded reconciliation');
@@ -89,7 +92,7 @@ export async function reviewWorkRecommendation(db:D1Database,p:Data,payload:Data
  const d=await authorizedDelegation(db,agent,p.delegation_id,'prepare-bill');
  insist(inputs.policyRevision===policyRevision&&JSON.stringify(inputs.scope)===JSON.stringify(scope(d)),'Delegation changed; reconcile again',409);
  insist(payload.matterId===d.matter_id&&JSON.stringify(payload.entryIds)===JSON.stringify(selected.map((s:Data)=>s.sourceId)),'Recommendation sources changed',409);
- const current=await reconcileAgentWork(db,d,await listBilling(db,agent,d.matter_id));
+ const current=await reconcileAgentWork(db,d,await listBilling(db,agent,d.matter_id),agent);
  insist(selected.every((s:Data)=>current.sources.some((c:Data)=>c.sourceId===s.sourceId&&c.sourceRevision===s.sourceRevision&&eligible(c))),'Recommended work changed or is no longer eligible; reconcile again',409);
  return [...await currentAuthority(db,agent,d),...sourceGuards(db,d.matter_id,selected)];
 }

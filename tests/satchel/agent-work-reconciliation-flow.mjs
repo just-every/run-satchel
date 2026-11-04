@@ -100,7 +100,7 @@ export async function proveAgentWorkReconciliation(){
   await h.json('/offline-payments/'+receipt.id+'/actions',{requestKey:'synthetic-satchel-44',kind:'bounce',reason:'Bank returned the check'},h.owner);
   assert.equal((await cash()).recordedPaidCents,0);assert.equal((await cash()).dueCents,11900);
   const finalReceipt={...receiptBody,requestKey:'synthetic-satchel-45',reference:'synthetic-satchel-46',cents:11900,allocations:[{billId:draft.id,cents:11900}]};
-  await h.json('/offline-payments',finalReceipt,h.owner);await h.json('/offline-payments',finalReceipt,h.owner);
+  const finalRecordedReceipt=await h.json('/offline-payments',finalReceipt,h.owner);await h.json('/offline-payments',finalReceipt,h.owner);
   assert.equal((await cash()).state,'recorded_paid');assert.equal((await cash()).dueCents,0);assert.equal((await cash()).recordedPaidCents,11900);assert.equal((await cash()).bankSettlement,'unverified');
   assert.deepEqual((await h.json('/state',undefined,h.owner)).proposals.find(v=>v.id===p.id).workReconciliation,history,'Later payment decisions never rewrite recommendation inputs');
   const declinedWork=await entry('Declined recommendation'),declined=await prepare([declinedWork.id],(await context()).billing.workReconciliation);
@@ -121,6 +121,9 @@ export async function proveAgentWorkReconciliation(){
   await h.json('/team',{email:sponsorEmail,name:'Reconciliation counsel',role:'lawyer',customRoleId:restricted.id},h.owner);
   const limited=(await h.json('/agent/matters/'+m.id,undefined,'',200,scoped.auth)).billing.workReconciliation;
   assert.equal(limited.sources.find(s=>s.sourceId===time.id).amountCents,null);
+  await h.json('/offline-payments/'+finalRecordedReceipt.id+'/actions',{requestKey:'synthetic-satchel-54',kind:'credit',billId:draft.id,reason:'Principal retains this receipt as unapplied credit'},h.owner);
+  const afterHiddenPayment=(await h.json('/agent/matters/'+m.id,undefined,'',200,scoped.auth)).billing.workReconciliation;
+  assert.equal(afterHiddenPayment.id,limited.id,'Hidden payment changes cannot alter the restricted recommendation identity');
   assert.ok(limited.invoices.every(b=>b.trustPayment===null),'Reconciled native balances obey current custody redaction');
   assert.equal(limited.invoices.find(b=>b.id===draft.id).sources.find(s=>s.sourceId===time.id).amountCents,null);
   const limitedHistory=(await h.json('/state',undefined,sponsor)).proposals.find(p=>p.id===scopedProposal.id).workReconciliation;
