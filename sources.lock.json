@@ -172,7 +172,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "736d5a44506aa1451f31dd33ccb49224997e2d19f888717cb3a4ea242053dce7",
+      "sha256": "efa9c9555f2d9b021d8695e509969286fd01d91512ac4ffb25a8245bb1e6ce26",
       "executable": false
     },
     "DEMO.md": {
@@ -808,7 +808,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "74b85b5f7555adae540988553ed391b33dd98393b822f6e79b30952c5e86898f",
+      "sha256": "fb3ec697a71fcddecf62cff43cf11a129494cd051331d104ddef28c7d952cba3",
       "executable": false
     },
     "packaging.json": {
@@ -816,7 +816,7 @@
       "executable": false
     },
     "pnpm-lock.yaml": {
-      "sha256": "be721713b366450baf28d2e1ec074a096470bc02942857baa76b648a85bc300a",
+      "sha256": "f091eb8af06b1e40de9bc162e6cbf084ca18c4f47b24dee189543ef49e78d97f",
       "executable": false
     },
     "public/apple-touch-icon.png": {
@@ -4728,7 +4728,7 @@
       "executable": false
     },
     "src/ui/document-uploads.tsx": {
-      "sha256": "44cd146cc2136d09a73a7837c8c87e2a7bf9923d42f0c9ce9352dc8383c3e8a2",
+      "sha256": "a17ef28aac2e94d2ea95b6174cc7d230dd6a1a6455608a0b0dbef622930d9814",
       "executable": false
     },
     "src/ui/documents.tsx": {
@@ -5212,11 +5212,19 @@
       "executable": false
     },
     "tests/satchel/document-upload-browser.mjs": {
-      "sha256": "d4ce76aedd48f3797ffc38f887a931ff5688546a5867c3d1f1cd99a68e086f23",
+      "sha256": "9ff65ef63d39dc24490676164fca89359bc1e5aed7656a9cbccc86dbd15618a4",
+      "executable": false
+    },
+    "tests/satchel/document-upload-fixtures.mjs": {
+      "sha256": "1f6dcb44a2b07284d3582e1fe6b10f3f4168089e22a5c889a3087c1f2f8d9f3e",
       "executable": false
     },
     "tests/satchel/document-upload-flow.mjs": {
-      "sha256": "2f891dbeec5b2c3a9a3d5d1206bcbd075d2f1e909bfe90863f38cb147c1445b6",
+      "sha256": "d9f43a19d07f912a27208613623070b36cdcd868bfbb69b5abe073e508fcab71",
+      "executable": false
+    },
+    "tests/satchel/document-upload-scale.mjs": {
+      "sha256": "5325d569066bb34a828431f397737f78a587d58b84212b52ff3fb83eff06a932",
       "executable": false
     },
     "tests/satchel/expenses-journey.test.mjs": {
@@ -5233,6 +5241,10 @@
     },
     "tests/satchel/fee-plans.test.mjs": {
       "sha256": "2a3cbd589e029542ed3024833df08abdea4165c6c6a58f0b21ba5fef38e668e7",
+      "executable": false
+    },
+    "tests/satchel/fixtures/synthetic-video.mp4": {
+      "sha256": "7824502e2ef6dca340e286289c0ad2f61a14fb770eca514cf082aada4d7c829b",
       "executable": false
     },
     "tests/satchel/flows.test.mjs": {

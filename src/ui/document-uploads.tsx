@@ -1,7 +1,11 @@
+import {sha256} from '@noble/hashes/sha2.js';
+import {bytesToHex} from '@noble/hashes/utils.js';
 import {useEffect,useRef,useState} from 'react';
 import {api,type Row,type Run} from './common';
 const mib=(bytes:number)=>(bytes/1048576).toLocaleString(undefined,{maximumFractionDigits:1})+' MiB';
 const sha=async(bytes:ArrayBuffer)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
+// Read bounded slices so a large original never occupies one browser buffer.
+const fileSha=async(file:File)=>{const hash=sha256.create();for(let offset=0;offset<file.size;offset+=8*1024*1024)hash.update(new Uint8Array(await file.slice(offset,offset+8*1024*1024).arrayBuffer()));return bytesToHex(hash.digest());};
 const pathOf=(file:File)=>file.webkitRelativePath||file.name;
 export function DocumentUploads({matterId,run,tick,target,clearTarget}:{matterId:string;run:Run;tick:number;target?:Row;clearTarget:()=>void}){
  const [state,setState]=useState<Row>(),[files,setFiles]=useState<File[]>([]),[visibility,setVisibility]=useState('matter'),[busy,setBusy]=useState(false),[progress,setProgress]=useState(''),[folder,setFolder]=useState(false),[error,setError]=useState('');
@@ -13,7 +17,7 @@ export function DocumentUploads({matterId,run,tick,target,clearTarget}:{matterId
  const limits=state?.limits;
  const transfer=async(u:Row)=>{
   const file=files.find(f=>pathOf(f)===u.path);if(!file)throw new Error('Choose the original file or folder again to resume '+u.path);
-  if(file.size!==u.size||await sha(await file.arrayBuffer())!==u.sha256)throw new Error('The selected file differs from the reserved original: '+u.path);
+  if(file.size!==u.size||await fileSha(file)!==u.sha256)throw new Error('The selected file differs from the reserved original: '+u.path);
   for(let number=1;number<=Math.ceil(u.size/limits.partBytes);number++){
    if(stop.current){setProgress('Paused. Choose the same originals to resume after returning.');return;}
    if(u.parts.some((p:Row)=>p.number===number))continue;
@@ -38,7 +42,7 @@ export function DocumentUploads({matterId,run,tick,target,clearTarget}:{matterId
    if(target&&files.length!==1)throw new Error('Choose one original for this document version.');
    if(files.length>limits.files||files.some(f=>!f.size||f.size>limits.fileBytes))throw new Error('The selected files exceed the displayed limits.');
    setProgress('Computing original hashes before reserving space…');
-   const manifest=[];for(const f of files)manifest.push({name:f.name,path:pathOf(f),mime:f.type||'application/octet-stream',size:f.size,sha256:await sha(await f.arrayBuffer()),visibility:target?.visibility??visibility,...(target?{documentId:target.id,revision:target.revision}:{})});
+   const manifest=[];for(const f of files)manifest.push({name:f.name,path:pathOf(f),mime:f.type||'application/octet-stream',size:f.size,sha256:await fileSha(f),visibility:target?.visibility??visibility,...(target?{documentId:target.id,revision:target.revision}:{})});
    requestId.current??=crypto.randomUUID();const batch=await api('/matters/'+matterId+'/document-uploads',{requestId:requestId.current,files:manifest});await refresh();
    for(const u of batch.uploads){if(stop.current)break;if(u.state==='active'||u.state==='completing')await transfer(u);}
   })}>Reserve and upload files</button>

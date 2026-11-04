@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
-import {mkdir} from 'node:fs/promises';
+import {mkdir,mkdtemp,writeFile,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {uploadOriginals} from './document-upload-fixtures.mjs';
 import {join} from 'node:path';
 export async function exerciseDocumentUploads(page,h,width){
  const panel=page.getByRole('region',{name:'Resumable uploads'}),bytes=Buffer.alloc(16*1024*1024,65);bytes.write('%PDF-1.7\nsynthetic-satchel-8\n');
@@ -28,6 +30,25 @@ export async function exerciseDocumentUploads(page,h,width){
   await doc.getByRole('alert').getByText(/quarantined pending a malware scanner verdict/).waitFor();
   assert.equal(await doc.locator('canvas,img').count(),0,'Quarantined originals produce no preview');
   await doc.getByRole('button',{name:'Close preview',exact:true}).click();
+  const legacy=page.locator('.document-originals .record').filter({has:page.getByText('Notice.txt',{exact:true})});
+  await legacy.getByRole('button',{name:'Append resumable version',exact:true}).click();
+  await panel.getByText('Append a quarantined version to', {exact:false}).waitFor();
+  await panel.getByLabel('Files to transfer').setInputFiles({...original,name:'Notice-large.pdf'});
+  await panel.getByRole('button',{name:'Reserve and upload files',exact:true}).click();
+  await legacy.getByText('Version 2 · '+bytes.length+' bytes · Quarantined', {exact:false}).waitFor();
+  assert.equal(await legacy.getByRole('link',{name:/Download version 2/}).count(),0);
+  await legacy.getByRole('link',{name:/Download version 1/}).waitFor();
+  await panel.getByRole('button',{name:'Cancel version selection',exact:true}).click();
+  const folder=await mkdtemp(join(tmpdir(),'satchel-upload-folder-'));
+  try{
+   const originals=await uploadOriginals();for(const f of originals)await writeFile(join(folder,f.name),f.bytes);
+   await panel.getByLabel('Choose a folder',{exact:true}).check();
+   await panel.getByLabel('Files to transfer').setInputFiles(folder);
+   await panel.getByRole('button',{name:'Reserve and upload files',exact:true}).click();
+   for(const f of originals){const record=page.locator('.document-originals .record').filter({has:page.getByText(f.name,{exact:true})});await record.getByText(/Quarantined — awaiting malware scanner verdict/).waitFor();assert.equal(await record.getByRole('link',{name:/Download version/}).count(),0);}
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth),0,'The populated manifest fits the viewport');
+  }finally{await rm(folder,{recursive:true,force:true});}
+
  }
  await panel.scrollIntoViewIfNeeded();
  if(process.env.SATCHEL_UPLOAD_PROOF){await mkdir(process.env.SATCHEL_UPLOAD_PROOF,{recursive:true});await page.screenshot({path:join(process.env.SATCHEL_UPLOAD_PROOF,'documents-'+width+'.png'),fullPage:true});}
