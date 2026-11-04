@@ -600,3 +600,12 @@ The live operating journey is `node ./tests/satchel/stripe-reconciliation-sandbo
 `POST /api/satchel/document-uploads/:id/complete` completes the multipart original and streams it through server-side size and SHA-256 verification. Retrying reconciles the existing object and publishes one immutable version without a second storage charge. Newly completed originals remain quarantined: no download, preview, text extraction, annotation or production can consume them. There is no scanner-clearance endpoint or fabricated clean verdict. Existing small-original and small-version doors retain their existing behavior.
 
 `POST /api/satchel/document-uploads/:id/cancel` releases an unfinished reservation and removes its storage. Every operation requires a current native person session, current role and document permissions, current matter access and the initiating person or principal. Unfinished transfers expire after 24 hours; scheduled cleanup fences publication before removing their multipart storage. An in-progress transfer blocks an archive. Completed quarantined originals round-trip in streamed archives; transfer handles, leases, part acknowledgments and reservations do not. Retention and erasure use the normal hold and restore-fence rules, with durable physical-deletion retries.
+
+Resumable manifests may append one version to an existing document by setting
+`documentId` and its exact current `revision` on that file. Visibility must match
+that document. Only its author or principal may append, with current matter and
+private-document access checked on each transfer operation. Concurrent versions
+retain independent reservations; only the unchanged selected revision can publish.
+A stale transfer can be cancelled and reselected. Replaying a completed transfer
+returns its original result, without another version or storage charge. Erasure
+and approved disposal cancel pending versions as well as removing retained bytes.
