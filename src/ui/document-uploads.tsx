@@ -4,7 +4,7 @@ const mib=(bytes:number)=>(bytes/1048576).toLocaleString(undefined,{maximumFract
 const sha=async(bytes:ArrayBuffer)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
 const pathOf=(file:File)=>file.webkitRelativePath||file.name;
 export function DocumentUploads({matterId,run,tick}:{matterId:string;run:Run;tick:number}){
- const [state,setState]=useState<Row>(),[files,setFiles]=useState<File[]>([]),[visibility,setVisibility]=useState('matter'),[busy,setBusy]=useState(false),[progress,setProgress]=useState(''),[folder,setFolder]=useState(false);
+ const [state,setState]=useState<Row>(),[files,setFiles]=useState<File[]>([]),[visibility,setVisibility]=useState('matter'),[busy,setBusy]=useState(false),[progress,setProgress]=useState(''),[folder,setFolder]=useState(false),[error,setError]=useState('');
  const stop=useRef(false),picker=useRef<HTMLInputElement>(null),requestId=useRef<string|undefined>(undefined);
  const refresh=async()=>{const result=await api('/matters/'+matterId+'/document-uploads');setState(result);return result;};
  useEffect(()=>{let active=true;setState(undefined);setFiles([]);requestId.current=undefined;api('/matters/'+matterId+'/document-uploads').then(r=>{if(active)setState(r);}).catch(e=>{if(active)void run(async()=>{throw e;});});return()=>{active=false;stop.current=true;};},[matterId,tick]);
@@ -24,7 +24,7 @@ export function DocumentUploads({matterId,run,tick}:{matterId:string;run:Run;tic
   if(stop.current){setProgress('Paused after the last part. Resume to verify the original.');return;}
   setProgress('Verifying '+u.path+' on the server…');await api('/document-uploads/'+u.id+'/complete',{});await refresh();setProgress(u.path+' retained in quarantine.');
  };
- const perform=(job:()=>Promise<void>)=>{stop.current=false;setBusy(true);void run(async()=>{try{await job();}finally{setBusy(false);await refresh();}},'Upload manifest updated');};
+ const perform=(job:()=>Promise<void>)=>{stop.current=false;setBusy(true);setError('');void (async()=>{try{await job();await run(async()=>{},'Upload manifest updated');}catch(reason){setError(reason instanceof Error?reason.message:String(reason));}finally{setBusy(false);try{await refresh();}catch(reason){setError(reason instanceof Error?reason.message:String(reason));}}})();};
  return <section className="panel" aria-label="Resumable uploads"><h2>Resumable uploads</h2>
   <p>Originals transfer to your firm’s object storage in resumable parts. Completed files stay in quarantine until a malware scanner supplies a verdict. Downloads, previews and processing remain unavailable.</p>
   {limits&&<p>Before transfer: maximum {mib(limits.fileBytes)} per file, {limits.files} files per manifest and {mib(limits.matterBytes)} retained or reserved per matter. {state.usedAndReservedBytes===null?'Current usage is available to the principal.':mib(state.usedAndReservedBytes)+' used or reserved.'} Unfinished transfers expire after {limits.expiresHours} hours.</p>}
@@ -40,7 +40,7 @@ export function DocumentUploads({matterId,run,tick}:{matterId:string;run:Run;tic
    for(const u of batch.uploads){if(stop.current)break;if(u.state==='active'||u.state==='completing')await transfer(u);}
   })}>Reserve and upload files</button>
   {busy&&<button type="button" className="quiet" onClick={()=>{stop.current=true;setProgress('Pausing after the current part…');}}>Pause after part</button>}
-  {progress&&<p role="status">{progress}</p>}
+  {error&&<p role="alert">{error}</p>}{progress&&<p role="status">{progress}</p>}
   {state?.uploads.map((u:Row)=><article className="record" key={u.id} style={{overflowWrap:'anywhere'}}><strong>{u.path}</strong><p>{mib(u.size)} · {u.state==='complete'?'Quarantined':u.state} · {u.parts.reduce((n:number,p:Row)=>n+p.size,0).toLocaleString()} bytes received</p>
    {['active','completing'].includes(u.state)&&<><p>Resume until <time dateTime={u.expiresAt}>{u.expiresAt}</time>. Select the same original files above; verified parts will be reused.</p><button type="button" disabled={busy} onClick={()=>perform(()=>transfer(u))}>Resume {u.name}</button><button type="button" className="quiet" disabled={busy} onClick={()=>perform(async()=>{await api('/document-uploads/'+u.id+'/cancel',{});setProgress('Transfer cancelled; reserved space released.');})}>Cancel {u.name}</button></>}
   </article>)}

@@ -38,6 +38,10 @@ export async function proveDocumentUploads(){
   await part(their.uploads[0],1,Buffer.from('synthetic-satchel-4'),404,hash(Buffer.from('synthetic-satchel-4')),colleague);
   await complete(their.uploads[0],colleague,404);
   await h.json(door,undefined,colleague,404);
+  const session=(await h.json('/security/devices',undefined,colleague)).currentSessionId;
+  await h.json('/security/devices/'+session+'/revoke',{},colleague);
+  await complete(their.uploads[0],colleague,401);
+  await part(their.uploads[0],1,Buffer.from('synthetic-satchel-4'),401,hash(Buffer.from('synthetic-satchel-4')),colleague);
   await cancel(their.uploads[0]);
   await part(u,2,second);const done=await complete(u);assert.equal(done.state,'complete');
   assert.deepEqual(await complete(u),done,'Repeated completion publishes exactly one version');
@@ -45,7 +49,8 @@ export async function proveDocumentUploads(){
   assert.equal(doc.currentVersion,1);assert.equal(doc.versions.length,1);assert.equal(doc.versions[0].sha256,hash(bytes));assert.equal(doc.versions[0].scanStatus,'quarantined');assert.equal(doc.versions[0].path,'Matter folder/Record.pdf');
   assert.equal((await state()).usedAndReservedBytes,bytes.length+files[1].size,'Completion converts a reservation to retained storage once');
   for(const suffix of ['/file','/file?version=1','/file?version=1&sha256='+hash(bytes)])assert.equal((await h.request('/api/satchel/documents/'+doc.id+suffix,undefined,h.owner)).status,423,'No quarantined download or preview bytes');
-  assert.equal((await h.request('/api/satchel/documents/'+doc.id+'/file',undefined,colleague)).status,404);
+  const activeColleague=await h.login(colleagueAddress);await h.json('/matters/'+m.id+'/access',{email:colleagueAddress},h.owner);
+  assert.equal((await h.request('/api/satchel/documents/'+doc.id+'/file',undefined,activeColleague)).status,404);
   await h.json('/documents/'+doc.id+'/text?version=1&sha256='+hash(bytes)+'&page=1&format=json',undefined,h.owner,409);
   await h.json('/documents/'+doc.id+'/annotations',{version:1,page:1,note:'Cannot process quarantined bytes'},h.owner,404);
   const search=await h.json('/search?q=synthetic-satchel-1',undefined,h.owner);assert.equal(search.total,0,'No body text derivative of a quarantined original');
@@ -63,7 +68,13 @@ export async function proveDocumentUploads(){
   // Concurrent reservations cannot both consume the final available space.
   const reserve=()=>start(Array.from({length:11},(_,i)=>manifest(bytes,'Concurrent-'+i+'.pdf',{size:limit.fileBytes})));
   const race=await Promise.allSettled([reserve(),reserve()]);assert.equal(race.filter(r=>r.status==='fulfilled').length,1);
-  const winning=race.find(r=>r.status==='fulfilled').value;for(const file of winning.uploads)await cancel(file);
+  const winning=race.find(r=>r.status==='fulfilled').value;
+  let remaining=limit.matterBytes-(await state()).usedAndReservedBytes;const fill=[];
+  while(remaining){const size=Math.min(remaining,limit.fileBytes);fill.push(manifest(bytes,'Remaining-'+fill.length+'.pdf',{size}));remaining-=size;}
+  const filled=await start(fill);assert.equal((await state()).usedAndReservedBytes,limit.matterBytes);
+  await h.json('/matters/'+m.id+'/documents',{name:'Quota-bypass.txt',mime:'text/plain',contentBase64:Buffer.from('synthetic-satchel-9').toString('base64'),visibility:'matter'},h.owner,409);
+  assert.equal((await state()).usedAndReservedBytes,limit.matterBytes,'The legacy small-original door cannot bypass reserved quota');
+  for(const file of [...winning.uploads,...filled.uploads])await cancel(file);
   await part(notes,1,Buffer.from('synthetic-satchel-2'));await complete(notes);
   const backup=await h.request('/api/satchel/backup',undefined,h.owner);assert.equal(backup.status,200);
   const archive=await backup.text();assert.ok(JSON.parse(archive.split('\n')[0]).objects.some(o=>o.sha256===hash(bytes)),'Streamed archive retains the exact completed original');

@@ -172,7 +172,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "4a40b479de3b8b60663a42f2693e534ce0e5c5b72d33be8d3ee2e289613d3797",
+      "sha256": "be423613a9116cdcf0fee5d1bf04174cc8ec3b15e2f17a16bf0023d31ac84303",
       "executable": false
     },
     "DEMO.md": {
@@ -785,6 +785,10 @@
     },
     "migrations/core/0129_document_uploads.sql": {
       "sha256": "f68a62126c89bbfc4378b722d28414877ef965805b308bcc84629c78f61bb296",
+      "executable": false
+    },
+    "migrations/core/0130_document_upload_cleanup.sql": {
+      "sha256": "47609159dced8eed32649d3900673e5bd90509d29b473ebdc57b04c70851297b",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -3756,7 +3760,7 @@
       "executable": false
     },
     "src/satchel/document-uploads.ts": {
-      "sha256": "3e7599ec8e90efe01a177954954fb19c2d00fcd2c1d853b96bd63cf86bc87c4e",
+      "sha256": "dc395ea912362a2ad567a2a8a8557f49dd42e16bf40a44076af29127310afaee",
       "executable": false
     },
     "src/satchel/documents.ts": {
@@ -4720,7 +4724,7 @@
       "executable": false
     },
     "src/ui/document-uploads.tsx": {
-      "sha256": "d00f3e6b9091dad843a17701b2426b4b0cf9d634be3b04a26952457f4fbfcde9",
+      "sha256": "871622bb9a4479fd636f532992dcc384e14feeb5773c4ed552c9da0ae4038767",
       "executable": false
     },
     "src/ui/documents.tsx": {
@@ -5208,7 +5212,7 @@
       "executable": false
     },
     "tests/satchel/document-upload-flow.mjs": {
-      "sha256": "1d3d7d410831579b464800dcd2ce28b107a09e7fc9296525f3a97d22bc670bdd",
+      "sha256": "a7cd912a03fab791343b7f4be51bdc78e6fb01201858ae0d7eb86887bd63516d",
       "executable": false
     },
     "tests/satchel/expenses-journey.test.mjs": {

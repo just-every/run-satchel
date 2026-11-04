@@ -123,7 +123,7 @@ export async function completeUpload(env:Store,actor:Actor,uploadId:string){
 async function removeTransfer(env:Store,u:Data){
  if(u.multipart_id){try{await env.ORIGINALS.resumeMultipartUpload(u.object_key,u.multipart_id).abort();}catch{/* Completed multipart handles no longer exist; their object is removed next. */}}
  await env.ORIGINALS.delete(u.object_key);
- await stmt(env.DB,'DELETE FROM s_document_upload_parts WHERE upload_id=?',u.id).run();
+ await env.DB.batch([stmt(env.DB,'DELETE FROM s_document_upload_parts WHERE upload_id=?',u.id),stmt(env.DB,'UPDATE s_document_uploads SET cleaned_at=? WHERE id=?',now(),u.id)]);
 }
 export async function cancelUpload(env:Store,actor:Actor,uploadId:string){
  const u=await access(env,actor,uploadId);insist(u.state!=='complete','Retained originals require the document erasure or retention door',409);
@@ -136,7 +136,7 @@ export async function cancelUpload(env:Store,actor:Actor,uploadId:string){
 export async function recoverDocumentUploads(env:Store,at=now()){
  for(const key of await rows(env.DB,'SELECT object_key FROM s_document_upload_gc')){await env.ORIGINALS.delete(key.object_key);await stmt(env.DB,'DELETE FROM s_document_upload_gc WHERE object_key=?',key.object_key).run();}
  // Fence publication before touching storage. Active leases are never swept.
- const stale=await rows(env.DB,`SELECT * FROM s_document_uploads WHERE (${live} AND expires_at<=? AND (lease_until IS NULL OR lease_until<=?)) OR state IN ('expired','cancelled','invalid')`,at,at);
+ const stale=await rows(env.DB,`SELECT * FROM s_document_uploads WHERE (${live} AND expires_at<=? AND (lease_until IS NULL OR lease_until<=?)) OR (state IN ('expired','cancelled','invalid') AND cleaned_at IS NULL) LIMIT 100`,at,at);
  for(const u of stale){
   const result=await stmt(env.DB,`UPDATE s_document_uploads SET state='expired' WHERE id=? AND ${live} AND expires_at<=? AND (lease_until IS NULL OR lease_until<=?)`,u.id,at,at).run();
   if(!result.meta.changes&&!['expired','cancelled','invalid'].includes(u.state))continue;
@@ -146,4 +146,3 @@ export async function recoverDocumentUploads(env:Store,at=now()){
 // Erasure removes the storage reference transactionally; a later cleanup can
 // retry physical deletion without giving a reader or old upload a new door.
 export function eraseR2Versions(db:D1Database,documentId:string){return [stmt(db,'INSERT OR IGNORE INTO s_document_upload_gc SELECT object_key FROM s_document_r2_versions WHERE document_id=? AND object_key IS NOT NULL',documentId),stmt(db,'UPDATE s_document_r2_versions SET object_key=NULL WHERE document_id=?',documentId)];}
-export async function r2VersionKeys(db:D1Database,documentId:string){return (await rows(db,'SELECT object_key FROM s_document_r2_versions WHERE document_id=? AND object_key IS NOT NULL',documentId)).map(v=>v.object_key as string);}
