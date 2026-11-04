@@ -1,4 +1,5 @@
 import {gateEngagement} from './conflict-dispositions';
+import {proposalWorkHistory} from './agent-work-reconciliation';
 import {matterScope,wallAllows} from './matter-scope';
 import {contactData} from './contact-data';
 import {contactGraph} from './contact-graph';
@@ -61,7 +62,7 @@ export async function workspace(db: D1Database, actor: Actor) {
  const members=await rows(db,'SELECT email,name,role,active,custom_role_id customRoleId FROM s_members ORDER BY name');
  const proposals=await rows(db,`SELECT p.* FROM s_proposals p WHERE (p.sponsor_id=? OR EXISTS(SELECT 1 FROM s_proposal_sponsor_links ps WHERE ps.proposal_id=p.id AND ps.operator_id=?) OR (p.sponsor_id IS NULL AND p.for_email=?)) AND (json_extract(p.payload,'$.matterId') IS NULL OR ${matterScope("json_extract(p.payload,'$.matterId')",actor.channel==='agent'?"'agent'":"'person'")}) ORDER BY created_at DESC`,actor.id,actor.id,actor.email,actor.role,actor.email);
  const canInspectAudit=actor.role==='owner'||!!await stmt(db,`SELECT 1 FROM s_ethical_walls w JOIN s_wall_members m ON m.matter_id=w.matter_id AND m.email=w.custodian_email WHERE w.custodian_email=? AND w.dissolved_at IS NULL`,actor.email).first();
- return {actor,canInspectAudit,matters,members,proposals:proposals.map(p=>({...p,payload:JSON.parse(p.payload)})),firm:(await firmSettings(db)).settings};
+ return {actor,canInspectAudit,matters,members,proposals:await Promise.all(proposals.map(async p=>({...p,payload:JSON.parse(p.payload),workReconciliation:await proposalWorkHistory(db,p.id)}))),firm:(await firmSettings(db)).settings};
 }
 export async function matterDetail(db: D1Database, actor: Actor, matterId: string) {
  const m=await matter(db,actor,matterId);

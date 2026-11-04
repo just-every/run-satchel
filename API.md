@@ -18,9 +18,23 @@ empty aggregate context and cannot prepare work.
 | `GET /api/satchel/agent/context` | Currently delegated matters and limits; no roster, firm configuration or proposal payloads |
 | `GET /api/satchel/agent/matters/:id` | Authorized billing context, selected original versions and visible deadlines; selected plain-text sources are marked untrusted |
 | `POST /api/satchel/agent/prepare-matter` | `{title,client,adverse,aliases?}` |
-| `POST /api/satchel/agent/prepare-bill` | `{matterId,title,date,entryIds}` |
+| `POST /api/satchel/agent/prepare-bill` | `{matterId,title,date,entryIds,reconciliationId?}` |
 | `POST /api/satchel/agent/prepare-deadline` | `{matterId,title,date,timezone,source,documentId?,version?}` |
 | `POST /api/satchel/agent/jobs` | `{action,requestKey,dueAt,payload}` reserves one scheduled preparation; the same identity and request returns the same job |
+
+The existing billing context includes `billing.workReconciliation`: a recorded
+native source reconciliation with source identities and revisions, live invoice
+references and states `omitted`, `released`, `reserved`, `billed` or `nonbillable`.
+Only posted billable time and expenses absent from every live invoice are
+recommendations. Draft reservations and correction branches remain billed work;
+unposted time and document activity are never inferred to be confirmed work.
+Pass its `id` as `reconciliationId` to prepare selected `entryIds` against that
+recorded recommendation. The existing bill tool accepts the same optional field.
+Preparation and human acceptance recheck the current source revisions, invoice
+eligibility, sponsor, matter access, processing agreement and delegation. The
+result remains a draft requiring counsel review, with original recommendation
+provenance retained beside the human decision. No new action, recipient, spend,
+provider access or financial approval is granted.
 
 `action` is an explicitly delegated `prepare-matter`, `prepare-bill` or
 `prepare-deadline`. `dueAt` is an ISO instant before delegation expiry. A
