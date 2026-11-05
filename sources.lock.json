@@ -172,7 +172,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "cd928157491222664a1ceded2428265ff6ed645ceb2564ba444c197ee1e3f4f0",
+      "sha256": "bb45a7b8c3952de2dad3e776018911f2deec92881654f20188ce68d7ead7e00f",
       "executable": false
     },
     "DEMO.md": {
@@ -209,6 +209,18 @@
     },
     "docs/client-portal.md": {
       "sha256": "92d80ddb40e5c368daf9c7daee6e8c46901d944a47700d483b3a9c03ac7b8265",
+      "executable": false
+    },
+    "docs/contract/CLIENT-011-rubric.md": {
+      "sha256": "d1c824a273c8e908878e050c8f988035ef7c49b5bf937290758e0ea995f89d63",
+      "executable": false
+    },
+    "docs/contract/FIRM-009-rubric.md": {
+      "sha256": "5b354ede71a45a3927f5eba6d41de431a6a3250b3b385e83087f369f61143fba",
+      "executable": false
+    },
+    "docs/contract/FIRM-010-rubric.md": {
+      "sha256": "6ed810d1e2a11305ad5fd37ff93a416e306530aee5932358bcb8e75fc1f023ce",
       "executable": false
     },
     "docs/documents-and-deadlines.md": {
@@ -1076,7 +1088,7 @@
       "executable": false
     },
     "RULINGS.md": {
-      "sha256": "8f66757b3cb2b41389a3175c0f6a52b09c08967a97ee164bc112811e04c5ca8b",
+      "sha256": "be5bda80295e8b065217685d2675db1db901eb0afaeb1491ee15be3faf302f07",
       "executable": false
     },
     "RUN-LOCALLY.md": {
