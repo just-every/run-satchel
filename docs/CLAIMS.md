@@ -26,6 +26,8 @@ Generated from CONTRACT.md; regenerate with the documented contract-docs command
 | FIRM-006 | Apply retention and legal holds | done |
 | FIRM-007 | Operate and recover the owned system | partial |
 | FIRM-008 | Define custom roles and rate visibility | done |
+| FIRM-009 | Count invoice notification attempts in firm diagnostics | missing |
+| FIRM-010 | Retain the last successful sync across an upgrade | missing |
 | BASE-001 | Preserve Base guarantees through replacements | done |
 | INTAKE-001 | Publish conditional intake forms | done |
 | INTAKE-002 | Manage a lead pipeline | done |
@@ -81,6 +83,7 @@ Generated from CONTRACT.md; regenerate with the documented contract-docs command
 | CLIENT-008 | Send reviewed matter updates | done |
 | CLIENT-009 | Control sharing and communication preferences | partial |
 | CLIENT-010 | Automated client reminders | done |
+| CLIENT-011 | Revoke a delegate's former grant when its replacement is granted | missing |
 | TIME-001 | Run timers and timesheets | done |
 | TIME-002 | Capture email calendar and document activity | missing |
 | TIME-003 | Apply versioned rates and budgets | done |
