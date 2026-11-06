@@ -13,6 +13,9 @@ importers:
 
   .:
     dependencies:
+      '@noble/hashes':
+        specifier: 2.0.1
+        version: 2.0.1
       '@pdf-lib/fontkit':
         specifier: 1.1.1
         version: 1.1.1
@@ -691,6 +694,10 @@ packages:
   '@napi-rs/canvas@1.0.11':
     resolution: {integrity: sha512-vt5tog1cr+QKadIddGe+3LrcX0EmjEd0izF717Uwf92mBmgYfq2XRmL2r4bZU40spB69exxhrBn9I91HYEr/7w==}
     engines: {node: '>= 10'}
+
+  '@noble/hashes@2.0.1':
+    resolution: {integrity: sha512-XlOlEbQcE9fmuXxrVTXCTlG2nlRXa9Rj3rr5Ue/+tX+nmkgbX720YHh0VR3hBF9xDvwnb8D2shVGOwNx+ulArw==}
+    engines: {node: '>= 20.19.0'}
 
   '@oozcitak/dom@2.0.2':
     resolution: {integrity: sha512-GjpKhkSYC3Mj4+lfwEyI1dqnsKTgwGy48ytZEhm4A/xnH/8z9M3ZVXKr/YGQi3uCLs1AEBS+x5T2JPiueEDW8w==}
@@ -2053,6 +2060,8 @@ snapshots:
       '@napi-rs/canvas-win32-arm64-msvc': 1.0.11
       '@napi-rs/canvas-win32-x64-msvc': 1.0.11
     optional: true
+
+  '@noble/hashes@2.0.1': {}
 
   '@oozcitak/dom@2.0.2':
     dependencies:

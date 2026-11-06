@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {readAgentReference,assertFixtureReference,assertRuntimeReference} from './reference.mjs';
+import {proveSponsorLifecycle,verifySponsorProbeState} from './sponsor-fixtures.mjs';
 import surface from '../../agent-surface.json' with {type:'json'};
 import {resolveArgs} from '../../src/modules/agent-door/conformance/protocol.mjs';
 
 /** A person binds the random harness actor through the actual native door. */
-export default async function journey({request,origin,cookie,tool}) {
+export default async function journey({request,origin,cookie,email,database,tool}) {
  const native=async(path,body)=>{const r=await request(origin+'/api/satchel'+path,{method:body===undefined?'GET':'POST',headers:{Origin:origin,Cookie:cookie,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});assert.equal(r.ok,true,'Native person lifecycle');return r.json();};
+ await verifySponsorProbeState({database});
  console.log('Native door journey: start');
  const guide=readAgentReference(await readFile('dist/site/docs/agents.html','utf8'));
  assertFixtureReference(guide,surface);
@@ -48,6 +50,11 @@ export default async function journey({request,origin,cookie,tool}) {
  }
  const controls=await native('/agent-controls');
  assert.ok(controls.delegations.every(d=>d.spend_cents===0),'No spend authority');
+ await proveSponsorLifecycle({request,origin,cookie,email,database,tool},controls.delegations.find(d=>d.key_id===key.id).matter_id);
+ const ownerStillAllowed=await tool('satchel.proposal.prepare_matter',{delegationId:controls.delegations.find(d=>d.key_id===key.id).id,payload:{title:'Owner preparation after member refusals',client:'Synthetic client',adverse:'Synthetic counterparty'},idempotency_key:crypto.randomUUID()});
+ assert.equal(ownerStillAllowed.result?.isError,false,'Member lifecycle changes preserve owner preparation');
+ assert.equal(ownerStillAllowed.result?.structuredContent?.status,'pending','The existing owner still creates a human-reviewed proposal');
+ console.log('Sponsor lifecycle: existing owner preparation remains successful');
  await native('/keys/'+key.id+'/revoke',{});
  const refused=await tool('satchel.agent.context',{});assert.equal(refused.result?.isError,true,'Native key revocation stops company agent');assert.equal(refused.result?._meta?.['com.runeditrun/error']?.code,'native_delegation_required');console.log('Native door journey: binding, class coverage, replay and revocation passed');
 }
