@@ -129,7 +129,9 @@
     "0129_document_uploads.sql",
     "0130_document_upload_cleanup.sql",
     "0131_document_upload_versions.sql",
-    "0132_document_upload_reviews.sql"
+    "0132_document_upload_reviews.sql",
+    "0133_agent_door_relay_upgrade.sql",
+    "0134_business_retired.sql"
   ],
   "breaking": false,
   "agentUpdateInstructions": "Read CONTRACT.md and OPERATIONS.md before configuring the installation. Preserve the existing archive identity and keep applied migration bytes unchanged."

@@ -13,8 +13,8 @@ test('CLIENT-003 two records are requested, an incomplete upload is explained, a
   await h.json(base+'/portal',{email:'client@example.test',reason:'Client'},h.owner);await h.json(base+'/portal',{email:'payer@example.test',kind:'payer',reason:'Payer'},h.owner);
   // Request two specific records with instructions, owner, due date and acceptance criteria; only staff can ask.
   const ask=(body,cookie=lawyer,expected=200)=>h.json(base+'/requests',{instructions:'Upload a clear copy.',criteria:'All pages visible; dated within 90 days.',clientVisible:true,...body},cookie,expected);
-  await ask({title:'Bank statement',dueDate:'2026-11-10'},client,403);await ask({title:'Bank statement',owner:'client@example.test',dueDate:'2026-11-10'},lawyer,400);await ask({title:'Bank statement',criteria:'',dueDate:'2026-11-10'},lawyer,400);
-  await ask({title:'Bank statement',owner:'assistant@example.test',dueDate:'2026-11-10'});const two=await ask({title:'Signed lease',dueDate:'2026-11-12'},assistant);
+  await ask({title:'Bank statement',dueDate:'2054-11-10'},client,403);await ask({title:'Bank statement',owner:'client@example.test',dueDate:'2054-11-10'},lawyer,400);await ask({title:'Bank statement',criteria:'',dueDate:'2054-11-10'},lawyer,400);
+  await ask({title:'Bank statement',owner:'assistant@example.test',dueDate:'2054-11-10'});const two=await ask({title:'Signed lease',dueDate:'2054-11-12'},assistant);
   const bank=two.requests.find(r=>r.title==='Bank statement'),lease=two.requests.find(r=>r.title==='Signed lease');assert.equal(bank.owner,'assistant@example.test');assert.equal(bank.criteria,'All pages visible; dated within 90 days.');assert.equal(lease.owner,'assistant@example.test');
   // The client sees both with their instructions; the payer and a stranger see nothing; a hidden request stays hidden.
   const hidden=await ask({title:'Internal: conflict memo',clientVisible:false});assert.equal(hidden.requests.length,3);
@@ -35,7 +35,7 @@ test('CLIENT-003 two records are requested, an incomplete upload is explained, a
   const second=await h.json('/portal/requests/'+bank.id+'/uploads',upload('statement-full.txt','Pages 1-3: balance $1,000; deposits; withdrawals'),client),fixed=second.requests[0].uploads.at(-1);
   await h.json('/requests/'+bank.id+'/review',{uploadId:one.id,decision:'accept'},lawyer,404,);
   const accepted=await h.json('/requests/'+bank.id+'/review',{uploadId:fixed.id,decision:'accept',note:'Complete and dated October 2026.'},lawyer),done=accepted.requests.find(r=>r.id===bank.id),still=accepted.requests.find(r=>r.id===lease.id);
-  assert.equal(done.status,'received');assert.ok(done.documentId);assert.equal(still.status,'open',"The second request remains due");assert.equal(still.dueDate,'2026-11-12');
+  assert.equal(done.status,'received');assert.ok(done.documentId);assert.equal(still.status,'open',"The second request remains due");assert.equal(still.dueDate,'2054-11-12');
   const docs=await h.json(base+'/documents',undefined,h.owner);assert.equal(docs.find(d=>d.id===done.documentId).title,'statement-full.txt');
   const original=await h.request('/api/satchel/documents/'+done.documentId+'/file',undefined,h.owner);assert.equal(await original.text(),'Pages 1-3: balance $1,000; deposits; withdrawals');
   await h.json('/portal/requests/'+bank.id+'/uploads',upload('late.txt','late'),client,409);await h.json('/requests/'+bank.id+'/review',{uploadId:fixed.id,decision:'accept'},lawyer,409);

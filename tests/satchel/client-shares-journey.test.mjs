@@ -14,9 +14,9 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`CLIENT-004 a lawyer sh
   const m=await open(h,'Harper lease dispute','Harper Bakery LLC','Main Street Holdings'),base='/matters/'+m.id;
   for(const [email,role,name] of [['lawyer@example.test','lawyer','Marcus Lee'],['client@example.test','client','Casey Client']]){await h.json('/team',{email,name,role},h.owner);await h.json('/team/invite',{email},h.owner);await h.login(email);}
   await h.json(base+'/access',{email:'lawyer@example.test'},h.owner);await h.json(base+'/portal',{email:'client@example.test',reason:'Client follows the lease review'},h.owner);
-  await h.json(base+'/tasks',{title:'Gather your lease and rent receipts',priority:'normal',dueDate:'2026-11-05'},h.owner);
-  await h.json(base+'/appointments',{title:'Hearing: motion to dismiss',date:'2026-11-18',time:'09:30',timezone:'America/New_York',durationMinutes:60,location:'Courtroom 4B',attendees:[]},h.owner);
-  const proposed=await h.json(base+'/deadlines',{title:'Serve response',date:'2026-11-12',timezone:'America/New_York',source:'Order, paragraph 3'},h.owner);await h.json('/deadlines/'+proposed.id+'/confirm',{revision:proposed.revision,note:'Checked against the order'},h.owner);
+  await h.json(base+'/tasks',{title:'Gather your lease and rent receipts',priority:'normal',dueDate:'2054-11-05'},h.owner);
+  await h.json(base+'/appointments',{title:'Hearing: motion to dismiss',date:'2054-11-18',time:'09:30',timezone:'America/New_York',durationMinutes:60,location:'Courtroom 4B',attendees:[]},h.owner);
+  const proposed=await h.json(base+'/deadlines',{title:'Serve response',date:'2054-11-12',timezone:'America/New_York',source:'Order, paragraph 3'},h.owner);await h.json('/deadlines/'+proposed.id+'/confirm',{revision:proposed.revision,note:'Checked against the order'},h.owner);
   const errors=[],lawyer=await(await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true})).newPage();lawyer.setDefaultTimeout(15000);lawyer.on('pageerror',e=>errors.push(String(e)));
   await signIn(lawyer,h,'lawyer@example.test');await lawyer.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Matters',exact:true}).click();
   const panel=lawyer.locator('section.client-shares');await panel.getByRole('heading',{name:'Shared with the client'}).waitFor();
@@ -26,7 +26,7 @@ for(const [width,height] of [[1440,1000],[390,844]])test(`CLIENT-004 a lawyer sh
   // The client, on a phone-sized screen at both widths, sees the three items and can only acknowledge them and finish the task.
   const client=await(await browser.newContext({viewport:{width,height},ignoreHTTPSErrors:true})).newPage();client.setDefaultTimeout(15000);client.on('pageerror',e=>errors.push(String(e)));
   await signIn(client,h,'client@example.test');const items=client.getByLabel('Tasks and events');await items.getByText('Gather your lease and rent receipts',{exact:true}).waitFor();
-  await items.getByText('Event · 2026-11-18 09:30 (America/New_York) · Courtroom 4B').waitFor();await items.getByText('Court date · 2026-11-12 (America/New_York)').waitFor();
+  await items.getByText('Event · 2054-11-18 09:30 (America/New_York) · Courtroom 4B').waitFor();await items.getByText('Court date · 2054-11-12 (America/New_York)').waitFor();
   assert.equal(await items.getByRole('button',{name:/Mark .* done/}).count(),1,'Only the client task can be marked done');assert.equal(await items.getByRole('button',{name:/Acknowledge/}).count(),3);
   assert.equal(await items.getByText('Dates are set by your firm. Contact your lawyer to change one.').count(),2);
   assert.ok(!(await client.locator('body').innerText()).includes('Internal'));

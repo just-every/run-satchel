@@ -33,6 +33,7 @@ export function people(env:Bindings):PeopleAdapter {
  }
  return {
   person:read,
+  businessStopped:base.businessStopped,
   businessRole:p=>env.RER_OWNER_CLAIM_PUBLIC_KEYS?(p as Person & {businessPolicyRole:'owner'|'editor'|null}).businessPolicyRole:p.role==='owner'?'owner':null,
   async sponsor(claims){
    const settings=await stmt(env.DB,'SELECT owner_id FROM bs_settings WHERE singleton=1 AND stopped=0').first<{owner_id:string}>()

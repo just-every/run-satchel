@@ -6,6 +6,7 @@ The first release. Satchel is practice management for a 1–10 lawyer US firm, a
 
 - **Runs on rer 0.2.143.** The pinned platform moves from 0.2.91.
 - **Mail optional.** `MAIL_PROVIDER=none` deploys with no sender or mail key: the owner signs in with `rer signin`, and sign-in email, letters, invoice notices, reminders, follow-ups, portal notices and report emails are refused and recorded as `mail_off` without contacting a provider. A configured provider works as before.
+- **Agent door refreshed.** The agent-door and Business-settings copies move to Base c2efb501 (auth-first MCP negotiation, the Business decision relay, durable Business stop and roster retirement), so rer 0.2.143's agent-door conformance passes. Migrations 0133 (agent-door upgrade from the 0.2.94 schema, as Base's ADOPTING.md prescribes) and 0134 (Business roster tombstones) advance the existing tables.
 - **Demo follows releases.** The run-demo workflow redeploys the demo at each published release's tag (Base fc087acf), instead of on pushes to main.
 
 ### Not in this release

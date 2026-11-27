@@ -11,10 +11,10 @@ test('CLIENT-004 a lawyer shares a preparation task, a hearing and a confirmed d
   await h.json(base+'/portal',{email:'client@example.test',reason:'Client follows the lease review'},h.owner);
   for(const [email,kind] of [['cocl@example.test','co_client'],['payer@example.test','payer'],['deleg@example.test','delegate']])await h.json(base+'/portal',{email,kind,reason:'Explicit portal authority',...(kind==='delegate'?{delegateOf:'client@example.test'}:{})},h.owner);
   const mailCount=h.mails.length;
-  const prep=await h.json(base+'/tasks',{title:'Gather your lease and rent receipts',priority:'normal',dueDate:'2026-11-05'},h.owner);
+  const prep=await h.json(base+'/tasks',{title:'Gather your lease and rent receipts',priority:'normal',dueDate:'2054-11-05'},h.owner);
   const firmTask=await h.json(base+'/tasks',{title:'Internal: review exhibits',priority:'normal'},h.owner);
-  const hearing=await h.json(base+'/appointments',{title:'Hearing: motion to dismiss',date:'2026-11-18',time:'09:30',timezone:'America/New_York',durationMinutes:60,location:'Courtroom 4B',attendees:[]},h.owner);
-  const proposed=await h.json(base+'/deadlines',{title:'Serve response',date:'2026-11-12',timezone:'America/New_York',source:'Order, paragraph 3'},h.owner);const unconfirmed=await h.json(base+'/deadlines',{title:'Draft deadline',date:'2026-11-13',timezone:'America/New_York',source:'Order, paragraph 4'},h.owner);
+  const hearing=await h.json(base+'/appointments',{title:'Hearing: motion to dismiss',date:'2054-11-18',time:'09:30',timezone:'America/New_York',durationMinutes:60,location:'Courtroom 4B',attendees:[]},h.owner);
+  const proposed=await h.json(base+'/deadlines',{title:'Serve response',date:'2054-11-12',timezone:'America/New_York',source:'Order, paragraph 3'},h.owner);const unconfirmed=await h.json(base+'/deadlines',{title:'Draft deadline',date:'2054-11-13',timezone:'America/New_York',source:'Order, paragraph 4'},h.owner);
   const deadline=await h.json('/deadlines/'+proposed.id+'/confirm',{revision:proposed.revision,note:'Checked against the order'},h.owner);
   const legalTask=await h.json(base+'/tasks',{title:'File the response',priority:'high',deadlineId:deadline.id},h.owner);
   // Only counsel shares; legal tasks, open-ended records and unconfirmed deadlines are refused.
@@ -29,8 +29,8 @@ test('CLIENT-004 a lawyer shares a preparation task, a hearing and a confirmed d
   // The client sees exactly what was shared, with its instructions, and none of the firm's own records.
   const portal=await h.json('/portal/matters/'+m.id+'/shares',undefined,client);assert.deepEqual(portal.items.map(i=>i.kind).sort(),['deadline','event','task']);
   const task=portal.items.find(i=>i.kind==='task'),event=portal.items.find(i=>i.kind==='event'),legal=portal.items.find(i=>i.kind==='deadline');
-  assert.equal(task.title,'Gather your lease and rent receipts');assert.equal(task.dueDate,'2026-11-05');assert.match(task.instructions,/mark this done/);assert.equal(task.canComplete,true);
-  assert.equal(event.occurrences[0].date,'2026-11-18');assert.equal(event.occurrences[0].time,'09:30');assert.equal(event.timezone,'America/New_York');assert.equal(event.location,'Courtroom 4B');assert.equal(event.canComplete,false);assert.equal(legal.date,'2026-11-12');assert.equal(legal.canComplete,false);
+  assert.equal(task.title,'Gather your lease and rent receipts');assert.equal(task.dueDate,'2054-11-05');assert.match(task.instructions,/mark this done/);assert.equal(task.canComplete,true);
+  assert.equal(event.occurrences[0].date,'2054-11-18');assert.equal(event.occurrences[0].time,'09:30');assert.equal(event.timezone,'America/New_York');assert.equal(event.location,'Courtroom 4B');assert.equal(event.canComplete,false);assert.equal(legal.date,'2054-11-12');assert.equal(legal.canComplete,false);
   assert.ok(!JSON.stringify(portal).includes('Internal: review exhibits')&&!JSON.stringify(portal).includes('File the response')&&!JSON.stringify(portal).includes('Draft deadline')&&!JSON.stringify(portal).includes('attendee'));
   const coclient=people['cocl@example.test'],delegate=people['deleg@example.test'],payer=people['payer@example.test'];
   for(const reader of [coclient,delegate])assert.deepEqual((await h.json('/portal/matters/'+m.id+'/shares',undefined,reader)).items.map(i=>i.id),portal.items.map(i=>i.id));
@@ -48,7 +48,7 @@ test('CLIENT-004 a lawyer shares a preparation task, a hearing and a confirmed d
   assert.equal((await h.json('/portal/matters/'+m.id+'/shares',undefined,coclient)).items.find(i=>i.id===task.id).completedAt,null,'Completion belongs to the acknowledging identity');
   assert.equal((await h.json(base+'/tasks',undefined,h.owner)).find(t=>t.id===prep.id).status,'open','A client completion never closes the firm’s task');
   // The client cannot alter a hearing or deadline through any door; others and strangers see nothing.
-  for(const [path,body] of [[base+'/appointments',{title:'Moved',date:'2026-11-20',time:'10:00',timezone:'America/New_York',durationMinutes:30,attendees:[]}],['/appointments/'+hearing.id+'/occurrences/0/move',{date:'2026-11-20',time:'10:00',reason:'client request'}],['/appointments/'+hearing.id+'/occurrences/0/cancel',{reason:'client request'}],['/deadlines/'+deadline.id+'/confirm',{revision:deadline.revision,note:'x'}],['/deadlines/'+deadline.id+'/complete',{revision:deadline.revision,evidence:'client says done'}],['/tasks/'+legalTask.id+'/complete',{revision:legalTask.revision,evidence:'client'}],['/client-shares/x/revoke',{}]])await h.json(path,body,client,403);
+  for(const [path,body] of [[base+'/appointments',{title:'Moved',date:'2054-11-20',time:'10:00',timezone:'America/New_York',durationMinutes:30,attendees:[]}],['/appointments/'+hearing.id+'/occurrences/0/move',{date:'2054-11-20',time:'10:00',reason:'client request'}],['/appointments/'+hearing.id+'/occurrences/0/cancel',{reason:'client request'}],['/deadlines/'+deadline.id+'/confirm',{revision:deadline.revision,note:'x'}],['/deadlines/'+deadline.id+'/complete',{revision:deadline.revision,evidence:'client says done'}],['/tasks/'+legalTask.id+'/complete',{revision:legalTask.revision,evidence:'client'}],['/client-shares/x/revoke',{}]])await h.json(path,body,client,403);
   await h.json('/portal/matters/'+m.id+'/shares',undefined,other,404);await h.json('/portal/shares/'+task.id+'/acknowledge',{},other,404);await h.json('/portal/matters/'+m.id+'/shares',undefined,lawyer,403);await h.json('/portal/matters/'+m.id+'/shares',undefined,'',401);
   // Staff see each client's acknowledgment and completion, then withdraw a share; it disappears from the portal at once.
   const staff=await h.json(base+'/client-shares',undefined,lawyer),mineShare=staff.shares.find(s=>s.kind==='event');assert.deepEqual(mineShare.acks.map(a=>[a.kind,a.by,a.note]),[['acknowledged','client@example.test','I will be there']]);
@@ -60,9 +60,9 @@ test('CLIENT-004 a lawyer shares a preparation task, a hearing and a confirmed d
   const reshared=(await h.json('/portal/matters/'+m.id+'/shares',undefined,client)).items.find(i=>i.kind==='event');
   assert.notEqual(reshared.id,mineShare.id,'A renewed share has its own acknowledgment history');
   assert.equal(reshared.acknowledgedAt,null,'A withdrawn instruction acknowledgment does not carry to new instructions');
-  await h.json('/portal/shares/'+reshared.id+'/acknowledge',{date:'2026-12-01',time:'14:00',status:'completed'},client);
+  await h.json('/portal/shares/'+reshared.id+'/acknowledge',{date:'2054-12-01',time:'14:00',status:'completed'},client);
   const calendar=await h.json(base+'/calendar',undefined,lawyer);
-  assert.equal(calendar.appointments.find(a=>a.id===hearing.id).occurrences[0].date,'2026-11-18','Acknowledgment payload cannot move the hearing');
+  assert.equal(calendar.appointments.find(a=>a.id===hearing.id).occurrences[0].date,'2054-11-18','Acknowledgment payload cannot move the hearing');
   assert.equal(calendar.deadlines.find(d=>d.id===deadline.id).status,'confirmed','Acknowledgment cannot complete a legal date');
   assert.deepEqual(calendar,calendarBefore,'Refused client changes and acknowledgment input preserve every calendar date');
   assert.deepEqual(await h.json(base+'/tasks',undefined,lawyer),tasksBefore,'Refused client changes preserve every task date');
