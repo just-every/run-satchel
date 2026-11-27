@@ -2,7 +2,7 @@
 // matter they hold a reader grant on (client, co-client, delegate; never a payer), opens content only inside the
 // authenticated portal, and the notification email carries no message content.
 import type {Bindings} from '../auth.server';
-import {operatorMail} from '../mail.server.mjs';
+import {MAIL_OFF,mailOff,operatorMail} from '../mail.server.mjs';
 import {atomic,audit,digest,human,id,insist,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
 import {matterGuard,decode,mediaType} from './documents';
 import {portalAccess,readerKinds} from './portal';
@@ -38,7 +38,7 @@ async function notify(env:Bindings,messageId:string,recipients:string[],subjectK
    try{const r=await mail.send({deliveryId:id(),from:env.MAIL_FROM,to:[to],subject:'A new secure message',text:`You have a new secure message. Sign in to read it: ${env.AUTH_ORIGIN}/app\n\nThis email contains no message content.`,html:'',headers:{}});
     status=r.status==='accepted'||r.status==='development'?'accepted':r.status==='uncertain'?'uncertain':'failed';provider=r.provider;providerId=r.providerMessageId??null;detail=status==='accepted'?'Provider accepted the notification; mailbox delivery is unconfirmed.':`Provider result: ${r.status}`;}
    catch{status='uncertain';detail='The provider outcome is uncertain; no automatic resend.';}
-  }else if(allowed?.ok&&authority)detail='The firm mail provider or sender is not configured';
+  }else if(allowed?.ok&&authority)detail=mailOff(env)?MAIL_OFF:'The firm mail provider or sender is not configured';
   await db.batch([stmt(db,'INSERT INTO s_portal_notifications(id,message_id,recipient,status,provider,provider_id,detail,at) VALUES(?,?,?,?,?,?,?,?)',id(),messageId,to,status,provider,providerId,detail,at),audit(db,system,'portal.notified',messageId,JSON.stringify({recipient:to,status}))]);
  }
 }

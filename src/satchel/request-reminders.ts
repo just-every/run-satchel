@@ -1,5 +1,5 @@
 import type {Bindings} from '../auth.server';
-import {operatorMail} from '../mail.server.mjs';
+import {mailOff,operatorMail} from '../mail.server.mjs';
 import {atomic,audit,human,id,insist,matter,need,now,rows,stmt,type Actor,type Data} from './model';
 import {matterGuard} from './documents';
 import {portalAccess,readerKinds} from './portal';
@@ -48,7 +48,8 @@ export async function runRequestReminders(env:Bindings,atMs:number){
   const claimed=await stmt(db,`UPDATE s_request_reminder_sends SET status='sending',attempted_at=? WHERE id=? AND status='queued' AND ${eligible} AND ((SELECT COUNT(*) FROM s_request_reminder_sends x JOIN s_request_reminders r ON r.id=x.reminder_id WHERE r.email=? AND x.status IN('sending','sent','uncertain') AND x.attempted_at>?)+(SELECT COUNT(*) FROM s_followup_sends x JOIN s_followups f ON f.id=x.followup_id JOIN s_leads l ON l.id=f.lead_id WHERE l.email=? AND x.status IN('sending','sent','uncertain') AND x.attempted_at>?))<?`,at,d.id,d.email,since,d.email,since,setting.max_contacts).run();
   if(!claimed.meta.changes){await stop('Consent, request, reader access or contact limit changed',true);continue;}
   let status='uncertain',provider='unconfigured',providerId:string|null=null;
-  try{const mail=operatorMail(env);insist(mail&&env.MAIL_FROM,'Mail unavailable');const result=await mail.send({deliveryId:d.id,from:env.MAIL_FROM,to:[d.email],subject:'A reminder from your firm',text:`Please sign in to review a request from your firm: ${env.AUTH_ORIGIN}/app\n\nYou can stop email reminders on the request in your portal.`,html:'',headers:{}});provider=result.provider;providerId=result.providerMessageId??null;status=result.status==='accepted'||result.status==='development'?'sent':result.status==='uncertain'?'uncertain':'failed';}catch{/* Retain uncertainty and escalate; never resend. */}
+  if(mailOff(env)){status='failed';provider='none';}
+  else try{const mail=operatorMail(env);insist(mail&&env.MAIL_FROM,'Mail unavailable');const result=await mail.send({deliveryId:d.id,from:env.MAIL_FROM,to:[d.email],subject:'A reminder from your firm',text:`Please sign in to review a request from your firm: ${env.AUTH_ORIGIN}/app\n\nYou can stop email reminders on the request in your portal.`,html:'',headers:{}});provider=result.provider;providerId=result.providerMessageId??null;status=result.status==='accepted'||result.status==='development'?'sent':result.status==='uncertain'?'uncertain':'failed';}catch{/* Retain uncertainty and escalate; never resend. */}
   await db.batch([stmt(db,'UPDATE s_request_reminder_sends SET status=?,provider=?,provider_id=?,detail=? WHERE id=?',status,provider,providerId,status==='sent'?'Provider accepted; delivery unconfirmed':'No automatic resend; owner review required',d.id),audit(db,system,'document_request.reminder_result',d.request_id,JSON.stringify({status,provider}),{matterId:d.matter_id})]);
   if(status!=='sent')await stop('Failed or uncertain delivery; owner must review',true);
   else if(!await stmt(db,"SELECT 1 FROM s_request_reminder_sends WHERE reminder_id=? AND status='queued'",d.reminder_id).first())await stop('Sequence exhausted; owner must review the outstanding request',true);

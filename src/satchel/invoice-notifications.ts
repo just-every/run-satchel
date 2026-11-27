@@ -1,5 +1,5 @@
 import type {Bindings} from '../auth.server';
-import {operatorMail} from '../mail.server.mjs';
+import {MAIL_OFF,mailOff,operatorMail} from '../mail.server.mjs';
 import {serializeSendGridMessage,sendSendGrid,SendGridSendError} from '../modules/mail/src/sendgrid-email/index.mjs';
 import {atomic,audit,id,insist,now,rows,stmt,text,type Actor,type Data} from './model';
 import {guard} from './trust-guards';
@@ -28,7 +28,7 @@ export async function sendInvoiceNotification(env:InvoiceDeliveryEnv,actor:Actor
  invoiceStaff(actor,true);const db=env.DB,a=await stmt(db,'SELECT a.*,t.subject,t.body FROM s_invoice_delivery_attempts a JOIN s_invoice_notification_templates t ON t.id=a.notification_template_id WHERE a.id=?',attemptId).first<Data>();insist(a,'Invoice notification attempt not found',404);
  const d=await deliveryAccess(db,actor,a.delivery_id);if(a.status!=='ready')return invoiceDeliveryState(db,actor,d.matter_id);
  const revision=await notificationEligibility(db,actor,d);insist(revision===a.contact_revision,'Contact or consent changed; authorize a new reviewed attempt',409);
- const mail=operatorMail(env);insist(mail&&env.MAIL_FROM,'Configure the firm mail provider and sender',409);
+ const mail=operatorMail(env);insist(mail&&env.MAIL_FROM,mailOff(env)?MAIL_OFF:'Configure the firm mail provider and sender',409);
  const origin=new URL(env.AUTH_ORIGIN);insist(origin.protocol==='https:'||env.AUTH_LOCAL==='true','Configure the secure portal origin',409);
  const at=now();await atomic(db,actor,[...deliveryFences(db,actor,d,revision),guard(db,"EXISTS(SELECT 1 FROM s_provider_reviews WHERE provider_id='mail' AND disclosure_version=?)",disclosureVersion),guard(db,"NOT EXISTS(SELECT 1 FROM s_invoice_delivery_events e JOIN s_invoice_delivery_attempts a ON a.id=e.attempt_id JOIN s_invoice_deliveries d ON d.id=a.delivery_id WHERE d.recipient=? AND e.status IN('complained','unsubscribed'))",d.recipient),guard(db,"EXISTS(SELECT 1 FROM s_invoice_delivery_attempts WHERE id=? AND status='ready')",attemptId),stmt(db,"UPDATE s_invoice_delivery_attempts SET status='sending',provider=?,attempted_at=? WHERE id=?",env.MAIL_PROVIDER,at,attemptId),audit(db,actor,'invoice.notification_started',attemptId,JSON.stringify({deliveryId:d.id,notificationTemplate:a.notification_template_id}),{matterId:d.matter_id})]);
  let status='uncertain',providerId:string|null=null,detail='Provider acknowledgment is uncertain. New audited authorization is required; no automatic retry.';

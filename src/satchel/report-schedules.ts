@@ -2,7 +2,7 @@
 // built with the recipient's own report permission at send time, carries counts only, and records its provider outcome;
 // a failed delivery opens an exception owned by the principal with a due date.
 import type {Bindings} from '../auth.server';
-import {operatorMail} from '../mail.server.mjs';
+import {MAIL_OFF,mailOff,operatorMail} from '../mail.server.mjs';
 import {atomic,audit,Fault,human,id,insist,integer,need,now,rows,stmt,text,type Actor,type Data} from './model';
 import {timezone} from './deadlines';
 import {clock,localInstant} from './reminder-time';
@@ -120,7 +120,7 @@ export async function runReportSchedules(env:Bindings,atMs:number) {
    const actor=await reportActor(db,email);if(!actor){await finish('skipped','The recipient no longer has report permission; nothing was sent');continue;}
    let summary:Data;try{summary=await recipientSummary(db,actor,s);}catch{await finish('failed','The report could not be built for this recipient');continue;}
    if(s.channel==='portal'){await finish('available','Summary is available in the recipient’s workspace',summary);continue;}
-   if(!authority||!mail||!env.MAIL_FROM){await finish('failed',authority?'The firm mail provider or sender is not configured':'The firm has not recorded its mail provider review',summary);continue;}
+   if(!authority||!mail||!env.MAIL_FROM){await finish('failed',authority?mailOff(env)?MAIL_OFF:'The firm mail provider or sender is not configured':'The firm has not recorded its mail provider review',summary);continue;}
    try{const r=await mail.send({deliveryId,from:env.MAIL_FROM,to:[email],subject:'Weekly summary: Satchel',text:`${summary.overdue} overdue of ${summary.count} items in your ${summary.title.toLowerCase()} report. Sign in to read the details: ${env.AUTH_ORIGIN}/app\n\nThis email names no matters or clients.`,html:'',headers:{}});
     const status=r.status==='accepted'||r.status==='development'?'accepted':r.status==='uncertain'?'uncertain':'failed';await finish(status,status==='accepted'?'Provider accepted the summary; mailbox delivery is unconfirmed.':`Provider result: ${r.status}`,summary,r.provider,r.providerMessageId??null);}
    catch{await finish('uncertain','The provider outcome is uncertain; no automatic resend.',summary);}

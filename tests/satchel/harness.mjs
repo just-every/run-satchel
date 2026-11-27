@@ -13,13 +13,14 @@ export async function harness(options={}){
  const directory=await mkdtemp(join(tmpdir(),'satchel-http-')),origin=`https://127.0.0.1:${port}`,mails=[];
  const config=JSON.parse(await readFile('dist/server/wrangler.json','utf8'));
  const vars={AUTH_LOCAL:'false',AUTH_ORIGIN:origin,OWNER_EMAIL:'owner@example.test',SESSION_SECRET:randomBytes(32).toString('hex'),SETUP_TOKEN:randomBytes(32).toString('hex'),MAIL_PROVIDER:'resend',MAIL_FROM:'auth@example.test',MAIL_API_KEY:'synthetic-satchel-1',...options.bindings};
- const configOptions={...convertV4MiniflareOptions({
+ const build=async()=>({...convertV4MiniflareOptions({
   host:'127.0.0.1',port,https:true,modulesRoot:resolve('dist/server'),modules:[config.main,...(await readdir('dist/server/assets')).filter(f=>f.endsWith('.js')||f.endsWith('.wasm')).map(f=>'assets/'+f)].map(f=>({type:f.endsWith('.wasm')?'CompiledWasm':'ESModule',path:resolve('dist/server',f)})),
   compatibilityDate:config.compatibility_date,compatibilityFlags:config.compatibility_flags,
   assets:{directory:resolve('dist/client'),routerConfig:{has_user_worker:true}},d1Databases:{DB:'satchel-test'},r2Buckets:{ORIGINALS:'satchel-originals-test'},bindings:vars,
   // Only paid/network boundaries are fake; the built application is unchanged.
   outboundService:async request=>{if(options.microsoftResponse&&['login.microsoftonline.com','graph.microsoft.com'].includes(new URL(request.url).hostname))return options.microsoftResponse(request);if(options.stripeResponse&&new URL(request.url).hostname==='api.stripe.com')return options.stripeResponse(request);if(options.sendgridResponse&&new URL(request.url).hostname==='api.sendgrid.com'){const wire=await request.clone().json();mails.push({to:wire.personalizations.flatMap(p=>p.to.map(a=>a.email)),subject:wire.subject,text:wire.content?.find(c=>c.type==='text/plain')?.value});return options.sendgridResponse(request);}if(options.webhookResponse&&request.url==='https://receiver.example.com/events')return options.webhookResponse(request);if(options.mailReadback&&request.method==='GET'&&request.url.startsWith('https://api.resend.com/emails/'))return options.mailReadback(request);assert.equal(request.url,'https://api.resend.com/emails');const message=await request.json();mails.push(message);return options.mailResponse?options.mailResponse(message,request):Response.json({id:'test-mail-'+mails.length});},
- }),resourcePersistencePath:join(directory,'state')};
+ }),resourcePersistencePath:join(directory,'state')});
+ let configOptions=await build();
  let mf=new Miniflare(configOptions);
  const request=(path,body,cookie='',extra={})=>mf.dispatchFetch(origin+path,{redirect:'manual',method:body===undefined?'GET':'POST',headers:{origin,host:new URL(origin).host,'CF-Connecting-IP':'192.0.2.1',...(body===undefined?{}:{'content-type':'application/json'}),...(cookie?{cookie}:{}),...extra},...(body===undefined?{}:{body:JSON.stringify(body)})});
  const json=async(path,body,cookie,expected=200,extra={})=>{const r=await request('/api/satchel'+path,body,cookie,extra);const b=await r.json();assert.equal(r.status,expected,JSON.stringify(b));return b;};
@@ -39,7 +40,7 @@ export async function harness(options={}){
   const boot=await request('/auth/bootstrap',{token:vars.SETUP_TOKEN,displayName:'Principal'});assert.equal(boot.status,303,await boot.text());
   const owner=await login(vars.OWNER_EMAIL);
   const raw=async(path,init={},cookie='')=>{const request=new Request(origin+path,{...init,headers:{origin,host:new URL(origin).host,'CF-Connecting-IP':'192.0.2.1',...(cookie?{cookie}:{}),...init.headers}});return mf.dispatchFetch(request.url,{redirect:'manual',method:request.method,headers:Object.fromEntries(request.headers),...(request.body?{body:await request.arrayBuffer()}: {})});};
-  return {origin,owner,request,raw,json,login,mails,scheduled:async at=>(await mf.getWorker()).scheduled({scheduledTime:typeof at==='number'?at:Date.parse(at),cron:'*/15 * * * *'}),restart:async()=>{await mf.dispose();mf=new Miniflare(configOptions);await mf.ready;},close:async()=>{await mf.dispose();await rm(directory,{recursive:true,force:true});}};
+  return {origin,owner,request,raw,json,login,mails,scheduled:async at=>(await mf.getWorker()).scheduled({scheduledTime:typeof at==='number'?at:Date.parse(at),cron:'*/15 * * * *'}),restart:async(bindings={})=>{await mf.dispose();Object.assign(vars,bindings);configOptions=await build();mf=new Miniflare(configOptions);await mf.ready;},close:async()=>{await mf.dispose();await rm(directory,{recursive:true,force:true});}};
  }catch(e){await mf.dispose();await rm(directory,{recursive:true,force:true});throw e;}
 }
 export async function open(h,title='Barton lease review',client='Barton Workshop LLC',adverse='Riverbend Holdings LLC'){

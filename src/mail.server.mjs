@@ -1,6 +1,12 @@
 import { createMailSender } from './modules/mail/index.mjs'
 
+// MAIL_PROVIDER=none: the firm runs without outbound mail. No sender exists, and every
+// send site records the refusal under the code mail_off instead of contacting a provider.
+export const mailOff = env => env.MAIL_PROVIDER === 'none'
+export const MAIL_OFF = 'Outbound mail is off for this firm (mail_off); nothing was sent'
+
 export function operatorMail(env) {
+ if (mailOff(env)) return undefined
  if (env.RER_DEMO === '1') return createMailSender({ provider: 'development', mode: 'development' })
  return env.MAIL_PROVIDER === 'development'
   ? env.AUTH_LOCAL === 'true' ? createMailSender({ provider: 'development', mode: 'development' }) : undefined

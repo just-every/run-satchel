@@ -1,6 +1,6 @@
 import {wallAllows} from './matter-scope';
 import type {Bindings} from '../auth.server';
-import {operatorMail} from '../mail.server.mjs';
+import {MAIL_OFF,mailOff,operatorMail} from '../mail.server.mjs';
 import {audit,id,now,rows,stmt,type Data} from './model';
 import {eligible} from './reminder-access';
 import {isQuiet} from './reminder-time';
@@ -32,7 +32,7 @@ export async function runReminders(env:Bindings,at=Date.now()){
   if(!result.meta.changes){await stmt(db,"UPDATE s_reminder_deliveries SET status='cancelled',detail='Recipient access changed, rule replaced, or primary acknowledged before sending' WHERE id=? AND status='queued'",d.id).run();continue;}
   if(d.channel==='workspace'){await outcome(db,d,claim,'available','workspace',d.id,'Reminder available to this recipient in the authenticated workspace; acknowledgment is separate.');continue;}
   const sender=operatorMail(env);
-  if(!sender||!env.MAIL_FROM){await outcome(db,d,claim,'failed',env.MAIL_PROVIDER??'unconfigured',null,'Configure the firm mail provider and sender. No alternative delivery was attempted.');continue;}
+  if(!sender||!env.MAIL_FROM){await outcome(db,d,claim,'failed',env.MAIL_PROVIDER??'unconfigured',null,mailOff(env)?MAIL_OFF:'Configure the firm mail provider and sender. No alternative delivery was attempted.');continue;}
   try{
    const result=await sender.send({deliveryId:d.id,from:env.MAIL_FROM,to:[d.recipient],subject:d.stage==='escalation'?'Satchel deadline escalation':'Satchel deadline reminder',text:`A ${d.stage==='escalation'?'backup escalation':'deadline reminder'} needs your attention. Open your authenticated Satchel workspace: ${env.AUTH_ORIGIN}/app . Acknowledgment does not complete the underlying deadline.`,html:'',headers:{}});
    const status=result.status==='accepted'?'accepted':result.status==='development'?'development':result.status==='uncertain'?'uncertain':'failed';

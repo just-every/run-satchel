@@ -1,6 +1,6 @@
 import {runRequestReminders} from './request-reminders';
 import type {Bindings} from '../auth.server';
-import {operatorMail} from '../mail.server.mjs';
+import {MAIL_OFF,mailOff,operatorMail} from '../mail.server.mjs';
 import {audit,id,rows,stmt,type Data} from './model';
 import {isQuiet} from './reminder-time';
 import {requireProviderReview} from './providers';
@@ -49,7 +49,7 @@ export async function runFollowups(env:Bindings,atMs:number){
   const mail=operatorMail(env),content=await message(env,d,firm);
   if(!content){await outcome(db,d,claim,'failed','none',null,'The consultation was cancelled or has passed; nothing was sent');continue;}
   try{await requireProviderReview(db,'mail');}catch{await outcome(db,d,claim,'failed',env.MAIL_PROVIDER??'unconfigured',null,'The firm has no recorded mail sending authority');continue;}
-  if(!mail||!env.MAIL_FROM){await outcome(db,d,claim,'failed',env.MAIL_PROVIDER??'unconfigured',null,'Configure the firm mail provider and sender. No alternative delivery was attempted.');continue;}
+  if(!mail||!env.MAIL_FROM){await outcome(db,d,claim,'failed',env.MAIL_PROVIDER??'unconfigured',null,mailOff(env)?MAIL_OFF:'Configure the firm mail provider and sender. No alternative delivery was attempted.');continue;}
   try{
    const result=await mail.send({deliveryId:d.id,from:env.MAIL_FROM,to:[d.email],subject:content.subject,text:content.text,html:'',headers:{}});
    const status=result.status==='accepted'?'sent':result.status==='development'?'sent':result.status==='uncertain'?'uncertain':'failed';

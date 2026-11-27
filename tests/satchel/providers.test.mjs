@@ -46,6 +46,17 @@ test('Reviewed correspondence sends once, reconciles provider bounce and complai
   const audit=await h.json('/audit?matterId='+m.id+'&action=correspondence.resend_reviewed',undefined,h.owner);assert.equal(audit.records.length,1);
  }finally{await h.close();}
 });
+test('A firm with mail off (MAIL_PROVIDER=none) refuses sign-in email and reviewed letters as mail_off without contacting a provider',async()=>{
+ const h=await harness();try{
+  const {base,lawyer,contact,consent}=await mailSetup(h);
+  await h.json('/providers/mail/review',{termsUrl:'https://resend.com/legal/terms-of-service',confirmed:true},h.owner);await consent(contact.id,'allowed');
+  const l=await h.json(base+'/correspondence',letter,lawyer),count=h.mails.length;
+  await h.restart({MAIL_PROVIDER:'none',MAIL_FROM:'',MAIL_API_KEY:''});
+  assert.equal((await h.request('/auth/magic-link',{email:'owner@example.test'})).status,503);
+  const refused=await h.json('/mail-attempts/'+l.attemptId+'/send',{},lawyer,409);assert.match(JSON.stringify(refused),/mail_off/);
+  assert.equal(h.mails.length,count,'Mail off contacts no provider');
+ }finally{await h.close();}
+});
 test('Correspondence requires current affirmative consent on every merged identity before sending',async()=>{
  const h=await harness();try{
   const {base,lawyer,contact,consent}=await mailSetup(h);

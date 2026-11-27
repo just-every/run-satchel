@@ -3,7 +3,7 @@ import {collectionSendGuards} from './collection-state';
 import {matterUpdateSendGuards} from './matter-update-delivery';
 import {reminderSendGuards} from './client-reminders';
 import type {Bindings} from '../auth.server';
-import {operatorMail} from '../mail.server.mjs';
+import {MAIL_OFF,mailOff,operatorMail} from '../mail.server.mjs';
 import {atomic,audit,digest,human,id,insist,matter,need,now,rows,stmt,text,type Actor,type Data} from './model';
 import {accessGuard,guard} from './trust-guards';
 import {contactData,contactRevisionGuard} from './contact-data';
@@ -51,7 +51,7 @@ export async function sendCorrespondence(env:Bindings,actor:Actor,attemptId:stri
  const db=env.DB,a=await load(db,actor,attemptId);
  if(a.status!=='ready')return correspondenceState(db,actor,a.matter_id);
  const revision=await eligible(db,actor,a);insist(revision===a.contact_revision,'Contact authority changed; make a fresh review decision',409);
- const mail=operatorMail(env);insist(mail&&env.MAIL_FROM,'Configure the firm mail provider and sender; nothing was sent',409);
+ const mail=operatorMail(env);insist(mail&&env.MAIL_FROM,mailOff(env)?MAIL_OFF:'Configure the firm mail provider and sender; nothing was sent',409);
  const at=new Date(atMs).toISOString(),reminderGuards=await reminderSendGuards(db,actor,a,atMs),updateGuards=await matterUpdateSendGuards(db,actor,a,atMs);
  await atomic(db,actor,[...fences(db,actor,a,revision),...reminderGuards,...updateGuards,...await collectionSendGuards(db,actor,a,atMs),guard(db,"EXISTS(SELECT 1 FROM s_correspondence_attempts WHERE id=? AND status='ready')",a.id),stmt(db,"UPDATE s_correspondence_attempts SET status='sending',provider=?,attempted_at=? WHERE id=?",env.MAIL_PROVIDER??'unconfigured',at,a.id),audit(db,actor,'correspondence.send_started',a.id,JSON.stringify({decision:'One durable attempt claimed before contacting the provider',templateVersion:a.template_version??null}),{matterId:a.matter_id})]);
  let status='uncertain',provider=env.MAIL_PROVIDER??'unconfigured',providerId:string|null=null,detail='Provider acknowledgment was lost. No automatic resend.';
